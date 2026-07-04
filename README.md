@@ -162,12 +162,13 @@ safety & parent reassurance · Kickstarter CTA + waitlist · footer.
 - Waitlist form: `src/components/WaitlistForm.tsx` → `POST /api/waitlist`.
 
 ### Waitlist storage
-`POST /api/waitlist` → `src/lib/waitlist.ts`. When `KIT_API_KEY` is set, signups are created
-as subscribers in **Kit** (kit.com, ex-ConvertKit) via the v4 API, optionally tagged with
-`KIT_TAG_ID`. Kit was chosen over Resend because its free tier holds up to 10k subscribers and
-is built for waitlist → launch broadcasts (Resend's free plan allows only one sending domain,
-already used elsewhere). Without a key, signups append to a local `.data/waitlist.jsonl`
-(ephemeral on serverless — dev/smoke-test only). Swapping providers touches only this one file.
+`POST /api/waitlist` → `src/lib/waitlist.ts`. When `LOOPS_API_KEY` is set, signups upsert a
+contact in **Loops** (loops.so) with `userGroup: "waitlist"`, optionally subscribed to
+`LOOPS_MAILING_LIST_ID`. Loops was chosen for its genuinely free tier and clean API for
+waitlist → launch broadcasts (Resend's free plan allows only one sending domain, already used
+elsewhere; Kit's free tier is time-limited). Without a key, signups append to a local
+`.data/waitlist.jsonl` (ephemeral on serverless — dev/smoke-test only). Swapping providers
+touches only this one file.
 
 ### Develop
 ```bash

@@ -53,3 +53,5 @@ next-env.d.ts
 # Playwright artefacts
 playwright-report/
 test-results/
+.vercel
+.env*

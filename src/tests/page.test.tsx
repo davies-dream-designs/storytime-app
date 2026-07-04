@@ -6,7 +6,7 @@ describe("Home page", () => {
   it("renders the hero tagline", () => {
     render(<Home />);
     expect(
-      screen.getByRole("heading", { name: /brush like a beast/i })
+      screen.getByRole("heading", { level: 1, name: /brush like a beast/i })
     ).toBeInTheDocument();
   });
 

@@ -10,7 +10,7 @@ const squad = [
 
 export default function Home() {
   return (
-    <main className="overflow-x-hidden">
+    <main className="overflow-x-hidden pb-16 md:pb-0">
       {/* Nav */}
       <header className="sticky top-0 z-30 border-b border-swamp-700/10 bg-cream/85 backdrop-blur">
         <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
@@ -44,7 +44,12 @@ export default function Home() {
               mouths open — so brushing goes from a nightly wrestling match to the
               best two minutes of the day.
             </p>
-            <div id="waitlist-hero" className="mt-8 max-w-lg">
+            <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm font-bold text-swamp-700">
+              <li>✅ Free to join</li>
+              <li>✅ Early-bird pricing</li>
+              <li>✅ A launch-only beast</li>
+            </ul>
+            <div id="waitlist-hero" className="mt-5 max-w-lg">
               <WaitlistForm />
             </div>
           </div>
@@ -73,8 +78,56 @@ export default function Home() {
         </div>
       </section>
 
+      {/* How it works */}
+      <section className="mx-auto max-w-6xl px-5 pt-8 pb-4">
+        <div className="mx-auto max-w-2xl text-center">
+          <span className="inline-block rounded-full bg-swamp-700/10 px-4 py-1.5 text-sm font-bold text-swamp-700">
+            What is it?
+          </span>
+          <h2 className="mt-4 font-display text-4xl font-bold text-swamp-800">
+            A monster mouth-rest. Three steps to happier brushing.
+          </h2>
+          <p className="mt-4 text-lg text-ink/70">
+            Brushbeasts is a soft, food-grade silicone rest — shaped like a friendly
+            monster — that gently props little mouths open at brushing time.
+          </p>
+        </div>
+        <div className="mt-12 grid gap-6 md:grid-cols-3">
+          {[
+            {
+              step: "1",
+              title: "Pick a beast",
+              body: "Your kid chooses tonight's Brushbeast from their collection.",
+            },
+            {
+              step: "2",
+              title: "Pop it in",
+              body: "It sits softly between the teeth, holding lips and cheeks back — hands-free.",
+            },
+            {
+              step: "3",
+              title: "Brush like a beast",
+              body: "You can see and reach every tooth. A proper clean, no wrestling.",
+            },
+          ].map((s) => (
+            <div
+              key={s.step}
+              className="relative rounded-3xl border border-swamp-700/10 bg-white p-7 shadow-sm"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-grape-500 font-display text-xl font-bold text-white">
+                {s.step}
+              </div>
+              <h3 className="mt-4 font-display text-xl font-bold text-swamp-700">
+                {s.title}
+              </h3>
+              <p className="mt-2 text-ink/70">{s.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Social proof strip */}
-      <section className="border-y border-swamp-700/10 bg-white">
+      <section className="mt-12 border-y border-swamp-700/10 bg-white">
         <div className="mx-auto grid max-w-6xl grid-cols-2 gap-6 px-5 py-8 text-center md:grid-cols-4">
           {[
             ["2 min", "of happy brushing"],
@@ -245,6 +298,14 @@ export default function Home() {
           </p>
         </div>
       </footer>
+
+      {/* Mobile sticky CTA */}
+      <a
+        href="#waitlist"
+        className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-center gap-2 border-t border-swamp-800/20 bg-tang-500 px-5 py-4 text-center font-extrabold text-white shadow-2xl md:hidden"
+      >
+        <span aria-hidden>👾</span> Join the waitlist — it&apos;s free
+      </a>
     </main>
   );
 }

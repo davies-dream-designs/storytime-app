@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: var(--font-display), system-ui, sans-serif;
+  --font-body: var(--font-body), system-ui, sans-serif;
+
+  --color-cream: #fdf6ec;
+  --color-ink: #14342b;
+
+  --color-slime-50: #f0fde4;
+  --color-slime-100: #d9f8b8;
+  --color-slime-300: #a3e635;
+  --color-slime-400: #84cc16;
+  --color-slime-500: #65a30d;
+
+  --color-swamp-500: #16745a;
+  --color-swamp-600: #0f5a45;
+  --color-swamp-700: #0b4536;
+  --color-swamp-800: #083528;
+
+  --color-grape-300: #c4b5fd;
+  --color-grape-400: #a78bfa;
+  --color-grape-500: #8b5cf6;
+  --color-grape-600: #7c3aed;
+
+  --color-tang-400: #fb923c;
+  --color-tang-500: #f97316;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(-2deg);
+  }
+}
+
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(-4deg);
+  }
+  50% {
+    transform: rotate(4deg);
+  }
+}
+
+@keyframes blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.1);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+.animate-float-slow {
+  animation: float 9s ease-in-out infinite;
+}
+.animate-wiggle {
+  animation: wiggle 3s ease-in-out infinite;
+}
+.animate-blink {
+  transform-origin: center;
+  animation: blink 5s ease-in-out infinite;
+}

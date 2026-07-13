@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
 import { auth, clerkClient } from '@clerk/nextjs/server'
+import { kv } from '@vercel/kv'
 import { db } from '@/lib/db'
 import { generateStory } from '@/lib/storyGenerator'
 import type { Story } from '@/types'
@@ -75,7 +76,10 @@ export async function POST(req: NextRequest) {
     createdAt: new Date().toISOString(),
   }
 
-  await db.stories.create(story)
+  await Promise.all([
+    db.stories.create(story),
+    kv.del(`suggestions:${profileId}`),
+  ])
 
   if (!isAdmin) {
     await client.users.updateUserMetadata(userId, {

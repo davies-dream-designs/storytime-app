@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
+import { kv } from '@vercel/kv'
 import { db } from '@/lib/db'
 import { generateSuggestions } from '@/lib/storyGenerator'
+import type { StorySuggestion } from '@/types'
+
+const CACHE_TTL_SECONDS = 60 * 60 * 24 // 24 hours
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
@@ -19,7 +23,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 503 })
   }
 
-  // Pass recent story titles so suggestions feel fresh
+  const cacheKey = `suggestions:${profileId}`
+  const cached = await kv.get<StorySuggestion[]>(cacheKey)
+  if (cached) return NextResponse.json(cached)
+
   const recentStories = (await db.stories.getByProfileId(profileId))
     .filter((s) => s.userId === userId)
     .sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1))
@@ -27,5 +34,6 @@ export async function POST(req: NextRequest) {
     .map((s) => s.title)
 
   const suggestions = await generateSuggestions(profile, recentStories)
+  await kv.set(cacheKey, suggestions, { ex: CACHE_TTL_SECONDS })
   return NextResponse.json(suggestions)
 }

@@ -20,14 +20,16 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
       <PrintTrigger storyId={id} />
       <style>{`
         @media print {
-          @page { margin: 0; size: A4; }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          @page { margin: 0; size: A4 portrait; }
+          html, body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .no-print { display: none !important; }
+          .storycot-page { break-after: page; page-break-after: always; min-height: 0 !important; height: 297mm; overflow: hidden; }
         }
+        .storycot-page { min-height: 100vh; }
       `}</style>
 
       {/* Cover */}
-      <div className="flex min-h-screen flex-col items-center justify-center bg-night-800 p-12 text-center text-white">
+      <div className="storycot-page flex flex-col items-center justify-center bg-night-800 p-12 text-center text-white">
         <div className="text-7xl" aria-hidden>🌙</div>
         <h1 className="mt-8 font-display text-5xl font-bold leading-tight text-moon-200">
           {story.title}
@@ -46,14 +48,14 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
         story.pages.map((p, i) => (
           <div key={i}>
             {/* Illustration page */}
-            <div className="flex min-h-screen items-center justify-center bg-night-50 p-8">
+            <div className="storycot-page flex items-center justify-center bg-night-50 p-8">
               <div className="flex h-full w-full max-h-screen flex-col items-center justify-center rounded-3xl border-2 border-dashed border-night-200 bg-white">
                 <div className="text-5xl" aria-hidden>🎨</div>
                 <p className="mt-4 max-w-sm text-center text-sm text-night-300">{p.illustrationPrompt}</p>
               </div>
             </div>
             {/* Text page */}
-            <div className="flex min-h-screen flex-col justify-center bg-parchment px-16 py-12">
+            <div className="storycot-page flex flex-col justify-center bg-parchment px-16 py-12">
               <p className="font-display text-2xl font-medium leading-relaxed text-night-800">
                 {p.text}
               </p>
@@ -68,7 +70,7 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
         /* TEXT-ONLY MODE — clean book typography, 2 pages per sheet */
         <>
           {/* Chapter-style opening page */}
-          <div className="flex min-h-screen flex-col justify-center bg-parchment px-16 py-16">
+          <div className="storycot-page flex flex-col justify-center bg-parchment px-16 py-16">
             <div className="mb-12 border-b border-night-200 pb-6">
               <p className="text-xs font-bold uppercase tracking-widest text-night-300">A Storycot story</p>
               <h2 className="mt-3 font-display text-4xl font-bold text-night-800">{story.title}</h2>
@@ -88,7 +90,7 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
             const startIdx = 2 + sheetIdx * 2
             const pagePair = story.pages.slice(startIdx, startIdx + 2)
             return (
-              <div key={sheetIdx} className="flex min-h-screen flex-col justify-center bg-parchment px-16 py-16">
+              <div key={sheetIdx} className="storycot-page flex flex-col justify-center bg-parchment px-16 py-16">
                 {pagePair.map((p, i) => (
                   <p key={i} className="mb-6 font-display text-xl leading-relaxed text-night-800">
                     {p.text}
@@ -102,7 +104,7 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
       )}
 
       {/* Back cover */}
-      <div className="flex min-h-screen flex-col items-center justify-center bg-night-800 p-12 text-center text-white">
+      <div className="storycot-page flex flex-col items-center justify-center bg-night-800 p-12 text-center text-white">
         <div className="text-6xl" aria-hidden>😴</div>
         <p className="mt-8 font-display text-3xl font-bold text-moon-200">The End.</p>
         <p className="mt-4 text-lg text-night-300">

@@ -31,6 +31,9 @@ pnpm-debug.log*
 # Waitlist capture (smoke-test phase)
 .data/
 
+# User data (local story database)
+data/
+
 # OS artefacts
 .DS_Store
 Thumbs.db

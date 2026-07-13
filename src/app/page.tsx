@@ -1,311 +1,208 @@
-import Beast from "@/components/Beast";
-import WaitlistForm from "@/components/WaitlistForm";
-
-const squad = [
-  { name: "Chomper", body: "#16745a", belly: "#a3e635", eyes: 1 as const, horns: false },
-  { name: "Gorp", body: "#7c3aed", belly: "#c4b5fd", eyes: 2 as const, horns: true },
-  { name: "Tangle", body: "#f97316", belly: "#fed7aa", eyes: 1 as const, horns: true },
-  { name: "Bloop", body: "#0891b2", belly: "#a5f3fc", eyes: 2 as const, horns: false },
-];
+import Link from 'next/link'
 
 export default function Home() {
   return (
-    <main className="overflow-x-hidden pb-16 md:pb-0">
+    <main className="overflow-x-hidden">
       {/* Nav */}
-      <header className="sticky top-0 z-30 border-b border-swamp-700/10 bg-cream/85 backdrop-blur">
-        <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
-          <a href="#top" className="flex items-center gap-2 font-display text-2xl font-bold text-swamp-700">
-            <span className="text-3xl" aria-hidden>👾</span>
-            Brushbeasts
-          </a>
-          <a
-            href="#waitlist"
-            className="rounded-full bg-swamp-700 px-5 py-2.5 text-sm font-extrabold text-slime-100 transition hover:bg-swamp-600"
+      <header className="absolute inset-x-0 top-0 z-30">
+        <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
+          <Link href="/" className="flex items-center gap-2 font-display text-2xl font-bold text-white">
+            <span className="text-2xl" aria-hidden>🌙</span>
+            Storytime
+          </Link>
+          <Link
+            href="/dashboard"
+            className="rounded-full bg-moon-400 px-5 py-2.5 text-sm font-bold text-night-900 transition hover:bg-moon-300"
           >
-            Join the waitlist
-          </a>
+            Open App
+          </Link>
         </nav>
       </header>
 
       {/* Hero */}
-      <section id="top" className="relative">
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,theme(colors.slime-100),transparent_60%)]" />
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 md:grid-cols-2 md:py-24">
-          <div>
-            <span className="inline-block rounded-full bg-grape-500/15 px-4 py-1.5 text-sm font-bold text-grape-600">
-              🚀 Coming soon to Kickstarter
-            </span>
-            <h1 className="mt-5 font-display text-5xl font-bold leading-[1.05] text-swamp-800 sm:text-6xl">
-              Show your teeth,{" "}
-              <span className="text-grape-600">brush like a beast.</span>
-            </h1>
-            <p className="mt-5 max-w-md text-lg text-ink/70">
-              Brushbeasts are collectible little monsters that gently hold cheeky
-              mouths open — so brushing goes from a nightly wrestling match to the
-              best two minutes of the day.
-            </p>
-            <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm font-bold text-swamp-700">
-              <li>✅ Free to join</li>
-              <li>✅ Early-bird pricing</li>
-              <li>✅ A launch-only beast</li>
-            </ul>
-            <div id="waitlist-hero" className="mt-5 max-w-lg">
-              <WaitlistForm />
-            </div>
-          </div>
+      <section className="relative min-h-screen bg-gradient-to-b from-night-900 via-night-800 to-night-700 flex items-center">
+        {/* Stars */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+          {[
+            [15, 12], [35, 8], [55, 18], [72, 5], [88, 14],
+            [8, 35], [25, 42], [45, 30], [65, 45], [82, 38],
+            [18, 62], [40, 55], [60, 68], [78, 58], [92, 72],
+          ].map(([x, y], i) => (
+            <div
+              key={i}
+              className="animate-twinkle absolute h-1 w-1 rounded-full bg-moon-200"
+              style={{
+                left: `${x}%`,
+                top: `${y}%`,
+                animationDelay: `${i * 0.3}s`,
+                opacity: 0.6 + (i % 3) * 0.15,
+              }}
+            />
+          ))}
+        </div>
 
-          <div className="relative flex items-center justify-center">
-            <div className="absolute h-72 w-72 rounded-full bg-slime-300/40 blur-3xl" />
-            <Beast
-              body="#16745a"
-              belly="#a3e635"
-              horns
-              className="animate-float relative h-72 w-72 drop-shadow-2xl sm:h-96 sm:w-96"
-            />
-            <Beast
-              body="#7c3aed"
-              belly="#c4b5fd"
-              eyes={2}
-              className="animate-float-slow absolute -bottom-4 -left-2 h-28 w-28 sm:h-36 sm:w-36"
-            />
-            <Beast
-              body="#f97316"
-              belly="#fed7aa"
-              horns
-              className="animate-wiggle absolute -right-1 top-2 h-24 w-24 sm:h-28 sm:w-28"
-            />
+        {/* Moon */}
+        <div className="pointer-events-none absolute right-10 top-16 h-24 w-24 rounded-full bg-moon-200 opacity-20 blur-xl" aria-hidden />
+        <div className="pointer-events-none absolute right-12 top-18 h-20 w-20 rounded-full bg-moon-300 opacity-30" aria-hidden />
+
+        <div className="relative mx-auto max-w-5xl px-5 py-32 text-center">
+          <div className="animate-drift mb-6 text-7xl" aria-hidden>🌙</div>
+          <h1 className="font-display text-5xl font-bold leading-tight text-white sm:text-6xl lg:text-7xl">
+            Bedtime stories
+            <br />
+            <span className="text-moon-300">made just for them.</span>
+          </h1>
+          <p className="mx-auto mt-6 max-w-2xl text-lg text-night-200 sm:text-xl">
+            Create personalised, AI-generated bedtime stories starring your child — with their
+            favourite toys, animals, and adventures woven into every page.
+          </p>
+          <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+            <Link
+              href="/dashboard"
+              className="rounded-full bg-moon-400 px-8 py-4 text-lg font-bold text-night-900 transition hover:bg-moon-300 hover:scale-105"
+            >
+              Create your first story ✨
+            </Link>
+            <Link
+              href="/stories"
+              className="rounded-full border border-white/20 px-8 py-4 text-lg font-bold text-white transition hover:bg-white/10"
+            >
+              Browse stories
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* How it works */}
-      <section className="mx-auto max-w-6xl px-5 pt-8 pb-4">
-        <div className="mx-auto max-w-2xl text-center">
-          <span className="inline-block rounded-full bg-swamp-700/10 px-4 py-1.5 text-sm font-bold text-swamp-700">
-            What is it?
-          </span>
-          <h2 className="mt-4 font-display text-4xl font-bold text-swamp-800">
-            A monster mouth-rest. Three steps to happier brushing.
+      {/* Features */}
+      <section className="mx-auto max-w-6xl px-5 py-24">
+        <div className="text-center">
+          <h2 className="font-display text-4xl font-bold text-night-800">
+            A story that&apos;s theirs alone
           </h2>
-          <p className="mt-4 text-lg text-ink/70">
-            Brushbeasts is a soft, food-grade silicone rest — shaped like a friendly
-            monster — that gently props little mouths open at brushing time.
+          <p className="mt-4 text-lg text-night-500">
+            Every detail that makes your child unique goes into every story.
           </p>
         </div>
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
+        <div className="mt-16 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {[
             {
-              step: "1",
-              title: "Pick a beast",
-              body: "Your kid chooses tonight's Brushbeast from their collection.",
+              icon: '👶',
+              title: 'Child profiles',
+              body: 'Tell us about your little one — their name, age, favourite toys, animals, and places.',
             },
             {
-              step: "2",
-              title: "Pop it in",
-              body: "It sits softly between the teeth, holding lips and cheeks back — hands-free.",
+              icon: '✨',
+              title: 'AI story magic',
+              body: 'Claude AI weaves their world into a 700–900 word bedtime story in seconds.',
             },
             {
-              step: "3",
-              title: "Brush like a beast",
-              body: "You can see and reach every tooth. A proper clean, no wrestling.",
+              icon: '📚',
+              title: 'Story library',
+              body: 'Every story is saved. Re-read favourites any time, any night.',
             },
-          ].map((s) => (
+            {
+              icon: '🖨️',
+              title: 'Print as a book',
+              body: 'Export any story as a beautiful PDF to print and keep forever.',
+            },
+          ].map((f) => (
             <div
-              key={s.step}
-              className="relative rounded-3xl border border-swamp-700/10 bg-white p-7 shadow-sm"
+              key={f.title}
+              className="rounded-3xl border border-night-100 bg-white p-8 shadow-sm"
             >
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-grape-500 font-display text-xl font-bold text-white">
-                {s.step}
-              </div>
-              <h3 className="mt-4 font-display text-xl font-bold text-swamp-700">
-                {s.title}
-              </h3>
-              <p className="mt-2 text-ink/70">{s.body}</p>
+              <div className="text-4xl">{f.icon}</div>
+              <h3 className="mt-4 font-display text-xl font-bold text-night-700">{f.title}</h3>
+              <p className="mt-2 text-night-400">{f.body}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Social proof strip */}
-      <section className="mt-12 border-y border-swamp-700/10 bg-white">
-        <div className="mx-auto grid max-w-6xl grid-cols-2 gap-6 px-5 py-8 text-center md:grid-cols-4">
-          {[
-            ["2 min", "of happy brushing"],
-            ["100%", "food-grade silicone"],
-            ["1 goal", "healthy little smiles"],
-            ["∞", "beasts to collect"],
-          ].map(([big, small]) => (
-            <div key={small}>
-              <p className="font-display text-3xl font-bold text-swamp-700">{big}</p>
-              <p className="text-sm text-ink/60">{small}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Problem */}
-      <section className="mx-auto max-w-6xl px-5 py-20">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="font-display text-4xl font-bold text-swamp-800">
-            Every parent knows the 7pm battle.
-          </h2>
-          <p className="mt-4 text-lg text-ink/70">
-            Clamped-shut mouths. Wriggling. Tears (sometimes yours). Little kids
-            won&apos;t hold still, and you can&apos;t see the teeth you&apos;re trying to
-            clean. Brushbeasts flips the script — the monster does the holding, so
-            you can do the brushing.
+      {/* Example story structure */}
+      <section className="bg-night-800 py-24 text-white">
+        <div className="mx-auto max-w-4xl px-5 text-center">
+          <h2 className="font-display text-4xl font-bold">Every story has a perfect arc.</h2>
+          <p className="mt-4 text-night-200">
+            The AI follows a proven structure that keeps kids engaged and ends with calm.
           </p>
-        </div>
-        <div className="mt-14 grid gap-6 md:grid-cols-3">
-          {[
-            {
-              icon: "😬",
-              title: "Mouths stay open",
-              body: "A soft, one-piece silicone rest gently keeps lips and cheeks back — no pinching, no hard edges.",
-            },
-            {
-              icon: "🪥",
-              title: "You can actually reach",
-              body: "Full view of every tooth means a proper clean in half the time, front and back.",
-            },
-            {
-              icon: "🎉",
-              title: "Kids ask to brush",
-              body: "“Which beast tonight?” beats “time to brush” every single time.",
-            },
-          ].map((c) => (
-            <div
-              key={c.title}
-              className="rounded-3xl border border-swamp-700/10 bg-white p-7 shadow-sm"
-            >
-              <div className="text-4xl">{c.icon}</div>
-              <h3 className="mt-4 font-display text-xl font-bold text-swamp-700">
-                {c.title}
-              </h3>
-              <p className="mt-2 text-ink/70">{c.body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Collect the squad */}
-      <section className="bg-swamp-800 py-20 text-cream">
-        <div className="mx-auto max-w-6xl px-5">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="font-display text-4xl font-bold">Collect the whole squad.</h2>
-            <p className="mt-4 text-lg text-slime-100/70">
-              Glow-in-the-dark, jewel-tone, one-eyed, two-horned — every Brushbeast
-              has a name and a personality. Trade the &quot;brush tonight&quot; nag for
-              &quot;gotta catch &apos;em all.&quot;
-            </p>
-          </div>
-          <div className="mt-14 grid grid-cols-2 gap-6 md:grid-cols-4">
-            {squad.map((b) => (
-              <div
-                key={b.name}
-                className="group rounded-3xl bg-swamp-700/60 p-6 text-center ring-1 ring-white/5 transition hover:-translate-y-1 hover:bg-swamp-700"
-              >
-                <Beast
-                  body={b.body}
-                  belly={b.belly}
-                  eyes={b.eyes}
-                  horns={b.horns}
-                  className="mx-auto h-28 w-28 transition group-hover:scale-105"
-                />
-                <p className="mt-3 font-display text-lg font-bold">{b.name}</p>
+          <div className="mt-14 grid grid-cols-5 gap-2 sm:gap-4">
+            {[
+              { num: '1', label: 'Introduction', icon: '🌅' },
+              { num: '2', label: 'Adventure', icon: '🗺️' },
+              { num: '3', label: 'Growth', icon: '🌱' },
+              { num: '4', label: 'Resolution', icon: '⭐' },
+              { num: '5', label: 'Bedtime', icon: '😴' },
+            ].map((step) => (
+              <div key={step.num} className="flex flex-col items-center gap-2">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-moon-400/20 text-2xl">
+                  {step.icon}
+                </div>
+                <p className="text-xs font-bold text-moon-300 sm:text-sm">{step.label}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Safety */}
-      <section className="mx-auto max-w-6xl px-5 py-20">
-        <div className="grid items-center gap-12 md:grid-cols-2">
-          <div>
-            <span className="inline-block rounded-full bg-slime-300/40 px-4 py-1.5 text-sm font-bold text-swamp-700">
-              Built for little mouths
+      {/* Themes */}
+      <section className="mx-auto max-w-6xl px-5 py-24">
+        <div className="text-center">
+          <h2 className="font-display text-4xl font-bold text-night-800">
+            Stories with heart.
+          </h2>
+          <p className="mt-4 text-lg text-night-500">
+            Choose a theme and the story naturally teaches it.
+          </p>
+        </div>
+        <div className="mt-12 flex flex-wrap justify-center gap-3">
+          {[
+            ['💛', 'Kindness'],
+            ['🦁', 'Bravery'],
+            ['🤝', 'Sharing'],
+            ['🌈', 'Trying new things'],
+            ['💭', 'Dealing with emotions'],
+            ['👫', 'Friendship'],
+            ['🌿', 'Patience'],
+            ['✅', 'Honesty'],
+            ['🙏', 'Gratitude'],
+            ['💪', 'Perseverance'],
+          ].map(([icon, theme]) => (
+            <span
+              key={theme}
+              className="flex items-center gap-2 rounded-full border border-night-100 bg-white px-5 py-2.5 text-sm font-bold text-night-600 shadow-sm"
+            >
+              <span>{icon}</span> {theme}
             </span>
-            <h2 className="mt-4 font-display text-4xl font-bold text-swamp-800">
-              Safety isn&apos;t a feature. It&apos;s the whole point.
-            </h2>
-            <p className="mt-4 text-lg text-ink/70">
-              Anything that goes in a child&apos;s mouth deserves obsessive care. Every
-              Brushbeast is designed and tested to the standards parents expect.
-            </p>
-            <ul className="mt-6 space-y-3">
-              {[
-                "100% food-grade, platinum-cured silicone — BPA, PVC, phthalate & latex free",
-                "One solid piece: no small parts, no eyes or horns that can come loose",
-                "Oversized safety flange sits outside the lips — no swallow risk",
-                "Independently lab-tested to toy-safety standards (EN 71 / ASTM F963 / AS-NZS ISO 8124)",
-                "Dishwasher-safe and easy to keep clean",
-              ].map((item) => (
-                <li key={item} className="flex gap-3 text-ink/80">
-                  <span className="mt-1 text-slime-500" aria-hidden>
-                    ✔
-                  </span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-6 text-sm text-ink/50">
-              Always use with adult supervision. Certification in progress ahead of
-              our first production run.
-            </p>
-          </div>
-          <div className="relative flex justify-center">
-            <div className="absolute h-64 w-64 rounded-full bg-grape-300/30 blur-3xl" />
-            <Beast
-              body="#0891b2"
-              belly="#a5f3fc"
-              eyes={2}
-              className="animate-float relative h-72 w-72"
-            />
-          </div>
+          ))}
         </div>
       </section>
 
-      {/* Kickstarter CTA / waitlist */}
-      <section id="waitlist" className="bg-gradient-to-b from-grape-500 to-grape-600 py-20 text-white">
-        <div className="mx-auto max-w-3xl px-5 text-center">
-          <span className="inline-block rounded-full bg-white/15 px-4 py-1.5 text-sm font-bold">
-            🚀 Backing opens on Kickstarter soon
-          </span>
-          <h2 className="mt-5 font-display text-4xl font-bold sm:text-5xl">
-            Be first in the pack.
+      {/* CTA */}
+      <section className="bg-gradient-to-b from-night-700 to-night-900 py-24 text-center">
+        <div className="mx-auto max-w-2xl px-5">
+          <div className="text-5xl" aria-hidden>🌙</div>
+          <h2 className="mt-4 font-display text-4xl font-bold text-white">
+            Ready for tonight&apos;s story?
           </h2>
-          <p className="mt-4 text-lg text-white/80">
-            Join the waitlist for early-bird pricing, exclusive launch-only beasts,
-            and a heads-up the moment we go live. Help us make brushing the best two
-            minutes of the day.
+          <p className="mt-4 text-night-200">
+            Create a child profile, pick a theme, and have a magical story ready in under a minute.
           </p>
-          <div className="mx-auto mt-8 max-w-xl">
-            <WaitlistForm variant="dark" />
-          </div>
+          <Link
+            href="/dashboard"
+            className="mt-8 inline-block rounded-full bg-moon-400 px-8 py-4 text-lg font-bold text-night-900 transition hover:bg-moon-300"
+          >
+            Get started — it&apos;s free ✨
+          </Link>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-swamp-800 py-10 text-slime-100/60">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 sm:flex-row">
-          <p className="flex items-center gap-2 font-display text-lg font-bold text-cream">
-            <span aria-hidden>👾</span> Brushbeasts
-          </p>
-          <p className="text-sm">
-            © {new Date().getFullYear()} Brushbeasts. A concept in the making. Name &
-            branding subject to trademark clearance.
-          </p>
-        </div>
+      <footer className="bg-night-900 py-8 text-center text-night-300">
+        <p className="font-display text-lg font-bold text-white mb-1">
+          <span aria-hidden>🌙</span> Storytime
+        </p>
+        <p className="text-sm">Personalised bedtime stories for the little ones you love.</p>
       </footer>
-
-      {/* Mobile sticky CTA */}
-      <a
-        href="#waitlist"
-        className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-center gap-2 border-t border-swamp-800/20 bg-tang-500 px-5 py-4 text-center font-extrabold text-white shadow-2xl md:hidden"
-      >
-        <span aria-hidden>👾</span> Join the waitlist — it&apos;s free
-      </a>
     </main>
-  );
+  )
 }

@@ -19,18 +19,8 @@ export default function StoryReader({ story }: { story: Story }) {
           </p>
         </div>
 
-        {/* Illustration placeholder */}
-        <div className="flex items-center justify-center bg-gradient-to-b from-night-50 to-parchment px-8 py-10">
-          <div className="flex h-48 w-full max-w-xs flex-col items-center justify-center rounded-2xl border-2 border-dashed border-night-200 text-center sm:h-56">
-            <div className="text-4xl" aria-hidden>🎨</div>
-            <p className="mt-2 text-xs text-night-300 max-w-48">
-              {currentPage?.illustrationPrompt}
-            </p>
-          </div>
-        </div>
-
         {/* Story text */}
-        <div className="px-8 pb-10 pt-6">
+        <div className="px-8 pb-10 pt-8">
           <p className="font-display text-xl font-medium leading-relaxed text-night-800 sm:text-2xl">
             {currentPage?.text}
           </p>

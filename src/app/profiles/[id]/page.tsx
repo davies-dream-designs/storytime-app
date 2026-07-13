@@ -1,16 +1,18 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { auth } from '@clerk/nextjs/server'
 import Nav from '@/components/Nav'
 import { db } from '@/lib/db'
 import DeleteProfileButton from './DeleteProfileButton'
 
 export default async function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  const { userId } = await auth()
   const { id } = await params
   const profile = db.profiles.getById(id)
-  if (!profile) notFound()
+  if (!profile || profile.userId !== userId) notFound()
 
-  const stories = db.stories.getByProfileId(id).sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1))
-  const characters = db.characters.getByProfileId(id)
+  const stories = db.stories.getByProfileId(id).filter((s) => s.userId === userId).sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1))
+  const characters = db.characters.getByProfileId(id).filter((c) => c.userId === userId)
 
   return (
     <>

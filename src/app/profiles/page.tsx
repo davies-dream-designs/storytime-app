@@ -1,9 +1,11 @@
 import Link from 'next/link'
+import { auth } from '@clerk/nextjs/server'
 import Nav from '@/components/Nav'
 import { db } from '@/lib/db'
 
-export default function ProfilesPage() {
-  const profiles = db.profiles.getAll()
+export default async function ProfilesPage() {
+  const { userId } = await auth()
+  const profiles = db.profiles.getByUserId(userId!)
 
   return (
     <>
@@ -37,7 +39,7 @@ export default function ProfilesPage() {
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {profiles.map((profile) => {
-              const storyCount = db.stories.getByProfileId(profile.id).length
+              const storyCount = db.stories.getByProfileId(profile.id).filter((s) => s.userId === userId).length
               return (
                 <Link
                   key={profile.id}

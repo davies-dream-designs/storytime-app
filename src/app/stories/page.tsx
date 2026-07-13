@@ -1,10 +1,12 @@
 import Link from 'next/link'
+import { auth } from '@clerk/nextjs/server'
 import Nav from '@/components/Nav'
 import { db } from '@/lib/db'
 
-export default function StoriesPage() {
-  const stories = db.stories.getAll().sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1))
-  const profiles = db.profiles.getAll()
+export default async function StoriesPage() {
+  const { userId } = await auth()
+  const stories = db.stories.getByUserId(userId!).sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1))
+  const profiles = db.profiles.getByUserId(userId!)
 
   return (
     <>

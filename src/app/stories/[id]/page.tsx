@@ -1,13 +1,15 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { auth } from '@clerk/nextjs/server'
 import Nav from '@/components/Nav'
 import { db } from '@/lib/db'
 import StoryReader from './StoryReader'
 
 export default async function StoryPage({ params }: { params: Promise<{ id: string }> }) {
+  const { userId } = await auth()
   const { id } = await params
   const story = db.stories.getById(id)
-  if (!story) notFound()
+  if (!story || story.userId !== userId) notFound()
 
   const profile = db.profiles.getById(story.profileId)
 

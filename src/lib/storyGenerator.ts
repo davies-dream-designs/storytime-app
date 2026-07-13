@@ -110,13 +110,6 @@ export async function generateSuggestions(
   profile: ChildProfile,
   recentTitles: string[]
 ): Promise<StorySuggestion[]> {
-  // Pick different random elements for each suggestion to show variety
-  const allElements = [
-    ...profile.favouriteCharacters,
-    ...profile.favouriteActivities,
-    ...profile.favouriteAnimals,
-    ...profile.favouritePlaces,
-  ]
 
   const avoidSection =
     recentTitles.length > 0

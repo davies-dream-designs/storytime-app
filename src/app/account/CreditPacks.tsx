@@ -3,9 +3,9 @@
 import { useState } from 'react'
 
 const PACKS = [
-  { id: 'starter',  label: 'Starter',      stories: 10,  price: '$4.99',  priceNote: 'AUD' },
-  { id: 'family',   label: 'Family',        stories: 30,  price: '$11.99', priceNote: 'AUD', popular: true },
-  { id: 'pro',      label: 'Bedtime Pro',   stories: 100, price: '$29.99', priceNote: 'AUD' },
+  { id: 'starter', label: 'Starter',     stories: 10,  price: '$4.99',  priceNote: 'AUD', popular: false },
+  { id: 'family',  label: 'Family',       stories: 30,  price: '$11.99', priceNote: 'AUD', popular: true },
+  { id: 'pro',     label: 'Bedtime Pro',  stories: 100, price: '$29.99', priceNote: 'AUD', popular: false },
 ] as const
 
 export default function CreditPacks() {

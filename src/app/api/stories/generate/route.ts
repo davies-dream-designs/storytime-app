@@ -12,9 +12,10 @@ export async function POST(req: NextRequest) {
   // Check credits (undefined = new user with 3 free stories)
   const client = await clerkClient()
   const user = await client.users.getUser(userId)
+  const isAdmin = user.privateMetadata.isAdmin === true
   const credits = (user.privateMetadata.credits as number | undefined) ?? 3
 
-  if (credits <= 0) {
+  if (!isAdmin && credits <= 0) {
     return NextResponse.json(
       { error: 'No credits remaining. Visit /account to purchase more.' },
       { status: 402 }
@@ -69,10 +70,14 @@ export async function POST(req: NextRequest) {
 
   db.stories.create(story)
 
-  // Deduct 1 credit
-  await client.users.updateUserMetadata(userId, {
-    privateMetadata: { credits: credits - 1 },
-  })
+  if (!isAdmin) {
+    await client.users.updateUserMetadata(userId, {
+      privateMetadata: { credits: credits - 1 },
+    })
+  }
 
-  return NextResponse.json({ ...story, creditsRemaining: credits - 1 }, { status: 201 })
+  return NextResponse.json(
+    { ...story, creditsRemaining: isAdmin ? Infinity : credits - 1 },
+    { status: 201 }
+  )
 }

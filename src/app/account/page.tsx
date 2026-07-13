@@ -8,6 +8,7 @@ export default async function AccountPage() {
 
   const client = await clerkClient()
   const user = await client.users.getUser(userId)
+  const isAdmin = user.privateMetadata.isAdmin === true
   const credits = (user.privateMetadata.credits as number | undefined) ?? 3
 
   return (
@@ -24,13 +25,15 @@ export default async function AccountPage() {
               ✨
             </div>
             <div>
-              <p className="font-display text-3xl font-bold text-night-800">{credits}</p>
+              <p className="font-display text-3xl font-bold text-night-800">
+                {isAdmin ? '∞' : credits}
+              </p>
               <p className="text-night-500">
-                {credits === 1 ? 'story credit remaining' : 'story credits remaining'}
+                {isAdmin ? 'unlimited (admin)' : credits === 1 ? 'story credit remaining' : 'story credits remaining'}
               </p>
             </div>
           </div>
-          {credits <= 1 && (
+          {!isAdmin && credits <= 1 && (
             <p className="mt-4 rounded-xl bg-star-50 px-4 py-3 text-sm font-bold text-star-700">
               {credits === 0
                 ? 'You\'re out of credits — grab a pack below to keep going.'

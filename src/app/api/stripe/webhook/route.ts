@@ -5,8 +5,10 @@ import { clerkClient } from '@clerk/nextjs/server'
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
 export async function POST(req: NextRequest) {
+  console.log('[stripe-webhook] POST received')
   const body = await req.text()
   const sig = req.headers.get('stripe-signature')
+  console.log('[stripe-webhook] sig present:', !!sig, '| secret present:', !!process.env.STRIPE_WEBHOOK_SECRET)
 
   if (!sig || !process.env.STRIPE_WEBHOOK_SECRET) {
     return NextResponse.json({ error: 'Missing signature or secret' }, { status: 400 })
@@ -15,7 +17,8 @@ export async function POST(req: NextRequest) {
   let event: Stripe.Event
   try {
     event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET)
-  } catch {
+  } catch (err) {
+    console.log('[stripe-webhook] signature failed:', err instanceof Error ? err.message : err)
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 

@@ -1,5 +1,6 @@
 export interface ChildProfile {
   id: string
+  userId: string
   name: string
   age: number
   favouriteCharacters: string[]
@@ -18,6 +19,7 @@ export interface StoryPage {
 
 export interface Story {
   id: string
+  userId: string
   title: string
   profileId: string
   profileName: string
@@ -30,6 +32,7 @@ export interface Story {
 
 export interface Character {
   id: string
+  userId: string
   name: string
   description: string
   personality: string

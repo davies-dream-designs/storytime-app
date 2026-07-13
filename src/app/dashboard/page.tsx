@@ -1,10 +1,12 @@
 import Link from 'next/link'
+import { auth } from '@clerk/nextjs/server'
 import Nav from '@/components/Nav'
 import { db } from '@/lib/db'
 
-export default function Dashboard() {
-  const profiles = db.profiles.getAll()
-  const stories = db.stories.getAll().sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1))
+export default async function Dashboard() {
+  const { userId } = await auth()
+  const profiles = db.profiles.getByUserId(userId!)
+  const stories = db.stories.getByUserId(userId!).sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1))
   const recentStories = stories.slice(0, 3)
 
   return (

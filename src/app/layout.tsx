@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Fredoka, Nunito } from 'next/font/google'
+import { ClerkProvider } from '@clerk/nextjs'
 import './globals.css'
 
 const fredoka = Fredoka({
@@ -23,8 +24,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${fredoka.variable} ${nunito.variable}`}>
-      <body className="bg-parchment text-ink font-body antialiased">{children}</body>
-    </html>
+    <ClerkProvider>
+      <html lang="en" className={`${fredoka.variable} ${nunito.variable}`}>
+        <body className="bg-parchment text-ink font-body antialiased">{children}</body>
+      </html>
+    </ClerkProvider>
   )
 }

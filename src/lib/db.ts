@@ -33,6 +33,9 @@ export const db = {
     getAll(): ChildProfile[] {
       return readData<ChildProfile[]>('profiles.json', [])
     },
+    getByUserId(userId: string): ChildProfile[] {
+      return this.getAll().filter((p) => p.userId === userId)
+    },
     getById(id: string): ChildProfile | undefined {
       return this.getAll().find((p) => p.id === id)
     },
@@ -62,6 +65,9 @@ export const db = {
     getAll(): Story[] {
       return readData<Story[]>('stories.json', [])
     },
+    getByUserId(userId: string): Story[] {
+      return this.getAll().filter((s) => s.userId === userId)
+    },
     getById(id: string): Story | undefined {
       return this.getAll().find((s) => s.id === id)
     },
@@ -85,6 +91,9 @@ export const db = {
   characters: {
     getAll(): Character[] {
       return readData<Character[]>('characters.json', [])
+    },
+    getByUserId(userId: string): Character[] {
+      return this.getAll().filter((c) => c.userId === userId)
     },
     getByProfileId(profileId: string): Character[] {
       return this.getAll().filter((c) => c.profileId === profileId)

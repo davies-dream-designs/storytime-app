@@ -34,9 +34,15 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
               {new Date(story.createdAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
-          <div className="flex flex-shrink-0 gap-2">
+          <div className="flex flex-shrink-0 flex-wrap gap-2">
             <a href={`/stories/${id}/print`} target="_blank" rel="noopener noreferrer" className="rounded-full border border-night-200 px-4 py-2 text-sm font-bold text-night-600 transition hover:bg-night-50">
               🖨️ Print / PDF
+            </a>
+            <a
+              href={`mailto:hello@storycot.com?subject=Printed book order — ${encodeURIComponent(story.title)}&body=Hi!%0A%0AI'd love to order a printed copy of "${story.title}" for ${story.profileName}.%0A%0APlease get back to me with pricing and delivery details.%0A%0AThanks!`}
+              className="rounded-full border border-star-300 bg-star-50 px-4 py-2 text-sm font-bold text-star-700 transition hover:bg-star-100"
+            >
+              📚 Order a printed book
             </a>
             <Link href={`/stories/new?profileId=${story.profileId}`} className="rounded-full bg-night-700 px-4 py-2 text-sm font-bold text-moon-200 transition hover:bg-night-600">
               ✨ New story

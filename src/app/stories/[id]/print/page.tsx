@@ -9,10 +9,10 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
   const story = await db.stories.getById(id)
   if (!story || story.userId !== userId) notFound()
 
+  const hasImages = false // flip to true when image generation is live
+
   const dateStr = new Date(story.createdAt).toLocaleDateString('en-AU', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
+    day: 'numeric', month: 'long', year: 'numeric',
   })
 
   return (
@@ -20,62 +20,98 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
       <PrintTrigger storyId={id} />
       <style>{`
         @media print {
-          @page { margin: 15mm; size: A4; }
-          body { font-family: 'Nunito', Georgia, serif; }
+          @page { margin: 0; size: A4; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .no-print { display: none !important; }
         }
       `}</style>
 
-      {/* Cover page */}
-      <div className="flex min-h-screen flex-col items-center justify-center bg-night-800 p-10 text-center text-white">
-        <div className="text-6xl" aria-hidden>🌙</div>
-        <h1 className="mt-6 font-display text-4xl font-bold text-moon-200 sm:text-5xl">
+      {/* Cover */}
+      <div className="flex min-h-screen flex-col items-center justify-center bg-night-800 p-12 text-center text-white">
+        <div className="text-7xl" aria-hidden>🌙</div>
+        <h1 className="mt-8 font-display text-5xl font-bold leading-tight text-moon-200">
           {story.title}
         </h1>
-        <div className="mt-8 h-px w-32 bg-moon-400 opacity-50" />
+        <div className="mt-8 h-px w-40 bg-moon-400/50" />
         <p className="mt-8 text-xl text-night-200">
-          Created especially for{' '}
+          A story created especially for{' '}
           <span className="font-bold text-moon-300">{story.profileName}</span>
         </p>
-        <p className="mt-2 text-night-400">{dateStr}</p>
-        <div className="mt-8 text-5xl" aria-hidden>⭐</div>
-        <p className="mt-4 text-sm text-night-400">A Storycot story</p>
+        <p className="mt-2 text-sm text-night-500">{dateStr}</p>
+        <p className="mt-12 text-xs text-night-600">A Storycot story · storycot.com</p>
       </div>
 
-      {/* Story pages */}
-      {story.pages.map((p, i) => (
-        <div
-          key={i}
-          className="flex min-h-screen flex-col bg-parchment p-10 sm:p-14"
-        >
-          {/* Illustration placeholder */}
-          <div className="mb-8 flex h-56 items-center justify-center rounded-2xl border-2 border-dashed border-night-200 bg-white">
-            <div className="text-center">
-              <div className="text-3xl" aria-hidden>🎨</div>
-              <p className="mt-2 max-w-xs text-xs text-night-300">{p.illustrationPrompt}</p>
+      {hasImages ? (
+        /* IMAGE MODE — full page image + full page text alternating */
+        story.pages.map((p, i) => (
+          <div key={i}>
+            {/* Illustration page */}
+            <div className="flex min-h-screen items-center justify-center bg-night-50 p-8">
+              <div className="flex h-full w-full max-h-screen flex-col items-center justify-center rounded-3xl border-2 border-dashed border-night-200 bg-white">
+                <div className="text-5xl" aria-hidden>🎨</div>
+                <p className="mt-4 max-w-sm text-center text-sm text-night-300">{p.illustrationPrompt}</p>
+              </div>
+            </div>
+            {/* Text page */}
+            <div className="flex min-h-screen flex-col justify-center bg-parchment px-16 py-12">
+              <p className="font-display text-2xl font-medium leading-relaxed text-night-800">
+                {p.text}
+              </p>
+              <div className="mt-8 flex items-center justify-between border-t border-night-100 pt-4">
+                <p className="text-xs font-bold text-night-300">{story.title}</p>
+                <p className="text-xs text-night-300">{i + 1} / {story.pages.length}</p>
+              </div>
             </div>
           </div>
-
-          {/* Story text */}
-          <div className="flex-1">
-            <p className="font-display text-xl font-medium leading-relaxed text-night-800 sm:text-2xl">
-              {p.text}
-            </p>
+        ))
+      ) : (
+        /* TEXT-ONLY MODE — clean book typography, 2 pages per sheet */
+        <>
+          {/* Chapter-style opening page */}
+          <div className="flex min-h-screen flex-col justify-center bg-parchment px-16 py-16">
+            <div className="mb-12 border-b border-night-200 pb-6">
+              <p className="text-xs font-bold uppercase tracking-widest text-night-300">A Storycot story</p>
+              <h2 className="mt-3 font-display text-4xl font-bold text-night-800">{story.title}</h2>
+              <p className="mt-2 text-night-400">For {story.profileName} · {story.theme}</p>
+            </div>
+            {/* First two pages of text on the opening spread */}
+            {story.pages.slice(0, 2).map((p, i) => (
+              <p key={i} className="mb-6 font-display text-xl leading-relaxed text-night-800">
+                {p.text}
+              </p>
+            ))}
+            <p className="mt-auto text-right text-xs text-night-300">1</p>
           </div>
 
-          {/* Page number */}
-          <div className="mt-8 flex items-center justify-between border-t border-night-100 pt-4">
-            <p className="text-xs font-bold text-night-300">{story.title}</p>
-            <p className="text-xs text-night-300">{i + 1} / {story.pages.length}</p>
-          </div>
+          {/* Remaining pages — 2 pages of text per printed sheet */}
+          {Array.from({ length: Math.ceil((story.pages.length - 2) / 2) }, (_, sheetIdx) => {
+            const startIdx = 2 + sheetIdx * 2
+            const pagePair = story.pages.slice(startIdx, startIdx + 2)
+            return (
+              <div key={sheetIdx} className="flex min-h-screen flex-col justify-center bg-parchment px-16 py-16">
+                {pagePair.map((p, i) => (
+                  <p key={i} className="mb-6 font-display text-xl leading-relaxed text-night-800">
+                    {p.text}
+                  </p>
+                ))}
+                <p className="mt-auto text-right text-xs text-night-300">{sheetIdx + 2}</p>
+              </div>
+            )
+          })}
+        </>
+      )}
+
+      {/* Back cover */}
+      <div className="flex min-h-screen flex-col items-center justify-center bg-night-800 p-12 text-center text-white">
+        <div className="text-6xl" aria-hidden>😴</div>
+        <p className="mt-8 font-display text-3xl font-bold text-moon-200">The End.</p>
+        <p className="mt-4 text-lg text-night-300">
+          Sweet dreams, {story.profileName}. 🌙
+        </p>
+        <div className="mt-16 text-xs text-night-600">
+          <p>Created with Storycot · storycot.com</p>
+          <p className="mt-1">Every child deserves a story made just for them.</p>
         </div>
-      ))}
-
-      {/* Back end page */}
-      <div className="flex min-h-screen flex-col items-center justify-center bg-night-800 p-10 text-center text-white">
-        <div className="text-5xl" aria-hidden>😴</div>
-        <p className="mt-6 font-display text-2xl font-bold text-moon-200">The end.</p>
-        <p className="mt-4 text-night-300">Sweet dreams, {story.profileName}. 🌙</p>
       </div>
     </>
   )

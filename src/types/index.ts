@@ -17,6 +17,12 @@ export interface StoryPage {
   illustrationPrompt: string
 }
 
+export interface StorySuggestion {
+  title: string
+  premise: string
+  theme: string
+}
+
 export interface Story {
   id: string
   userId: string
@@ -26,6 +32,7 @@ export interface Story {
   pages: StoryPage[]
   wordCount: number
   theme: string
+  premise?: string
   notes: string
   createdAt: string
 }

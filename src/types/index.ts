@@ -35,6 +35,7 @@ export interface Story {
   premise?: string
   notes: string
   createdAt: string
+  shareToken?: string
 }
 
 export interface Character {

@@ -47,16 +47,31 @@ export const db = {
     async getByProfileId(profileId: string): Promise<Story[]> {
       return (await this.getAll()).filter((s) => s.profileId === profileId)
     },
+    async getByShareToken(token: string): Promise<Story | undefined> {
+      const storyId = await kv.get<string>(`share:${token}`)
+      if (!storyId) return undefined
+      return this.getById(storyId)
+    },
     async create(story: Story): Promise<void> {
       const all = await this.getAll()
       all.push(story)
       await kv.set('stories', all)
     },
+    async setShareToken(id: string, token: string): Promise<void> {
+      const all = await this.getAll()
+      const idx = all.findIndex((s) => s.id === id)
+      if (idx === -1) return
+      all[idx] = { ...all[idx], shareToken: token }
+      await Promise.all([kv.set('stories', all), kv.set(`share:${token}`, id)])
+    },
     async delete(id: string): Promise<boolean> {
       const all = await this.getAll()
+      const story = all.find((s) => s.id === id)
       const filtered = all.filter((s) => s.id !== id)
       if (filtered.length === all.length) return false
-      await kv.set('stories', filtered)
+      const ops: Promise<unknown>[] = [kv.set('stories', filtered)]
+      if (story?.shareToken) ops.push(kv.del(`share:${story.shareToken}`))
+      await Promise.all(ops)
       return true
     },
   },

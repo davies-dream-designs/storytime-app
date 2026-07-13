@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import Nav from '@/components/Nav'
 import { db } from '@/lib/db'
 import StoryReader from './StoryReader'
+import ShareButton from './ShareButton'
 
 export default async function StoryPage({ params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
@@ -35,6 +36,7 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
             </p>
           </div>
           <div className="flex flex-shrink-0 flex-wrap gap-2">
+            <ShareButton storyId={id} />
             <a href={`/stories/${id}/print`} target="_blank" rel="noopener noreferrer" className="rounded-full border border-night-200 px-4 py-2 text-sm font-bold text-night-600 transition hover:bg-night-50">
               🖨️ Print / PDF
             </a>

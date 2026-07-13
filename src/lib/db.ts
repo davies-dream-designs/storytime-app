@@ -3,7 +3,7 @@ import { join } from 'path'
 import type { ChildProfile, Story, Character } from '@/types'
 
 // Vercel functions have a read-only filesystem except /tmp
-const DATA_DIR = process.env.VERCEL ? '/tmp/storytime' : join(process.cwd(), 'data')
+const DATA_DIR = process.env.VERCEL ? '/tmp/storycot' : join(process.cwd(), 'data')
 
 function ensureDataDir() {
   if (!existsSync(DATA_DIR)) {

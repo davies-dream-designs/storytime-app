@@ -8,7 +8,7 @@ export default function Home() {
         <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
           <Link href="/" className="flex items-center gap-2 font-display text-2xl font-bold text-white">
             <span className="text-2xl" aria-hidden>🌙</span>
-            Storytime
+            Storycot
           </Link>
           <Link
             href="/dashboard"
@@ -199,7 +199,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="bg-night-900 py-8 text-center text-night-300">
         <p className="font-display text-lg font-bold text-white mb-1">
-          <span aria-hidden>🌙</span> Storytime
+          <span aria-hidden>🌙</span> Storycot
         </p>
         <p className="text-sm">Personalised bedtime stories for the little ones you love.</p>
       </footer>

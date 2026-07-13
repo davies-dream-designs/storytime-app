@@ -5,7 +5,7 @@ export default function Nav() {
     <header className="sticky top-0 z-30 border-b border-night-100 bg-parchment/90 backdrop-blur">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
         <Link href="/" className="flex items-center gap-2 font-display text-xl font-bold text-night-700">
-          <span aria-hidden>🌙</span> Storytime
+          <span aria-hidden>🌙</span> Storycot
         </Link>
         <div className="flex items-center gap-1 sm:gap-2">
           <Link

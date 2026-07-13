@@ -36,7 +36,7 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
         </p>
         <p className="mt-2 text-night-400">{dateStr}</p>
         <div className="mt-8 text-5xl" aria-hidden>⭐</div>
-        <p className="mt-4 text-sm text-night-400">A Storytime story</p>
+        <p className="mt-4 text-sm text-night-400">A Storycot story</p>
 
         <div className="no-print mt-12 flex gap-4">
           <button

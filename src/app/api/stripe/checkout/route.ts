@@ -22,7 +22,10 @@ export async function POST(req: NextRequest) {
   const packData = PACKS[pack as keyof typeof PACKS]
   if (!packData) return NextResponse.json({ error: 'Invalid pack' }, { status: 400 })
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  // NEXT_PUBLIC_APP_URL wins; fall back to Vercel's auto-injected URL, then localhost
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ['card'],

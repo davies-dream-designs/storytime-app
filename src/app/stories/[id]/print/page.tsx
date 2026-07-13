@@ -1,11 +1,13 @@
 import { notFound } from 'next/navigation'
+import { auth } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
 import PrintTrigger from './PrintTrigger'
 
 export default async function PrintPage({ params }: { params: Promise<{ id: string }> }) {
+  const { userId } = await auth()
   const { id } = await params
   const story = await db.stories.getById(id)
-  if (!story) notFound()
+  if (!story || story.userId !== userId) notFound()
 
   const dateStr = new Date(story.createdAt).toLocaleDateString('en-AU', {
     day: 'numeric',
@@ -15,16 +17,17 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
 
   return (
     <>
-      <PrintTrigger />
+      <PrintTrigger storyId={id} />
       <style>{`
         @media print {
           @page { margin: 15mm; size: A4; }
           body { font-family: 'Nunito', Georgia, serif; }
+          .no-print { display: none !important; }
         }
       `}</style>
 
       {/* Cover page */}
-      <div className="print-cover flex min-h-screen flex-col items-center justify-center bg-night-800 p-10 text-center text-white">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-night-800 p-10 text-center text-white">
         <div className="text-6xl" aria-hidden>🌙</div>
         <h1 className="mt-6 font-display text-4xl font-bold text-moon-200 sm:text-5xl">
           {story.title}
@@ -37,28 +40,13 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
         <p className="mt-2 text-night-400">{dateStr}</p>
         <div className="mt-8 text-5xl" aria-hidden>⭐</div>
         <p className="mt-4 text-sm text-night-400">A Storycot story</p>
-
-        <div className="no-print mt-12 flex gap-4">
-          <button
-            onClick={() => window.print()}
-            className="rounded-full bg-moon-400 px-6 py-3 font-bold text-night-900"
-          >
-            🖨️ Print / Save as PDF
-          </button>
-          <a
-            href={`/stories/${id}`}
-            className="rounded-full border border-white/30 px-6 py-3 font-bold text-white"
-          >
-            ← Back to story
-          </a>
-        </div>
       </div>
 
       {/* Story pages */}
       {story.pages.map((p, i) => (
         <div
           key={i}
-          className="print-page flex min-h-screen flex-col bg-parchment p-10 sm:p-14"
+          className="flex min-h-screen flex-col bg-parchment p-10 sm:p-14"
         >
           {/* Illustration placeholder */}
           <div className="mb-8 flex h-56 items-center justify-center rounded-2xl border-2 border-dashed border-night-200 bg-white">
@@ -78,22 +66,16 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
           {/* Page number */}
           <div className="mt-8 flex items-center justify-between border-t border-night-100 pt-4">
             <p className="text-xs font-bold text-night-300">{story.title}</p>
-            <p className="text-xs text-night-300">
-              {i + 1} / {story.pages.length}
-            </p>
+            <p className="text-xs text-night-300">{i + 1} / {story.pages.length}</p>
           </div>
         </div>
       ))}
 
       {/* Back end page */}
-      <div className="print-page flex min-h-screen flex-col items-center justify-center bg-night-800 p-10 text-center text-white">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-night-800 p-10 text-center text-white">
         <div className="text-5xl" aria-hidden>😴</div>
-        <p className="mt-6 font-display text-2xl font-bold text-moon-200">
-          The end.
-        </p>
-        <p className="mt-4 text-night-300">
-          Sweet dreams, {story.profileName}. 🌙
-        </p>
+        <p className="mt-6 font-display text-2xl font-bold text-moon-200">The end.</p>
+        <p className="mt-4 text-night-300">Sweet dreams, {story.profileName}. 🌙</p>
       </div>
     </>
   )

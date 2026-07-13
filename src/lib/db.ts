@@ -1,124 +1,97 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
-import { join } from 'path'
+import { kv } from '@vercel/kv'
 import type { ChildProfile, Story, Character } from '@/types'
-
-// Vercel functions have a read-only filesystem except /tmp
-const DATA_DIR = process.env.VERCEL ? '/tmp/storycot' : join(process.cwd(), 'data')
-
-function ensureDataDir() {
-  if (!existsSync(DATA_DIR)) {
-    mkdirSync(DATA_DIR, { recursive: true })
-  }
-}
-
-function readData<T>(filename: string, defaultValue: T): T {
-  ensureDataDir()
-  const filepath = join(DATA_DIR, filename)
-  if (!existsSync(filepath)) return defaultValue
-  try {
-    return JSON.parse(readFileSync(filepath, 'utf-8')) as T
-  } catch {
-    return defaultValue
-  }
-}
-
-function writeData<T>(filename: string, data: T): void {
-  ensureDataDir()
-  const filepath = join(DATA_DIR, filename)
-  writeFileSync(filepath, JSON.stringify(data, null, 2), 'utf-8')
-}
 
 export const db = {
   profiles: {
-    getAll(): ChildProfile[] {
-      return readData<ChildProfile[]>('profiles.json', [])
+    async getAll(): Promise<ChildProfile[]> {
+      return (await kv.get<ChildProfile[]>('profiles')) ?? []
     },
-    getByUserId(userId: string): ChildProfile[] {
-      return this.getAll().filter((p) => p.userId === userId)
+    async getByUserId(userId: string): Promise<ChildProfile[]> {
+      return (await this.getAll()).filter((p) => p.userId === userId)
     },
-    getById(id: string): ChildProfile | undefined {
-      return this.getAll().find((p) => p.id === id)
+    async getById(id: string): Promise<ChildProfile | undefined> {
+      return (await this.getAll()).find((p) => p.id === id)
     },
-    create(profile: ChildProfile): void {
-      const all = this.getAll()
+    async create(profile: ChildProfile): Promise<void> {
+      const all = await this.getAll()
       all.push(profile)
-      writeData('profiles.json', all)
+      await kv.set('profiles', all)
     },
-    update(id: string, updates: Partial<ChildProfile>): ChildProfile | undefined {
-      const all = this.getAll()
+    async update(id: string, updates: Partial<ChildProfile>): Promise<ChildProfile | undefined> {
+      const all = await this.getAll()
       const idx = all.findIndex((p) => p.id === id)
       if (idx === -1) return undefined
       all[idx] = { ...all[idx], ...updates }
-      writeData('profiles.json', all)
+      await kv.set('profiles', all)
       return all[idx]
     },
-    delete(id: string): boolean {
-      const all = this.getAll()
+    async delete(id: string): Promise<boolean> {
+      const all = await this.getAll()
       const filtered = all.filter((p) => p.id !== id)
       if (filtered.length === all.length) return false
-      writeData('profiles.json', filtered)
+      await kv.set('profiles', filtered)
       return true
     },
   },
 
   stories: {
-    getAll(): Story[] {
-      return readData<Story[]>('stories.json', [])
+    async getAll(): Promise<Story[]> {
+      return (await kv.get<Story[]>('stories')) ?? []
     },
-    getByUserId(userId: string): Story[] {
-      return this.getAll().filter((s) => s.userId === userId)
+    async getByUserId(userId: string): Promise<Story[]> {
+      return (await this.getAll()).filter((s) => s.userId === userId)
     },
-    getById(id: string): Story | undefined {
-      return this.getAll().find((s) => s.id === id)
+    async getById(id: string): Promise<Story | undefined> {
+      return (await this.getAll()).find((s) => s.id === id)
     },
-    getByProfileId(profileId: string): Story[] {
-      return this.getAll().filter((s) => s.profileId === profileId)
+    async getByProfileId(profileId: string): Promise<Story[]> {
+      return (await this.getAll()).filter((s) => s.profileId === profileId)
     },
-    create(story: Story): void {
-      const all = this.getAll()
+    async create(story: Story): Promise<void> {
+      const all = await this.getAll()
       all.push(story)
-      writeData('stories.json', all)
+      await kv.set('stories', all)
     },
-    delete(id: string): boolean {
-      const all = this.getAll()
+    async delete(id: string): Promise<boolean> {
+      const all = await this.getAll()
       const filtered = all.filter((s) => s.id !== id)
       if (filtered.length === all.length) return false
-      writeData('stories.json', filtered)
+      await kv.set('stories', filtered)
       return true
     },
   },
 
   characters: {
-    getAll(): Character[] {
-      return readData<Character[]>('characters.json', [])
+    async getAll(): Promise<Character[]> {
+      return (await kv.get<Character[]>('characters')) ?? []
     },
-    getByUserId(userId: string): Character[] {
-      return this.getAll().filter((c) => c.userId === userId)
+    async getByUserId(userId: string): Promise<Character[]> {
+      return (await this.getAll()).filter((c) => c.userId === userId)
     },
-    getByProfileId(profileId: string): Character[] {
-      return this.getAll().filter((c) => c.profileId === profileId)
+    async getByProfileId(profileId: string): Promise<Character[]> {
+      return (await this.getAll()).filter((c) => c.profileId === profileId)
     },
-    getById(id: string): Character | undefined {
-      return this.getAll().find((c) => c.id === id)
+    async getById(id: string): Promise<Character | undefined> {
+      return (await this.getAll()).find((c) => c.id === id)
     },
-    create(character: Character): void {
-      const all = this.getAll()
+    async create(character: Character): Promise<void> {
+      const all = await this.getAll()
       all.push(character)
-      writeData('characters.json', all)
+      await kv.set('characters', all)
     },
-    update(id: string, updates: Partial<Character>): Character | undefined {
-      const all = this.getAll()
+    async update(id: string, updates: Partial<Character>): Promise<Character | undefined> {
+      const all = await this.getAll()
       const idx = all.findIndex((c) => c.id === id)
       if (idx === -1) return undefined
       all[idx] = { ...all[idx], ...updates }
-      writeData('characters.json', all)
+      await kv.set('characters', all)
       return all[idx]
     },
-    delete(id: string): boolean {
-      const all = this.getAll()
+    async delete(id: string): Promise<boolean> {
+      const all = await this.getAll()
       const filtered = all.filter((c) => c.id !== id)
       if (filtered.length === all.length) return false
-      writeData('characters.json', filtered)
+      await kv.set('characters', filtered)
       return true
     },
   },

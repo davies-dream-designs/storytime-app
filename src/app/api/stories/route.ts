@@ -10,8 +10,8 @@ export async function GET(req: NextRequest) {
   const profileId = searchParams.get('profileId')
 
   const stories = profileId
-    ? db.stories.getByProfileId(profileId).filter((s) => s.userId === userId)
-    : db.stories.getByUserId(userId)
+    ? (await db.stories.getByProfileId(profileId)).filter((s) => s.userId === userId)
+    : await db.stories.getByUserId(userId)
 
   return NextResponse.json(stories.sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1)))
 }

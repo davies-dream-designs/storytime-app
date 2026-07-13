@@ -29,7 +29,7 @@ export default function Nav() {
               </Link>
               <Link
                 href="/stories/new"
-                className="rounded-full bg-night-700 px-4 py-2 text-sm font-bold text-moon-200 transition hover:bg-night-600"
+                className="whitespace-nowrap rounded-full bg-night-700 px-4 py-2 text-sm font-bold text-moon-200 transition hover:bg-night-600"
               >
                 + New story
               </Link>

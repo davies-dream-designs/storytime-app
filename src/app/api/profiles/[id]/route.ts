@@ -8,7 +8,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const profile = db.profiles.getById(id)
+  const profile = await db.profiles.getById(id)
   if (!profile || profile.userId !== userId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
@@ -20,13 +20,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const profile = db.profiles.getById(id)
+  const profile = await db.profiles.getById(id)
   if (!profile || profile.userId !== userId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
   const body = (await req.json()) as Partial<ChildProfile>
-  const updated = db.profiles.update(id, body)
+  const updated = await db.profiles.update(id, body)
   return NextResponse.json(updated)
 }
 
@@ -35,11 +35,11 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const profile = db.profiles.getById(id)
+  const profile = await db.profiles.getById(id)
   if (!profile || profile.userId !== userId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  db.profiles.delete(id)
+  await db.profiles.delete(id)
   return NextResponse.json({ success: true })
 }

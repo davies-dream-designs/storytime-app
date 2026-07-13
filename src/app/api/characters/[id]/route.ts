@@ -8,13 +8,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const character = db.characters.getById(id)
+  const character = await db.characters.getById(id)
   if (!character || character.userId !== userId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
   const body = (await req.json()) as Partial<Character>
-  const updated = db.characters.update(id, body)
+  const updated = await db.characters.update(id, body)
   return NextResponse.json(updated)
 }
 
@@ -23,11 +23,11 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const character = db.characters.getById(id)
+  const character = await db.characters.getById(id)
   if (!character || character.userId !== userId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  db.characters.delete(id)
+  await db.characters.delete(id)
   return NextResponse.json({ success: true })
 }

@@ -7,7 +7,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const story = db.stories.getById(id)
+  const story = await db.stories.getById(id)
   if (!story || story.userId !== userId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
@@ -19,11 +19,11 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const story = db.stories.getById(id)
+  const story = await db.stories.getById(id)
   if (!story || story.userId !== userId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  db.stories.delete(id)
+  await db.stories.delete(id)
   return NextResponse.json({ success: true })
 }

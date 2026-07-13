@@ -12,8 +12,8 @@ export async function GET(req: NextRequest) {
   const profileId = searchParams.get('profileId')
 
   const characters = profileId
-    ? db.characters.getByProfileId(profileId).filter((c) => c.userId === userId)
-    : db.characters.getByUserId(userId)
+    ? (await db.characters.getByProfileId(profileId)).filter((c) => c.userId === userId)
+    : await db.characters.getByUserId(userId)
 
   return NextResponse.json(characters)
 }
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'profileId is required' }, { status: 400 })
   }
 
-  const profile = db.profiles.getById(body.profileId)
+  const profile = await db.profiles.getById(body.profileId)
   if (!profile || profile.userId !== userId) {
     return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
   }
@@ -47,6 +47,6 @@ export async function POST(req: NextRequest) {
     createdAt: new Date().toISOString(),
   }
 
-  db.characters.create(character)
+  await db.characters.create(character)
   return NextResponse.json(character, { status: 201 })
 }

@@ -9,7 +9,6 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Check credits (undefined = new user with 3 free stories)
   const client = await clerkClient()
   const user = await client.users.getUser(userId)
   const isAdmin = user.privateMetadata.isAdmin === true
@@ -32,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'profileId is required' }, { status: 400 })
   }
 
-  const profile = db.profiles.getById(profileId)
+  const profile = await db.profiles.getById(profileId)
   if (!profile || profile.userId !== userId) {
     return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
   }
@@ -44,7 +43,7 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const characters = db.characters.getByProfileId(profileId).filter((c) => c.userId === userId)
+  const characters = (await db.characters.getByProfileId(profileId)).filter((c) => c.userId === userId)
 
   const generated = await generateStory({
     profile,
@@ -68,7 +67,7 @@ export async function POST(req: NextRequest) {
     createdAt: new Date().toISOString(),
   }
 
-  db.stories.create(story)
+  await db.stories.create(story)
 
   if (!isAdmin) {
     await client.users.updateUserMetadata(userId, {

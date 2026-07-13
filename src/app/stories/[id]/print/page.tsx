@@ -4,7 +4,7 @@ import PrintTrigger from './PrintTrigger'
 
 export default async function PrintPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const story = db.stories.getById(id)
+  const story = await db.stories.getById(id)
   if (!story) notFound()
 
   const dateStr = new Date(story.createdAt).toLocaleDateString('en-AU', {

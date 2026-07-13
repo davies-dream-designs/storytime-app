@@ -7,7 +7,7 @@ import type { ChildProfile } from '@/types'
 export async function GET() {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  return NextResponse.json(db.profiles.getByUserId(userId))
+  return NextResponse.json(await db.profiles.getByUserId(userId))
 }
 
 export async function POST(req: NextRequest) {
@@ -36,6 +36,6 @@ export async function POST(req: NextRequest) {
     createdAt: new Date().toISOString(),
   }
 
-  db.profiles.create(profile)
+  await db.profiles.create(profile)
   return NextResponse.json(profile, { status: 201 })
 }

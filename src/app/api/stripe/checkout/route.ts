@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { auth } from '@clerk/nextjs/server'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
-
 const PACKS = {
   starter: { credits: 10, amount: 499, label: 'Storycot Starter — 10 stories' },
   family:  { credits: 30, amount: 1199, label: 'Storycot Family — 30 stories' },
@@ -17,6 +15,8 @@ export async function POST(req: NextRequest) {
   if (!process.env.STRIPE_SECRET_KEY) {
     return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 })
   }
+
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
   const { pack } = (await req.json()) as { pack: string }
   const packData = PACKS[pack as keyof typeof PACKS]

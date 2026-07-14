@@ -16,6 +16,7 @@ const nunito = Nunito({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://storycot.com'),
   title: 'Storycot — AI Bedtime Stories for Kids',
   description:
     'Create magical, personalised bedtime stories for your children with AI. Feature their favourite toys, animals, and adventures. Save and print as a beautiful storybook.',

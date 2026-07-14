@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { auth } from '@clerk/nextjs/server'
 import Nav from '@/components/Nav'
 import { db } from '@/lib/db'
+import { getAge } from '@/types'
 import DeleteProfileButton from './DeleteProfileButton'
 
 export default async function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
@@ -29,7 +30,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
             </div>
             <div>
               <h1 className="font-display text-4xl font-bold text-night-800">{profile.name}</h1>
-              <p className="text-night-500">Age {profile.age} · {stories.length} stor{stories.length === 1 ? 'y' : 'ies'}</p>
+              <p className="text-night-500">Age {getAge(profile)} · {stories.length} stor{stories.length === 1 ? 'y' : 'ies'}</p>
             </div>
           </div>
           <div className="flex gap-3">

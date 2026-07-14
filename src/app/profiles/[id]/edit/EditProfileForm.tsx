@@ -3,26 +3,25 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Nav from '@/components/Nav'
-import { LESSON_OPTIONS } from '@/types'
+import { LESSON_OPTIONS, type ChildProfile } from '@/types'
 
-type TagsFieldProps = {
+function TagsField({
+  label,
+  values,
+  onChange,
+  placeholder,
+}: {
   label: string
   values: string[]
   onChange: (vals: string[]) => void
   placeholder: string
-}
-
-function TagsField({ label, values, onChange, placeholder }: TagsFieldProps) {
+}) {
   const [input, setInput] = useState('')
 
   function add() {
     const trimmed = input.trim()
     if (trimmed && !values.includes(trimmed)) onChange([...values, trimmed])
     setInput('')
-  }
-
-  function remove(val: string) {
-    onChange(values.filter((v) => v !== val))
   }
 
   return (
@@ -33,38 +32,21 @@ function TagsField({ label, values, onChange, placeholder }: TagsFieldProps) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ',') {
-              e.preventDefault()
-              add()
-            }
+            if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add() }
           }}
           placeholder={placeholder}
           className="flex-1 rounded-xl border border-night-200 px-4 py-2.5 text-sm outline-none focus:border-star-400 focus:ring-2 focus:ring-star-200"
         />
-        <button
-          type="button"
-          onClick={add}
-          className="rounded-xl bg-night-100 px-4 py-2.5 text-sm font-bold text-night-600 hover:bg-night-200"
-        >
+        <button type="button" onClick={add} className="rounded-xl bg-night-100 px-4 py-2.5 text-sm font-bold text-night-600 hover:bg-night-200">
           Add
         </button>
       </div>
       {values.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-2">
           {values.map((v) => (
-            <span
-              key={v}
-              className="flex items-center gap-1.5 rounded-full bg-star-100 px-3 py-1 text-sm font-bold text-star-700"
-            >
+            <span key={v} className="flex items-center gap-1.5 rounded-full bg-star-100 px-3 py-1 text-sm font-bold text-star-700">
               {v}
-              <button
-                type="button"
-                onClick={() => remove(v)}
-                className="text-star-400 hover:text-star-700"
-                aria-label={`Remove ${v}`}
-              >
-                ×
-              </button>
+              <button type="button" onClick={() => onChange(values.filter((x) => x !== v))} className="text-star-400 hover:text-star-700" aria-label={`Remove ${v}`}>×</button>
             </span>
           ))}
         </div>
@@ -78,17 +60,25 @@ const currentYear = new Date().getFullYear()
 const YEARS = Array.from({ length: 15 }, (_, i) => currentYear - i)
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
 
-export default function NewProfilePage() {
+function parseDOB(dob?: string) {
+  if (!dob) return { day: '', month: '', year: '' }
+  const [y, m, d] = dob.split('-')
+  return { day: String(parseInt(d, 10)), month: String(parseInt(m, 10)), year: y }
+}
+
+export default function EditProfileForm({ profile }: { profile: ChildProfile }) {
   const router = useRouter()
-  const [name, setName] = useState('')
-  const [dobDay, setDobDay] = useState('')
-  const [dobMonth, setDobMonth] = useState('')
-  const [dobYear, setDobYear] = useState('')
-  const [favouriteCharacters, setFavouriteCharacters] = useState<string[]>([])
-  const [favouriteActivities, setFavouriteActivities] = useState<string[]>([])
-  const [favouriteAnimals, setFavouriteAnimals] = useState<string[]>([])
-  const [favouritePlaces, setFavouritePlaces] = useState<string[]>([])
-  const [lessons, setLessons] = useState<string[]>([])
+  const initial = parseDOB(profile.dateOfBirth)
+
+  const [name, setName] = useState(profile.name)
+  const [dobDay, setDobDay] = useState(initial.day)
+  const [dobMonth, setDobMonth] = useState(initial.month)
+  const [dobYear, setDobYear] = useState(initial.year || String(currentYear - (profile.age ?? 0)))
+  const [favouriteCharacters, setFavouriteCharacters] = useState(profile.favouriteCharacters)
+  const [favouriteActivities, setFavouriteActivities] = useState(profile.favouriteActivities)
+  const [favouriteAnimals, setFavouriteAnimals] = useState(profile.favouriteAnimals)
+  const [favouritePlaces, setFavouritePlaces] = useState(profile.favouritePlaces)
+  const [lessons, setLessons] = useState(profile.lessons)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -114,13 +104,12 @@ export default function NewProfilePage() {
 
     setSaving(true)
     try {
-      const res = await fetch('/api/profiles', {
-        method: 'POST',
+      const res = await fetch(`/api/profiles/${profile.id}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim(), age, dateOfBirth, favouriteCharacters, favouriteActivities, favouriteAnimals, favouritePlaces, lessons }),
       })
       if (!res.ok) throw new Error((await res.json()).error)
-      const profile = await res.json()
       router.push(`/profiles/${profile.id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -133,22 +122,17 @@ export default function NewProfilePage() {
       <Nav />
       <main className="mx-auto max-w-2xl px-5 py-10">
         <div className="mb-8">
-          <h1 className="font-display text-4xl font-bold text-night-800">Add a child</h1>
-          <p className="mt-2 text-night-500">
-            Every detail you add makes their stories more magical.
-          </p>
+          <button onClick={() => router.back()} className="mb-4 text-sm text-night-400 hover:text-night-600">← Back</button>
+          <h1 className="font-display text-4xl font-bold text-night-800">Edit {profile.name}</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="mb-1.5 block text-sm font-bold text-night-700" htmlFor="name">
-              Child&apos;s name *
-            </label>
+            <label className="mb-1.5 block text-sm font-bold text-night-700" htmlFor="name">Child&apos;s name *</label>
             <input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Max"
               className="w-full rounded-xl border border-night-200 px-4 py-2.5 outline-none focus:border-star-400 focus:ring-2 focus:ring-star-200"
             />
           </div>
@@ -181,30 +165,10 @@ export default function NewProfilePage() {
             </div>
           </div>
 
-          <TagsField
-            label="Favourite characters or toys"
-            values={favouriteCharacters}
-            onChange={setFavouriteCharacters}
-            placeholder="e.g. Piggy the astronaut pig"
-          />
-          <TagsField
-            label="Favourite activities"
-            values={favouriteActivities}
-            onChange={setFavouriteActivities}
-            placeholder="e.g. space, pancakes, trucks"
-          />
-          <TagsField
-            label="Favourite animals"
-            values={favouriteAnimals}
-            onChange={setFavouriteAnimals}
-            placeholder="e.g. elephants, dogs"
-          />
-          <TagsField
-            label="Favourite places"
-            values={favouritePlaces}
-            onChange={setFavouritePlaces}
-            placeholder="e.g. the beach, the park"
-          />
+          <TagsField label="Favourite characters or toys" values={favouriteCharacters} onChange={setFavouriteCharacters} placeholder="e.g. Piggy the astronaut pig" />
+          <TagsField label="Favourite activities" values={favouriteActivities} onChange={setFavouriteActivities} placeholder="e.g. space, pancakes, trucks" />
+          <TagsField label="Favourite animals" values={favouriteAnimals} onChange={setFavouriteAnimals} placeholder="e.g. elephants, dogs" />
+          <TagsField label="Favourite places" values={favouritePlaces} onChange={setFavouritePlaces} placeholder="e.g. the beach, the park" />
 
           <div>
             <p className="mb-2 text-sm font-bold text-night-700">Lessons &amp; themes to explore</p>
@@ -213,16 +177,8 @@ export default function NewProfilePage() {
                 <button
                   key={lesson}
                   type="button"
-                  onClick={() =>
-                    setLessons((prev) =>
-                      prev.includes(lesson) ? prev.filter((l) => l !== lesson) : [...prev, lesson]
-                    )
-                  }
-                  className={`rounded-full px-4 py-1.5 text-sm font-bold transition ${
-                    lessons.includes(lesson)
-                      ? 'bg-night-700 text-moon-200'
-                      : 'border border-night-200 bg-white text-night-600 hover:border-night-400'
-                  }`}
+                  onClick={() => setLessons((prev) => prev.includes(lesson) ? prev.filter((l) => l !== lesson) : [...prev, lesson])}
+                  className={`rounded-full px-4 py-1.5 text-sm font-bold transition ${lessons.includes(lesson) ? 'bg-night-700 text-moon-200' : 'border border-night-200 bg-white text-night-600 hover:border-night-400'}`}
                 >
                   {lesson}
                 </button>
@@ -230,26 +186,14 @@ export default function NewProfilePage() {
             </div>
           </div>
 
-          {error && (
-            <p className="rounded-xl bg-blush-100 px-4 py-3 text-sm font-bold text-blush-500">
-              {error}
-            </p>
-          )}
+          {error && <p className="rounded-xl bg-blush-100 px-4 py-3 text-sm font-bold text-blush-500">{error}</p>}
 
           <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="rounded-full border border-night-200 px-6 py-3 font-bold text-night-600 transition hover:bg-night-50"
-            >
+            <button type="button" onClick={() => router.back()} className="rounded-full border border-night-200 px-6 py-3 font-bold text-night-600 transition hover:bg-night-50">
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 rounded-full bg-night-700 py-3 font-bold text-moon-200 transition hover:bg-night-600 disabled:opacity-60"
-            >
-              {saving ? 'Saving…' : 'Create profile ✨'}
+            <button type="submit" disabled={saving} className="flex-1 rounded-full bg-night-700 py-3 font-bold text-moon-200 transition hover:bg-night-600 disabled:opacity-60">
+              {saving ? 'Saving…' : 'Save changes ✨'}
             </button>
           </div>
         </form>

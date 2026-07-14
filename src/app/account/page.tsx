@@ -27,7 +27,7 @@ export default async function AccountPage({
 
         {success && (
           <div className="mt-6 rounded-2xl bg-green-50 border border-green-200 px-5 py-4 text-sm font-bold text-green-700">
-            ✅ Payment successful — your credits have been added!
+            ✅ Payment successful — your stories have been added!
           </div>
         )}
         {canceled && (
@@ -50,8 +50,8 @@ export default async function AccountPage({
                 {isAdmin
                   ? 'unlimited (admin)'
                   : credits === 1
-                  ? 'story credit remaining'
-                  : 'story credits remaining'}
+                  ? 'story remaining'
+                  : 'stories remaining'}
               </p>
             </div>
           </div>

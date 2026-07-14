@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { auth } from '@clerk/nextjs/server'
 import Nav from '@/components/Nav'
 import DashboardGreeting from '@/components/DashboardGreeting'
+import ReferralRedeemer from '@/components/ReferralRedeemer'
 import { db } from '@/lib/db'
 
 export default async function Dashboard() {
@@ -13,6 +14,7 @@ export default async function Dashboard() {
   return (
     <>
       <Nav />
+      <ReferralRedeemer />
       <main className="mx-auto max-w-6xl px-5 py-10">
         <DashboardGreeting storiesCount={stories.length} profilesCount={profiles.length} />
 

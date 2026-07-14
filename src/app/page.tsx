@@ -1,8 +1,11 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
+import RefCapture from '@/components/RefCapture'
 
 export default function Home() {
   return (
     <main className="overflow-x-hidden">
+      <Suspense><RefCapture /></Suspense>
       {/* Nav */}
       <header className="absolute inset-x-0 top-0 z-30">
         <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">

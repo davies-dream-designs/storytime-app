@@ -28,7 +28,8 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
 
       {/* Cover */}
       <div className="storycot-page flex flex-col items-center justify-center bg-night-800 p-12 text-center text-white">
-        <div className="text-7xl" aria-hidden>🌙</div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/icon-dark.svg" alt="" width={120} height={120} style={{ borderRadius: '28px' }} aria-hidden />
         <h1 className="mt-8 font-display text-5xl font-bold leading-tight text-moon-200">
           {story.title}
         </h1>
@@ -38,7 +39,7 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
           <span className="font-bold text-moon-300">{story.profileName}</span>
         </p>
         <p className="mt-2 text-sm text-night-500">{dateStr}</p>
-        <p className="mt-12 text-xs text-night-600">A Storycot story · storycot.com</p>
+        <p className="mt-12 text-xs text-night-600">Storycot · storycot.com</p>
       </div>
 
       {/* Chapter-style opening page */}
@@ -77,11 +78,13 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
         <div className="text-6xl" aria-hidden>😴</div>
         <p className="mt-8 font-display text-3xl font-bold text-moon-200">The End.</p>
         <p className="mt-4 text-lg text-night-300">
-          Sweet dreams, {story.profileName}. 🌙
+          Sweet dreams, {story.profileName}.
         </p>
-        <div className="mt-16 text-xs text-night-600">
-          <p>Created with Storycot · storycot.com</p>
-          <p className="mt-1">Every child deserves a story made just for them.</p>
+        <div className="mt-16 flex flex-col items-center gap-3 text-xs text-night-500">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icon-dark.svg" alt="" width={48} height={48} style={{ borderRadius: '12px', opacity: 0.6 }} aria-hidden />
+          <p className="font-bold text-night-400">Storycot · storycot.com</p>
+          <p>Helping little dreamers drift off to their happiest adventures.</p>
         </div>
       </div>
     </>

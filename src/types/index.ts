@@ -23,6 +23,24 @@ export function getAge(profile: ChildProfile): number {
   return profile.age ?? 0
 }
 
+export function formatAge(profile: ChildProfile): string {
+  if (profile.dateOfBirth) {
+    const dob = new Date(profile.dateOfBirth)
+    const today = new Date()
+    const totalMonths =
+      (today.getFullYear() - dob.getFullYear()) * 12 +
+      (today.getMonth() - dob.getMonth()) -
+      (today.getDate() < dob.getDate() ? 1 : 0)
+    if (totalMonths < 12) {
+      return totalMonths <= 1 ? `${totalMonths} month` : `${totalMonths} months`
+    }
+    const years = Math.floor(totalMonths / 12)
+    return years === 1 ? '1 year' : `${years} years`
+  }
+  const age = profile.age ?? 0
+  return age === 1 ? '1 year' : `${age} years`
+}
+
 export function isBirthday(profile: ChildProfile): boolean {
   if (!profile.dateOfBirth) return false
   const dob = new Date(profile.dateOfBirth)

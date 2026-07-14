@@ -1,13 +1,43 @@
 'use client'
 
-import Link from 'next/link'
 import Image from 'next/image'
 import { useState } from 'react'
 import { useAuth, SignInButton, UserButton } from '@clerk/nextjs'
+import { useTranslations, useLocale } from 'next-intl'
+import { Link, useRouter, usePathname } from '@/i18n/navigation'
+import { routing } from '@/i18n/routing'
+
+const LOCALE_LABELS: Record<string, string> = {
+  en: 'EN',
+  es: 'ES',
+  fr: 'FR',
+  zh: '中文',
+}
+
+function LanguageSwitcher() {
+  const t = useTranslations('nav')
+  const locale = useLocale()
+  const router = useRouter()
+  const pathname = usePathname()
+
+  return (
+    <select
+      value={locale}
+      onChange={(e) => router.replace(pathname, { locale: e.target.value })}
+      className="rounded-full border border-night-200 bg-parchment px-2 py-1 text-xs font-bold text-night-600 focus:outline-none focus:ring-2 focus:ring-night-300"
+      aria-label={t('language')}
+    >
+      {routing.locales.map((l) => (
+        <option key={l} value={l}>{LOCALE_LABELS[l]}</option>
+      ))}
+    </select>
+  )
+}
 
 export default function Nav() {
   const { isSignedIn } = useAuth()
   const [open, setOpen] = useState(false)
+  const t = useTranslations('nav')
 
   return (
     <header className="sticky top-0 z-30 border-b border-night-100 bg-parchment/90 backdrop-blur">
@@ -21,34 +51,39 @@ export default function Nav() {
         <div className="hidden sm:flex items-center gap-1">
           {isSignedIn ? (
             <>
-              <Link href="/profiles" className="rounded-full px-4 py-2 text-sm font-bold text-night-600 transition hover:bg-night-100">Profiles</Link>
-              <Link href="/stories" className="rounded-full px-4 py-2 text-sm font-bold text-night-600 transition hover:bg-night-100">Stories</Link>
+              <Link href="/profiles" className="rounded-full px-4 py-2 text-sm font-bold text-night-600 transition hover:bg-night-100">{t('profiles')}</Link>
+              <Link href="/stories" className="rounded-full px-4 py-2 text-sm font-bold text-night-600 transition hover:bg-night-100">{t('stories')}</Link>
               <Link href="/stories/new" className="whitespace-nowrap rounded-full bg-night-700 px-4 py-2 text-sm font-bold text-moon-200 transition hover:bg-night-600">
-                + New story
+                {t('newStory')}
               </Link>
-              <Link href="/account" className="rounded-full px-3 py-2 text-sm font-bold text-night-500 transition hover:bg-night-100" title="Account & credits">
+              <Link href="/account" className="rounded-full px-3 py-2 text-sm font-bold text-night-500 transition hover:bg-night-100" title={t('accountCredits')}>
                 ✨
               </Link>
+              <LanguageSwitcher />
               <UserButton />
             </>
           ) : (
-            <SignInButton mode="modal">
-              <button className="rounded-full bg-night-700 px-4 py-2 text-sm font-bold text-moon-200 transition hover:bg-night-600">
-                Sign in
-              </button>
-            </SignInButton>
+            <>
+              <LanguageSwitcher />
+              <SignInButton mode="modal">
+                <button className="rounded-full bg-night-700 px-4 py-2 text-sm font-bold text-moon-200 transition hover:bg-night-600">
+                  {t('signIn')}
+                </button>
+              </SignInButton>
+            </>
           )}
         </div>
 
         {/* Mobile: avatar + hamburger */}
         <div className="flex sm:hidden items-center gap-3">
+          <LanguageSwitcher />
           {isSignedIn ? (
             <>
               <UserButton />
               <button
                 onClick={() => setOpen((o) => !o)}
                 className="rounded-lg p-2 text-night-600 transition hover:bg-night-100"
-                aria-label={open ? 'Close menu' : 'Open menu'}
+                aria-label={open ? t('closeMenu') : t('openMenu')}
               >
                 {open ? (
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -64,7 +99,7 @@ export default function Nav() {
           ) : (
             <SignInButton mode="modal">
               <button className="rounded-full bg-night-700 px-4 py-2 text-sm font-bold text-moon-200">
-                Sign in
+                {t('signIn')}
               </button>
             </SignInButton>
           )}
@@ -75,23 +110,23 @@ export default function Nav() {
       {open && isSignedIn && (
         <div className="sm:hidden border-t border-night-100 bg-parchment/95 backdrop-blur px-4 py-3 flex flex-col gap-1">
           <Link href="/dashboard" onClick={() => setOpen(false)} className="rounded-xl px-4 py-3 text-sm font-bold text-night-700 hover:bg-night-50 transition">
-            🏠 Dashboard
+            {t('dashboard')}
           </Link>
           <Link href="/profiles" onClick={() => setOpen(false)} className="rounded-xl px-4 py-3 text-sm font-bold text-night-700 hover:bg-night-50 transition">
-            👶 Profiles
+            {t('profilesMobile')}
           </Link>
           <Link href="/stories" onClick={() => setOpen(false)} className="rounded-xl px-4 py-3 text-sm font-bold text-night-700 hover:bg-night-50 transition">
-            📚 Stories
+            {t('storiesMobile')}
           </Link>
           <Link href="/account" onClick={() => setOpen(false)} className="rounded-xl px-4 py-3 text-sm font-bold text-night-700 hover:bg-night-50 transition">
-            ✨ Account & credits
+            {t('accountMobile')}
           </Link>
           <Link
             href="/stories/new"
             onClick={() => setOpen(false)}
             className="mt-2 rounded-full bg-night-700 px-4 py-3 text-center text-sm font-bold text-moon-200 transition hover:bg-night-600"
           >
-            + New story
+            {t('newStory')}
           </Link>
         </div>
       )}

@@ -1,26 +1,34 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
+
 type Props = {
   storiesCount: number
   profilesCount: number
 }
 
 export default function DashboardGreeting({ storiesCount, profilesCount }: Props) {
+  const t = useTranslations('dashboard')
   const hour = new Date().getHours()
 
   const { greeting, emoji } =
     hour >= 5 && hour < 12
-      ? { greeting: 'Good morning', emoji: '☀️' }
+      ? { greeting: t('greetingMorning'), emoji: '☀️' }
       : hour >= 12 && hour < 17
-        ? { greeting: 'Good afternoon', emoji: '🌤️' }
+        ? { greeting: t('greetingAfternoon'), emoji: '🌤️' }
         : hour >= 17 && hour < 21
-          ? { greeting: 'Good evening', emoji: '🌙' }
-          : { greeting: 'Good night', emoji: '✨' }
+          ? { greeting: t('greetingEvening'), emoji: '🌙' }
+          : { greeting: t('greetingNight'), emoji: '✨' }
 
   const subtitle =
     storiesCount === 0
-      ? 'Ready to create your first magical story?'
-      : `You have ${storiesCount} stor${storiesCount === 1 ? 'y' : 'ies'} across ${profilesCount} profile${profilesCount === 1 ? '' : 's'}.`
+      ? t('subtitleEmpty')
+      : t('subtitleStories', {
+          stories: storiesCount,
+          storiesLabel: storiesCount === 1 ? t('story') : t('stories'),
+          profiles: profilesCount,
+          profilesLabel: profilesCount === 1 ? t('profile') : t('profiles'),
+        })
 
   return (
     <div className="mb-10">

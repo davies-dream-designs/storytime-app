@@ -9,6 +9,13 @@ function pickRandom<T>(arr: T[], max: number): T[] {
   return [...arr].sort(() => Math.random() - 0.5).slice(0, max)
 }
 
+const LOCALE_LANGUAGE: Record<string, string> = {
+  en: 'English',
+  es: 'Spanish',
+  fr: 'French',
+  zh: 'Mandarin Chinese',
+}
+
 interface GenerateStoryInput {
   profile: ChildProfile
   characters: Character[]
@@ -16,6 +23,7 @@ interface GenerateStoryInput {
   premise?: string
   notes: string
   recentTitles?: string[]
+  locale?: string
 }
 
 interface GeneratedStory {
@@ -24,7 +32,8 @@ interface GeneratedStory {
 }
 
 function buildStoryPrompt(input: GenerateStoryInput): string {
-  const { profile, characters, theme, premise, notes, recentTitles } = input
+  const { profile, characters, theme, premise, notes, recentTitles, locale } = input
+  const language = LOCALE_LANGUAGE[locale ?? 'en'] ?? 'English'
 
   // Pick a random subset of profile elements each time for variety
   const chars = pickRandom(profile.favouriteCharacters, 2)
@@ -62,7 +71,7 @@ Selected favourites for THIS story (others exist but vary each time):
 - Theme/lesson: ${theme || 'a gentle adventure'}
 ${characterSection}${premiseSection}${notesSection}${avoidSection}
 
-Write a warm, age-appropriate bedtime story that:
+Write the story in ${language}. Write a warm, age-appropriate bedtime story that:
 1. Features ${profile.name} as the main character
 2. Follows this 5-part structure: introduction → adventure/problem → character growth → resolution → calm bedtime ending
 3. Uses simple vocabulary appropriate for age ${getAge(profile)}

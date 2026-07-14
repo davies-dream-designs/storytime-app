@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { Suspense } from 'react'
 import RefCapture from '@/components/RefCapture'
 
@@ -10,7 +11,7 @@ export default function Home() {
       <header className="absolute inset-x-0 top-0 z-30">
         <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
           <Link href="/" className="flex items-center gap-2 font-display text-2xl font-bold text-white">
-            <span className="text-2xl" aria-hidden>🌙</span>
+            <Image src="/nav-icon-dark.png" alt="" width={36} height={36} className="rounded-xl" aria-hidden />
             Storycot
           </Link>
           <Link
@@ -49,7 +50,9 @@ export default function Home() {
         <div className="pointer-events-none absolute right-12 top-18 h-20 w-20 rounded-full bg-moon-300 opacity-30" aria-hidden />
 
         <div className="relative mx-auto max-w-5xl px-5 py-32 text-center">
-          <div className="animate-drift mb-6 text-7xl" aria-hidden>🌙</div>
+          <div className="animate-drift mb-6 flex justify-center" aria-hidden>
+            <Image src="/nav-icon-dark.png" alt="" width={120} height={120} className="rounded-3xl shadow-2xl shadow-night-900/50" />
+          </div>
           <h1 className="font-display text-5xl font-bold leading-tight text-white sm:text-6xl lg:text-7xl">
             Bedtime stories
             <br />
@@ -183,7 +186,9 @@ export default function Home() {
       {/* CTA */}
       <section className="bg-gradient-to-b from-night-700 to-night-900 py-24 text-center">
         <div className="mx-auto max-w-2xl px-5">
-          <div className="text-5xl" aria-hidden>🌙</div>
+          <div className="flex justify-center" aria-hidden>
+            <Image src="/nav-icon-dark.png" alt="" width={80} height={80} className="rounded-2xl" />
+          </div>
           <h2 className="mt-4 font-display text-4xl font-bold text-white">
             Ready for tonight&apos;s story?
           </h2>
@@ -201,9 +206,10 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="bg-night-900 py-8 text-center text-night-300">
-        <p className="font-display text-lg font-bold text-white mb-1">
-          <span aria-hidden>🌙</span> Storycot
-        </p>
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <Image src="/nav-icon-dark.png" alt="" width={24} height={24} className="rounded-md" aria-hidden />
+          <p className="font-display text-lg font-bold text-white">Storycot</p>
+        </div>
         <p className="text-sm">Personalised bedtime stories for the little ones you love.</p>
       </footer>
     </main>

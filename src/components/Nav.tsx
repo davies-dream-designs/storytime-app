@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useAuth, SignInButton, UserButton } from '@clerk/nextjs'
 
 export default function Nav() {
@@ -10,7 +11,8 @@ export default function Nav() {
     <header className="sticky top-0 z-30 border-b border-night-100 bg-parchment/90 backdrop-blur">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
         <Link href="/" className="flex items-center gap-2 font-display text-xl font-bold text-night-700">
-          <span aria-hidden>🌙</span> Storycot
+          <Image src="/nav-icon-light.png" alt="" width={32} height={32} className="rounded-lg" aria-hidden />
+          Storycot
         </Link>
         <div className="flex items-center gap-1 sm:gap-2">
           {isSignedIn ? (

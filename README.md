@@ -1,201 +1,371 @@
-# Brushbeasts 👾
+# Storycot
 
-**Show your teeth, brush like a beast.**
+**Personalised AI bedtime stories for the little ones you love.**
 
-Brushbeasts is a concept for a range of **collectible, character-themed mouth-props** (soft
-silicone mouth/cheek rests) that make toothbrushing fun for young children — turning the
-nightly brushing battle into a game kids ask for. This repository holds the **pre-launch
-landing page / waitlist smoke-test site** and this reference brief for the venture.
+Storycot generates bespoke, 700–900 word bedtime stories starring your child — their favourite
+toys, animals, and adventures woven into every page. Stories are saved to a library and can be
+exported as a print-ready PDF.
 
-> Status: **concept + demand-validation**. Nothing is manufactured yet. Name and branding
-> are placeholders pending trademark clearance (see [Naming](#naming)).
+> **Tagline:** Helping little dreamers drift off to their happiest adventures.
 
 ---
 
-## 1. The product
+## Table of contents
 
-| | |
+1. [Tech stack](#tech-stack)
+2. [Architecture](#architecture)
+3. [Local development](#local-development)
+4. [Environment variables](#environment-variables)
+5. [Branch & environment strategy](#branch--environment-strategy)
+6. [Clerk authentication](#clerk-authentication)
+7. [Stripe billing](#stripe-billing)
+8. [Vercel deployment](#vercel-deployment)
+9. [Key features](#key-features)
+10. [Future roadmap](#future-roadmap)
+11. [Outstanding setup tasks](#outstanding-setup-tasks)
+12. [Commands](#commands)
+
+---
+
+## Tech stack
+
+| Layer | Technology |
 |---|---|
-| **What it is** | A one-piece, food-grade silicone mouth-prop / lip-and-cheek retractor, moulded and decorated as a friendly monster character. It gently holds a child's lips and cheeks back so a parent (or the child) can see and reach every tooth while brushing. |
-| **What it is *not*** | Not a protective mouthguard (sports/night guard). Not electronic. Not a toothbrush — it's a brushing *aid* used alongside a normal kids' toothbrush. |
-| **Primary user** | Kids ~2–7. Strong secondary market: children with sensory/motor challenges (autism, additional needs) where brushing cooperation is a known pain point. |
-| **Buyer** | The stressed parent who fights the nightly brushing battle. |
-| **Core hook** | Functional dental object + collectible character IP ("collect the squad", glow-in-the-dark, launch-only beasts). The moat is the **brand and characters**, not the plastic. |
-
-### Why it can work
-- The *functional* category exists but is **clinical or generic** — nobody owns a fun,
-  collectible character brand around it. That's the gap.
-- "Bright colours + cartoon characters" and preventive habit-forming products are named
-  growth drivers in the kids' oral-care market.
-- Cheap, physical, impulse-buy, no app — the opposite of the expensive gamified
-  smart-toothbrush players.
+| Framework | Next.js 15 (App Router) |
+| Language | TypeScript (strict) |
+| Styling | Tailwind CSS v4 |
+| Auth | Clerk |
+| Database | Vercel KV (Redis) |
+| AI | Anthropic Claude (story generation) |
+| Payments | Stripe Checkout (one-time credit packs) |
+| Hosting | Vercel |
+| Fonts | Fredoka (display) · Nunito (body) |
 
 ---
 
-## 2. Market
+## Architecture
 
-- **Pediatric/kids oral care:** ~US$10.3B (2024), growing ~7% CAGR to 2030 (source estimates
-  range $3.5B–$9B depending on scope; all agree ~5–7% growth).
-- **Kids toothbrush sub-segment:** ~US$858M (2025), the fastest-growing slice.
-- **Real demand signal:** getting a 2–6 y/o to open up and hold still is a universal parent
-  problem; the special-needs segment feels it acutely.
-
-Sources: Grand View Research (pediatric oral care), Spherical Insights (kids oral care),
-industry market reports (2025).
-
----
-
-## 3. Competition
-
-**Closest direct (functional mouth-props):**
-- **Brushing Buddy** — silicone teether + "brushing-time mouth prop toy" (on Amazon). Closest
-  analog; not branded/collectible.
-- **Mouth Mate Home Retractor (kids 10 & under)** — at-home retractor.
-- **Open Wide Mouth Rest / Specialized Care Co. mouth rests** — clinical / special-needs.
-- **Generic kids' cheek retractors** — sold in cheap multi-packs (also the "chubby bunny" game).
-
-**Character toothbrush brands (adjacent, not mouth-props):**
-- **The Brushies** (finger-puppet brushes + storybook characters — Chomps the Dino etc.),
-  **Toothbrush Toys / Chompers the Shark**, **Brushi Bear / Little Brushies**, **Firefly**.
-
-**Gamified brushing (different, expensive):**
-- **Playbrush** (~US$51) and **Grush** (~US$65) — turn a brush into an app game controller.
-
-**Takeaway:** No competitor combines *mouth-prop function* + *collectible character IP*. That
-is Brushbeasts' whitespace. The flip-side risk: an incumbent (The Brushies, a big oral-care
-brand) could copy the theming quickly, so brand + design protection matters early.
-
----
-
-## 4. Safety & regulatory (the hard part — do not skip)
-
-A device a child bites on is the highest-scrutiny consumer category. Two headline risks:
-**choking/breakage** and **material toxicity**.
-
-**Design rules (non-negotiable):**
-- One solid moulded piece. **No separate eyes/horns/parts** that can bite off or come loose.
-- Oversized **safety flange/handle outside the lips** (past the choke-tube gauge).
-- **100% food-grade or medical-grade, platinum-cured silicone** (FDA 21 CFR 177.2600); free of
-  BPA, phthalates, PVC, latex. (The original mockup said "resin" — **must be silicone**.)
-- Adult supervision required; clear choke-warning labelling.
-
-**Standards to test against:**
-- **Australia (home market):** ACCC-enforced *Consumer Goods (Toys for Children up to 36
-  Months) Safety Standard 2023* — comply via **AS/NZS ISO 8124.1** *or* EU **EN 71**. Keep lab
-  test reports (Border Force / Amazon can demand them).
-- **USA:** ASTM F963 + CPSC/CPSIA + FDA food-grade material compliance.
-- **EU/UK:** EN 71 + CE / UKCA marking.
-
-**Key early decision:** position as a **toy / oral-care accessory** (toy standards) rather than
-a **medical device** (heavier burden). **Confirm classification with a product-safety consultant
-or test lab *before* cutting production tooling** — the most expensive mistake to get wrong.
-
----
-
-## 5. From idea to shelf
-
-| Stage | What happens | Rough cost (A$) | Time |
-|---|---|---|---|
-| 1. Concept + CAD | Industrial designer turns art into a manufacturable 3D model; character moulded-in, not glued-on | 1.5k–6k | 2–4 wks |
-| 2. 3D-printed prototypes | Hold it, fit-test in real (supervised) kid mouths, iterate | 0.2k–1k | 1–2 wks |
-| 3. Prototype tooling | Single-cavity soft mould, 2–3 real LSR samples | 0.2k–1.6k | 1–2 wks |
-| 4. Safety pre-testing | Choke gauge + material migration on samples *before* big tooling | 1k–5k | 2–4 wks |
-| 5. Production tooling | Hardened multi-cavity LSR mould | 1k–3k / mould | 4–12 wks |
-| 6. First run | MOQ typically **1,000–3,000 units**; unit cost ~$0.50–$3 at volume | — | 2–4 wks |
-| 7. Compliance + packaging | Certified test reports, choke labelling, retail packaging | 2k–8k | 3–6 wks |
-
-**Realistic all-in to a tested, shippable first product: ~A$15k–40k.**
-
-**Sourcing tip:** pick a manufacturer already doing **food/medical-grade LSR baby products**
-(teethers, bottle nipples) — they hold the material certs and cleanroom process. Ask up front:
-*"Do you have FDA/LFGB food-grade LSR, and can you support EN 71 / ASTM F963 testing?"*
-
----
-
-## 6. Go-to-market: validate before you tool
-
-1. **Landing page + waitlist (this repo)** — smoke test. Run small paid ads to parents; emails
-   captured = real demand signal.
-2. **Protect the idea** — provisional design/utility patent on the character-integrated prop;
-   trademark + domains for the chosen name (see Naming). Do a proper clearance search.
-3. **Kickstarter** — proof-of-demand + pre-sale funding + marketing, all at once. The chosen
-   launch route. Use the waitlist to seed day-one backers (crucial for KS momentum).
-4. **Only then** commit to production tooling.
-
----
-
-## 7. Naming
-
-The mockup used "Gnashers" — **avoid**: it's an established UK brand (Beano) and common slang,
-hard/risky to trademark. Below is a shortlist of **coined, more-trademarkable** candidates. A
-quick web/brand search found **no obvious conflicting product** for these, *except where noted*.
-
-> ⚠️ This is a **preliminary** check, **not legal clearance**. Before committing, run a proper
-> search on **IP Australia (ATMOSS)**, **USPTO / TESS**, EUIPO, plus domain + social handle
-> availability, ideally with a trademark attorney.
-
-| Name | Why it fits | Notes |
-|---|---|---|
-| **Brushbeasts** *(current lead)* | Direct tie to "brush like a beast"; monster/collectible theme | No obvious conflict found |
-| **Mouthsters** | mouth + monsters — extremely on-the-nose and fun | No obvious conflict found |
-| **Brushlings** | "-lings" implies little collectible creatures | No obvious conflict found |
-| **Chompkins** | chomp + munchkin, playful | No obvious conflict; note "Chomps" is a *character* under The Brushies (different mark) |
-| **Grinbeasts** | grin + beast; smile-forward | No obvious conflict found |
-| **Grintopia** | a "world" name for the collectible universe | No obvious conflict found |
-
-Rejected: **Gnashers** (Beano/slang), **Gnarlies** (in use — dog treats & press-on nails),
-**Chompers** (NPR brushing brand / widely used).
-
----
-
-## 8. This website
-
-Pre-launch landing page built to validate demand and seed the Kickstarter list.
-
-**Sections:** hero + waitlist · stats strip · the "7pm battle" problem · collect-the-squad ·
-safety & parent reassurance · Kickstarter CTA + waitlist · footer.
-
-### Tech
-- **Next.js 15** (App Router) · **TypeScript** (strict) · **Tailwind CSS v4**
-- Monster art is inline **SVG** (`src/components/Beast.tsx`) — swap for real product photos once
-  prototypes exist.
-- Waitlist form: `src/components/WaitlistForm.tsx` → `POST /api/waitlist`.
-
-### Waitlist storage
-`POST /api/waitlist` → `src/lib/waitlist.ts`. When `LOOPS_API_KEY` is set, signups upsert a
-contact in **Loops** (loops.so) with `userGroup: "waitlist"`, optionally subscribed to
-`LOOPS_MAILING_LIST_ID`. Loops was chosen for its genuinely free tier and clean API for
-waitlist → launch broadcasts (Resend's free plan allows only one sending domain, already used
-elsewhere; Kit's free tier is time-limited). Without a key, signups append to a local
-`.data/waitlist.jsonl` (ephemeral on serverless — dev/smoke-test only). Swapping providers
-touches only this one file.
-
-### Develop
-```bash
-npm install
-npm run dev        # http://localhost:3000
-
-npm run lint       # ESLint
-npm run typecheck  # tsc --noEmit
-npm test           # Vitest unit tests
-npm run build      # production build
-npm run test:e2e   # Playwright (optional)
+```
+src/
+├── app/
+│   ├── page.tsx                  # Public homepage
+│   ├── dashboard/                # Authenticated home
+│   ├── profiles/                 # Child profiles (CRUD)
+│   ├── stories/                  # Story library + reader + print
+│   ├── account/                  # Credits + share referral
+│   ├── s/[token]/                # Public shared story viewer
+│   └── api/
+│       ├── profiles/             # Profile CRUD
+│       ├── stories/              # Story CRUD + generate + suggest
+│       ├── stripe/checkout       # Create Stripe Checkout session
+│       ├── stripe/webhook        # Handle checkout.session.completed
+│       └── referral/redeem       # Redeem referral cookie → credits
+├── components/
+│   ├── Nav.tsx                   # Sticky nav with mobile hamburger
+│   ├── StoryLibrary.tsx          # Client-side search + filter
+│   ├── DashboardGreeting.tsx     # Time-based greeting (client)
+│   ├── ShareSection.tsx          # Referral link + copy
+│   ├── ReferralRedeemer.tsx      # Fires on dashboard load
+│   └── RefCapture.tsx            # Captures ?ref= cookie on homepage
+├── lib/
+│   ├── db.ts                     # Vercel KV abstraction
+│   └── storyGenerator.ts         # Claude AI prompt builder
+├── types/
+│   └── index.ts                  # ChildProfile, Story, helpers
+└── middleware.ts                 # Clerk auth — public vs protected routes
 ```
 
-### Rebrand
-If the name changes after trademark clearance, update: `src/app/layout.tsx` (metadata),
-`src/app/page.tsx` (copy + squad names), and the palette in `src/app/globals.css`.
+### Data storage (Vercel KV / Redis)
+
+All data is stored in Vercel KV with key-prefixed patterns:
+
+| Data | Key pattern |
+|---|---|
+| Child profile | `profile:{userId}:{profileId}` |
+| Story | `story:{userId}:{storyId}` |
+| Story suggestions cache | `suggestions:{profileId}` (24hr TTL) |
+| Characters | `character:{userId}:{characterId}` |
+
+User metadata (credits, referredBy, isAdmin) is stored in **Clerk private metadata** — not KV.
+
+### Credits system
+
+- New users start with 3 free credits (set in Clerk private metadata)
+- Each story generation costs 1 credit
+- Credits are topped up via Stripe Checkout (one-time packs)
+- Admin users (`privateMetadata.isAdmin = true`) have unlimited credits
+- Referral system: referring user earns +1 credit when referred user signs up
 
 ---
 
-## 9. Open questions / next actions
-- [ ] Proper trademark clearance on the chosen name (IP Australia + USPTO) + secure domain.
-- [ ] Confirm toy-vs-medical-device classification with an AU product-safety consultant.
-- [ ] Find & brief an industrial designer to make the character moulded-in and choke-safe.
-- [ ] Shortlist 2–3 food-grade LSR manufacturers; get sample tooling quotes.
-- [ ] Connect the waitlist form to a real email provider.
-- [ ] Run a small parent-targeted ad test against this landing page to measure signup rate.
-- [ ] Plan the Kickstarter (video, reward tiers, early-bird beasts, funding goal).
+## Local development
 
-*This brief summarises research done July 2026; verify figures and regulations before relying on
-them commercially.*
+### Prerequisites
+
+- Node.js 20.9.0+
+- A Clerk account and app (development instance)
+- A Vercel account with a KV store
+- An Anthropic API key
+- A Stripe account (test mode)
+
+### Setup
+
+```bash
+git clone https://github.com/davies-dream-designs/storytime-app
+cd storytime-app
+npm install
+cp .env.example .env.local
+# Fill in .env.local (see Environment variables section)
+npm run dev
+```
+
+App runs at `http://localhost:3000`.
+
+> **Never commit `.env.local`** — it's in `.gitignore`. Only `.env.example` (with placeholder
+> values, no real secrets) is tracked.
+
+---
+
+## Environment variables
+
+Copy `.env.example` → `.env.local` and fill in:
+
+```bash
+# Anthropic — https://console.anthropic.com
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Clerk — https://dashboard.clerk.com → your app → API Keys
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
+
+# Vercel KV — auto-populated when you link a KV store in Vercel dashboard
+KV_URL=
+KV_REST_API_URL=
+KV_REST_API_TOKEN=
+KV_REST_API_READ_ONLY_TOKEN=
+
+# Stripe — https://dashboard.stripe.com → Developers → API Keys
+STRIPE_SECRET_KEY=sk_test_...        # Use sk_test_ for dev, sk_live_ for prod
+STRIPE_WEBHOOK_SECRET=whsec_...      # From Developers → Webhooks → your endpoint
+
+# App URL — used for Stripe redirect URLs
+NEXT_PUBLIC_APP_URL=http://localhost:3000   # Change to https://storycot.com in prod
+```
+
+### How Vercel env vars are split by environment
+
+| Variable | Preview (dev.storycot.com) | Production (storycot.com) |
+|---|---|---|
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `pk_test_...` | `pk_live_...` |
+| `CLERK_SECRET_KEY` | `sk_test_...` | `sk_live_...` |
+| `STRIPE_SECRET_KEY` | `sk_test_...` | `sk_live_...` |
+| `STRIPE_WEBHOOK_SECRET` | `whsec_...` (test) | `whsec_...` (live) |
+| `NEXT_PUBLIC_APP_URL` | `https://dev.storycot.com` | `https://storycot.com` |
+| `ANTHROPIC_API_KEY` | same key | same key |
+| `KV_*` | same KV store | same KV store |
+
+---
+
+## Branch & environment strategy
+
+| Branch | Deploys to | Clerk | Stripe | Purpose |
+|---|---|---|---|---|
+| `feat/stripe-billing` | `dev.storycot.com` | dev instance (`pk_test_`) | test keys | Active development |
+| `main` | `storycot.com` | production instance (`pk_live_`) | live keys | Production |
+
+**Workflow:** build + test on `feat/stripe-billing` → when happy → merge to `main` → auto-deploys
+to `storycot.com`.
+
+---
+
+## Clerk authentication
+
+### Two instances
+
+Clerk uses **instances** to separate dev and production environments. Each has different API
+keys and different behaviour (dev shows a "Development mode" banner; production does not).
+
+| Instance | Publishable key prefix | Used on |
+|---|---|---|
+| Development | `pk_test_` | `dev.storycot.com` + local |
+| Production | `pk_live_` | `storycot.com` |
+
+### Making a user admin
+
+Admin users have unlimited credits and bypass all gates. Set via Clerk Dashboard:
+
+1. Clerk Dashboard → Users → find the user
+2. **Metadata** tab → **Private metadata** → add:
+   ```json
+   { "isAdmin": true, "credits": 999 }
+   ```
+
+### Protected vs public routes
+
+Configured in `src/middleware.ts`. Public routes:
+
+- `/` — homepage
+- `/sign-in`, `/sign-up`
+- `/s/*` — shared story viewer (public link)
+- `/api/stripe/webhook` — Stripe hits this without auth
+
+Everything else requires authentication.
+
+### Referral system
+
+1. User shares link: `https://storycot.com?ref={userId}`
+2. Visitor lands → `RefCapture` writes a 30-day cookie
+3. Visitor signs up → first dashboard load → `ReferralRedeemer` fires
+4. `POST /api/referral/redeem` → validates ref, grants +1 credit to referrer
+5. Sets `privateMetadata.referredBy` on new user (one-time, prevents gaming)
+
+---
+
+## Stripe billing
+
+### Credit packs
+
+| Pack | Credits | Price (AUD) |
+|---|---|---|
+| Starter | 10 | $4.99 |
+| Family | 30 | $11.99 |
+| Bedtime Pro | 100 | $29.99 |
+
+### Flow
+
+1. User clicks pack → `POST /api/stripe/checkout` → creates Stripe Checkout session
+2. User pays on Stripe-hosted checkout
+3. Stripe fires `checkout.session.completed` webhook → `POST /api/stripe/webhook`
+4. Webhook adds purchased credits to user's Clerk `privateMetadata.credits`
+
+### Webhooks
+
+You need **two** webhook endpoints — one for test mode, one for live:
+
+| Mode | Endpoint URL | Event |
+|---|---|---|
+| Test | `https://dev.storycot.com/api/stripe/webhook` | `checkout.session.completed` |
+| Live | `https://storycot.com/api/stripe/webhook` | `checkout.session.completed` |
+
+Register both in Stripe Dashboard → Developers → Webhooks.  
+Copy the `whsec_...` signing secret for each and set in Vercel for the respective environment.
+
+### Stripe branding (already configured)
+
+- Logo: Storycot icon (uploaded via API)
+- Primary colour: `#252748`
+- Accent colour: `#F4C85C`
+- Statement descriptor: `STORYCOT`
+
+---
+
+## Vercel deployment
+
+The project deploys automatically via GitHub integration:
+
+- Push to `feat/stripe-billing` → preview deploy → `dev.storycot.com`
+- Push/merge to `main` → production deploy → `storycot.com`
+
+### DNS
+
+`storycot.com` uses **Vercel nameservers** (`ns1.vercel-dns.com`, `ns2.vercel-dns.com`).
+Vercel auto-manages all DNS records including the `dev.storycot.com` subdomain.
+
+Google Workspace MX records are also managed in Vercel DNS for `storycot.com` email.
+
+---
+
+## Key features
+
+- **Child profiles** — name, date of birth (auto-computes age in months/years), favourites,
+  lessons, custom characters
+- **Story generation** — Claude AI, ~750 words, 14 pages, themed around a moral/lesson
+- **Story library** — searchable by title/theme, filterable by child
+- **PDF/print** — full print layout with branded cover and back cover
+- **Credit system** — Stripe one-time packs, admin bypass, referral bonus
+- **Referral** — share link → cookie → auto-redeem on first login
+- **Mobile nav** — hamburger menu on < 640px, full nav on desktop
+- **Themed story cards** — each theme has unique emoji + accent colour
+
+---
+
+## Future roadmap
+
+### Printed hardcover books (Lulu integration)
+Physical hardcovered books via [Lulu](https://lulu.com). Requirements before implementing:
+- **32 pages** (Lulu minimum for hardcover)
+- **AI-generated illustrations** — one per page needed first
+- API integration for order placement + fulfilment
+- The "Print / PDF" button stays; a separate "Order hardcover" button will be added
+
+### Clerk Billing (tiering)
+If a subscription/tier model is needed in future (e.g. free = 2 profiles, paid = unlimited),
+use the `clerk-billing` skill which integrates directly with Clerk's billing feature.
+
+### Email notifications
+Resend is available as an MCP tool. Planned uses:
+- Birthday credit notification (helper `isBirthday()` is already built in `src/types/index.ts`)
+- Story generated confirmation
+- Low credits warning
+
+### Google Workspace
+`hello@storycot.com` is set up as a domain alias under the DDD Google Workspace account.
+MX records are live. Verification was pending — retry in Google Workspace domain setup if
+email isn't working.
+
+---
+
+## Outstanding setup tasks
+
+### 🔴 Must do before launch (storycot.com)
+
+- [ ] **Stripe live webhook** — register `https://storycot.com/api/stripe/webhook` in Stripe
+  Dashboard (live mode) → copy `whsec_...` → set `STRIPE_WEBHOOK_SECRET` for Production in Vercel
+- [ ] **Stripe live secret key** — add full `sk_live_...` to Vercel Production env vars
+  (currently only the restricted `rk_live_` key exists, which can't process payments)
+
+### 🟡 Nice to do before launch
+
+- [ ] **Clerk branding** — add Storycot logo + brand colour in Clerk Dashboard for both
+  dev and production instances: Application → Settings (logo) + Customization → Emails
+- [ ] **Google Workspace verification** — retry domain verification for `storycot.com` in
+  Google Workspace if `hello@storycot.com` isn't receiving mail yet
+- [ ] **Merge feat/stripe-billing → main** — push everything live
+
+### 🟢 Post-launch
+
+- [ ] **Lulu integration** — hardcover printed books (needs illustrations first)
+- [ ] **AI illustrations** — one image per page before Lulu becomes viable
+- [ ] **Birthday credits** — grant +1 credit + send email on child's birthday
+- [ ] **Tiering / subscriptions** — if profile/story volume requires gating
+- [ ] **Google Business Profile** — set up GBP for storycot.com
+
+---
+
+## Commands
+
+```bash
+npm run dev          # Start dev server at http://localhost:3000
+npm run build        # Production build
+npm run lint         # ESLint
+npm run typecheck    # tsc --noEmit
+npm test             # Vitest unit tests
+npm run test:e2e     # Playwright E2E tests
+```
+
+---
+
+## Security notes
+
+- **Never commit `.env.local`** — it's in `.gitignore`
+- Only `.env.example` is tracked — it contains placeholder values only
+- All Stripe and Clerk keys live in Vercel environment variables, scoped per environment
+- Clerk `privateMetadata` is server-only — never exposed to the client
+- Stripe webhook signature is verified on every request (`stripe.webhooks.constructEvent`)
+- Profile ownership is checked on every read/write (`profile.userId !== userId → 404`)
+- Referral codes are validated against Clerk user format (`/^user_[A-Za-z0-9]+$/`)
+- Self-referral is blocked in `/api/referral/redeem`

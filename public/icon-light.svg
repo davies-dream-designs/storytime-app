@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 400 400">
+<rect width="400" height="400" rx="84" fill="#FFF6E8"/>
+<g transform="translate(0 40)">
+  <g id="icon">
+    <!-- Smooth crescent made from two overlapping circles -->
+    <path d="M164 52c-55 17-84 76-64 130 17 46 64 75 113 65-44-8-76-47-76-93 0-45 31-84 75-93-15-8-31-12-48-9z" fill="#F4C95D"/>
+    <!-- sleepy face -->
+    <path d="M139 139q10 11 20 0" fill="none" stroke="#1E2749" stroke-width="5" stroke-linecap="round"/>
+    <path d="M166 151q9 8 18 0" fill="none" stroke="#1E2749" stroke-width="5" stroke-linecap="round"/>
+    <!-- stars -->
+    <path d="M250 68l5 13 13 5-13 5-5 13-5-13-13-5 13-5z" fill="#F4C95D"/>
+    <path d="M285 108l4 9 9 4-9 4-4 9-4-9-9-4 9-4z" fill="#CDB4DB"/>
+    <circle cx="226" cy="105" r="5" fill="#BFD7E6"/>
+    <!-- cloud -->
+    <path d="M230 151c3-15 16-25 31-25 13 0 24 7 29 18 3-2 7-3 11-3 12 0 22 9 22 21H229c0-4 0-7 1-11z" fill="#8BB89C"/>
+    <!-- open book -->
+    <path d="M58 220c50-18 95-14 142 14v44c-47-25-93-29-142-12z" fill="#FFF6E8" stroke="#1E2749" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M342 220c-50-18-95-14-142 14v44c47-25 93-29 142-12z" fill="#FFF6E8" stroke="#1E2749" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M200 234v44" stroke="#1E2749" stroke-width="7" stroke-linecap="round"/>
+    <path d="M67 242c46-13 88-8 127 13M333 242c-46-13-88-8-127 13" fill="none" stroke="#1E2749" stroke-width="4" stroke-linecap="round" opacity=".45"/>
+    <path d="M54 274c51-11 99-6 146 15 47-21 95-26 146-15" fill="none" stroke="#1E2749" stroke-width="9" stroke-linecap="round"/>
+  </g></g>
+</svg>

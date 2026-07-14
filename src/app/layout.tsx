@@ -21,7 +21,10 @@ export const metadata: Metadata = {
     'Create magical, personalised bedtime stories for your children with AI. Feature their favourite toys, animals, and adventures. Save and print as a beautiful storybook.',
   robots: { index: false, follow: false },
   icons: {
-    icon: '/icon.png',
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icon.png', type: 'image/png' },
+    ],
     apple: '/icon.png',
   },
   openGraph: {

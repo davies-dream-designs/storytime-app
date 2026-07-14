@@ -24,6 +24,7 @@
     "uuid": "^14.0.1"
   },
   "devDependencies": {
+    "@clerk/testing": "^2.2.8",
     "@playwright/test": "^1.52.0",
     "@tailwindcss/postcss": "^4.1.10",
     "@testing-library/jest-dom": "^6.6.3",

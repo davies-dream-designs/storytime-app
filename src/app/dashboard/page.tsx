@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { auth } from '@clerk/nextjs/server'
 import Nav from '@/components/Nav'
+import DashboardGreeting from '@/components/DashboardGreeting'
+import ReferralRedeemer from '@/components/ReferralRedeemer'
 import { db } from '@/lib/db'
 
 export default async function Dashboard() {
@@ -12,15 +14,9 @@ export default async function Dashboard() {
   return (
     <>
       <Nav />
+      <ReferralRedeemer />
       <main className="mx-auto max-w-6xl px-5 py-10">
-        <div className="mb-10">
-          <h1 className="font-display text-4xl font-bold text-night-800">Good evening 🌙</h1>
-          <p className="mt-2 text-night-500">
-            {stories.length === 0
-              ? 'Ready to create your first magical story?'
-              : `You have ${stories.length} stor${stories.length === 1 ? 'y' : 'ies'} across ${profiles.length} profile${profiles.length === 1 ? '' : 's'}.`}
-          </p>
-        </div>
+        <DashboardGreeting storiesCount={stories.length} profilesCount={profiles.length} />
 
         <div className="mb-10 grid gap-4 sm:grid-cols-3">
           {[
@@ -92,7 +88,7 @@ export default async function Dashboard() {
 
         {stories.length === 0 && profiles.length === 0 && (
           <div className="rounded-3xl border-2 border-dashed border-night-200 p-16 text-center">
-            <div className="text-5xl" aria-hidden>🌙</div>
+            <div className="text-5xl" aria-hidden>✨</div>
             <h2 className="mt-4 font-display text-2xl font-bold text-night-700">Your first story starts here</h2>
             <p className="mt-2 text-night-400">Create a child profile, then generate a personalised bedtime story in seconds.</p>
             <Link href="/profiles/new" className="mt-6 inline-block rounded-full bg-night-700 px-6 py-3 font-bold text-moon-200 transition hover:bg-night-600">

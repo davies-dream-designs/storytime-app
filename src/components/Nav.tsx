@@ -41,7 +41,7 @@ export default function Nav() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-night-100 bg-parchment/90 backdrop-blur">
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
+      <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 pr-6">
         <Link href="/" className="flex items-center gap-2 font-display text-xl font-bold text-night-700" onClick={() => setOpen(false)}>
           <Image src="/icon-light.svg" alt="" width={32} height={32} className="rounded-lg" aria-hidden />
           Storycot

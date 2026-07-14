@@ -217,13 +217,6 @@ function GenerateForm() {
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={() => fetchSuggestions(profileId)}
-                className="text-sm font-bold text-night-400 hover:text-night-600"
-              >
-                ↻ Different ideas
-              </button>
             </div>
           )}
         </div>

@@ -15,7 +15,7 @@ export default function PrintTrigger({ storyId }: { storyId: string }) {
         </button>
         <a
           href={`/stories/${storyId}`}
-          className="rounded-full border border-white/30 bg-night-700 px-6 py-3 font-bold text-white shadow-lg transition hover:bg-night-600"
+          className="rounded-full bg-white px-6 py-3 font-bold text-night-800 shadow-lg transition hover:bg-night-50"
         >
           ← Back
         </a>

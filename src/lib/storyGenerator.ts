@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { ChildProfile, Character, StoryPage, StorySuggestion } from '@/types'
+import { getAge } from '@/types'
 
 const client = new Anthropic()
 
@@ -52,7 +53,7 @@ ${recentTitles.map((t) => `- ${t}`).join('\n')}`
 
   return `You are a magical storyteller creating a personalised bedtime story for a child.
 
-Child: ${profile.name}, age ${profile.age}
+Child: ${profile.name}, age ${getAge(profile)}
 Selected favourites for THIS story (others exist but vary each time):
 - Characters/toys: ${chars.join(', ') || 'none'}
 - Activities: ${activities.join(', ') || 'none'}
@@ -64,7 +65,7 @@ ${characterSection}${premiseSection}${notesSection}${avoidSection}
 Write a warm, age-appropriate bedtime story that:
 1. Features ${profile.name} as the main character
 2. Follows this 5-part structure: introduction → adventure/problem → character growth → resolution → calm bedtime ending
-3. Uses simple vocabulary appropriate for age ${profile.age}
+3. Uses simple vocabulary appropriate for age ${getAge(profile)}
 4. Is approximately 700–900 words total
 5. Has a positive, cosy tone ending with ${profile.name} settling down to sleep
 6. Naturally weaves in the theme: ${theme || 'a gentle adventure'}
@@ -119,7 +120,7 @@ export async function generateSuggestions(
   const prompt = `You are a creative children's story idea generator.
 
 Child profile:
-- Name: ${profile.name}, age ${profile.age}
+- Name: ${profile.name}, age ${getAge(profile)}
 - Favourite characters/toys: ${profile.favouriteCharacters.join(', ') || 'none'}
 - Favourite activities: ${profile.favouriteActivities.join(', ') || 'none'}
 - Favourite animals: ${profile.favouriteAnimals.join(', ') || 'none'}

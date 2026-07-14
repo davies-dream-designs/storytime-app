@@ -19,15 +19,16 @@ export async function POST(req: NextRequest) {
   if (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {
     return NextResponse.json({ error: 'Name is required' }, { status: 400 })
   }
-  if (!body.age || typeof body.age !== 'number' || body.age < 1 || body.age > 12) {
-    return NextResponse.json({ error: 'Age must be between 1 and 12' }, { status: 400 })
+  if (body.age === undefined && !body.dateOfBirth) {
+    return NextResponse.json({ error: 'Birthday or age is required' }, { status: 400 })
   }
 
   const profile: ChildProfile = {
     id: randomUUID(),
     userId,
     name: body.name.trim(),
-    age: body.age,
+    age: body.age ?? 0,
+    dateOfBirth: body.dateOfBirth,
     favouriteCharacters: body.favouriteCharacters ?? [],
     favouriteActivities: body.favouriteActivities ?? [],
     favouriteAnimals: body.favouriteAnimals ?? [],

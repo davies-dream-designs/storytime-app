@@ -2,6 +2,7 @@ import { auth, clerkClient } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import Nav from '@/components/Nav'
 import CreditPacks from './CreditPacks'
+import ShareSection from '@/components/ShareSection'
 
 export default async function AccountPage({
   searchParams,
@@ -65,6 +66,7 @@ export default async function AccountPage({
         </div>
 
         {!isAdmin && <CreditPacks />}
+        <ShareSection userId={userId} />
       </main>
     </>
   )

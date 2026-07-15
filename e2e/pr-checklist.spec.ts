@@ -27,11 +27,11 @@ async function signIn(page: Page) {
 
   // Get a fresh Clerk sign-in token — Clerk auto-redeems it and redirects away from /sign-in
   const token = await getSignInToken()
-  await page.goto(`${BASE}/sign-in?__clerk_ticket=${token}`)
-  // Token-based sign-in redirects to / not /dashboard — navigate there explicitly
-  await page.waitForFunction(() => !window.location.pathname.startsWith('/sign-in'), { timeout: 20000 })
+  // Routes are now locale-prefixed: /en/sign-in, /en/dashboard, etc.
+  await page.goto(`${BASE}/en/sign-in?__clerk_ticket=${token}`)
+  await page.waitForFunction(() => !window.location.pathname.includes('/sign-in'), { timeout: 20000 })
   if (!page.url().includes('/dashboard')) {
-    await page.goto(`${BASE}/dashboard`)
+    await page.goto(`${BASE}/en/dashboard`)
     await page.waitForLoadState('networkidle')
   }
 }
@@ -66,7 +66,7 @@ test('nav shows SVG logo not emoji', async ({ page }) => {
 
 test('story library page loads with correct UI', async ({ page }) => {
   await signIn(page)
-  await page.goto(`${BASE}/stories`)
+  await page.goto(`${BASE}/en/stories`)
   await page.waitForLoadState('networkidle')
 
   const hasStories = await page.getByPlaceholder(/search stories/i).isVisible()
@@ -80,7 +80,7 @@ test('story library page loads with correct UI', async ({ page }) => {
   } else {
     // Empty state — verify it renders correctly (not broken)
     await expect(page.getByText(/your library is empty/i)).toBeVisible()
-    await expect(page.locator('a[href="/profiles/new"], a[href="/stories/new"]').first()).toBeVisible()
+    await expect(page.locator('a[href="/en/profiles/new"], a[href="/en/stories/new"]').first()).toBeVisible()
   }
 })
 
@@ -88,7 +88,7 @@ test('story library page loads with correct UI', async ({ page }) => {
 
 test('can create a child profile — age shows months for under-1', async ({ page }) => {
   await signIn(page)
-  await page.goto(`${BASE}/profiles/new`)
+  await page.goto(`${BASE}/en/profiles/new`)
   await page.waitForLoadState('networkidle')
 
   await page.getByLabel(/child.s name/i).fill('Playwright Jr')
@@ -110,14 +110,14 @@ test('can create a child profile — age shows months for under-1', async ({ pag
 test('generating a story decrements credits', async ({ page }) => {
   await signIn(page)
 
-  await page.goto(`${BASE}/account`)
+  await page.goto(`${BASE}/en/account`)
   await page.waitForLoadState('networkidle')
 
   const creditEl = page.locator('p.font-display.text-3xl').first()
   const before = parseInt((await creditEl.textContent()) ?? '0', 10)
   expect(before).toBeGreaterThan(0)
 
-  await page.goto(`${BASE}/stories/new`)
+  await page.goto(`${BASE}/en/stories/new`)
   await page.waitForLoadState('networkidle')
 
   // Profile cards are buttons — use first() to avoid matching "Get story ideas for..." button
@@ -140,7 +140,7 @@ test('generating a story decrements credits', async ({ page }) => {
   // Wait for a real story URL — /stories/<uuid>, not /stories/new
   await page.waitForURL(/\/stories\/[a-zA-Z0-9-]{10,}/, { timeout: 90000 })
 
-  await page.goto(`${BASE}/account`)
+  await page.goto(`${BASE}/en/account`)
   await page.waitForLoadState('networkidle')
 
   // Re-query after navigation
@@ -157,11 +157,11 @@ test('generating a story decrements credits', async ({ page }) => {
 
 test('print page shows Storycot logo not emoji', async ({ page }) => {
   await signIn(page)
-  await page.goto(`${BASE}/stories`)
+  await page.goto(`${BASE}/en/stories`)
   await page.waitForLoadState('networkidle')
 
-  // Exclude /stories/new — only match actual story pages (/stories/<uuid>)
-  const firstStory = page.locator('a[href^="/stories/"]:not([href="/stories/new"])').first()
+  // Exclude /en/stories/new — only match actual story pages (/en/stories/<uuid>)
+  const firstStory = page.locator('a[href^="/en/stories/"]:not([href="/en/stories/new"])').first()
   if (!(await firstStory.isVisible())) { test.skip(); return }
 
   const href = await firstStory.getAttribute('href')
@@ -176,7 +176,7 @@ test('print page shows Storycot logo not emoji', async ({ page }) => {
 
 test('Stripe credit pack redirects to checkout and payment succeeds', async ({ page }) => {
   await signIn(page)
-  await page.goto(`${BASE}/account`)
+  await page.goto(`${BASE}/en/account`)
   await page.waitForLoadState('networkidle')
 
   await page.getByRole('button', { name: /get 10 stories/i }).click()

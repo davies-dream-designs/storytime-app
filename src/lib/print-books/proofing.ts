@@ -21,10 +21,11 @@ export interface ProofingReport {
   orderabilityState: BookOrderabilityState
 }
 
-export function runLuluProofing(project: BookProject): ProofingReport {
+export function runLuluProofing(project: BookProject, options?: { strictForOrdering?: boolean }): ProofingReport {
   const warnings: string[] = []
   const errors: string[] = []
   const checks: ProofingCheck[] = []
+  const strictForOrdering = options?.strictForOrdering ?? false
 
   const addCheck = (check: ProofingCheck) => {
     checks.push(check)
@@ -88,13 +89,26 @@ export function runLuluProofing(project: BookProject): ProofingReport {
       detail: 'Cover image asset is missing.',
     })
   } else {
+    const coverArtStatus =
+      project.assets.artMode === 'placeholder'
+        ? (strictForOrdering ? 'fail' : 'warn')
+        : project.assets.artMode === 'mixed'
+          ? (strictForOrdering ? 'fail' : 'warn')
+          : 'pass'
     addCheck({
       key: 'cover_art',
       label: 'Cover artwork',
-      status: project.assets.artMode === 'placeholder' ? 'warn' : 'pass',
-      detail: project.assets.artMode === 'placeholder'
-        ? 'Cover art is still using draft placeholder artwork.'
-        : 'Cover artwork is present.',
+      status: coverArtStatus,
+      detail:
+        project.assets.artMode === 'placeholder'
+          ? strictForOrdering
+            ? 'Cover art is still using draft placeholder artwork and cannot be finalized for ordering.'
+            : 'Cover art is still using draft placeholder artwork.'
+          : project.assets.artMode === 'mixed'
+            ? strictForOrdering
+              ? 'Cover art is mixed with draft placeholder artwork and cannot be finalized for ordering.'
+              : 'Cover art mixes generated and placeholder artwork.'
+            : 'Cover artwork is present.',
     })
   }
 
@@ -123,15 +137,23 @@ export function runLuluProofing(project: BookProject): ProofingReport {
       detail: `Spread images are missing for spreads: ${spreadsMissingImages.join(', ')}.`,
     })
   } else {
+    const spreadArtStatus =
+      project.assets.artMode === 'placeholder' || project.assets.artMode === 'mixed'
+        ? (strictForOrdering ? 'fail' : 'warn')
+        : 'pass'
     addCheck({
       key: 'spread_art',
       label: 'Interior artwork coverage',
-      status: project.assets.artMode === 'placeholder' || project.assets.artMode === 'mixed' ? 'warn' : 'pass',
+      status: spreadArtStatus,
       detail:
         project.assets.artMode === 'placeholder'
-          ? 'All spreads have artwork, but they are still using draft placeholder illustrations.'
+          ? strictForOrdering
+            ? 'All spreads have artwork, but they are still using draft placeholder illustrations and cannot be finalized for ordering.'
+            : 'All spreads have artwork, but they are still using draft placeholder illustrations.'
           : project.assets.artMode === 'mixed'
-            ? 'All spreads have artwork, but the book mixes generated and placeholder illustrations.'
+            ? strictForOrdering
+              ? 'All spreads have artwork, but the book mixes generated and placeholder illustrations and cannot be finalized for ordering.'
+              : 'All spreads have artwork, but the book mixes generated and placeholder illustrations.'
             : 'All spreads have artwork attached.',
     })
   }
@@ -200,8 +222,10 @@ export function runLuluProofing(project: BookProject): ProofingReport {
     addCheck({
       key: 'spine_width',
       label: 'Cover spine width',
-      status: 'warn',
-      detail: `Cover spine width is assumed from page count at ${project.assets.coverPdfSpineWidthIn}" and should be checked against Lulu's template before ordering.`,
+      status: strictForOrdering ? 'fail' : 'warn',
+      detail: strictForOrdering
+        ? `Cover spine width is still assumed at ${project.assets.coverPdfSpineWidthIn}" and must be configured from a Lulu template before finalizing for order.`
+        : `Cover spine width is assumed from page count at ${project.assets.coverPdfSpineWidthIn}" and should be checked against Lulu's template before ordering.`,
     })
   } else if (project.assets.coverPdfSpineWidthIn) {
     addCheck({
@@ -216,7 +240,7 @@ export function runLuluProofing(project: BookProject): ProofingReport {
   const passed = errors.length === 0
   const orderabilityState: BookOrderabilityState = !hasDownloadableExports
     ? 'draft_only'
-    : passed && project.assets.artMode === 'generated'
+    : passed && strictForOrdering
       ? 'order_ready'
       : 'export_ready'
 

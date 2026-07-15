@@ -22,6 +22,7 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
   const [retrying, setRetrying] = useState(false)
   const [rebuilding, setRebuilding] = useState(false)
   const [refreshingExports, setRefreshingExports] = useState(false)
+  const [finalizing, setFinalizing] = useState(false)
   const [startingBuild, setStartingBuild] = useState(false)
   const buildStartedRef = useRef(false)
 
@@ -104,6 +105,21 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
     setRefreshingExports(false)
   }
 
+  async function handleFinalizeForOrder() {
+    setFinalizing(true)
+    const res = await fetch(`/api/books/${project.id}/build`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'finalize' }),
+    })
+    if (res.ok) {
+      const next = (await res.json()) as BookProject
+      setProject(next)
+      router.refresh()
+    }
+    setFinalizing(false)
+  }
+
   const progress = project.totalSpreads > 0
     ? Math.round((project.completedSpreads / project.totalSpreads) * 100)
     : 0
@@ -138,6 +154,11 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
           <p className="mt-2 text-xs font-medium uppercase tracking-wide text-night-400">
             {t('versionLabel', { value: project.assets.exportVersion ?? project.assets.proofVersion ?? 0 })}
           </p>
+          {project.assets.finalExportVersion ? (
+            <p className="mt-2 text-xs font-medium uppercase tracking-wide text-night-400">
+              {t('finalVersionLabel', { value: project.assets.finalExportVersion })}
+            </p>
+          ) : null}
         </div>
         <div className="rounded-2xl bg-night-50 px-4 py-3 text-right">
           <p className="text-xs font-bold uppercase tracking-wide text-night-400">{t('progressLabel')}</p>
@@ -225,7 +246,7 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
           <div className="mt-4 flex flex-wrap gap-3">
             <button
               onClick={handleRefreshExports}
-              disabled={refreshingExports || rebuilding}
+              disabled={refreshingExports || rebuilding || finalizing}
               className={`rounded-full px-4 py-2 text-sm font-bold transition disabled:opacity-60 ${
                 readinessState === 'order_ready'
                   ? 'border border-green-300 text-green-700 hover:bg-green-100'
@@ -238,7 +259,7 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
             </button>
             <button
               onClick={handleRebuild}
-              disabled={rebuilding || refreshingExports}
+              disabled={rebuilding || refreshingExports || finalizing}
               className={`rounded-full px-4 py-2 text-sm font-bold transition disabled:opacity-60 ${
                 readinessState === 'order_ready'
                   ? 'bg-green-700 text-white hover:bg-green-600'
@@ -248,6 +269,13 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
               }`}
             >
               {rebuilding ? t('rebuildingButton') : t('rebuildButton')}
+            </button>
+            <button
+              onClick={handleFinalizeForOrder}
+              disabled={finalizing || rebuilding || refreshingExports || readinessState === 'draft_ready'}
+              className="rounded-full bg-night-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-night-700 disabled:opacity-60"
+            >
+              {finalizing ? t('finalizingButton') : readinessState === 'order_ready' ? t('refreshFinalButton') : t('finalizeButton')}
             </button>
           </div>
         </div>

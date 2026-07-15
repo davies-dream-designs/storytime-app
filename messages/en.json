@@ -312,10 +312,15 @@
     },
     "updatedLabel": "Updated {value}",
     "versionLabel": "Draft v{value}",
+    "finalVersionLabel": "Final package v{value}",
     "refreshExportsButton": "Refresh exports",
     "refreshingExportsButton": "Refreshing exports…",
     "rebuildButton": "Rebuild book",
-    "rebuildingButton": "Rebuilding book…"
+    "rebuildingButton": "Rebuilding book…",
+    "finalizeButton": "Finalize for order",
+    "refreshFinalButton": "Refresh final package",
+    "finalizingButton": "Finalizing package…",
+    "finalizedAtLabel": "Finalized {value}"
   },
   "account": {
     "title": "Your account",

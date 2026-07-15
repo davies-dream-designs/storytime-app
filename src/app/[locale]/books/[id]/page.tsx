@@ -152,6 +152,16 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
               <div className="mt-4 rounded-2xl bg-night-50 p-4">
                 <p className="text-xs font-bold uppercase tracking-wide text-night-400">{t('exportProfileLabel')}</p>
                 <p className="mt-2 text-sm font-medium text-night-700">{project.assets.exportProfile}</p>
+                {project.assets.finalizedAt ? (
+                  <p className="mt-2 text-xs font-medium uppercase tracking-wide text-night-400">
+                    {t('finalizedAtLabel', { value: new Intl.DateTimeFormat(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    }).format(new Date(project.assets.finalizedAt)) })}
+                  </p>
+                ) : null}
               </div>
             ) : null}
 

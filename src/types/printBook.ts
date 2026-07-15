@@ -10,7 +10,7 @@ export type BookProjectStatus =
   | 'ready'
   | 'failed'
 
-export type BookBuildMode = 'full' | 'exports'
+export type BookBuildMode = 'full' | 'exports' | 'finalize'
 
 export type BookArtMode = 'placeholder' | 'generated' | 'mixed'
 
@@ -90,8 +90,10 @@ export interface BookAsset {
   previewImages?: string[]
   artMode?: BookArtMode
   exportVersion?: number
+  finalExportVersion?: number
   lastBuildMode?: BookBuildMode
   orderabilityState?: BookOrderabilityState
+  finalizedAt?: string
   exportProfile?: string
   proofingPassed?: boolean
   proofingChecks?: ProofingCheck[]

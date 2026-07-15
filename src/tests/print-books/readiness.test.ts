@@ -21,7 +21,7 @@ function createProject(overrides: Partial<BookProject> = {}): BookProject {
     assets: {
       proofVersion: 1,
       exportVersion: 1,
-      orderabilityState: 'order_ready',
+      orderabilityState: 'export_ready',
       previewPdfUrl: 'https://example.com/preview.pdf',
       printPdfUrl: 'https://example.com/print.pdf',
       proofingPassed: true,
@@ -65,6 +65,19 @@ describe('getBookReadinessState', () => {
   })
 
   it('returns order_ready only when proofing is clear and exports are downloadable', () => {
-    expect(getBookReadinessState(createProject())).toBe('order_ready')
+    expect(
+      getBookReadinessState(
+        createProject({
+          assets: {
+            ...createProject().assets,
+            orderabilityState: 'order_ready',
+          },
+        }),
+      ),
+    ).toBe('order_ready')
+  })
+
+  it('returns export_ready for normal downloadable drafts', () => {
+    expect(getBookReadinessState(createProject())).toBe('export_ready')
   })
 })

@@ -320,4 +320,76 @@ describe('POST /api/books/[id]/build', () => {
     expect(body.assets?.exportVersion).toBe(4)
     expect(body.assets?.lastBuildMode).toBe('exports')
   })
+
+  it('can finalize a generated book into an order-ready package', async () => {
+    const readyProject = {
+      ...createBookProject(),
+      status: 'ready' as const,
+      completedSpreads: 16,
+      spreads: Array.from({ length: 16 }, (_, index) => ({
+        id: `spread-${index + 1}`,
+        bookProjectId: 'book-1',
+        sequence: index + 1,
+        pageStart: index * 2 + 1,
+        pageEnd: index * 2 + 2,
+        layoutType: index < 2 ? 'front_matter' : index > 13 ? 'end_matter' : 'text_art',
+        title: index === 0 ? 'Cover' : index === 1 ? 'Title' : index === 15 ? 'Back Cover' : undefined,
+        leftPageText: 'Left text',
+        rightPageText: 'Right text',
+        sceneBrief: 'Scene brief',
+        illustrationPrompt: 'Illustration prompt',
+        imageUrl: `https://example.com/${index + 1}.png`,
+      })),
+      assets: {
+        proofVersion: 3,
+        exportVersion: 3,
+        artMode: 'generated' as const,
+        coverPdfSpineSource: 'configured' as const,
+        coverPdfSpineWidthIn: 0.31,
+        coverImageUrl: 'https://example.com/books/book-1/cover.png',
+        previewPdfUrl: 'https://example.com/books/book-1/preview.pdf',
+        printPdfUrl: 'https://example.com/books/book-1/print.pdf',
+      },
+    }
+    mockDb.bookProjects.getById.mockResolvedValue(readyProject)
+    mockDb.bookProjects.update.mockImplementation(async (_id: string, updates: Partial<BookProject>) => ({
+      ...readyProject,
+      ...updates,
+      assets: {
+        ...readyProject.assets,
+        ...(updates.assets ?? {}),
+      },
+    }))
+    mockGenerateBookPdfs.mockResolvedValue({
+      coverPdfUrl: 'https://example.com/books/book-1/cover.pdf',
+      coverPdfReadyForOrdering: true,
+      coverPdfSpineWidthIn: 0.31,
+      coverPdfSpineSource: 'configured',
+      previewPdfUrl: 'https://example.com/books/book-1/preview.pdf',
+      printPdfUrl: 'https://example.com/books/book-1/print.pdf',
+      previewImages: ['https://example.com/books/book-1/cover.png'],
+    })
+
+    const { POST } = await import('@/app/api/books/[id]/build/route')
+    const res = await POST(
+      new NextRequest('http://localhost/api/books/book-1/build', {
+        method: 'POST',
+        body: JSON.stringify({ mode: 'finalize' }),
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      { params: Promise.resolve({ id: 'book-1' }) },
+    )
+
+    expect(res.status).toBe(200)
+    expect(mockGenerateCharacterBible).not.toHaveBeenCalled()
+    expect(mockGenerateCoverIllustration).not.toHaveBeenCalled()
+    expect(mockGenerateSpreadIllustration).not.toHaveBeenCalled()
+
+    const body = await res.json()
+    expect(body.assets?.exportVersion).toBe(4)
+    expect(body.assets?.lastBuildMode).toBe('finalize')
+    expect(body.assets?.orderabilityState).toBe('order_ready')
+    expect(body.assets?.finalizedAt).toBeTruthy()
+    expect(body.assets?.finalExportVersion).toBe(4)
+  })
 })

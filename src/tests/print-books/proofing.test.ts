@@ -52,7 +52,7 @@ describe('runLuluProofing', () => {
     expect(report.passed).toBe(true)
     expect(report.errors).toEqual([])
     expect(report.warnings.length).toBeGreaterThan(0)
-    expect(report.orderabilityState).toBe('order_ready')
+    expect(report.orderabilityState).toBe('export_ready')
     expect(report.checks.some((check) => check.key === 'page_count' && check.status === 'pass')).toBe(true)
   })
 
@@ -85,7 +85,7 @@ describe('runLuluProofing', () => {
     expect(
       report.warnings.some((warning) => warning.includes('Cover spine width is assumed from page count'))
     ).toBe(true)
-    expect(report.orderabilityState).toBe('order_ready')
+    expect(report.orderabilityState).toBe('export_ready')
   })
 
   it('marks placeholder illustration sets as export-ready rather than order-ready', async () => {
@@ -97,5 +97,30 @@ describe('runLuluProofing', () => {
     expect(report.passed).toBe(true)
     expect(report.orderabilityState).toBe('export_ready')
     expect(report.checks.some((check) => check.key === 'spread_art' && check.status === 'warn')).toBe(true)
+  })
+
+  it('only returns order_ready during strict finalization', async () => {
+    const { runLuluProofing } = await import('@/lib/print-books/proofing')
+    const project = createBookProject()
+    project.assets.coverPdfSpineSource = 'configured'
+    project.assets.coverPdfSpineWidthIn = 0.31
+
+    const report = runLuluProofing(project, { strictForOrdering: true })
+    expect(report.passed).toBe(true)
+    expect(report.orderabilityState).toBe('order_ready')
+  })
+
+  it('blocks strict finalization when draft artwork or assumed spine values remain', async () => {
+    const { runLuluProofing } = await import('@/lib/print-books/proofing')
+    const project = createBookProject()
+    project.assets.artMode = 'placeholder'
+    project.assets.coverPdfSpineSource = 'assumed'
+    project.assets.coverPdfSpineWidthIn = 0.08
+
+    const report = runLuluProofing(project, { strictForOrdering: true })
+    expect(report.passed).toBe(false)
+    expect(report.orderabilityState).toBe('export_ready')
+    expect(report.checks.some((check) => check.key === 'spread_art' && check.status === 'fail')).toBe(true)
+    expect(report.checks.some((check) => check.key === 'spine_width' && check.status === 'fail')).toBe(true)
   })
 })

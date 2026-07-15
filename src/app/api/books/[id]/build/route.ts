@@ -56,37 +56,38 @@ async function finalizeProjectExports(input: {
     profile: input.profile,
   })
 
-  const proofingReport = runLuluProofing({
-    ...input.project,
-    assets: {
-      ...input.project.assets,
-      coverImageUrl: input.project.assets.coverImageUrl,
-      coverPdfUrl: pdfAssets.coverPdfUrl,
-      coverPdfReadyForOrdering: pdfAssets.coverPdfReadyForOrdering,
-      coverPdfSpineWidthIn: pdfAssets.coverPdfSpineWidthIn,
-      coverPdfSpineSource: pdfAssets.coverPdfSpineSource,
-      previewPdfUrl: pdfAssets.previewPdfUrl,
-      printPdfUrl: pdfAssets.printPdfUrl,
-      previewImages: pdfAssets.previewImages,
+  const proofingAssets = {
+    ...input.project.assets,
+    coverImageUrl: input.project.assets.coverImageUrl,
+    coverPdfUrl: pdfAssets.coverPdfUrl,
+    coverPdfReadyForOrdering: pdfAssets.coverPdfReadyForOrdering,
+    coverPdfSpineWidthIn: pdfAssets.coverPdfSpineWidthIn,
+    coverPdfSpineSource: pdfAssets.coverPdfSpineSource,
+    previewPdfUrl: pdfAssets.previewPdfUrl,
+    printPdfUrl: pdfAssets.printPdfUrl,
+    previewImages: pdfAssets.previewImages,
+  }
+  const proofingReport = runLuluProofing(
+    {
+      ...input.project,
+      assets: proofingAssets,
     },
-  })
+    { strictForOrdering: input.buildMode === 'finalize' },
+  )
+  const finalizedAt = input.buildMode === 'finalize' && proofingReport.orderabilityState === 'order_ready'
+    ? new Date().toISOString()
+    : undefined
 
   const proofingProject = await db.bookProjects.update(input.id, {
     status: 'proofing',
-    currentStageLabel: getBookProjectStageLabel('proofing'),
+    currentStageLabel: input.buildMode === 'finalize' ? 'Finalizing the order package...' : getBookProjectStageLabel('proofing'),
     assets: {
-      ...input.project.assets,
-      coverImageUrl: input.project.assets.coverImageUrl,
-      coverPdfUrl: pdfAssets.coverPdfUrl,
-      coverPdfReadyForOrdering: pdfAssets.coverPdfReadyForOrdering,
-      coverPdfSpineWidthIn: pdfAssets.coverPdfSpineWidthIn,
-      coverPdfSpineSource: pdfAssets.coverPdfSpineSource,
-      previewPdfUrl: pdfAssets.previewPdfUrl,
-      printPdfUrl: pdfAssets.printPdfUrl,
-      previewImages: pdfAssets.previewImages,
+      ...proofingAssets,
       exportVersion: nextProofVersion,
+      finalExportVersion: finalizedAt ? nextProofVersion : input.project.assets.finalExportVersion,
       lastBuildMode: input.buildMode,
       orderabilityState: proofingReport.orderabilityState,
+      finalizedAt,
       exportProfile: LULU_SQUARE_HARDCOVER_SPEC.trimLabel,
       proofVersion: nextProofVersion,
       proofingPassed: proofingReport.passed,
@@ -131,18 +132,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const characters = (await db.characters.getByProfileId(profile.id)).filter((character) => character.userId === userId)
   const payload = (await req.json().catch(() => null)) as { mode?: BookBuildMode } | null
-  const buildMode: BookBuildMode = payload?.mode === 'exports' ? 'exports' : 'full'
+  const buildMode: BookBuildMode =
+    payload?.mode === 'exports' ? 'exports' : payload?.mode === 'finalize' ? 'finalize' : 'full'
   let failureCode: `${BookProjectStatus}_failed` = 'planning_failed'
 
   try {
-    if (buildMode === 'exports') {
+    if (buildMode === 'exports' || buildMode === 'finalize') {
       if (!project.spreads.length || !project.assets.coverImageUrl) {
         return NextResponse.json({ error: 'This book does not have a complete draft to refresh yet.' }, { status: 409 })
       }
 
       const exportProject = await db.bookProjects.update(id, {
         status: 'composing',
-        currentStageLabel: 'Refreshing export files...',
+        currentStageLabel: buildMode === 'finalize' ? 'Finalizing the order package...' : 'Refreshing export files...',
         errorCode: undefined,
         errorMessage: undefined,
       })

@@ -137,7 +137,12 @@
     "profileEmptyTitle": "📖 Aucune histoire pour l'instant",
     "profileEmptySub": "Générez la première histoire pour {name}.",
     "profileEmptyButton": "Générer une histoire",
-    "deleteProfile": "Supprimer le profil"
+    "deleteProfile": "Supprimer le profil",
+    "lovesLabel": "Aime : {items}",
+    "deleteConfirm": "Supprimer ce profil ? Les histoires ne seront pas supprimées.",
+    "deleting": "Suppression…",
+    "characterMemory": "Mémoire des personnages",
+    "manageCharacters": "Gérer les personnages →"
   },
   "stories": {
     "libraryTitle": "Bibliothèque d'histoires",
@@ -181,7 +186,16 @@
     "emptyGenerateStory": "Générer une histoire",
     "forProfile": "Pour {name}",
     "wordPages": "{words} mots · {pages} pages",
-    "shareButton": "Partager"
+    "shareButton": "Partager",
+    "shareIdle": "🔗 Partager",
+    "shareLinkCopied": "✅ Lien copié !",
+    "pageOf": "Page {page} sur {total}",
+    "prevButton": "← Précédent",
+    "nextButton": "Suivant →",
+    "readFullText": "Lire l'histoire complète en texte",
+    "goToPage": "Aller à la page {page}",
+    "wordsCount": "{count} mots",
+    "pagesCount": "{count} pages"
   },
   "account": {
     "title": "Votre compte",
@@ -199,7 +213,11 @@
     "packPopular": "Le plus populaire",
     "packFooter": "Paiements sécurisés via Stripe · Prix en AUD · Les crédits n'expirent jamais",
     "shareTitle": "Partager Storycot",
-    "shareSub": "Partagez votre lien de parrainage et gagnez des crédits bonus."
+    "shareSub": "Partagez votre lien de parrainage et gagnez des crédits bonus.",
+    "shareReferralTitle": "Partagez et gagnez une histoire gratuite",
+    "shareReferralSub": "Quand un ami s'inscrit avec votre lien et crée sa première histoire, vous recevez une histoire gratuite.",
+    "shareCopyLink": "Copier le lien",
+    "shareLinkCopied": "✓ Copié !"
   },
   "common": {
     "loading": "Chargement…",

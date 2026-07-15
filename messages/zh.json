@@ -137,7 +137,12 @@
     "profileEmptyTitle": "📖 暂无故事",
     "profileEmptySub": "为 {name} 生成第一个故事。",
     "profileEmptyButton": "生成故事",
-    "deleteProfile": "删除档案"
+    "deleteProfile": "删除档案",
+    "lovesLabel": "喜欢：{items}",
+    "deleteConfirm": "删除此档案？故事不会被删除。",
+    "deleting": "删除中…",
+    "characterMemory": "角色记忆",
+    "manageCharacters": "管理角色 →"
   },
   "stories": {
     "libraryTitle": "故事图书馆",
@@ -181,7 +186,16 @@
     "emptyGenerateStory": "生成故事",
     "forProfile": "为 {name}",
     "wordPages": "{words} 字 · {pages} 页",
-    "shareButton": "分享"
+    "shareButton": "分享",
+    "shareIdle": "🔗 分享",
+    "shareLinkCopied": "✅ 链接已复制！",
+    "pageOf": "第 {page} 页，共 {total} 页",
+    "prevButton": "← 上一页",
+    "nextButton": "下一页 →",
+    "readFullText": "阅读完整故事文本",
+    "goToPage": "转到第 {page} 页",
+    "wordsCount": "{count} 字",
+    "pagesCount": "{count} 页"
   },
   "account": {
     "title": "您的账户",
@@ -199,7 +213,11 @@
     "packPopular": "最受欢迎",
     "packFooter": "通过 Stripe 安全支付 · 澳元定价 · 积分永不过期",
     "shareTitle": "分享 Storycot",
-    "shareSub": "分享您的推荐链接，赢取额外积分。"
+    "shareSub": "分享您的推荐链接，赢取额外积分。",
+    "shareReferralTitle": "分享并获得免费故事",
+    "shareReferralSub": "当朋友使用您的链接注册并创建第一个故事时，您将获得一个免费故事。",
+    "shareCopyLink": "复制链接",
+    "shareLinkCopied": "✓ 已复制！"
   },
   "common": {
     "loading": "加载中…",

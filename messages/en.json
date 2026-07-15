@@ -137,7 +137,12 @@
     "profileEmptyTitle": "📖 No stories yet",
     "profileEmptySub": "Generate the first story for {name}.",
     "profileEmptyButton": "Generate a story",
-    "deleteProfile": "Delete profile"
+    "deleteProfile": "Delete profile",
+    "lovesLabel": "Loves: {items}",
+    "deleteConfirm": "Delete this profile? Stories will not be deleted.",
+    "deleting": "Deleting…",
+    "characterMemory": "Character memory",
+    "manageCharacters": "Manage characters →"
   },
   "stories": {
     "libraryTitle": "Story library",
@@ -181,7 +186,16 @@
     "emptyGenerateStory": "Generate a story",
     "forProfile": "For {name}",
     "wordPages": "{words} words · {pages} pages",
-    "shareButton": "Share"
+    "shareButton": "Share",
+    "shareIdle": "🔗 Share",
+    "shareLinkCopied": "✅ Link copied!",
+    "pageOf": "Page {page} of {total}",
+    "prevButton": "← Previous",
+    "nextButton": "Next →",
+    "readFullText": "Read full story as text",
+    "goToPage": "Go to page {page}",
+    "wordsCount": "{count} words",
+    "pagesCount": "{count} pages"
   },
   "account": {
     "title": "Your account",
@@ -199,7 +213,11 @@
     "packPopular": "Most popular",
     "packFooter": "Secure payments via Stripe · AUD pricing · Credits never expire",
     "shareTitle": "Share Storycot",
-    "shareSub": "Share your referral link and earn bonus credits."
+    "shareSub": "Share your referral link and earn bonus credits.",
+    "shareReferralTitle": "Share & earn a free story",
+    "shareReferralSub": "When a friend signs up using your link and creates their first story, you get a free story added to your account.",
+    "shareCopyLink": "Copy link",
+    "shareLinkCopied": "✓ Copied!"
   },
   "common": {
     "loading": "Loading…",

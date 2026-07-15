@@ -102,8 +102,8 @@ export default function StoryLibrary({ stories, profiles }: { stories: Story[]; 
                   <h3 className="font-display text-lg font-bold text-night-800 group-hover:text-night-600 line-clamp-2">{story.title}</h3>
                   <p className="mt-1.5 text-sm text-night-400">{t('forProfile', { name: story.profileName })}</p>
                   <div className="mt-3 flex items-center gap-3 text-xs text-night-300">
-                    <span>{story.wordCount} words</span><span>·</span>
-                    <span>{story.pages.length} pages</span><span>·</span>
+                    <span>{t('wordsCount', { count: story.wordCount })}</span><span>·</span>
+                    <span>{t('pagesCount', { count: story.pages.length })}</span><span>·</span>
                     <span>{new Date(story.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
                   </div>
                   <div className="mt-4">

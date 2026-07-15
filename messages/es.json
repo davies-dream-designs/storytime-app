@@ -137,7 +137,12 @@
     "profileEmptyTitle": "📖 Sin cuentos aún",
     "profileEmptySub": "Genera el primer cuento para {name}.",
     "profileEmptyButton": "Generar un cuento",
-    "deleteProfile": "Eliminar perfil"
+    "deleteProfile": "Eliminar perfil",
+    "lovesLabel": "Le gusta: {items}",
+    "deleteConfirm": "¿Eliminar este perfil? Los cuentos no se eliminarán.",
+    "deleting": "Eliminando…",
+    "characterMemory": "Memoria de personajes",
+    "manageCharacters": "Gestionar personajes →"
   },
   "stories": {
     "libraryTitle": "Biblioteca de cuentos",
@@ -181,7 +186,16 @@
     "emptyGenerateStory": "Generar un cuento",
     "forProfile": "Para {name}",
     "wordPages": "{words} palabras · {pages} páginas",
-    "shareButton": "Compartir"
+    "shareButton": "Compartir",
+    "shareIdle": "🔗 Compartir",
+    "shareLinkCopied": "✅ ¡Enlace copiado!",
+    "pageOf": "Página {page} de {total}",
+    "prevButton": "← Anterior",
+    "nextButton": "Siguiente →",
+    "readFullText": "Leer cuento completo como texto",
+    "goToPage": "Ir a la página {page}",
+    "wordsCount": "{count} palabras",
+    "pagesCount": "{count} páginas"
   },
   "account": {
     "title": "Tu cuenta",
@@ -199,7 +213,11 @@
     "packPopular": "Más popular",
     "packFooter": "Pagos seguros vía Stripe · Precios en AUD · Los créditos no vencen",
     "shareTitle": "Compartir Storycot",
-    "shareSub": "Comparte tu enlace de referido y gana créditos adicionales."
+    "shareSub": "Comparte tu enlace de referido y gana créditos adicionales.",
+    "shareReferralTitle": "Comparte y gana un cuento gratis",
+    "shareReferralSub": "Cuando un amigo se registra con tu enlace y crea su primer cuento, recibirás un cuento gratis en tu cuenta.",
+    "shareCopyLink": "Copiar enlace",
+    "shareLinkCopied": "✓ ¡Copiado!"
   },
   "common": {
     "loading": "Cargando…",

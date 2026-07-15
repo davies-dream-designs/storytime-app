@@ -23,6 +23,12 @@ export async function POST(req: NextRequest) {
     const session = event.data.object as Stripe.Checkout.Session
     const userId = session.metadata?.userId
     const purchased = parseInt(session.metadata?.credits ?? '0', 10)
+    const billingCountry = session.customer_details?.address?.country
+
+    // AU-only sales policy: do not grant credits for non-AU purchases.
+    if (billingCountry !== 'AU') {
+      return NextResponse.json({ received: true, ignored: true })
+    }
 
     if (userId && purchased > 0) {
       const client = await clerkClient()

@@ -38,6 +38,7 @@ export default function CreatePrintBookButton({ storyId }: { storyId: string }) 
       }
 
       const project = (await createRes.json()) as { id: string }
+      await new Promise((resolve) => window.setTimeout(resolve, 250))
       const buildRes = await fetch(`/api/books/${project.id}/build`, { method: 'POST' })
       if (!buildRes.ok) {
         throw new Error(await getErrorMessage(buildRes, t('buildError')))

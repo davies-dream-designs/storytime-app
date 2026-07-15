@@ -12,9 +12,15 @@ const PACKS = [
 export default function CreditPacks() {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [auConfirmed, setAuConfirmed] = useState(false)
   const t = useTranslations('account')
 
   async function handlePurchase(packId: string) {
+    if (!auConfirmed) {
+      setError(t('auOnlyError'))
+      return
+    }
+
     setLoading(packId)
     setError('')
     try {
@@ -36,6 +42,24 @@ export default function CreditPacks() {
     <div className="mt-8">
       <h2 className="font-display text-2xl font-bold text-night-800">{t('packsTitle')}</h2>
       <p className="mt-1 text-night-400">{t('packsSub')}</p>
+
+      <div className="mt-5 rounded-2xl border border-star-200 bg-star-50 px-4 py-4">
+        <label className="flex items-start gap-3 text-sm text-night-700">
+          <input
+            type="checkbox"
+            checked={auConfirmed}
+            onChange={(event) => {
+              setAuConfirmed(event.target.checked)
+              if (event.target.checked) setError('')
+            }}
+            className="mt-0.5 h-4 w-4 rounded border-night-300 text-night-700 focus:ring-night-500"
+          />
+          <span>
+            <span className="block font-bold text-night-800">{t('auOnlyLabel')}</span>
+            <span className="mt-1 block text-night-500">{t('auOnlyHelp')}</span>
+          </span>
+        </label>
+      </div>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-3">
         {PACKS.map((pack) => (

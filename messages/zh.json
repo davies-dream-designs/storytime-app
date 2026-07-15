@@ -126,9 +126,18 @@
     "errorName": "姓名为必填项",
     "errorYear": "出生年份为必填项",
     "months": {
-      "1": "一月", "2": "二月", "3": "三月", "4": "四月",
-      "5": "五月", "6": "六月", "7": "七月", "8": "八月",
-      "9": "九月", "10": "十月", "11": "十一月", "12": "十二月"
+      "1": "一月",
+      "2": "二月",
+      "3": "三月",
+      "4": "四月",
+      "5": "五月",
+      "6": "六月",
+      "7": "七月",
+      "8": "八月",
+      "9": "九月",
+      "10": "十月",
+      "11": "十一月",
+      "12": "十二月"
     },
     "profileTitle": "{name}",
     "profileAge": "{age} · {count} 个故事",
@@ -234,7 +243,20 @@
     "pageCountLabel": "页数",
     "spreadCountLabel": "跨页数",
     "spreadLabel": "第 {start}–{end} 页",
-    "spreadsPending": "图书编排完成后，跨页计划会显示在这里。"
+    "spreadsPending": "图书编排完成后，跨页计划会显示在这里。",
+    "spreadNumberLabel": "Spread {sequence}",
+    "leftPageTextLabel": "Left page text",
+    "rightPageTextLabel": "Right page text",
+    "illustrationIntentLabel": "Illustration intent",
+    "emptyTextFallback": "This side stays visually quiet.",
+    "imageLedFallback": "This side is carrying the artwork.",
+    "layout": {
+      "front_matter": "Front matter",
+      "text_art": "Text + art",
+      "hero": "Hero spread",
+      "quiet": "Quiet spread",
+      "end_matter": "End matter"
+    }
   },
   "account": {
     "title": "您的账户",

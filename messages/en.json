@@ -233,8 +233,21 @@
     "ageBandLabel": "Age band",
     "pageCountLabel": "Pages",
     "spreadCountLabel": "Spreads",
+    "spreadNumberLabel": "Spread {sequence}",
     "spreadLabel": "Pages {start}–{end}",
-    "spreadsPending": "The spread plan will appear here as soon as the book is composed."
+    "leftPageTextLabel": "Left page text",
+    "rightPageTextLabel": "Right page text",
+    "illustrationIntentLabel": "Illustration intent",
+    "emptyTextFallback": "This side stays visually quiet.",
+    "imageLedFallback": "This side is carrying the artwork.",
+    "spreadsPending": "The spread plan will appear here as soon as the book is composed.",
+    "layout": {
+      "front_matter": "Front matter",
+      "text_art": "Text + art",
+      "hero": "Hero spread",
+      "quiet": "Quiet spread",
+      "end_matter": "End matter"
+    }
   },
   "account": {
     "title": "Your account",

@@ -126,9 +126,18 @@
     "errorName": "Le prénom est obligatoire",
     "errorYear": "L'année de naissance est obligatoire",
     "months": {
-      "1": "Janvier", "2": "Février", "3": "Mars", "4": "Avril",
-      "5": "Mai", "6": "Juin", "7": "Juillet", "8": "Août",
-      "9": "Septembre", "10": "Octobre", "11": "Novembre", "12": "Décembre"
+      "1": "Janvier",
+      "2": "Février",
+      "3": "Mars",
+      "4": "Avril",
+      "5": "Mai",
+      "6": "Juin",
+      "7": "Juillet",
+      "8": "Août",
+      "9": "Septembre",
+      "10": "Octobre",
+      "11": "Novembre",
+      "12": "Décembre"
     },
     "profileTitle": "{name}",
     "profileAge": "{age} · {count} histoires",
@@ -234,7 +243,20 @@
     "pageCountLabel": "Pages",
     "spreadCountLabel": "Doubles pages",
     "spreadLabel": "Pages {start}–{end}",
-    "spreadsPending": "Le plan des doubles pages apparaîtra ici dès que le livre sera composé."
+    "spreadsPending": "Le plan des doubles pages apparaîtra ici dès que le livre sera composé.",
+    "spreadNumberLabel": "Spread {sequence}",
+    "leftPageTextLabel": "Left page text",
+    "rightPageTextLabel": "Right page text",
+    "illustrationIntentLabel": "Illustration intent",
+    "emptyTextFallback": "This side stays visually quiet.",
+    "imageLedFallback": "This side is carrying the artwork.",
+    "layout": {
+      "front_matter": "Front matter",
+      "text_art": "Text + art",
+      "hero": "Hero spread",
+      "quiet": "Quiet spread",
+      "end_matter": "End matter"
+    }
   },
   "account": {
     "title": "Votre compte",

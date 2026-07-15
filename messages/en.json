@@ -225,6 +225,14 @@
     "shareCopyLink": "Copy link",
     "shareLinkCopied": "✓ Copied!"
   },
+  "share": {
+    "createdFor": "A story created especially for",
+    "ctaTitle": "Create a story for your little one",
+    "ctaSub": "Storycot generates personalised bedtime stories in seconds — tailored to your child's name, age, and favourite things.",
+    "ctaButton": "Get 3 free stories →",
+    "footer": "Made with Storycot · storycot.com · Every child deserves a story made just for them.",
+    "createOwn": "Create your own story →"
+  },
   "common": {
     "loading": "Loading…",
     "error": "Something went wrong",

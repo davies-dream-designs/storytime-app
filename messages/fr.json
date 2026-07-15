@@ -225,6 +225,14 @@
     "shareCopyLink": "Copier le lien",
     "shareLinkCopied": "✓ Copié !"
   },
+  "share": {
+    "createdFor": "Une histoire créée spécialement pour",
+    "ctaTitle": "Créez une histoire pour votre petit",
+    "ctaSub": "Storycot génère des histoires du soir personnalisées en quelques secondes — adaptées au nom, à l'âge et aux préférences de votre enfant.",
+    "ctaButton": "Obtenir 3 histoires gratuites →",
+    "footer": "Fait avec Storycot · storycot.com · Chaque enfant mérite une histoire faite pour lui.",
+    "createOwn": "Créer votre propre histoire →"
+  },
   "common": {
     "loading": "Chargement…",
     "error": "Quelque chose s'est mal passé",

@@ -225,6 +225,14 @@
     "shareCopyLink": "复制链接",
     "shareLinkCopied": "✓ 已复制！"
   },
+  "share": {
+    "createdFor": "专为以下人创作的故事：",
+    "ctaTitle": "为您的小宝贝创作一个故事",
+    "ctaSub": "Storycot 在几秒内生成个性化睡前故事——根据您孩子的名字、年龄和最喜欢的事物量身定制。",
+    "ctaButton": "免费获取3个故事 →",
+    "footer": "由 Storycot 制作 · storycot.com · 每个孩子都值得拥有专属于他们的故事。",
+    "createOwn": "创作您自己的故事 →"
+  },
   "common": {
     "loading": "加载中…",
     "error": "出了点问题",

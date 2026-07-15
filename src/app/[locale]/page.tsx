@@ -1,9 +1,40 @@
-import Link from 'next/link'
 import Image from 'next/image'
 import { Suspense } from 'react'
+import { getTranslations } from 'next-intl/server'
+import { Link } from '@/i18n/navigation'
 import RefCapture from '@/components/RefCapture'
 
-export default function Home() {
+export default async function Home() {
+  const t = await getTranslations('home')
+
+  const features = [
+    { icon: '👶', title: t('feature1Title'), body: t('feature1Desc') },
+    { icon: '✨', title: t('feature2Title'), body: t('feature2Desc') },
+    { icon: '📚', title: t('feature3Title'), body: t('feature3Desc') },
+    { icon: '🖨️', title: t('feature4Title'), body: t('feature4Desc') },
+  ]
+
+  const arcSteps = [
+    { num: '1', label: t('arc.introduction'), icon: '🌅' },
+    { num: '2', label: t('arc.adventure'), icon: '🗺️' },
+    { num: '3', label: t('arc.growth'), icon: '🌱' },
+    { num: '4', label: t('arc.resolution'), icon: '⭐' },
+    { num: '5', label: t('arc.bedtime'), icon: '😴' },
+  ]
+
+  const themes = [
+    ['💛', t('themes.kindness')],
+    ['🦁', t('themes.bravery')],
+    ['🤝', t('themes.sharing')],
+    ['🌈', t('themes.tryingNewThings')],
+    ['💭', t('themes.dealingWithEmotions')],
+    ['👫', t('themes.friendship')],
+    ['🌿', t('themes.patience')],
+    ['✅', t('themes.honesty')],
+    ['🙏', t('themes.gratitude')],
+    ['💪', t('themes.perseverance')],
+  ]
+
   return (
     <main className="overflow-x-hidden">
       <Suspense><RefCapture /></Suspense>
@@ -18,7 +49,7 @@ export default function Home() {
             href="/dashboard"
             className="rounded-full bg-moon-400 px-5 py-2.5 text-sm font-bold text-night-900 transition hover:bg-moon-300"
           >
-            Open App
+            {t('openApp')}
           </Link>
         </nav>
       </header>
@@ -54,26 +85,23 @@ export default function Home() {
             <Image src="/icon-dark.svg" alt="" width={120} height={120} className="rounded-3xl shadow-2xl shadow-night-900/50" />
           </div>
           <h1 className="font-display text-5xl font-bold leading-tight text-white sm:text-6xl lg:text-7xl">
-            Bedtime stories
-            <br />
-            <span className="text-moon-300">made just for them.</span>
+            {t('hero')}
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-night-200 sm:text-xl">
-            Create personalised, AI-generated bedtime stories starring your child — with their
-            favourite toys, animals, and adventures woven into every page.
+            {t('heroSub')}
           </p>
           <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <Link
               href="/dashboard"
               className="rounded-full bg-moon-400 px-8 py-4 text-lg font-bold text-night-900 transition hover:bg-moon-300 hover:scale-105"
             >
-              Create your first story ✨
+              {t('ctaCreate')}
             </Link>
             <Link
               href="/stories"
               className="rounded-full border border-white/20 px-8 py-4 text-lg font-bold text-white transition hover:bg-white/10"
             >
-              Browse stories
+              {t('ctaBrowse')}
             </Link>
           </div>
         </div>
@@ -83,35 +111,14 @@ export default function Home() {
       <section className="mx-auto max-w-6xl px-5 py-24">
         <div className="text-center">
           <h2 className="font-display text-4xl font-bold text-night-800">
-            A story that&apos;s theirs alone
+            {t('featureTitle')}
           </h2>
           <p className="mt-4 text-lg text-night-500">
-            Every detail that makes your child unique goes into every story.
+            {t('featureSub')}
           </p>
         </div>
         <div className="mt-16 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {[
-            {
-              icon: '👶',
-              title: 'Child profiles',
-              body: 'Tell us about your little one — their name, age, favourite toys, animals, and places.',
-            },
-            {
-              icon: '✨',
-              title: 'AI story magic',
-              body: 'Claude AI weaves their world into a 700–900 word bedtime story in seconds.',
-            },
-            {
-              icon: '📚',
-              title: 'Story library',
-              body: 'Every story is saved. Re-read favourites any time, any night.',
-            },
-            {
-              icon: '🖨️',
-              title: 'Print as a book',
-              body: 'Export any story as a beautiful PDF to print and keep forever.',
-            },
-          ].map((f) => (
+          {features.map((f) => (
             <div
               key={f.title}
               className="rounded-3xl border border-night-100 bg-white p-8 shadow-sm"
@@ -124,21 +131,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Example story structure */}
+      {/* Story arc */}
       <section className="bg-night-800 py-24 text-white">
         <div className="mx-auto max-w-4xl px-5 text-center">
-          <h2 className="font-display text-4xl font-bold">Every story has a perfect arc.</h2>
-          <p className="mt-4 text-night-200">
-            The AI follows a proven structure that keeps kids engaged and ends with calm.
-          </p>
+          <h2 className="font-display text-4xl font-bold">{t('arcTitle')}</h2>
+          <p className="mt-4 text-night-200">{t('arcSub')}</p>
           <div className="mt-14 grid grid-cols-5 gap-2 sm:gap-4">
-            {[
-              { num: '1', label: 'Introduction', icon: '🌅' },
-              { num: '2', label: 'Adventure', icon: '🗺️' },
-              { num: '3', label: 'Growth', icon: '🌱' },
-              { num: '4', label: 'Resolution', icon: '⭐' },
-              { num: '5', label: 'Bedtime', icon: '😴' },
-            ].map((step) => (
+            {arcSteps.map((step) => (
               <div key={step.num} className="flex flex-col items-center gap-2">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-moon-400/20 text-2xl">
                   {step.icon}
@@ -154,25 +153,14 @@ export default function Home() {
       <section className="mx-auto max-w-6xl px-5 py-24">
         <div className="text-center">
           <h2 className="font-display text-4xl font-bold text-night-800">
-            Stories with heart.
+            {t('themesTitle')}
           </h2>
           <p className="mt-4 text-lg text-night-500">
-            Choose a theme and the story naturally teaches it.
+            {t('themesSub')}
           </p>
         </div>
         <div className="mt-12 flex flex-wrap justify-center gap-3">
-          {[
-            ['💛', 'Kindness'],
-            ['🦁', 'Bravery'],
-            ['🤝', 'Sharing'],
-            ['🌈', 'Trying new things'],
-            ['💭', 'Dealing with emotions'],
-            ['👫', 'Friendship'],
-            ['🌿', 'Patience'],
-            ['✅', 'Honesty'],
-            ['🙏', 'Gratitude'],
-            ['💪', 'Perseverance'],
-          ].map(([icon, theme]) => (
+          {themes.map(([icon, theme]) => (
             <span
               key={theme}
               className="flex items-center gap-2 rounded-full border border-night-100 bg-white px-5 py-2.5 text-sm font-bold text-night-600 shadow-sm"
@@ -190,16 +178,16 @@ export default function Home() {
             <Image src="/icon-dark.svg" alt="" width={80} height={80} className="rounded-2xl" />
           </div>
           <h2 className="mt-4 font-display text-4xl font-bold text-white">
-            Ready for tonight&apos;s story?
+            {t('ctaTitle')}
           </h2>
           <p className="mt-4 text-night-200">
-            Create a child profile, pick a theme, and have a magical story ready in under a minute.
+            {t('ctaSub')}
           </p>
           <Link
             href="/dashboard"
             className="mt-8 inline-block rounded-full bg-moon-400 px-8 py-4 text-lg font-bold text-night-900 transition hover:bg-moon-300"
           >
-            Get started — it&apos;s free ✨
+            {t('ctaButton')}
           </Link>
         </div>
       </section>
@@ -210,7 +198,7 @@ export default function Home() {
           <Image src="/icon-dark.svg" alt="" width={24} height={24} className="rounded-md" aria-hidden />
           <p className="font-display text-lg font-bold text-white">Storycot</p>
         </div>
-        <p className="text-sm">Personalised bedtime stories for the little ones you love.</p>
+        <p className="text-sm">{t('footerTagline')}</p>
       </footer>
     </main>
   )

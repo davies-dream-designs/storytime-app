@@ -64,7 +64,15 @@ export default async function LocaleLayout({
   const messages = await getMessages()
 
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      appearance={{
+        variables: {
+          colorPrimary: '#fbbf24',
+          colorBackground: '#faf9f6',
+          borderRadius: '0.75rem',
+        },
+      }}
+    >
       <NextIntlClientProvider locale={locale} messages={messages}>
         <html lang={locale} className={`${fredoka.variable} ${nunito.variable}`}>
           <body className="bg-parchment text-ink font-body antialiased">{children}</body>

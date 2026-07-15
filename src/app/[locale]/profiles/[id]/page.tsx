@@ -4,12 +4,11 @@ import { getTranslations } from 'next-intl/server'
 import { Link } from '@/i18n/navigation'
 import Nav from '@/components/Nav'
 import { db } from '@/lib/db'
-import { formatAge } from '@/types'
 import DeleteProfileButton from './DeleteProfileButton'
 
 export default async function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
-  const t = await getTranslations('profiles')
+  const [t, tCommon] = await Promise.all([getTranslations('profiles'), getTranslations('common')])
   const { id } = await params
   const profile = await db.profiles.getById(id)
   if (!profile || profile.userId !== userId) notFound()
@@ -20,6 +19,18 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
   ])
   const stories = storiesRaw.filter((s) => s.userId === userId).sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1))
   const myCharacters = characters.filter((c) => c.userId === userId)
+
+  let ageString: string
+  if (profile.dateOfBirth) {
+    const now = new Date()
+    const dob = new Date(profile.dateOfBirth)
+    const totalMonths = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth())
+    ageString = totalMonths < 12
+      ? tCommon('monthsOld', { months: Math.max(totalMonths, 0) })
+      : tCommon('yearsOld', { years: Math.floor(totalMonths / 12) })
+  } else {
+    ageString = tCommon('yearsOld', { years: profile.age ?? 0 })
+  }
 
   const details = [
     { label: t('detailChars'), values: profile.favouriteCharacters },
@@ -40,7 +51,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
             </div>
             <div>
               <h1 className="font-display text-4xl font-bold text-night-800">{profile.name}</h1>
-              <p className="text-night-500">{formatAge(profile)} · {stories.length === 1 ? t('storyCount', { count: stories.length }) : t('storiesCount', { count: stories.length })}</p>
+              <p className="text-night-500">{ageString} · {stories.length === 1 ? t('storyCount', { count: stories.length }) : t('storiesCount', { count: stories.length })}</p>
             </div>
           </div>
           <div className="flex gap-3">

@@ -5,20 +5,20 @@ import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import type { Story, ChildProfile } from '@/types'
 
-const THEME_CONFIG: Record<string, { emoji: string; accent: string; light: string }> = {
-  wonder:                  { emoji: '✨', accent: '#8b5cf6', light: '#f5f3ff' },
-  comfort:                 { emoji: '🌙', accent: '#3b82f6', light: '#eff6ff' },
-  bravery:                 { emoji: '🦁', accent: '#f97316', light: '#fff7ed' },
-  kindness:                { emoji: '💛', accent: '#eab308', light: '#fefce8' },
-  friendship:              { emoji: '🤝', accent: '#ec4899', light: '#fdf2f8' },
-  adventure:               { emoji: '🗺️', accent: '#22c55e', light: '#f0fdf4' },
-  patience:                { emoji: '🌿', accent: '#16a34a', light: '#f0fdf4' },
-  honesty:                 { emoji: '⭐', accent: '#6366f1', light: '#eef2ff' },
-  gratitude:               { emoji: '🙏', accent: '#f59e0b', light: '#fffbeb' },
-  perseverance:            { emoji: '💪', accent: '#ef4444', light: '#fef2f2' },
-  sharing:                 { emoji: '🎁', accent: '#14b8a6', light: '#f0fdfa' },
-  'dealing with emotions': { emoji: '💭', accent: '#a855f7', light: '#faf5ff' },
-  'trying new things':     { emoji: '🌈', accent: '#6366f1', light: '#eef2ff' },
+const THEME_CONFIG: Record<string, { emoji: string; accent: string; light: string; tKey: string }> = {
+  wonder:                  { emoji: '✨', accent: '#8b5cf6', light: '#f5f3ff', tKey: 'wonder' },
+  comfort:                 { emoji: '🌙', accent: '#3b82f6', light: '#eff6ff', tKey: 'comfort' },
+  bravery:                 { emoji: '🦁', accent: '#f97316', light: '#fff7ed', tKey: 'bravery' },
+  kindness:                { emoji: '💛', accent: '#eab308', light: '#fefce8', tKey: 'kindness' },
+  friendship:              { emoji: '🤝', accent: '#ec4899', light: '#fdf2f8', tKey: 'friendship' },
+  adventure:               { emoji: '🗺️', accent: '#22c55e', light: '#f0fdf4', tKey: 'adventure' },
+  patience:                { emoji: '🌿', accent: '#16a34a', light: '#f0fdf4', tKey: 'patience' },
+  honesty:                 { emoji: '⭐', accent: '#6366f1', light: '#eef2ff', tKey: 'honesty' },
+  gratitude:               { emoji: '🙏', accent: '#f59e0b', light: '#fffbeb', tKey: 'gratitude' },
+  perseverance:            { emoji: '💪', accent: '#ef4444', light: '#fef2f2', tKey: 'perseverance' },
+  sharing:                 { emoji: '🎁', accent: '#14b8a6', light: '#f0fdfa', tKey: 'sharing' },
+  'dealing with emotions': { emoji: '💭', accent: '#a855f7', light: '#faf5ff', tKey: 'dealingWithEmotions' },
+  'trying new things':     { emoji: '🌈', accent: '#6366f1', light: '#eef2ff', tKey: 'tryingNewThings' },
 }
 const DEFAULT_THEME = { emoji: '📖', accent: '#5b4e8a', light: '#f5f3ff' }
 
@@ -30,6 +30,8 @@ export default function StoryLibrary({ stories, profiles }: { stories: Story[]; 
   const [query, setQuery] = useState('')
   const [profileFilter, setProfileFilter] = useState('')
   const t = useTranslations('stories')
+  const tHome = useTranslations('home')
+  const themeNames = tHome.raw('themes') as Record<string, string>
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim()
@@ -89,14 +91,15 @@ export default function StoryLibrary({ stories, profiles }: { stories: Story[]; 
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((story) => {
             const theme = getTheme(story.theme)
+            const themeName = themeNames[theme.tKey] ?? story.theme
             return (
               <Link key={story.id} href={`/stories/${story.id}`}
                 className="group flex flex-col overflow-hidden rounded-2xl border border-night-100 bg-white shadow-sm transition hover:shadow-md">
                 <div className="flex items-center justify-between px-5 py-3"
                   style={{ backgroundColor: theme.light, borderBottom: `2px solid ${theme.accent}22` }}>
                   <span className="text-2xl" aria-hidden>{theme.emoji}</span>
-                  <span className="rounded-full px-3 py-0.5 text-xs font-bold capitalize"
-                    style={{ backgroundColor: `${theme.accent}18`, color: theme.accent }}>{story.theme}</span>
+                  <span className="rounded-full px-3 py-0.5 text-xs font-bold"
+                    style={{ backgroundColor: `${theme.accent}18`, color: theme.accent }}>{themeName}</span>
                 </div>
                 <div className="flex flex-1 flex-col p-5">
                   <h3 className="font-display text-lg font-bold text-night-800 group-hover:text-night-600 line-clamp-2">{story.title}</h3>

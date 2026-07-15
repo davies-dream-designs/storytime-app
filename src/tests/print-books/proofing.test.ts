@@ -70,15 +70,16 @@ describe('runLuluProofing', () => {
     expect(report.errors.some((error) => error.includes('Spread images are missing'))).toBe(true)
   })
 
-  it('fails when the cover pdf is present but still generic', async () => {
+  it('warns when the cover spine width is assumed from page count', async () => {
     const { runLuluProofing } = await import('@/lib/print-books/proofing')
     const project = createBookProject()
-    project.assets.coverPdfReadyForOrdering = false
+    project.assets.coverPdfSpineSource = 'assumed'
+    project.assets.coverPdfSpineWidthIn = 0.08
 
     const report = runLuluProofing(project)
-    expect(report.passed).toBe(false)
+    expect(report.passed).toBe(true)
     expect(
-      report.errors.some((error) => error.includes('Cover PDF still uses a generic spine width'))
+      report.warnings.some((warning) => warning.includes('Cover spine width is assumed from page count'))
     ).toBe(true)
   })
 })

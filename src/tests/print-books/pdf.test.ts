@@ -128,7 +128,9 @@ describe('generateBookPdfs', () => {
     })
 
     expect(result.coverPdfUrl).toBe('data:application/pdf;base64,cover')
-    expect(result.coverPdfReadyForOrdering).toBe(false)
+    expect(result.coverPdfReadyForOrdering).toBe(true)
+    expect(result.coverPdfSpineSource).toBe('assumed')
+    expect(result.coverPdfSpineWidthIn).toBe(0.08)
     expect(result.previewPdfUrl).toBe('data:application/pdf;base64,preview')
     expect(result.printPdfUrl).toBe('data:application/pdf;base64,print')
     expect(result.previewImages).toEqual(['data:image/svg+xml;base64,cover', 'data:image/svg+xml;base64,spread'])
@@ -171,5 +173,6 @@ describe('generateBookPdfs', () => {
     })
 
     expect(result.coverPdfReadyForOrdering).toBe(true)
+    expect(result.coverPdfSpineSource).toBe('configured')
   })
 })

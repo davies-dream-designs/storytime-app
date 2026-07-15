@@ -162,7 +162,9 @@ describe('POST /api/books/[id]/build', () => {
     }))
     mockGenerateBookPdfs.mockResolvedValue({
       coverPdfUrl: 'https://example.com/books/book-1/cover.pdf',
-      coverPdfReadyForOrdering: false,
+      coverPdfReadyForOrdering: true,
+      coverPdfSpineWidthIn: 0.08,
+      coverPdfSpineSource: 'assumed',
       previewPdfUrl: 'https://example.com/books/book-1/preview.pdf',
       printPdfUrl: 'https://example.com/books/book-1/print.pdf',
       previewImages: ['https://example.com/books/book-1/cover.svg'],
@@ -237,9 +239,9 @@ describe('POST /api/books/[id]/build', () => {
           coverPdfUrl: 'https://example.com/books/book-1/cover.pdf',
           previewPdfUrl: 'https://example.com/books/book-1/preview.pdf',
           printPdfUrl: 'https://example.com/books/book-1/print.pdf',
-          proofingPassed: false,
+          proofingPassed: true,
           proofingWarnings: expect.any(Array),
-          proofingErrors: expect.any(Array),
+          proofingErrors: [],
         }),
       })
     )
@@ -247,9 +249,8 @@ describe('POST /api/books/[id]/build', () => {
     expect(body.assets?.coverPdfUrl).toBe('https://example.com/books/book-1/cover.pdf')
     expect(body.assets?.previewPdfUrl).toBe('https://example.com/books/book-1/preview.pdf')
     expect(body.assets?.printPdfUrl).toBe('https://example.com/books/book-1/print.pdf')
-    expect(body.assets?.proofingPassed).toBe(false)
-    expect(body.assets?.proofingErrors).toContain(
-      'Cover PDF still uses a generic spine width and must be replaced with a Lulu template-matched cover before ordering.'
-    )
+    expect(body.assets?.proofingPassed).toBe(true)
+    expect(body.assets?.proofingWarnings?.some((warning: string) => warning.includes('Cover spine width is assumed from page count'))).toBe(true)
+    expect(body.assets?.proofingErrors).toEqual([])
   })
 })

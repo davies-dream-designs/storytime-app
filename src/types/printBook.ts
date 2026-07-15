@@ -70,6 +70,8 @@ export interface BookAsset {
   coverImageUrl?: string
   coverPdfUrl?: string
   coverPdfReadyForOrdering?: boolean
+  coverPdfSpineWidthIn?: number
+  coverPdfSpineSource?: 'configured' | 'assumed'
   previewPdfUrl?: string
   printPdfUrl?: string
   previewImages?: string[]

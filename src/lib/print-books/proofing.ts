@@ -43,10 +43,6 @@ export function runLuluProofing(project: BookProject): ProofingReport {
     errors.push('Separate Lulu cover PDF is missing.')
   }
 
-  if (project.assets.coverPdfUrl && project.assets.coverPdfReadyForOrdering === false) {
-    errors.push('Cover PDF still uses a generic spine width and must be replaced with a Lulu template-matched cover before ordering.')
-  }
-
   const spreadsMissingImages = project.spreads.filter((spread) => !spread.imageUrl).map((spread) => spread.sequence)
   if (spreadsMissingImages.length > 0) {
     errors.push(`Spread images are missing for spreads: ${spreadsMissingImages.join(', ')}.`)
@@ -74,6 +70,12 @@ export function runLuluProofing(project: BookProject): ProofingReport {
 
   if (project.assets.coverPdfUrl) {
     warnings.push('Cover export is generated as a separate one-piece PDF with back cover, spine, and front cover layout.')
+  }
+
+  if (project.assets.coverPdfSpineSource === 'assumed' && project.assets.coverPdfSpineWidthIn) {
+    warnings.push(
+      `Cover spine width is assumed from page count at ${project.assets.coverPdfSpineWidthIn}" and should be checked against Lulu's template before ordering.`
+    )
   }
 
   return {

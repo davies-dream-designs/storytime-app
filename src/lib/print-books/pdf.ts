@@ -1,7 +1,7 @@
 import { PDFDocument, StandardFonts, clip, degrees, endPath, popGraphicsState, pushGraphicsState, rectangle, rgb } from 'pdf-lib'
 import type { ChildProfile, Story } from '@/types'
 import type { BookProject, BookSpread } from '@/types/printBook'
-import { getLuluCoverSpineWidthIn, hasConfiguredLuluCoverSpineWidth } from '@/lib/print-books/cover'
+import { getLuluCoverSpineWidth } from '@/lib/print-books/cover'
 import { storeBookAsset } from '@/lib/print-books/storage'
 import { LULU_SQUARE_HARDCOVER_SPEC } from '@/lib/print-books/proofing'
 
@@ -535,7 +535,7 @@ async function buildCoverPdf(input: {
   const serifBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold)
   const sans = await pdfDoc.embedFont(StandardFonts.Helvetica)
   const sansBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-  const coverSpineWidth = getLuluCoverSpineWidthIn() * POINTS_PER_INCH
+  const coverSpineWidth = getLuluCoverSpineWidth(input.project.pageCount).widthIn * POINTS_PER_INCH
   const coverTotalWidth = PRINT_PAGE_WIDTH * 2 + coverSpineWidth
   const page = pdfDoc.addPage([coverTotalWidth, PRINT_PAGE_HEIGHT])
   const coverSpread = input.project.spreads.find((spread) => spread.sequence === 1)
@@ -659,10 +659,13 @@ export async function generateBookPdfs(input: {
 }): Promise<{
   coverPdfUrl: string
   coverPdfReadyForOrdering: boolean
+  coverPdfSpineWidthIn: number
+  coverPdfSpineSource: 'configured' | 'assumed'
   previewPdfUrl: string
   printPdfUrl: string
   previewImages: string[]
 }> {
+  const coverSpine = getLuluCoverSpineWidth(input.project.pageCount)
   const coverBytes = await buildCoverPdf(input)
   const previewBytes = await buildPreviewPdf(input)
   const printBytes = await buildPrintPdf(input)
@@ -685,7 +688,9 @@ export async function generateBookPdfs(input: {
 
   return {
     coverPdfUrl,
-    coverPdfReadyForOrdering: hasConfiguredLuluCoverSpineWidth(),
+    coverPdfReadyForOrdering: true,
+    coverPdfSpineWidthIn: coverSpine.widthIn,
+    coverPdfSpineSource: coverSpine.source,
     previewPdfUrl,
     printPdfUrl,
     previewImages: input.project.spreads

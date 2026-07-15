@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import type { BookProject } from '@/types/printBook'
@@ -8,7 +8,7 @@ import { isDownloadableBookAssetUrl } from '@/lib/print-books/assets'
 
 type BookStatusPayload = Pick<
   BookProject,
-  'id' | 'status' | 'currentStageLabel' | 'completedSpreads' | 'totalSpreads' | 'updatedAt' | 'readyAt' | 'errorCode' | 'errorMessage'
+  'id' | 'status' | 'currentStageLabel' | 'completedSpreads' | 'totalSpreads' | 'updatedAt' | 'readyAt' | 'errorCode' | 'errorMessage' | 'assets'
 >
 
 function isTerminal(status: BookProject['status']): boolean {
@@ -20,6 +20,29 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
   const router = useRouter()
   const [project, setProject] = useState(initialProject)
   const [retrying, setRetrying] = useState(false)
+  const [startingBuild, setStartingBuild] = useState(false)
+  const buildStartedRef = useRef(false)
+
+  useEffect(() => {
+    if (project.status !== 'queued' || buildStartedRef.current) return
+
+    buildStartedRef.current = true
+    setStartingBuild(true)
+
+    void fetch(`/api/books/${project.id}/build`, { method: 'POST', keepalive: true })
+      .then(async (res) => {
+        if (!res.ok) return
+        const next = (await res.json()) as BookProject
+        setProject(next)
+        router.refresh()
+      })
+      .catch(() => {
+        buildStartedRef.current = false
+      })
+      .finally(() => {
+        setStartingBuild(false)
+      })
+  }, [project.id, project.status, router])
 
   useEffect(() => {
     if (isTerminal(project.status)) return
@@ -56,6 +79,7 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
   const hasDownloadableExport =
     isDownloadableBookAssetUrl(project.assets?.previewPdfUrl) ||
     isDownloadableBookAssetUrl(project.assets?.printPdfUrl)
+  const isActiveBuild = project.status !== 'ready' && project.status !== 'failed'
 
   return (
     <section className="rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
@@ -82,6 +106,28 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
           style={{ width: `${Math.min(progress, 100)}%` }}
         />
       </div>
+
+      {isActiveBuild ? (
+        <div className="mt-6 rounded-2xl border border-star-200 bg-star-50 p-4">
+          <div className="flex items-start gap-3">
+            <div
+              className="mt-0.5 h-5 w-5 animate-spin rounded-full border-2 border-star-200 border-t-star-600"
+              aria-hidden="true"
+            />
+            <div>
+              <p className="font-bold text-star-800">
+                {startingBuild && project.status === 'queued' ? t('startingTitle') : t('activeTitle')}
+              </p>
+              <p className="mt-1 text-sm text-star-900">
+                {startingBuild && project.status === 'queued' ? t('startingSub') : t('activeSub')}
+              </p>
+              <p className="mt-2 text-xs font-medium uppercase tracking-wide text-star-700">
+                {t('safeToLeave')}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {project.status === 'failed' ? (
         <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4">

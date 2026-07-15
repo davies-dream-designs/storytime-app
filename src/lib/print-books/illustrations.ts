@@ -17,6 +17,33 @@ function clampText(value: string, maxLength: number): string {
   return `${value.slice(0, maxLength - 1).trimEnd()}…`
 }
 
+function splitTitleLines(value: string, maxChars: number, maxLines: number): string[] {
+  const words = value.trim().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return ['Untitled']
+
+  const lines: string[] = []
+  let current = ''
+
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word
+    if (candidate.length <= maxChars) {
+      current = candidate
+      continue
+    }
+
+    if (current) lines.push(current)
+    current = word
+  }
+
+  if (current) lines.push(current)
+
+  if (lines.length <= maxLines) return lines
+
+  const capped = lines.slice(0, maxLines)
+  capped[maxLines - 1] = clampText(capped[maxLines - 1] || '', maxChars)
+  return capped
+}
+
 function getCoverSpread(spreads: BookSpread[]): BookSpread | undefined {
   return spreads.find((spread) => spread.sequence === 1 || spread.title === 'Cover')
 }
@@ -51,39 +78,56 @@ function createPlaceholderCoverSvg(input: {
   const { story, profile, characterBible } = input
   const title = escapeXml(clampText(story.title, 56))
   const childName = escapeXml(profile.name)
-  const palette = escapeXml(characterBible.palette)
-  const childAppearance = escapeXml(clampText(characterBible.childAppearance, 140))
-  const renderStyle = escapeXml(clampText(characterBible.renderStyle, 120))
+  const titleLines = splitTitleLines(story.title, 18, 3)
+  const sceneHint = escapeXml(clampText(story.pages[0]?.illustrationPrompt || story.pages[0]?.text || story.theme || 'A gentle bedtime adventure.', 110))
+  const palette = escapeXml(clampText(characterBible.palette, 80))
+  const companion = escapeXml(clampText(characterBible.companionCharacters[0] || 'storybook friends', 32))
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1536" viewBox="0 0 1024 1536" role="img" aria-label="${title}">
   <defs>
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#1e295f"/>
-      <stop offset="55%" stop-color="#4c4f8f"/>
-      <stop offset="100%" stop-color="#f1d6a6"/>
+      <stop offset="0%" stop-color="#20295d"/>
+      <stop offset="58%" stop-color="#4a4d96"/>
+      <stop offset="100%" stop-color="#f3d7a4"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff8dd" stop-opacity="0.96"/>
+      <stop offset="100%" stop-color="#f7d86c" stop-opacity="0.92"/>
     </linearGradient>
   </defs>
   <rect width="1024" height="1536" fill="url(#sky)"/>
-  <circle cx="810" cy="250" r="110" fill="#fff4c2" opacity="0.9"/>
-  <path d="M0 1180 C180 1080 320 1110 470 1185 S830 1320 1024 1180 L1024 1536 L0 1536 Z" fill="#20315f"/>
-  <path d="M0 1260 C170 1180 350 1210 520 1290 S870 1370 1024 1280 L1024 1536 L0 1536 Z" fill="#152245" opacity="0.85"/>
-  <rect x="118" y="124" width="788" height="1288" rx="44" fill="none" stroke="rgba(255,255,255,0.16)" stroke-width="6"/>
-  <text x="512" y="220" text-anchor="middle" fill="#fff9eb" font-size="34" font-family="Georgia, serif" letter-spacing="4">STORYCOT PRINT PREVIEW</text>
-  <text x="512" y="430" text-anchor="middle" fill="#fffdf8" font-size="96" font-family="Georgia, serif" font-weight="700">${title}</text>
-  <text x="512" y="520" text-anchor="middle" fill="#fef3cf" font-size="40" font-family="Georgia, serif">A bedtime story for ${childName}</text>
-  <g transform="translate(275 735)">
-    <circle cx="235" cy="10" r="26" fill="#ffebc6"/>
-    <rect x="165" y="36" width="140" height="200" rx="50" fill="#f2ca57"/>
-    <rect x="193" y="236" width="34" height="155" rx="17" fill="#94a7d6"/>
-    <rect x="243" y="236" width="34" height="155" rx="17" fill="#94a7d6"/>
-    <rect x="130" y="78" width="45" height="130" rx="20" fill="#ffebc6"/>
-    <rect x="295" y="78" width="45" height="130" rx="20" fill="#ffebc6"/>
-    <circle cx="130" cy="215" r="26" fill="#ffd36e" opacity="0.85"/>
-    <path d="M98 430 C180 355 290 355 372 430" fill="none" stroke="#f7efe0" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="792" cy="238" r="118" fill="url(#glow)"/>
+  <circle cx="792" cy="238" r="146" fill="#fff7dd" opacity="0.08"/>
+  <path d="M0 1118 C124 1050 245 1026 392 1050 C534 1074 619 1136 750 1132 C875 1128 945 1088 1024 1048 L1024 1536 L0 1536 Z" fill="#223766"/>
+  <path d="M0 1206 C136 1148 264 1136 394 1162 C531 1189 621 1265 768 1260 C882 1256 951 1216 1024 1178 L1024 1536 L0 1536 Z" fill="#17264a" opacity="0.92"/>
+  <rect x="112" y="112" width="800" height="1312" rx="46" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="5"/>
+  <g transform="translate(158 162)">
+    <rect x="0" y="0" width="216" height="58" rx="29" fill="rgba(255,249,235,0.12)" stroke="rgba(255,249,235,0.22)" stroke-width="2"/>
+    <circle cx="38" cy="29" r="14" fill="#f6cf65"/>
+    <path d="M18 38 C30 28 44 28 58 38" fill="none" stroke="#fff8ea" stroke-width="4" stroke-linecap="round"/>
+    <text x="76" y="38" fill="#fff8ea" font-size="24" font-family="Arial, sans-serif" font-weight="700">Storycot</text>
   </g>
-  <text x="512" y="1230" text-anchor="middle" fill="#fff7e8" font-size="36" font-family="Arial, sans-serif">Palette: ${palette}</text>
-  <text x="512" y="1294" text-anchor="middle" fill="#fff7e8" font-size="28" font-family="Arial, sans-serif">${childAppearance}</text>
-  <text x="512" y="1350" text-anchor="middle" fill="#fff7e8" font-size="24" font-family="Arial, sans-serif">${renderStyle}</text>
+  <text x="160" y="334" fill="#fff4d5" font-size="24" font-family="Arial, sans-serif" letter-spacing="4">PERSONALISED BEDTIME BOOK</text>
+  <text x="160" y="436" fill="#fffdf8" font-size="84" font-family="Georgia, serif" font-weight="700">
+    <tspan x="160" dy="0">${escapeXml(titleLines[0] || '')}</tspan>
+    ${titleLines[1] ? `<tspan x="160" dy="92">${escapeXml(titleLines[1])}</tspan>` : ''}
+    ${titleLines[2] ? `<tspan x="160" dy="92">${escapeXml(titleLines[2])}</tspan>` : ''}
+  </text>
+  <text x="160" y="690" fill="#fff0c8" font-size="34" font-family="Georgia, serif">A bedtime story for ${childName}</text>
+  <text x="160" y="742" fill="#f7f0e1" font-size="22" font-family="Arial, sans-serif">${sceneHint}</text>
+  <g transform="translate(0 34)">
+    <path d="M226 1010 C336 902 470 840 610 840 C719 840 822 877 902 955" fill="none" stroke="#fff4d8" stroke-width="10" stroke-linecap="round"/>
+    <circle cx="446" cy="896" r="28" fill="#ffd46c" opacity="0.92"/>
+    <path d="M386 1002 C430 940 492 906 560 906 C634 906 706 944 756 1008" fill="none" stroke="#fff4d8" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="512" cy="942" r="18" fill="#fff0c9"/>
+    <rect x="472" y="964" width="82" height="120" rx="36" fill="#f5cb5c"/>
+    <rect x="444" y="990" width="28" height="90" rx="14" fill="#ffe8bf"/>
+    <rect x="554" y="990" width="28" height="90" rx="14" fill="#ffe8bf"/>
+    <rect x="490" y="1084" width="22" height="98" rx="11" fill="#97a9d9"/>
+    <rect x="530" y="1084" width="22" height="98" rx="11" fill="#97a9d9"/>
+  </g>
+  <text x="160" y="1338" fill="#fff4d8" font-size="22" font-family="Arial, sans-serif">Palette inspiration: ${palette}</text>
+  <text x="160" y="1378" fill="#f9f0de" font-size="20" font-family="Arial, sans-serif">Featuring ${companion}</text>
 </svg>`
 }
 

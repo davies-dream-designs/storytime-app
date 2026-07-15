@@ -124,6 +124,22 @@ describe('generateCoverIllustration', () => {
     )
   })
 
+  it('uses branded placeholder cover copy instead of debug preview text', async () => {
+    const { generateCoverIllustration } = await import('@/lib/print-books/illustrations')
+    mockStoreBookAsset.mockImplementation(async ({ body }) => body as string)
+
+    const result = await generateCoverIllustration({
+      project: createProject(),
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+    })
+
+    expect(result.coverImageUrl).toContain('Storycot')
+    expect(result.coverImageUrl).not.toContain('STORYCOT PRINT PREVIEW')
+    expect(result.coverImageUrl).not.toContain('renderStyle')
+  })
+
   it('builds a cover prompt from the character bible and cover spread', async () => {
     const { buildCoverIllustrationPrompt } = await import('@/lib/print-books/illustrations')
     const project = createProject()

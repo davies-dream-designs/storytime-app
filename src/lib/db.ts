@@ -1,5 +1,6 @@
 import { kv } from '@vercel/kv'
 import type { ChildProfile, Story, Character } from '@/types'
+import type { BookProject } from '@/types/printBook'
 
 export const db = {
   profiles: {
@@ -108,6 +109,62 @@ export const db = {
       if (filtered.length === all.length) return false
       await kv.set('characters', filtered)
       return true
+    },
+  },
+
+  bookProjects: {
+    projectKey(id: string): string {
+      return `bookProject:${id}`
+    },
+    storyIndexKey(sourceStoryId: string): string {
+      return `bookProjectByStory:${sourceStoryId}`
+    },
+    userIndexKey(userId: string): string {
+      return `bookProjectByUser:${userId}`
+    },
+    async getById(id: string): Promise<BookProject | undefined> {
+      return (await kv.get<BookProject>(this.projectKey(id))) ?? undefined
+    },
+    async getByStoryId(sourceStoryId: string): Promise<BookProject[]> {
+      const ids = (await kv.get<string[]>(this.storyIndexKey(sourceStoryId))) ?? []
+      const projects = await Promise.all(ids.map((id) => this.getById(id)))
+      return projects.filter((project): project is BookProject => Boolean(project))
+    },
+    async getByUserId(userId: string): Promise<BookProject[]> {
+      const ids = (await kv.get<string[]>(this.userIndexKey(userId))) ?? []
+      const projects = await Promise.all(ids.map((id) => this.getById(id)))
+      return projects.filter((project): project is BookProject => Boolean(project))
+    },
+    async create(project: BookProject): Promise<void> {
+      const [storyIds, userIds] = await Promise.all([
+        kv.get<string[]>(this.storyIndexKey(project.sourceStoryId)),
+        kv.get<string[]>(this.userIndexKey(project.userId)),
+      ])
+
+      const nextStoryIds = Array.from(new Set([...(storyIds ?? []), project.id]))
+      const nextUserIds = Array.from(new Set([...(userIds ?? []), project.id]))
+
+      await Promise.all([
+        kv.set(this.projectKey(project.id), project),
+        kv.set(this.storyIndexKey(project.sourceStoryId), nextStoryIds),
+        kv.set(this.userIndexKey(project.userId), nextUserIds),
+      ])
+    },
+    async replace(id: string, project: BookProject): Promise<void> {
+      await kv.set(this.projectKey(id), project)
+    },
+    async update(id: string, updates: Partial<BookProject>): Promise<BookProject | undefined> {
+      const current = await this.getById(id)
+      if (!current) return undefined
+
+      const next: BookProject = {
+        ...current,
+        ...updates,
+        updatedAt: updates.updatedAt ?? new Date().toISOString(),
+      }
+
+      await this.replace(id, next)
+      return next
     },
   },
 }

@@ -6,6 +6,7 @@ import Nav from '@/components/Nav'
 import { db } from '@/lib/db'
 import StoryReader from './StoryReader'
 import ShareButton from './ShareButton'
+import CreatePrintBookButton from './CreatePrintBookButton'
 
 export default async function StoryPage({ params }: { params: Promise<{ id: string; locale: string }> }) {
   const { userId } = await auth()
@@ -44,6 +45,7 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
             <a href={`/stories/${id}/print`} target="_blank" rel="noopener noreferrer" className="rounded-full border border-night-200 px-4 py-2 text-sm font-bold text-night-600 transition hover:bg-night-50">
               {t('printButton')}
             </a>
+            <CreatePrintBookButton storyId={id} />
             <Link href={`/stories/new?profileId=${story.profileId}` as string} className="rounded-full bg-night-700 px-4 py-2 text-sm font-bold text-moon-200 transition hover:bg-night-600">
               {t('newStoryButton')}
             </Link>

@@ -26,6 +26,7 @@ export default function Nav() {
             <>
               <Link href="/profiles" className="rounded-full px-4 py-2 text-sm font-bold text-night-600 transition hover:bg-night-100">{t('profiles')}</Link>
               <Link href="/stories" className="rounded-full px-4 py-2 text-sm font-bold text-night-600 transition hover:bg-night-100">{t('stories')}</Link>
+              <Link href="/books" className="rounded-full px-4 py-2 text-sm font-bold text-night-600 transition hover:bg-night-100">{t('books')}</Link>
               <Link href="/stories/new" className="whitespace-nowrap rounded-full bg-night-700 px-4 py-2 text-sm font-bold text-moon-200 transition hover:bg-night-600">
                 {t('newStory')}
               </Link>
@@ -90,6 +91,9 @@ export default function Nav() {
           </Link>
           <Link href="/stories" onClick={() => setOpen(false)} className="rounded-xl px-4 py-3 text-sm font-bold text-night-700 hover:bg-night-50 transition">
             {t('storiesMobile')}
+          </Link>
+          <Link href="/books" onClick={() => setOpen(false)} className="rounded-xl px-4 py-3 text-sm font-bold text-night-700 hover:bg-night-50 transition">
+            {t('booksMobile')}
           </Link>
           <Link href="/account" onClick={() => setOpen(false)} className="rounded-xl px-4 py-3 text-sm font-bold text-night-700 hover:bg-night-50 transition">
             {t('accountMobile')}

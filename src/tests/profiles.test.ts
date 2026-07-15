@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 const mockDb = {
   profiles: {
     getAll: vi.fn(() => []),
+    getByUserId: vi.fn(() => []),
     create: vi.fn(),
     getById: vi.fn(() => undefined),
     update: vi.fn(() => undefined),
@@ -12,6 +13,9 @@ const mockDb = {
 }
 
 vi.mock('@/lib/db', () => ({ db: mockDb }))
+vi.mock('@clerk/nextjs/server', () => ({
+  auth: vi.fn(async () => ({ userId: 'user-1' })),
+}))
 
 async function importRoute() {
   const { GET, POST } = await import('@/app/api/profiles/route')
@@ -22,6 +26,7 @@ describe('GET /api/profiles', () => {
   beforeEach(() => {
     vi.resetModules()
     mockDb.profiles.getAll.mockReturnValue([])
+    mockDb.profiles.getByUserId.mockReturnValue([])
   })
 
   it('returns an empty array when no profiles exist', async () => {
@@ -43,13 +48,14 @@ describe('POST /api/profiles', () => {
     const req = new NextRequest('http://localhost/api/profiles', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Max', age: 3 }),
+      body: JSON.stringify({ name: 'Max', age: 3, favouriteAnimals: ['Fox'] }),
     })
     const res = await POST(req)
     expect(res.status).toBe(201)
     const body = await res.json()
     expect(body.name).toBe('Max')
     expect(body.age).toBe(3)
+    expect(body.userId).toBe('user-1')
   })
 
   it('rejects a profile without a name', async () => {
@@ -63,14 +69,14 @@ describe('POST /api/profiles', () => {
     expect(res.status).toBe(400)
   })
 
-  it('rejects an invalid age', async () => {
+  it('accepts a profile with dateOfBirth instead of age', async () => {
     const { POST } = await importRoute()
     const req = new NextRequest('http://localhost/api/profiles', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Max', age: 20 }),
+      body: JSON.stringify({ name: 'Max', dateOfBirth: '2023-06-01' }),
     })
     const res = await POST(req)
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(201)
   })
 })

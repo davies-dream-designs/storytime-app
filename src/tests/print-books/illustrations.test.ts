@@ -138,6 +138,7 @@ describe('generateCoverIllustration', () => {
     expect(result.coverImageUrl).toContain('Storycot')
     expect(result.coverImageUrl).not.toContain('STORYCOT PRINT PREVIEW')
     expect(result.coverImageUrl).not.toContain('renderStyle')
+    expect(result.coverImageUrl).not.toContain('Palette inspiration')
   })
 
   it('builds a cover prompt from the character bible and cover spread', async () => {

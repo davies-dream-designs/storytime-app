@@ -15,7 +15,7 @@ function createProject(overrides: Partial<BookProject> = {}): BookProject {
     spreadCount: 16,
     completedSpreads: 16,
     totalSpreads: 16,
-    currentStageLabel: 'Your print book is ready for review.',
+    currentStageLabel: 'Your print-book draft is ready for review.',
     beats: [],
     spreads: [],
     assets: {

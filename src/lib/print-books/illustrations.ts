@@ -44,6 +44,76 @@ function splitTitleLines(value: string, maxChars: number, maxLines: number): str
   return capped
 }
 
+type PlaceholderCoverTheme = {
+  skyTop: string
+  skyMid: string
+  skyBottom: string
+  moon: string
+  hillFront: string
+  hillBack: string
+  accent: string
+  accentSoft: string
+  motif: 'ocean' | 'garden' | 'night' | 'adventure'
+}
+
+function pickPlaceholderCoverTheme(story: Story): PlaceholderCoverTheme {
+  const source = `${story.title} ${story.theme || ''} ${story.pages[0]?.text || ''} ${story.pages[0]?.illustrationPrompt || ''}`.toLowerCase()
+
+  if (/(wave|ocean|sea|beach|shore|sand|pebble|shell|tide)/.test(source)) {
+    return {
+      skyTop: '#1f2f63',
+      skyMid: '#5860a9',
+      skyBottom: '#f0d6aa',
+      moon: '#fff1bc',
+      hillFront: '#1d3764',
+      hillBack: '#27477c',
+      accent: '#f6ce69',
+      accentSoft: '#ffe7ba',
+      motif: 'ocean',
+    }
+  }
+
+  if (/(garden|flower|forest|tree|leaf|meadow|field|fox|rabbit|bunny)/.test(source)) {
+    return {
+      skyTop: '#21414d',
+      skyMid: '#5d7d68',
+      skyBottom: '#f3ddb4',
+      moon: '#fdf0be',
+      hillFront: '#274837',
+      hillBack: '#3f674d',
+      accent: '#f4c867',
+      accentSoft: '#f9ebc9',
+      motif: 'garden',
+    }
+  }
+
+  if (/(moon|star|night|sleep|dream|sky|cloud)/.test(source)) {
+    return {
+      skyTop: '#1d2552',
+      skyMid: '#4d5198',
+      skyBottom: '#e8cfa5',
+      moon: '#fff2c8',
+      hillFront: '#1c2f5d',
+      hillBack: '#31457f',
+      accent: '#f6cd68',
+      accentSoft: '#fff1c8',
+      motif: 'night',
+    }
+  }
+
+  return {
+    skyTop: '#29356b',
+    skyMid: '#645ca8',
+    skyBottom: '#efd8b0',
+    moon: '#fff1c4',
+    hillFront: '#223463',
+    hillBack: '#31467d',
+    accent: '#f7cf68',
+    accentSoft: '#ffebc2',
+    motif: 'adventure',
+  }
+}
+
 function getCoverSpread(spreads: BookSpread[]): BookSpread | undefined {
   return spreads.find((spread) => spread.sequence === 1 || spread.title === 'Cover')
 }
@@ -78,56 +148,72 @@ function createPlaceholderCoverSvg(input: {
   const { story, profile, characterBible } = input
   const title = escapeXml(clampText(story.title, 56))
   const childName = escapeXml(profile.name)
-  const titleLines = splitTitleLines(story.title, 18, 3)
-  const sceneHint = escapeXml(clampText(story.pages[0]?.illustrationPrompt || story.pages[0]?.text || story.theme || 'A gentle bedtime adventure.', 110))
-  const palette = escapeXml(clampText(characterBible.palette, 80))
-  const companion = escapeXml(clampText(characterBible.companionCharacters[0] || 'storybook friends', 32))
+  const titleLines = splitTitleLines(story.title, 17, 3)
+  const titleSize = titleLines.length === 1 ? 88 : titleLines.length === 2 ? 76 : 68
+  const titleLineStep = titleSize + 12
+  const titleBlockHeight = titleLineStep * titleLines.length
+  const subtitleY = 434 + titleBlockHeight
+  const theme = pickPlaceholderCoverTheme(story)
+  const companion = escapeXml(clampText(characterBible.companionCharacters[0] || 'a storybook friend', 28))
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1536" viewBox="0 0 1024 1536" role="img" aria-label="${title}">
   <defs>
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#20295d"/>
-      <stop offset="58%" stop-color="#4a4d96"/>
-      <stop offset="100%" stop-color="#f3d7a4"/>
-    </linearGradient>
-    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#fff8dd" stop-opacity="0.96"/>
-      <stop offset="100%" stop-color="#f7d86c" stop-opacity="0.92"/>
+      <stop offset="0%" stop-color="${theme.skyTop}"/>
+      <stop offset="58%" stop-color="${theme.skyMid}"/>
+      <stop offset="100%" stop-color="${theme.skyBottom}"/>
     </linearGradient>
   </defs>
   <rect width="1024" height="1536" fill="url(#sky)"/>
-  <circle cx="792" cy="238" r="118" fill="url(#glow)"/>
-  <circle cx="792" cy="238" r="146" fill="#fff7dd" opacity="0.08"/>
-  <path d="M0 1118 C124 1050 245 1026 392 1050 C534 1074 619 1136 750 1132 C875 1128 945 1088 1024 1048 L1024 1536 L0 1536 Z" fill="#223766"/>
-  <path d="M0 1206 C136 1148 264 1136 394 1162 C531 1189 621 1265 768 1260 C882 1256 951 1216 1024 1178 L1024 1536 L0 1536 Z" fill="#17264a" opacity="0.92"/>
+  <circle cx="796" cy="224" r="112" fill="${theme.moon}" opacity="0.95"/>
+  <circle cx="796" cy="224" r="144" fill="${theme.moon}" opacity="0.08"/>
+  <circle cx="182" cy="214" r="4" fill="#fff6de" opacity="0.75"/>
+  <circle cx="228" cy="254" r="3" fill="#fff6de" opacity="0.55"/>
+  <circle cx="884" cy="380" r="4" fill="#fff6de" opacity="0.7"/>
+  <circle cx="832" cy="420" r="3" fill="#fff6de" opacity="0.6"/>
+  <path d="M0 1088 C136 1028 282 1000 412 1026 C562 1056 650 1118 794 1110 C882 1104 955 1074 1024 1038 L1024 1536 L0 1536 Z" fill="${theme.hillBack}"/>
+  <path d="M0 1188 C142 1138 286 1124 420 1148 C578 1177 681 1248 832 1236 C906 1230 972 1204 1024 1178 L1024 1536 L0 1536 Z" fill="${theme.hillFront}"/>
   <rect x="112" y="112" width="800" height="1312" rx="46" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="5"/>
   <g transform="translate(158 162)">
     <rect x="0" y="0" width="216" height="58" rx="29" fill="rgba(255,249,235,0.12)" stroke="rgba(255,249,235,0.22)" stroke-width="2"/>
-    <circle cx="38" cy="29" r="14" fill="#f6cf65"/>
+    <circle cx="38" cy="29" r="14" fill="${theme.accent}"/>
     <path d="M18 38 C30 28 44 28 58 38" fill="none" stroke="#fff8ea" stroke-width="4" stroke-linecap="round"/>
     <text x="76" y="38" fill="#fff8ea" font-size="24" font-family="Arial, sans-serif" font-weight="700">Storycot</text>
   </g>
-  <text x="160" y="334" fill="#fff4d5" font-size="24" font-family="Arial, sans-serif" letter-spacing="4">PERSONALISED BEDTIME BOOK</text>
-  <text x="160" y="436" fill="#fffdf8" font-size="84" font-family="Georgia, serif" font-weight="700">
+  <text x="160" y="326" fill="#fff4d5" font-size="22" font-family="Arial, sans-serif" letter-spacing="3">PERSONALISED BEDTIME STORY</text>
+  <text x="160" y="434" fill="#fffdf8" font-size="${titleSize}" font-family="Georgia, serif" font-weight="700">
     <tspan x="160" dy="0">${escapeXml(titleLines[0] || '')}</tspan>
-    ${titleLines[1] ? `<tspan x="160" dy="92">${escapeXml(titleLines[1])}</tspan>` : ''}
-    ${titleLines[2] ? `<tspan x="160" dy="92">${escapeXml(titleLines[2])}</tspan>` : ''}
+    ${titleLines[1] ? `<tspan x="160" dy="${titleLineStep}">${escapeXml(titleLines[1])}</tspan>` : ''}
+    ${titleLines[2] ? `<tspan x="160" dy="${titleLineStep}">${escapeXml(titleLines[2])}</tspan>` : ''}
   </text>
-  <text x="160" y="690" fill="#fff0c8" font-size="34" font-family="Georgia, serif">A bedtime story for ${childName}</text>
-  <text x="160" y="742" fill="#f7f0e1" font-size="22" font-family="Arial, sans-serif">${sceneHint}</text>
-  <g transform="translate(0 34)">
-    <path d="M226 1010 C336 902 470 840 610 840 C719 840 822 877 902 955" fill="none" stroke="#fff4d8" stroke-width="10" stroke-linecap="round"/>
-    <circle cx="446" cy="896" r="28" fill="#ffd46c" opacity="0.92"/>
-    <path d="M386 1002 C430 940 492 906 560 906 C634 906 706 944 756 1008" fill="none" stroke="#fff4d8" stroke-width="8" stroke-linecap="round"/>
-    <circle cx="512" cy="942" r="18" fill="#fff0c9"/>
-    <rect x="472" y="964" width="82" height="120" rx="36" fill="#f5cb5c"/>
-    <rect x="444" y="990" width="28" height="90" rx="14" fill="#ffe8bf"/>
-    <rect x="554" y="990" width="28" height="90" rx="14" fill="#ffe8bf"/>
-    <rect x="490" y="1084" width="22" height="98" rx="11" fill="#97a9d9"/>
-    <rect x="530" y="1084" width="22" height="98" rx="11" fill="#97a9d9"/>
+  <text x="160" y="${subtitleY}" fill="#fff0c8" font-size="34" font-family="Georgia, serif">A story for ${childName}</text>
+  <g transform="translate(0 24)">
+    <path d="M180 1028 C300 948 432 906 588 906 C724 906 846 942 932 1008" fill="none" stroke="${theme.accentSoft}" stroke-width="10" stroke-linecap="round" opacity="0.95"/>
+    ${
+      theme.motif === 'ocean'
+        ? `<path d="M196 1062 C312 1036 400 1024 500 1042 C582 1056 652 1086 736 1082 C824 1078 892 1038 966 1012" fill="none" stroke="${theme.accentSoft}" stroke-width="8" stroke-linecap="round" opacity="0.82"/>
+           <circle cx="468" cy="1012" r="16" fill="${theme.accent}" opacity="0.96"/>
+           <circle cx="512" cy="994" r="12" fill="${theme.accentSoft}" opacity="0.88"/>
+           <circle cx="552" cy="1018" r="18" fill="${theme.accent}" opacity="0.8"/>`
+        : theme.motif === 'garden'
+          ? `<path d="M462 968 C450 938 458 900 486 872" fill="none" stroke="${theme.accentSoft}" stroke-width="8" stroke-linecap="round"/>
+             <path d="M540 974 C552 938 548 902 520 872" fill="none" stroke="${theme.accentSoft}" stroke-width="8" stroke-linecap="round"/>
+             <circle cx="486" cy="862" r="24" fill="${theme.accent}" opacity="0.96"/>
+             <circle cx="520" cy="862" r="24" fill="${theme.accent}" opacity="0.9"/>
+             <circle cx="502" cy="832" r="20" fill="${theme.accentSoft}" opacity="0.92"/>`
+          : theme.motif === 'night'
+            ? `<circle cx="480" cy="982" r="20" fill="${theme.accent}" opacity="0.92"/>
+               <circle cx="524" cy="958" r="14" fill="${theme.accentSoft}" opacity="0.9"/>
+               <circle cx="560" cy="990" r="10" fill="${theme.accent}" opacity="0.82"/>
+               <path d="M486 1086 L504 1046 L522 1086" fill="none" stroke="${theme.accentSoft}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>`
+            : `<path d="M456 1022 C486 978 526 944 584 922" fill="none" stroke="${theme.accentSoft}" stroke-width="8" stroke-linecap="round"/>
+               <circle cx="446" cy="1036" r="18" fill="${theme.accent}" opacity="0.92"/>
+               <circle cx="586" cy="916" r="14" fill="${theme.accentSoft}" opacity="0.9"/>
+               <circle cx="640" cy="890" r="10" fill="${theme.accent}" opacity="0.82"/>`
+    }
   </g>
-  <text x="160" y="1338" fill="#fff4d8" font-size="22" font-family="Arial, sans-serif">Palette inspiration: ${palette}</text>
-  <text x="160" y="1378" fill="#f9f0de" font-size="20" font-family="Arial, sans-serif">Featuring ${companion}</text>
+  <rect x="160" y="1296" width="308" height="56" rx="28" fill="rgba(255,248,230,0.12)" stroke="rgba(255,248,230,0.2)" stroke-width="2"/>
+  <text x="194" y="1332" fill="#fff4d8" font-size="22" font-family="Arial, sans-serif">Featuring ${companion}</text>
 </svg>`
 }
 

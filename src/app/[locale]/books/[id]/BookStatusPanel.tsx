@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import type { BookProject } from '@/types/printBook'
+import { isDownloadableBookAssetUrl } from '@/lib/print-books/assets'
 
 type BookStatusPayload = Pick<
   BookProject,
@@ -51,6 +52,10 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
   const progress = project.totalSpreads > 0
     ? Math.round((project.completedSpreads / project.totalSpreads) * 100)
     : 0
+  const hasBlockingProofingIssue = Boolean(project.assets?.proofingErrors && project.assets.proofingErrors.length > 0)
+  const hasDownloadableExport =
+    isDownloadableBookAssetUrl(project.assets?.previewPdfUrl) ||
+    isDownloadableBookAssetUrl(project.assets?.printPdfUrl)
 
   return (
     <section className="rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
@@ -93,9 +98,15 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
       ) : null}
 
       {project.status === 'ready' ? (
-        <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-4">
-          <p className="font-bold text-green-700">{t('readyTitle')}</p>
-          <p className="mt-1 text-sm text-green-700">{t('readySub')}</p>
+        <div className={`mt-6 rounded-2xl p-4 ${hasBlockingProofingIssue ? 'border border-amber-200 bg-amber-50' : 'border border-green-200 bg-green-50'}`}>
+          <p className={`font-bold ${hasBlockingProofingIssue ? 'text-amber-800' : 'text-green-700'}`}>
+            {hasBlockingProofingIssue ? t('reviewTitle') : t('readyTitle')}
+          </p>
+          <p className={`mt-1 text-sm ${hasBlockingProofingIssue ? 'text-amber-900' : 'text-green-700'}`}>
+            {hasBlockingProofingIssue
+              ? (hasDownloadableExport ? t('reviewBlockedSub') : t('reviewFallbackSub'))
+              : t('readySub')}
+          </p>
         </div>
       ) : null}
     </section>

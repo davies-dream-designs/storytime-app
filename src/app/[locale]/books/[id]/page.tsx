@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server'
 import { Link } from '@/i18n/navigation'
 import Nav from '@/components/Nav'
 import { db } from '@/lib/db'
+import { isDownloadableBookAssetUrl, isInlineBookAssetUrl } from '@/lib/print-books/assets'
 import BookStatusPanel from './BookStatusPanel'
 
 function getSpreadToneClass(layoutType: string) {
@@ -33,6 +34,9 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
   if (!story || story.userId !== userId) notFound()
   const coverSpread = project.spreads.find((spread) => spread.sequence === 1 || spread.title === 'Cover')
   const hasProofingErrors = Boolean(project.assets.proofingErrors && project.assets.proofingErrors.length > 0)
+  const previewPdfUrl = isDownloadableBookAssetUrl(project.assets.previewPdfUrl) ? project.assets.previewPdfUrl : undefined
+  const printPdfUrl = isDownloadableBookAssetUrl(project.assets.printPdfUrl) ? project.assets.printPdfUrl : undefined
+  const hasInlineFallbackExports = isInlineBookAssetUrl(project.assets.previewPdfUrl) || isInlineBookAssetUrl(project.assets.printPdfUrl)
 
   return (
     <>
@@ -64,31 +68,39 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
           </section>
         ) : null}
 
-        {project.assets.previewPdfUrl || project.assets.printPdfUrl ? (
+        {previewPdfUrl || printPdfUrl || hasInlineFallbackExports ? (
           <section className="mt-8 rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
             <h2 className="font-display text-2xl font-bold text-night-800">{t('downloadsTitle')}</h2>
-            <div className="mt-4 flex flex-wrap gap-3">
-              {project.assets.previewPdfUrl ? (
-                <a
-                  href={project.assets.previewPdfUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full bg-night-700 px-5 py-3 text-sm font-bold text-moon-200 transition hover:bg-night-600"
-                >
-                  {t('previewPdfButton')}
-                </a>
-              ) : null}
-              {project.assets.printPdfUrl ? (
-                <a
-                  href={project.assets.printPdfUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full border border-night-200 px-5 py-3 text-sm font-bold text-night-700 transition hover:bg-night-50"
-                >
-                  {t('printPdfButton')}
-                </a>
-              ) : null}
-            </div>
+            {previewPdfUrl || printPdfUrl ? (
+              <div className="mt-4 flex flex-wrap gap-3">
+                {previewPdfUrl ? (
+                  <a
+                    href={previewPdfUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-full bg-night-700 px-5 py-3 text-sm font-bold text-moon-200 transition hover:bg-night-600"
+                  >
+                    {t('previewPdfButton')}
+                  </a>
+                ) : null}
+                {printPdfUrl ? (
+                  <a
+                    href={printPdfUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-full border border-night-200 px-5 py-3 text-sm font-bold text-night-700 transition hover:bg-night-50"
+                  >
+                    {t('printPdfButton')}
+                  </a>
+                ) : null}
+              </div>
+            ) : null}
+            {hasInlineFallbackExports ? (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-bold text-amber-800">{t('fallbackExportsTitle')}</p>
+                <p className="mt-1 text-sm text-amber-900">{t('fallbackExportsBody')}</p>
+              </div>
+            ) : null}
           </section>
         ) : null}
 

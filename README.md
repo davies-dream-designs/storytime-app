@@ -131,8 +131,8 @@ connects to everything else.
 - **Role**: Hosts the Next.js app as serverless functions + Edge middleware
 - **DNS**: Nameservers delegated to Vercel (`ns1.vercel-dns.com`, `ns2.vercel-dns.com`)
 - **Domains**: `storycot.com` (production), `dev.storycot.com` (preview)
-- **Deployment protection**: Preview deployments require Vercel login or a bypass token
-  (`_vercel_share=...`). Bypass tokens expire after ~23 hours.
+- **Deployment protection**: Preview deployments require Vercel login or the automation bypass
+  flow (`x-vercel-protection-bypass` plus `x-vercel-set-bypass-cookie=true`).
 - **Environment variable scoping**: Vercel supports `preview` and `production` scopes,
   allowing different Clerk/Stripe keys per environment (see [Environment variables](#environment-variables))
 - **KV store**: Vercel KV (Upstash Redis) is linked to the project. Connection strings are
@@ -407,7 +407,7 @@ Add these to your `.env.local` (never commit real values):
 CLERK_PUBLISHABLE_KEY=pk_test_...      # Clerk dev instance publishable key
 CLERK_SECRET_KEY=sk_test_...           # Clerk dev instance secret key (also used by app)
 PLAYWRIGHT_BASE_URL=https://dev.storycot.com
-VERCEL_BYPASS_URL=https://dev.storycot.com/?_vercel_share=<token>
+VERCEL_AUTOMATION_BYPASS_SECRET=...    # Vercel Deployment Protection bypass secret
 E2E_TEST_USER_ID=user_<clerk-user-id>  # The test user's Clerk ID
 ```
 
@@ -433,12 +433,14 @@ Save the returned user ID as `E2E_TEST_USER_ID` in `.env.local`.
 #### Vercel bypass token
 
 Preview deployments at `dev.storycot.com` have Vercel deployment protection enabled.
-Playwright bypasses this by visiting a short-lived shareable URL first, which sets a bypass
-cookie. The token expires after ~23 hours.
+Playwright bypasses this by sending the Vercel automation bypass secret on the first request
+and setting the bypass cookie for subsequent asset loads and in-browser navigations.
 
-Regenerate when expired:
-- Use the Vercel MCP tool `get_access_to_vercel_url` with `url: https://dev.storycot.com`
-- Copy the returned `shareableUrl` into `VERCEL_BYPASS_URL` in `.env.local`
+Setup:
+- In Vercel project settings, generate a Deployment Protection bypass secret
+- Store it locally as `VERCEL_AUTOMATION_BYPASS_SECRET`
+- Playwright will attach the required bypass headers automatically and the helper will set the
+  cookie on the first navigation
 
 #### How sign-in works in tests
 
@@ -459,12 +461,20 @@ Tokens expire after 120 seconds, so a fresh one is fetched for each test.
 ```bash
 # Run all PR checklist tests
 PLAYWRIGHT_BASE_URL=https://dev.storycot.com \
+  VERCEL_AUTOMATION_BYPASS_SECRET=... \
   CLERK_SECRET_KEY=sk_test_... \
-  CLERK_PUBLISHABLE_KEY=pk_test_... \
   npx playwright test e2e/pr-checklist.spec.ts --project=chromium
 
 # Or with .env.local populated (uses dotenv)
 npx playwright test e2e/pr-checklist.spec.ts --project=chromium
+
+# Inspect a specific print-book export
+PLAYWRIGHT_BASE_URL=https://dev.storycot.com \
+  VERCEL_AUTOMATION_BYPASS_SECRET=... \
+  CLERK_SECRET_KEY=sk_test_... \
+  E2E_TEST_USER_ID=user_... \
+  PLAYWRIGHT_BOOK_ID=book_... \
+  npx playwright test e2e/book-export.spec.ts --project=chromium
 ```
 
 #### What the PR checklist tests cover

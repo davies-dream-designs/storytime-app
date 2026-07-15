@@ -1,40 +1,7 @@
-import { test, expect, Page } from '@playwright/test'
+import { test, expect } from '@playwright/test'
+import { getBaseUrl, signIn } from './helpers/auth'
 
-const BASE = process.env.PLAYWRIGHT_BASE_URL ?? 'https://dev.storycot.com'
-// Vercel deployment protection bypass URL — set VERCEL_BYPASS_URL in your local .env
-// Regenerate with: Vercel MCP → get_access_to_vercel_url (expires ~23h)
-const VERCEL_BYPASS = process.env.VERCEL_BYPASS_URL ?? `${BASE}/?_vercel_share=`
-const TEST_USER_ID = process.env.E2E_TEST_USER_ID ?? 'user_3GVKe5HmZpQR7HRWFrrgwxc0Vxs'
-const CLERK_SECRET = process.env.CLERK_SECRET_KEY!
-
-async function getSignInToken(): Promise<string> {
-  const res = await fetch('https://api.clerk.com/v1/sign_in_tokens', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${CLERK_SECRET}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ user_id: TEST_USER_ID, expires_in_seconds: 120 }),
-  })
-  const data = await res.json() as { token: string }
-  return data.token
-}
-
-async function signIn(page: Page) {
-  // Hit bypass URL first to set the Vercel deployment protection cookie
-  await page.goto(VERCEL_BYPASS)
-  await page.waitForLoadState('networkidle')
-
-  // Get a fresh Clerk sign-in token — Clerk auto-redeems it and redirects away from /sign-in
-  const token = await getSignInToken()
-  // Routes are now locale-prefixed: /en/sign-in, /en/dashboard, etc.
-  await page.goto(`${BASE}/en/sign-in?__clerk_ticket=${token}`)
-  await page.waitForFunction(() => !window.location.pathname.includes('/sign-in'), { timeout: 20000 })
-  if (!page.url().includes('/dashboard')) {
-    await page.goto(`${BASE}/en/dashboard`)
-    await page.waitForLoadState('networkidle')
-  }
-}
+const BASE = getBaseUrl()
 
 // ─── Test 1: Mobile hamburger ─────────────────────────────────────────────────
 

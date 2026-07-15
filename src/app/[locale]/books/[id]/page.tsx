@@ -5,6 +5,7 @@ import { Link } from '@/i18n/navigation'
 import Nav from '@/components/Nav'
 import { db } from '@/lib/db'
 import { isDownloadableBookAssetUrl, isInlineBookAssetUrl } from '@/lib/print-books/assets'
+import { getBookReadinessState } from '@/lib/print-books/readiness'
 import BookStatusPanel from './BookStatusPanel'
 
 function getSpreadToneClass(layoutType: string) {
@@ -33,6 +34,7 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
   const story = await db.stories.getById(project.sourceStoryId)
   if (!story || story.userId !== userId) notFound()
   const coverSpread = project.spreads.find((spread) => spread.sequence === 1 || spread.title === 'Cover')
+  const readinessState = getBookReadinessState(project)
   const hasProofingErrors = Boolean(project.assets.proofingErrors && project.assets.proofingErrors.length > 0)
   const previewPdfUrl = isDownloadableBookAssetUrl(project.assets.previewPdfUrl) ? project.assets.previewPdfUrl : undefined
   const printPdfUrl = isDownloadableBookAssetUrl(project.assets.printPdfUrl) ? project.assets.printPdfUrl : undefined
@@ -48,8 +50,16 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
             <span>·</span>
             <Link href={`/stories/${story.id}` as string} className="hover:text-night-600">{story.title}</Link>
           </div>
-          <h1 className="font-display text-4xl font-bold text-night-800">{t('detailTitle')}</h1>
-          <p className="mt-2 text-night-500">{t('detailSub', { title: story.title })}</p>
+          <h1 className="font-display text-4xl font-bold text-night-800">
+            {readinessState === 'ready' ? t('detailReadyTitle') : readinessState === 'review_required' ? t('detailReviewTitle') : t('detailTitle')}
+          </h1>
+          <p className="mt-2 text-night-500">
+            {readinessState === 'ready'
+              ? t('detailReadySub', { title: story.title })
+              : readinessState === 'review_required'
+                ? t('detailReviewSub', { title: story.title })
+                : t('detailSub', { title: story.title })}
+          </p>
         </div>
 
         <BookStatusPanel initialProject={project} />
@@ -147,7 +157,7 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
         ) : null}
 
         <section className="mt-8 rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
-          <h2 className="font-display text-2xl font-bold text-night-800">{t('bookPlanTitle')}</h2>
+          <h2 className="font-display text-2xl font-bold text-night-800">{t('previewTitle')}</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-3">
             <div className="rounded-2xl bg-night-50 p-4">
               <p className="text-xs font-bold uppercase tracking-wide text-night-400">{t('ageBandLabel')}</p>
@@ -186,7 +196,16 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
                     </span>
                   </div>
 
-                  <p className="mt-4 text-sm text-night-500">{spread.sceneBrief}</p>
+                  {spread.thumbnailUrl || spread.imageUrl ? (
+                    <div className="mt-4 overflow-hidden rounded-2xl border border-night-100 bg-night-50">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={spread.thumbnailUrl || spread.imageUrl}
+                        alt={spread.title || t('spreadLabel', { start: spread.pageStart, end: spread.pageEnd })}
+                        className="h-auto w-full object-cover"
+                      />
+                    </div>
+                  ) : null}
 
                   <div className="mt-4 grid gap-3 lg:grid-cols-2">
                     <div className="rounded-2xl bg-night-50 p-4">
@@ -206,13 +225,6 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
                       </p>
                     </div>
                   </div>
-
-                  <div className="mt-4 rounded-2xl border border-dashed border-night-200 p-4">
-                    <p className="text-xs font-bold uppercase tracking-wide text-night-400">
-                      {t('illustrationIntentLabel')}
-                    </p>
-                    <p className="mt-2 text-sm leading-7 text-night-600">{spread.illustrationPrompt}</p>
-                  </div>
                 </article>
               ))}
             </div>
@@ -220,6 +232,61 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
             <p className="mt-4 text-night-500">{t('spreadsPending')}</p>
           )}
         </section>
+
+        {project.spreads.length > 0 ? (
+          <section className="mt-8 rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
+            <details>
+              <summary className="cursor-pointer list-none">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h2 className="font-display text-2xl font-bold text-night-800">{t('planningDetailsTitle')}</h2>
+                    <p className="mt-2 text-sm text-night-500">{t('planningDetailsSub')}</p>
+                  </div>
+                  <span className="rounded-full border border-night-200 px-3 py-1 text-xs font-bold uppercase tracking-wide text-night-500">
+                    {t('planningDetailsToggle')}
+                  </span>
+                </div>
+              </summary>
+
+              <div className="mt-6 space-y-4">
+                {project.spreads.map((spread) => (
+                  <article key={spread.id} className="rounded-3xl border border-night-100 p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wide text-night-400">
+                          {t('spreadNumberLabel', { sequence: spread.sequence })}
+                        </p>
+                        <p className="mt-1 font-bold text-night-700">
+                          {t('spreadLabel', { start: spread.pageStart, end: spread.pageEnd })}
+                        </p>
+                        {spread.title ? (
+                          <p className="mt-1 text-sm font-medium text-night-500">{spread.title}</p>
+                        ) : null}
+                      </div>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${getSpreadToneClass(spread.layoutType)}`}
+                      >
+                        {t(`layout.${spread.layoutType}` as 'layout.text_art')}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 rounded-2xl bg-night-50 p-4">
+                      <p className="text-xs font-bold uppercase tracking-wide text-night-400">{t('sceneBriefLabel')}</p>
+                      <p className="mt-2 text-sm leading-7 text-night-600">{spread.sceneBrief}</p>
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-dashed border-night-200 p-4">
+                      <p className="text-xs font-bold uppercase tracking-wide text-night-400">
+                        {t('illustrationIntentLabel')}
+                      </p>
+                      <p className="mt-2 text-sm leading-7 text-night-600">{spread.illustrationPrompt}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </details>
+          </section>
+        ) : null}
       </main>
     </>
   )

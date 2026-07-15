@@ -45,14 +45,18 @@ function isQuietBeat(purpose: BeatPurpose): boolean {
 export function deriveBeatsFromStory(story: Story): Beat[] {
   return story.pages.map((page, index, pages) => {
     const purpose = inferPurpose(index, pages.length)
+    const textDraft = page.text.trim()
+    const visualIntent = typeof page.illustrationPrompt === 'string' && page.illustrationPrompt.trim().length > 0
+      ? page.illustrationPrompt.trim()
+      : summarizeText(textDraft)
 
     return {
       id: `${story.id}:beat:${page.pageNumber}`,
       sequence: index + 1,
       purpose,
       summary: summarizeText(page.text),
-      textDraft: page.text.trim(),
-      visualIntent: page.illustrationPrompt.trim(),
+      textDraft,
+      visualIntent,
       mood: inferMood(purpose),
       isQuietBeat: isQuietBeat(purpose),
     }

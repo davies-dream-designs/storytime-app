@@ -10,6 +10,19 @@ export type BookProjectStatus =
   | 'ready'
   | 'failed'
 
+export type BookBuildMode = 'full' | 'exports'
+
+export type BookArtMode = 'placeholder' | 'generated' | 'mixed'
+
+export type BookOrderabilityState = 'draft_only' | 'export_ready' | 'order_ready'
+
+export interface ProofingCheck {
+  key: string
+  label: string
+  status: 'pass' | 'warn' | 'fail'
+  detail: string
+}
+
 export type BookSpreadLayoutType =
   | 'front_matter'
   | 'text_art'
@@ -75,8 +88,13 @@ export interface BookAsset {
   previewPdfUrl?: string
   printPdfUrl?: string
   previewImages?: string[]
+  artMode?: BookArtMode
+  exportVersion?: number
+  lastBuildMode?: BookBuildMode
+  orderabilityState?: BookOrderabilityState
   exportProfile?: string
   proofingPassed?: boolean
+  proofingChecks?: ProofingCheck[]
   proofingWarnings?: string[]
   proofingErrors?: string[]
   proofVersion: number

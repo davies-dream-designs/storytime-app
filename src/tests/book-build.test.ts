@@ -212,6 +212,7 @@ describe('POST /api/books/[id]/build', () => {
         totalSpreads: 16,
         assets: expect.objectContaining({
           coverImageUrl: 'https://example.com/books/book-1/cover.svg',
+          artMode: 'placeholder',
         }),
       })
     )
@@ -223,6 +224,7 @@ describe('POST /api/books/[id]/build', () => {
         characterBible: createCharacterBible(),
         assets: expect.objectContaining({
           coverImageUrl: 'https://example.com/books/book-1/cover.svg',
+          artMode: 'placeholder',
         }),
         completedSpreads: 16,
         totalSpreads: 16,
@@ -239,7 +241,11 @@ describe('POST /api/books/[id]/build', () => {
           coverPdfUrl: 'https://example.com/books/book-1/cover.pdf',
           previewPdfUrl: 'https://example.com/books/book-1/preview.pdf',
           printPdfUrl: 'https://example.com/books/book-1/print.pdf',
+          exportVersion: 1,
+          lastBuildMode: 'full',
+          orderabilityState: 'export_ready',
           proofingPassed: true,
+          proofingChecks: expect.any(Array),
           proofingWarnings: expect.any(Array),
           proofingErrors: [],
         }),
@@ -249,8 +255,69 @@ describe('POST /api/books/[id]/build', () => {
     expect(body.assets?.coverPdfUrl).toBe('https://example.com/books/book-1/cover.pdf')
     expect(body.assets?.previewPdfUrl).toBe('https://example.com/books/book-1/preview.pdf')
     expect(body.assets?.printPdfUrl).toBe('https://example.com/books/book-1/print.pdf')
+    expect(body.assets?.exportVersion).toBe(1)
+    expect(body.assets?.orderabilityState).toBe('export_ready')
     expect(body.assets?.proofingPassed).toBe(true)
     expect(body.assets?.proofingWarnings?.some((warning: string) => warning.includes('Cover spine width is assumed from page count'))).toBe(true)
     expect(body.assets?.proofingErrors).toEqual([])
+  })
+
+  it('can refresh exports without rerunning planning or illustrations', async () => {
+    const readyProject = {
+      ...createBookProject(),
+      status: 'ready' as const,
+      completedSpreads: 16,
+      spreads: Array.from({ length: 16 }, (_, index) => ({
+        id: `spread-${index + 1}`,
+        bookProjectId: 'book-1',
+        sequence: index + 1,
+        pageStart: index * 2 + 1,
+        pageEnd: index * 2 + 2,
+        layoutType: index < 2 ? 'front_matter' : index > 13 ? 'end_matter' : 'text_art',
+        title: index === 0 ? 'Cover' : index === 1 ? 'Title' : index === 15 ? 'Back Cover' : undefined,
+        leftPageText: 'Left text',
+        rightPageText: 'Right text',
+        sceneBrief: 'Scene brief',
+        illustrationPrompt: 'Illustration prompt',
+        imageUrl: `https://example.com/${index + 1}.png`,
+      })),
+      assets: {
+        proofVersion: 3,
+        exportVersion: 3,
+        artMode: 'placeholder' as const,
+        coverImageUrl: 'https://example.com/books/book-1/cover.svg',
+        previewPdfUrl: 'https://example.com/books/book-1/preview.pdf',
+        printPdfUrl: 'https://example.com/books/book-1/print.pdf',
+      },
+    }
+    mockDb.bookProjects.getById.mockResolvedValue(readyProject)
+    mockDb.bookProjects.update.mockImplementation(async (_id: string, updates: Partial<BookProject>) => ({
+      ...readyProject,
+      ...updates,
+      assets: {
+        ...readyProject.assets,
+        ...(updates.assets ?? {}),
+      },
+    }))
+
+    const { POST } = await import('@/app/api/books/[id]/build/route')
+    const res = await POST(
+      new NextRequest('http://localhost/api/books/book-1/build', {
+        method: 'POST',
+        body: JSON.stringify({ mode: 'exports' }),
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      { params: Promise.resolve({ id: 'book-1' }) },
+    )
+
+    expect(res.status).toBe(200)
+    expect(mockGenerateCharacterBible).not.toHaveBeenCalled()
+    expect(mockGenerateCoverIllustration).not.toHaveBeenCalled()
+    expect(mockGenerateSpreadIllustration).not.toHaveBeenCalled()
+    expect(mockGenerateBookPdfs).toHaveBeenCalledTimes(1)
+
+    const body = await res.json()
+    expect(body.assets?.exportVersion).toBe(4)
+    expect(body.assets?.lastBuildMode).toBe('exports')
   })
 })

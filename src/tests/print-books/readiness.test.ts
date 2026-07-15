@@ -20,6 +20,8 @@ function createProject(overrides: Partial<BookProject> = {}): BookProject {
     spreads: [],
     assets: {
       proofVersion: 1,
+      exportVersion: 1,
+      orderabilityState: 'order_ready',
       previewPdfUrl: 'https://example.com/preview.pdf',
       printPdfUrl: 'https://example.com/print.pdf',
       proofingPassed: true,
@@ -34,20 +36,21 @@ function createProject(overrides: Partial<BookProject> = {}): BookProject {
 }
 
 describe('getBookReadinessState', () => {
-  it('returns review_required when proofing still blocks ordering', () => {
+  it('returns export_ready when proofing still blocks ordering', () => {
     expect(
       getBookReadinessState(
         createProject({
           assets: {
             ...createProject().assets,
+            orderabilityState: 'export_ready',
             proofingErrors: ['Separate Lulu cover PDF is missing.'],
           },
         })
       )
-    ).toBe('review_required')
+    ).toBe('export_ready')
   })
 
-  it('returns review_required when exports are not downloadable', () => {
+  it('returns draft_ready when exports are not downloadable', () => {
     expect(
       getBookReadinessState(
         createProject({
@@ -58,10 +61,10 @@ describe('getBookReadinessState', () => {
           },
         })
       )
-    ).toBe('review_required')
+    ).toBe('draft_ready')
   })
 
-  it('returns ready only when proofing is clear and exports are downloadable', () => {
-    expect(getBookReadinessState(createProject())).toBe('ready')
+  it('returns order_ready only when proofing is clear and exports are downloadable', () => {
+    expect(getBookReadinessState(createProject())).toBe('order_ready')
   })
 })

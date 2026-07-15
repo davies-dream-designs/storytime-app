@@ -52,14 +52,22 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
             <Link href={`/stories/${story.id}` as string} className="hover:text-night-600">{story.title}</Link>
           </div>
           <h1 className="font-display text-4xl font-bold text-night-800">
-            {readinessState === 'ready' ? t('detailReadyTitle') : readinessState === 'review_required' ? t('detailReviewTitle') : t('detailTitle')}
+            {readinessState === 'order_ready'
+              ? t('detailOrderReadyTitle')
+              : readinessState === 'export_ready'
+                ? t('detailExportReadyTitle')
+                : readinessState === 'draft_ready'
+                  ? t('detailDraftReadyTitle')
+                  : t('detailTitle')}
           </h1>
           <p className="mt-2 text-night-500">
-            {readinessState === 'ready'
-              ? t('detailReadySub', { title: story.title })
-              : readinessState === 'review_required'
-                ? t('detailReviewSub', { title: story.title })
-                : t('detailSub', { title: story.title })}
+            {readinessState === 'order_ready'
+              ? t('detailOrderReadySub', { title: story.title })
+              : readinessState === 'export_ready'
+                ? t('detailExportReadySub', { title: story.title })
+                : readinessState === 'draft_ready'
+                  ? t('detailDraftReadySub', { title: story.title })
+                  : t('detailSub', { title: story.title })}
           </p>
         </div>
 
@@ -125,21 +133,50 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
           </section>
         ) : null}
 
-        {project.assets.exportProfile || project.assets.proofingWarnings?.length || project.assets.proofingErrors?.length ? (
+        {project.assets.exportProfile || project.assets.proofingChecks?.length || project.assets.proofingWarnings?.length || project.assets.proofingErrors?.length ? (
           <section className="mt-8 rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
             <h2 className="font-display text-2xl font-bold text-night-800">{t('proofingTitle')}</h2>
             <p className="mt-3 text-night-600">
-              {hasProofingErrors
-                ? t('proofingBlocked')
-                : project.assets.proofingPassed
-                  ? t('proofingPassed')
-                  : t('proofingReviewNeeded')}
+              {readinessState === 'order_ready'
+                ? t('proofingOrderReady')
+                : readinessState === 'export_ready'
+                  ? t('proofingExportReady')
+                  : hasProofingErrors
+                    ? t('proofingBlocked')
+                    : project.assets.proofingPassed
+                      ? t('proofingPassed')
+                      : t('proofingReviewNeeded')}
             </p>
 
             {project.assets.exportProfile ? (
               <div className="mt-4 rounded-2xl bg-night-50 p-4">
                 <p className="text-xs font-bold uppercase tracking-wide text-night-400">{t('exportProfileLabel')}</p>
                 <p className="mt-2 text-sm font-medium text-night-700">{project.assets.exportProfile}</p>
+              </div>
+            ) : null}
+
+            {project.assets.proofingChecks && project.assets.proofingChecks.length > 0 ? (
+              <div className="mt-4 rounded-2xl border border-night-100 bg-night-50 p-4">
+                <p className="text-sm font-bold text-night-800">{t('proofingChecksLabel')}</p>
+                <ul className="mt-3 space-y-3">
+                  {project.assets.proofingChecks.map((check) => (
+                    <li key={check.key} className="rounded-2xl bg-white px-4 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-bold text-night-800">{check.label}</p>
+                        <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${
+                          check.status === 'pass'
+                            ? 'bg-green-100 text-green-700'
+                            : check.status === 'warn'
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-rose-100 text-rose-700'
+                        }`}>
+                          {t(`proofingCheckStatus.${check.status}` as 'proofingCheckStatus.pass')}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-night-600">{check.detail}</p>
+                    </li>
+                  ))}
+                </ul>
               </div>
             ) : null}
 
@@ -181,6 +218,26 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
             <div className="rounded-2xl bg-night-50 p-4">
               <p className="text-xs font-bold uppercase tracking-wide text-night-400">{t('spreadCountLabel')}</p>
               <p className="mt-2 font-display text-2xl font-bold text-night-700">{project.spreadCount}</p>
+            </div>
+            <div className="rounded-2xl bg-night-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-night-400">{t('artModeLabel')}</p>
+              <p className="mt-2 text-sm font-bold text-night-700">
+                {project.assets.artMode === 'generated'
+                  ? t('artMode.generated')
+                  : project.assets.artMode === 'mixed'
+                    ? t('artMode.mixed')
+                    : t('artMode.placeholder')}
+              </p>
+            </div>
+            <div className="rounded-2xl bg-night-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-night-400">{t('orderabilityLabel')}</p>
+              <p className="mt-2 text-sm font-bold text-night-700">
+                {project.assets.orderabilityState === 'order_ready'
+                  ? t('orderability.order_ready')
+                  : project.assets.orderabilityState === 'export_ready'
+                    ? t('orderability.export_ready')
+                    : t('orderability.draft_only')}
+              </p>
             </div>
           </div>
 

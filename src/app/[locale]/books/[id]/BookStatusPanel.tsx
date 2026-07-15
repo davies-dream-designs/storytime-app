@@ -21,6 +21,7 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
   const [project, setProject] = useState(initialProject)
   const [retrying, setRetrying] = useState(false)
   const [rebuilding, setRebuilding] = useState(false)
+  const [refreshingExports, setRefreshingExports] = useState(false)
   const [startingBuild, setStartingBuild] = useState(false)
   const buildStartedRef = useRef(false)
 
@@ -75,13 +76,32 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
 
   async function handleRebuild() {
     setRebuilding(true)
-    const res = await fetch(`/api/books/${project.id}/build`, { method: 'POST' })
+    const res = await fetch(`/api/books/${project.id}/build`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'full' }),
+    })
     if (res.ok) {
       const next = (await res.json()) as BookProject
       setProject(next)
       router.refresh()
     }
     setRebuilding(false)
+  }
+
+  async function handleRefreshExports() {
+    setRefreshingExports(true)
+    const res = await fetch(`/api/books/${project.id}/build`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'exports' }),
+    })
+    if (res.ok) {
+      const next = (await res.json()) as BookProject
+      setProject(next)
+      router.refresh()
+    }
+    setRefreshingExports(false)
   }
 
   const progress = project.totalSpreads > 0
@@ -115,6 +135,9 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
               {t('updatedLabel', { value: lastUpdated })}
             </p>
           ) : null}
+          <p className="mt-2 text-xs font-medium uppercase tracking-wide text-night-400">
+            {t('versionLabel', { value: project.assets.exportVersion ?? project.assets.proofVersion ?? 0 })}
+          </p>
         </div>
         <div className="rounded-2xl bg-night-50 px-4 py-3 text-right">
           <p className="text-xs font-bold uppercase tracking-wide text-night-400">{t('progressLabel')}</p>
@@ -166,26 +189,67 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
       ) : null}
 
       {project.status === 'ready' ? (
-        <div className={`mt-6 rounded-2xl p-4 ${readinessState === 'ready' ? 'border border-green-200 bg-green-50' : 'border border-amber-200 bg-amber-50'}`}>
-          <p className={`font-bold ${readinessState === 'ready' ? 'text-green-700' : 'text-amber-800'}`}>
-            {readinessState === 'ready' ? t('readyTitle') : t('reviewTitle')}
+        <div className={`mt-6 rounded-2xl p-4 ${
+          readinessState === 'order_ready'
+            ? 'border border-green-200 bg-green-50'
+            : readinessState === 'export_ready'
+              ? 'border border-sky-200 bg-sky-50'
+              : 'border border-amber-200 bg-amber-50'
+        }`}>
+          <p className={`font-bold ${
+            readinessState === 'order_ready'
+              ? 'text-green-700'
+              : readinessState === 'export_ready'
+                ? 'text-sky-800'
+                : 'text-amber-800'
+          }`}>
+            {readinessState === 'order_ready'
+              ? t('orderReadyTitle')
+              : readinessState === 'export_ready'
+                ? t('exportReadyTitle')
+                : t('draftReadyTitle')}
           </p>
-          <p className={`mt-1 text-sm ${readinessState === 'ready' ? 'text-green-700' : 'text-amber-900'}`}>
-            {readinessState === 'ready'
-              ? t('readySub')
-              : (project.assets?.proofingErrors?.length ? t('reviewBlockedSub') : t('reviewFallbackSub'))}
+          <p className={`mt-1 text-sm ${
+            readinessState === 'order_ready'
+              ? 'text-green-700'
+              : readinessState === 'export_ready'
+                ? 'text-sky-900'
+                : 'text-amber-900'
+          }`}>
+            {readinessState === 'order_ready'
+              ? t('orderReadySub')
+              : readinessState === 'export_ready'
+                ? t('exportReadySub')
+                : t('draftReadySub')}
           </p>
-          <button
-            onClick={handleRebuild}
-            disabled={rebuilding}
-            className={`mt-4 rounded-full px-4 py-2 text-sm font-bold transition disabled:opacity-60 ${
-              readinessState === 'ready'
-                ? 'bg-green-700 text-white hover:bg-green-600'
-                : 'bg-amber-600 text-white hover:bg-amber-500'
-            }`}
-          >
-            {rebuilding ? t('rebuildingButton') : t('rebuildButton')}
-          </button>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              onClick={handleRefreshExports}
+              disabled={refreshingExports || rebuilding}
+              className={`rounded-full px-4 py-2 text-sm font-bold transition disabled:opacity-60 ${
+                readinessState === 'order_ready'
+                  ? 'border border-green-300 text-green-700 hover:bg-green-100'
+                  : readinessState === 'export_ready'
+                    ? 'border border-sky-300 text-sky-700 hover:bg-sky-100'
+                    : 'border border-amber-300 text-amber-800 hover:bg-amber-100'
+              }`}
+            >
+              {refreshingExports ? t('refreshingExportsButton') : t('refreshExportsButton')}
+            </button>
+            <button
+              onClick={handleRebuild}
+              disabled={rebuilding || refreshingExports}
+              className={`rounded-full px-4 py-2 text-sm font-bold transition disabled:opacity-60 ${
+                readinessState === 'order_ready'
+                  ? 'bg-green-700 text-white hover:bg-green-600'
+                  : readinessState === 'export_ready'
+                    ? 'bg-sky-700 text-white hover:bg-sky-600'
+                    : 'bg-amber-600 text-white hover:bg-amber-500'
+              }`}
+            >
+              {rebuilding ? t('rebuildingButton') : t('rebuildButton')}
+            </button>
+          </div>
         </div>
       ) : null}
     </section>

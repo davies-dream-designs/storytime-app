@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
+import type { ChildProfile, Story } from '@/types'
 import { deriveBeatsFromStory } from '@/lib/print-books/beats'
 import { generateCharacterBible } from '@/lib/print-books/characterBible'
 import { applySpreadIllustration, generateCoverIllustration, generateSpreadIllustration } from '@/lib/print-books/illustrations'
@@ -8,7 +9,7 @@ import { generateBookPdfs } from '@/lib/print-books/pdf'
 import { LULU_SQUARE_HARDCOVER_SPEC, runLuluProofing } from '@/lib/print-books/proofing'
 import { composeHardcoverSpreads } from '@/lib/print-books/composer'
 import { getBookProjectStageLabel } from '@/lib/print-books/status'
-import type { BookProjectStatus } from '@/types/printBook'
+import type { BookProject, BookBuildMode, BookProjectStatus, BookArtMode } from '@/types/printBook'
 
 async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms))
@@ -24,7 +25,91 @@ async function loadProjectWithRetry(id: string, userId: string) {
   return undefined
 }
 
-export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+function getNextProofVersion(project: BookProject): number {
+  return (project.assets.proofVersion ?? 0) + 1
+}
+
+function getProjectArtMode(input: {
+  coverProvider?: 'openai' | 'placeholder'
+  spreadProviders?: Array<'openai' | 'placeholder'>
+  existingArtMode?: BookArtMode
+}): BookArtMode {
+  const providers = new Set<string>()
+  if (input.coverProvider) providers.add(input.coverProvider)
+  for (const provider of input.spreadProviders ?? []) providers.add(provider)
+  if (providers.size === 0) return input.existingArtMode ?? 'placeholder'
+  if (providers.size === 1) return providers.has('openai') ? 'generated' : 'placeholder'
+  return 'mixed'
+}
+
+async function finalizeProjectExports(input: {
+  id: string
+  project: BookProject
+  story: Story
+  profile: ChildProfile
+  buildMode: BookBuildMode
+}) {
+  const nextProofVersion = getNextProofVersion(input.project)
+  const pdfAssets = await generateBookPdfs({
+    project: input.project,
+    story: input.story,
+    profile: input.profile,
+  })
+
+  const proofingReport = runLuluProofing({
+    ...input.project,
+    assets: {
+      ...input.project.assets,
+      coverImageUrl: input.project.assets.coverImageUrl,
+      coverPdfUrl: pdfAssets.coverPdfUrl,
+      coverPdfReadyForOrdering: pdfAssets.coverPdfReadyForOrdering,
+      coverPdfSpineWidthIn: pdfAssets.coverPdfSpineWidthIn,
+      coverPdfSpineSource: pdfAssets.coverPdfSpineSource,
+      previewPdfUrl: pdfAssets.previewPdfUrl,
+      printPdfUrl: pdfAssets.printPdfUrl,
+      previewImages: pdfAssets.previewImages,
+    },
+  })
+
+  const proofingProject = await db.bookProjects.update(input.id, {
+    status: 'proofing',
+    currentStageLabel: getBookProjectStageLabel('proofing'),
+    assets: {
+      ...input.project.assets,
+      coverImageUrl: input.project.assets.coverImageUrl,
+      coverPdfUrl: pdfAssets.coverPdfUrl,
+      coverPdfReadyForOrdering: pdfAssets.coverPdfReadyForOrdering,
+      coverPdfSpineWidthIn: pdfAssets.coverPdfSpineWidthIn,
+      coverPdfSpineSource: pdfAssets.coverPdfSpineSource,
+      previewPdfUrl: pdfAssets.previewPdfUrl,
+      printPdfUrl: pdfAssets.printPdfUrl,
+      previewImages: pdfAssets.previewImages,
+      exportVersion: nextProofVersion,
+      lastBuildMode: input.buildMode,
+      orderabilityState: proofingReport.orderabilityState,
+      exportProfile: LULU_SQUARE_HARDCOVER_SPEC.trimLabel,
+      proofVersion: nextProofVersion,
+      proofingPassed: proofingReport.passed,
+      proofingChecks: proofingReport.checks,
+      proofingWarnings: proofingReport.warnings,
+      proofingErrors: proofingReport.errors,
+    },
+  })
+
+  if (!proofingProject) return undefined
+
+  const readyAt = new Date().toISOString()
+  return db.bookProjects.update(input.id, {
+    status: 'ready',
+    currentStageLabel: getBookProjectStageLabel('ready'),
+    readyAt,
+    assets: {
+      ...proofingProject.assets,
+    },
+  })
+}
+
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -45,9 +130,42 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const characters = (await db.characters.getByProfileId(profile.id)).filter((character) => character.userId === userId)
+  const payload = (await req.json().catch(() => null)) as { mode?: BookBuildMode } | null
+  const buildMode: BookBuildMode = payload?.mode === 'exports' ? 'exports' : 'full'
   let failureCode: `${BookProjectStatus}_failed` = 'planning_failed'
 
   try {
+    if (buildMode === 'exports') {
+      if (!project.spreads.length || !project.assets.coverImageUrl) {
+        return NextResponse.json({ error: 'This book does not have a complete draft to refresh yet.' }, { status: 409 })
+      }
+
+      const exportProject = await db.bookProjects.update(id, {
+        status: 'composing',
+        currentStageLabel: 'Refreshing export files...',
+        errorCode: undefined,
+        errorMessage: undefined,
+      })
+
+      if (!exportProject) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      }
+
+      const readyProject = await finalizeProjectExports({
+        id,
+        project: exportProject,
+        story,
+        profile,
+        buildMode,
+      })
+
+      if (!readyProject) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      }
+
+      return NextResponse.json(readyProject)
+    }
+
     const planningProject = await db.bookProjects.update(id, {
       status: 'planning',
       currentStageLabel: getBookProjectStageLabel('planning'),
@@ -107,6 +225,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     })
 
     let illustratedSpreads = cover.spreads
+    const spreadProviders: Array<'openai' | 'placeholder'> = []
     let completedSpreads = illustratedSpreads.filter((spread) => Boolean(spread.imageUrl)).length
 
     const afterCoverProject = await db.bookProjects.update(id, {
@@ -119,6 +238,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       assets: {
         ...illustratingProject.assets,
         coverImageUrl: cover.coverImageUrl,
+        artMode: getProjectArtMode({ coverProvider: cover.provider }),
       },
     })
 
@@ -145,6 +265,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       })
 
       illustratedSpreads = applySpreadIllustration(illustratedSpreads, illustrated.spread)
+      spreadProviders.push(illustrated.provider)
       completedSpreads = illustratedSpreads.filter((currentSpread) => Boolean(currentSpread.imageUrl)).length
 
       const progressProject = await db.bookProjects.update(id, {
@@ -157,6 +278,11 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
         assets: {
           ...afterCoverProject.assets,
           coverImageUrl: cover.coverImageUrl,
+          artMode: getProjectArtMode({
+            coverProvider: cover.provider,
+            spreadProviders,
+            existingArtMode: afterCoverProject.assets.artMode,
+          }),
         },
       })
 
@@ -177,6 +303,11 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       assets: {
         ...illustratingProject.assets,
         coverImageUrl: cover.coverImageUrl,
+        artMode: getProjectArtMode({
+          coverProvider: cover.provider,
+          spreadProviders,
+          existingArtMode: illustratingProject.assets.artMode,
+        }),
       },
     })
 
@@ -184,61 +315,18 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
-    const pdfAssets = await generateBookPdfs({
+    failureCode = 'proofing_failed'
+    const readyProject = await finalizeProjectExports({
+      id,
       project: composingProject,
       story,
       profile,
+      buildMode,
     })
 
-    const proofingReport = runLuluProofing({
-      ...composingProject,
-      assets: {
-        ...composingProject.assets,
-        coverImageUrl: composingProject.assets.coverImageUrl,
-        coverPdfUrl: pdfAssets.coverPdfUrl,
-        coverPdfReadyForOrdering: pdfAssets.coverPdfReadyForOrdering,
-        coverPdfSpineWidthIn: pdfAssets.coverPdfSpineWidthIn,
-        coverPdfSpineSource: pdfAssets.coverPdfSpineSource,
-        previewPdfUrl: pdfAssets.previewPdfUrl,
-        printPdfUrl: pdfAssets.printPdfUrl,
-        previewImages: pdfAssets.previewImages,
-      },
-    })
-
-    failureCode = 'proofing_failed'
-    const proofingProject = await db.bookProjects.update(id, {
-      status: 'proofing',
-      currentStageLabel: getBookProjectStageLabel('proofing'),
-      assets: {
-        ...composingProject.assets,
-        coverImageUrl: composingProject.assets.coverImageUrl,
-        coverPdfUrl: pdfAssets.coverPdfUrl,
-        coverPdfReadyForOrdering: pdfAssets.coverPdfReadyForOrdering,
-        coverPdfSpineWidthIn: pdfAssets.coverPdfSpineWidthIn,
-        coverPdfSpineSource: pdfAssets.coverPdfSpineSource,
-        previewPdfUrl: pdfAssets.previewPdfUrl,
-        printPdfUrl: pdfAssets.printPdfUrl,
-        previewImages: pdfAssets.previewImages,
-        exportProfile: LULU_SQUARE_HARDCOVER_SPEC.trimLabel,
-        proofingPassed: proofingReport.passed,
-        proofingWarnings: proofingReport.warnings,
-        proofingErrors: proofingReport.errors,
-      },
-    })
-
-    if (!proofingProject) {
+    if (!readyProject) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
-
-    const readyAt = new Date().toISOString()
-    const readyProject = await db.bookProjects.update(id, {
-      status: 'ready',
-      currentStageLabel: getBookProjectStageLabel('ready'),
-      readyAt,
-      assets: {
-        ...proofingProject.assets,
-      },
-    })
 
     return NextResponse.json(readyProject)
   } catch (error) {

@@ -81,6 +81,8 @@ describe('composeHardcoverSpreads', () => {
 
     const quietCount = spreads.filter((spread) => spread.layoutType === 'quiet').length
     expect(quietCount).toBeGreaterThanOrEqual(4)
+    expect(spreads.some((spread) => spread.leftPageText.includes('Mila'))).toBe(true)
+    expect(spreads.some((spread) => spread.sceneBrief.includes('Story page'))).toBe(true)
   })
 
   it('keeps front matter and end matter fixed', () => {
@@ -97,5 +99,22 @@ describe('composeHardcoverSpreads', () => {
     expect(spreads[1]?.layoutType).toBe('front_matter')
     expect(spreads[14]?.layoutType).toBe('end_matter')
     expect(spreads[15]?.layoutType).toBe('end_matter')
+  })
+
+  it('derives extra interior spreads from the story instead of using only generic filler', () => {
+    const story = createStory(4)
+    const spreads = composeHardcoverSpreads({
+      bookProjectId: 'book-1',
+      story,
+      profile: createProfile(2),
+      ageBand: '0-2',
+      beats: deriveBeatsFromStory(story),
+    })
+
+    const interiorSpreads = spreads.slice(2, 14)
+    expect(interiorSpreads.some((spread) => spread.leftPageText.includes('Story page 1'))).toBe(true)
+    expect(
+      interiorSpreads.some((spread) => spread.illustrationPrompt.includes('toddler board-book style'))
+    ).toBe(true)
   })
 })

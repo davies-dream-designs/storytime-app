@@ -28,6 +28,17 @@ function buildSceneBrief(beat: Beat): string {
   return [beat.summary, beat.visualIntent].filter(Boolean).join(' ')
 }
 
+function getFirstSentence(text: string): string {
+  const clean = text.replace(/\s+/g, ' ').trim()
+  const match = clean.match(/^.*?[.!?](?:\s|$)/)
+  return (match?.[0] ?? clean).trim()
+}
+
+function clampText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text
+  return `${text.slice(0, maxLength - 3).trimEnd()}...`
+}
+
 function splitTextForSpread(text: string, isQuietBeat: boolean): { leftPageText: string; rightPageText: string } {
   const clean = text.replace(/\s+/g, ' ').trim()
   if (isQuietBeat) {
@@ -137,7 +148,68 @@ function selectStoryBeats(beats: Beat[], targetSpreadCount: number): Beat[] {
   return selected
 }
 
-function createStorySpreads(bookProjectId: string, ageBand: AgeBand, beats: Beat[]): BookSpread[] {
+function createStoryExpansionSpread(input: {
+  bookProjectId: string
+  profile: ChildProfile
+  sequence: number
+  pageStart: number
+  ageBand: AgeBand
+  sourceBeat: Beat
+  variantIndex: number
+}): BookSpread {
+  const { bookProjectId, profile, sequence, pageStart, ageBand, sourceBeat, variantIndex } = input
+  const anchorLine = clampText(getFirstSentence(sourceBeat.textDraft), 120)
+  const summary = clampText(sourceBeat.summary, 110)
+
+  if (ageBand === '0-2') {
+    const leftPageText =
+      variantIndex % 2 === 0
+        ? `${anchorLine}\n\n${profile.name} looked, listened, and smiled.`
+        : `${profile.name} stayed with the moment.\n\n${summary}`
+
+    return createSpread(
+      bookProjectId,
+      sequence,
+      pageStart,
+      'quiet',
+      leftPageText,
+      '',
+      `A gentle pause inspired by ${sourceBeat.summary}`,
+      `A calm, spacious toddler board-book style spread inspired by ${sourceBeat.visualIntent}. Soft repetition, clear shapes, and a soothing bedtime mood.`
+    )
+  }
+
+  if (ageBand === '3-5') {
+    return createSpread(
+      bookProjectId,
+      sequence,
+      pageStart,
+      variantIndex % 2 === 0 ? 'hero' : 'quiet',
+      variantIndex % 2 === 0 ? summary : `${profile.name} took a little longer to notice every lovely detail.`,
+      variantIndex % 2 === 0 ? '' : anchorLine,
+      `A breathing-space recap of ${sourceBeat.summary}`,
+      `A storybook spread that lingers on ${sourceBeat.visualIntent} with extra warmth and visual detail.`
+    )
+  }
+
+  return createSpread(
+    bookProjectId,
+    sequence,
+    pageStart,
+    variantIndex % 2 === 0 ? 'hero' : 'text_art',
+    summary,
+    variantIndex % 2 === 0 ? '' : anchorLine,
+    `A reflective expansion of ${sourceBeat.summary}`,
+    `A cinematic illustrated spread revisiting ${sourceBeat.visualIntent} with richer environment detail and emotional continuity.`
+  )
+}
+
+function createStorySpreads(
+  bookProjectId: string,
+  profile: ChildProfile,
+  ageBand: AgeBand,
+  beats: Beat[]
+): BookSpread[] {
   const targetCount = getTargetStorySpreadCount(ageBand)
   const storyBeats = selectStoryBeats(beats, targetCount)
   const heroSpreadSequences = getHeroSpreadSequences(ageBand, storyBeats.length)
@@ -171,8 +243,30 @@ function createStorySpreads(bookProjectId: string, ageBand: AgeBand, beats: Beat
     sequence += 1
   }
 
+  const expansionSeed = storyBeats.length > 0 ? storyBeats : beats
+  let variantIndex = 0
   while (pageStart <= INTERIOR_END_PAGE) {
     const isFinalQuiet = pageStart >= INTERIOR_END_PAGE - 1
+    const sourceBeat = expansionSeed[variantIndex % expansionSeed.length]
+
+    if (sourceBeat && !isFinalQuiet) {
+      spreads.push(
+        createStoryExpansionSpread({
+          bookProjectId,
+          profile,
+          sequence,
+          pageStart,
+          ageBand,
+          sourceBeat,
+          variantIndex,
+        })
+      )
+      pageStart += 2
+      sequence += 1
+      variantIndex += 1
+      continue
+    }
+
     spreads.push(
       createSpread(
         bookProjectId,
@@ -203,7 +297,7 @@ export function composeHardcoverSpreads(input: {
 
   return [
     ...createFrontMatterSpreads(bookProjectId, story, profile),
-    ...createStorySpreads(bookProjectId, ageBand, beats),
+    ...createStorySpreads(bookProjectId, profile, ageBand, beats),
     ...createEndMatterSpreads(bookProjectId, story, profile),
   ]
 }

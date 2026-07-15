@@ -16,7 +16,7 @@ export const LULU_CASEWRAP_CHILDRENS_PROFILE = {
   binding: 'hardcover-casewrap',
   paper: '80# white',
   color: 'premium-color',
-  coverFinish: 'matte',
+  coverFinish: 'gloss-laminated',
   spineTextMinPageCount: 100,
 } as const
 

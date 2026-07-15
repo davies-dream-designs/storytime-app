@@ -25,9 +25,21 @@ export async function POST(req: NextRequest) {
     const purchased = parseInt(session.metadata?.credits ?? '0', 10)
     const billingCountry = session.customer_details?.address?.country
 
-    // AU-only sales policy: do not grant credits for non-AU purchases.
+    // AU-only sales policy: automatically refund non-AU purchases.
     if (billingCountry !== 'AU') {
-      return NextResponse.json({ received: true, ignored: true })
+      if (typeof session.payment_intent === 'string') {
+        await stripe.refunds.create({
+          payment_intent: session.payment_intent,
+          reason: 'requested_by_customer',
+          metadata: {
+            policy: 'AU_ONLY',
+            checkout_session_id: session.id,
+            billing_country: billingCountry ?? 'UNKNOWN',
+          },
+        })
+      }
+
+      return NextResponse.json({ received: true, refunded: true })
     }
 
     if (userId && purchased > 0) {

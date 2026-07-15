@@ -3,36 +3,9 @@
 import Image from 'next/image'
 import { useState } from 'react'
 import { useAuth, SignInButton, UserButton } from '@clerk/nextjs'
-import { useTranslations, useLocale } from 'next-intl'
-import { Link, useRouter, usePathname } from '@/i18n/navigation'
-import { routing } from '@/i18n/routing'
-
-const LOCALE_LABELS: Record<string, string> = {
-  en: 'EN',
-  es: 'ES',
-  fr: 'FR',
-  zh: '中文',
-}
-
-function LanguageSwitcher() {
-  const t = useTranslations('nav')
-  const locale = useLocale()
-  const router = useRouter()
-  const pathname = usePathname()
-
-  return (
-    <select
-      value={locale}
-      onChange={(e) => router.replace(pathname, { locale: e.target.value })}
-      className="rounded-full border border-night-200 bg-parchment px-2 py-1 text-xs font-bold text-night-600 focus:outline-none focus:ring-2 focus:ring-night-300"
-      aria-label={t('language')}
-    >
-      {routing.locales.map((l) => (
-        <option key={l} value={l}>{LOCALE_LABELS[l]}</option>
-      ))}
-    </select>
-  )
-}
+import { useTranslations } from 'next-intl'
+import { Link } from '@/i18n/navigation'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 export default function Nav() {
   const { isSignedIn } = useAuth()

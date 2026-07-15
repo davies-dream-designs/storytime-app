@@ -2,6 +2,7 @@ import Image from 'next/image'
 import { Suspense } from 'react'
 import { getTranslations } from 'next-intl/server'
 import { Link } from '@/i18n/navigation'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
 import RefCapture from '@/components/RefCapture'
 
 export default async function Home() {
@@ -45,12 +46,15 @@ export default async function Home() {
             <Image src="/icon-dark.svg" alt="" width={36} height={36} className="rounded-xl" aria-hidden />
             Storycot
           </Link>
-          <Link
-            href="/dashboard"
-            className="rounded-full bg-moon-400 px-5 py-2.5 text-sm font-bold text-night-900 transition hover:bg-moon-300"
-          >
-            {t('openApp')}
-          </Link>
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher variant="dark" />
+            <Link
+              href="/dashboard"
+              className="rounded-full bg-moon-400 px-5 py-2.5 text-sm font-bold text-night-900 transition hover:bg-moon-300"
+            >
+              {t('openApp')}
+            </Link>
+          </div>
         </nav>
       </header>
 

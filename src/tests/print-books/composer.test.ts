@@ -37,6 +37,42 @@ function createStory(pageCount: number): Story {
   }
 }
 
+function createSentenceStory(): Story {
+  return {
+    id: 'story-sentences',
+    userId: 'user-1',
+    title: 'Sentence Story',
+    profileId: 'profile-1',
+    profileName: 'Mila',
+    wordCount: 160,
+    theme: 'wonder',
+    notes: '',
+    createdAt: '2026-07-15T00:00:00.000Z',
+    pages: [
+      {
+        pageNumber: 1,
+        text: 'Mila saw a silver gate. It shimmered in the moonlight. She whispered hello and stepped closer.',
+        illustrationPrompt: 'A silver gate in moonlight',
+      },
+      {
+        pageNumber: 2,
+        text: 'A tiny lantern flickered beside the path. It made the flowers glow. Mila smiled and kept going.',
+        illustrationPrompt: 'Lantern and glowing flowers',
+      },
+      {
+        pageNumber: 3,
+        text: 'A sleepy fox blinked once. Then it curled up again. The garden felt safe and soft.',
+        illustrationPrompt: 'Sleepy fox in garden',
+      },
+      {
+        pageNumber: 4,
+        text: 'Soon the night grew quieter. Mila felt peaceful. It was almost time for bed.',
+        illustrationPrompt: 'Quiet garden at bedtime',
+      },
+    ],
+  }
+}
+
 describe('createEmptyBookProject', () => {
   it('creates a queued 32-page hardcover project shell', () => {
     const project = createEmptyBookProject({
@@ -116,5 +152,38 @@ describe('composeHardcoverSpreads', () => {
     expect(
       interiorSpreads.some((spread) => spread.illustrationPrompt.includes('toddler board-book style'))
     ).toBe(true)
+  })
+
+  it('splits story text at sentence boundaries for regular spreads', () => {
+    const story = createSentenceStory()
+    const spreads = composeHardcoverSpreads({
+      bookProjectId: 'book-1',
+      story,
+      profile: createProfile(4),
+      ageBand: '3-5',
+      beats: deriveBeatsFromStory(story),
+    })
+
+    const firstStorySpread = spreads[2]
+    expect(firstStorySpread?.leftPageText).toBe('Mila saw a silver gate.')
+    expect(firstStorySpread?.rightPageText).toBe(
+      'It shimmered in the moonlight. She whispered hello and stepped closer.'
+    )
+  })
+
+  it('uses named expansion roles instead of generic quiet filler for short stories', () => {
+    const story = createStory(4)
+    const spreads = composeHardcoverSpreads({
+      bookProjectId: 'book-1',
+      story,
+      profile: createProfile(4),
+      ageBand: '3-5',
+      beats: deriveBeatsFromStory(story),
+    })
+
+    const interiorSpreads = spreads.slice(2, 14)
+    expect(interiorSpreads.some((spread) => spread.sceneBrief.includes('scene-setting'))).toBe(true)
+    expect(interiorSpreads.some((spread) => spread.sceneBrief.includes('notice-and-linger'))).toBe(true)
+    expect(interiorSpreads.some((spread) => spread.sceneBrief.includes('turn-the-page'))).toBe(true)
   })
 })

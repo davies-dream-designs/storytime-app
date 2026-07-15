@@ -25,6 +25,8 @@ npm run build       # must exit 0
 
 Never mark a task complete if any of these fail.
 
+Always end the turn with an explicit completion/status response to the user. Do not stop after pushing code or deploying without clearly saying whether the requested work is finished, what remains, and what the user should verify next.
+
 ## File placement
 
 | What | Where |

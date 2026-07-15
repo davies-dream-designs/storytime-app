@@ -39,21 +39,67 @@ function clampText(text: string, maxLength: number): string {
   return `${text.slice(0, maxLength - 3).trimEnd()}...`
 }
 
+function splitIntoSentences(text: string): string[] {
+  const clean = text.replace(/\s+/g, ' ').trim()
+  if (!clean) return []
+
+  const matches = clean.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g)
+  return (matches ?? [clean]).map((sentence) => sentence.trim()).filter(Boolean)
+}
+
+function splitLongSentence(text: string): { leftPageText: string; rightPageText: string } {
+  const clauses = text.split(/(?<=,|;|:)\s+/).map((clause) => clause.trim()).filter(Boolean)
+  if (clauses.length < 2) return { leftPageText: text, rightPageText: '' }
+
+  const targetLength = text.length / 2
+  let left = ''
+
+  for (const clause of clauses) {
+    const candidate = left ? `${left} ${clause}` : clause
+    if (candidate.length <= targetLength || !left) {
+      left = candidate
+      continue
+    }
+    break
+  }
+
+  const right = text.slice(left.length).trim()
+  return right ? { leftPageText: left.trim(), rightPageText: right } : { leftPageText: text, rightPageText: '' }
+}
+
 function splitTextForSpread(text: string, isQuietBeat: boolean): { leftPageText: string; rightPageText: string } {
   const clean = text.replace(/\s+/g, ' ').trim()
   if (isQuietBeat) {
     return { leftPageText: clean, rightPageText: '' }
   }
 
-  const midpoint = Math.ceil(clean.length / 2)
-  const breakIndex = clean.indexOf(' ', midpoint)
-  if (breakIndex === -1) {
+  const sentences = splitIntoSentences(clean)
+  if (sentences.length <= 1) {
+    return splitLongSentence(clean)
+  }
+
+  const totalLength = sentences.reduce((sum, sentence) => sum + sentence.length, 0)
+  const targetLength = totalLength / 2
+  const leftSentences: string[] = []
+  let leftLength = 0
+
+  for (const sentence of sentences) {
+    if (leftSentences.length === 0 || leftLength + sentence.length <= targetLength) {
+      leftSentences.push(sentence)
+      leftLength += sentence.length
+      continue
+    }
+    break
+  }
+
+  if (leftSentences.length === sentences.length) {
     return { leftPageText: clean, rightPageText: '' }
   }
 
+  const rightSentences = sentences.slice(leftSentences.length)
   return {
-    leftPageText: clean.slice(0, breakIndex).trim(),
-    rightPageText: clean.slice(breakIndex).trim(),
+    leftPageText: leftSentences.join(' ').trim(),
+    rightPageText: rightSentences.join(' ').trim(),
   }
 }
 
@@ -160,47 +206,121 @@ function createStoryExpansionSpread(input: {
   const { bookProjectId, profile, sequence, pageStart, ageBand, sourceBeat, variantIndex } = input
   const anchorLine = clampText(getFirstSentence(sourceBeat.textDraft), 120)
   const summary = clampText(sourceBeat.summary, 110)
+  const roleIndex = variantIndex % 4
 
   if (ageBand === '0-2') {
-    const leftPageText =
-      variantIndex % 2 === 0
-        ? `${anchorLine}\n\n${profile.name} looked, listened, and smiled.`
-        : `${profile.name} stayed with the moment.\n\n${summary}`
+    const toddlerRoles = [
+      {
+        sceneBrief: `A sensory close-up inspired by ${sourceBeat.summary}`,
+        leftPageText: `${anchorLine}\n\n${profile.name} looked, listened, and smiled.`,
+        illustrationPrompt: `A calm, spacious toddler board-book style spread inspired by ${sourceBeat.visualIntent}. Focus on one clear sensory moment with simple shapes and soothing bedtime colors.`,
+      },
+      {
+        sceneBrief: `A repetition spread that gently echoes ${sourceBeat.summary}`,
+        leftPageText: `${profile.name} stayed with the moment.\n\n${summary}`,
+        illustrationPrompt: `A repetitive toddler picture-book spread based on ${sourceBeat.visualIntent}. Keep the composition simple, reassuring, and easy to read at a glance.`,
+      },
+      {
+        sceneBrief: `A pause-and-notice spread drawn from ${sourceBeat.summary}`,
+        leftPageText: `${profile.name} noticed one lovely little thing after another.`,
+        illustrationPrompt: `A toddler board-book pause spread inspired by ${sourceBeat.visualIntent}. Emphasize one charming visual detail and a restful bedtime mood.`,
+      },
+      {
+        sceneBrief: `A settling spread that softens the energy of ${sourceBeat.summary}`,
+        leftPageText: `Everything felt slower now.\n\n${profile.name} was ready for the story to grow gentle again.`,
+        illustrationPrompt: `A soft settling spread for a very young child, derived from ${sourceBeat.visualIntent}. Quiet atmosphere, clear focal point, and bedtime calm.`,
+      },
+    ] as const
 
-    return createSpread(
-      bookProjectId,
-      sequence,
-      pageStart,
-      'quiet',
-      leftPageText,
-      '',
-      `A gentle pause inspired by ${sourceBeat.summary}`,
-      `A calm, spacious toddler board-book style spread inspired by ${sourceBeat.visualIntent}. Soft repetition, clear shapes, and a soothing bedtime mood.`
-    )
+    const role = toddlerRoles[roleIndex]
+    return createSpread(bookProjectId, sequence, pageStart, 'quiet', role.leftPageText, '', role.sceneBrief, role.illustrationPrompt)
   }
 
   if (ageBand === '3-5') {
+    const earlyReaderRoles = [
+      {
+        layoutType: 'hero' as const,
+        leftPageText: summary,
+        rightPageText: '',
+        sceneBrief: `A scene-setting spread that lets ${sourceBeat.summary} land clearly`,
+        illustrationPrompt: `A warm storybook spread that opens up the world around ${sourceBeat.visualIntent} with inviting atmosphere and clear focal storytelling.`,
+      },
+      {
+        layoutType: 'quiet' as const,
+        leftPageText: `${profile.name} took a little longer to notice every lovely detail.`,
+        rightPageText: anchorLine,
+        sceneBrief: `A notice-and-linger spread inspired by ${sourceBeat.summary}`,
+        illustrationPrompt: `A gentle children’s-book spread based on ${sourceBeat.visualIntent}, giving the moment room to breathe with soft detail and bedtime calm.`,
+      },
+      {
+        layoutType: 'text_art' as const,
+        leftPageText: `${anchorLine}\n\nIt felt like the adventure was opening one little piece at a time.`,
+        rightPageText: '',
+        sceneBrief: `A turn-the-page spread extending ${sourceBeat.summary}`,
+        illustrationPrompt: `A storybook transition spread inspired by ${sourceBeat.visualIntent}, designed to create anticipation without adding noise.`,
+      },
+      {
+        layoutType: 'quiet' as const,
+        leftPageText: `Soon, the excitement softened into comfort.`,
+        rightPageText: `${profile.name} was ready to carry the feeling with them.`,
+        sceneBrief: `A gentle settling spread that eases out of ${sourceBeat.summary}`,
+        illustrationPrompt: `A cozy winding-down spread that grows out of ${sourceBeat.visualIntent}, with warm light and an emotionally calm finish.`,
+      },
+    ] as const
+
+    const role = earlyReaderRoles[roleIndex]
     return createSpread(
       bookProjectId,
       sequence,
       pageStart,
-      variantIndex % 2 === 0 ? 'hero' : 'quiet',
-      variantIndex % 2 === 0 ? summary : `${profile.name} took a little longer to notice every lovely detail.`,
-      variantIndex % 2 === 0 ? '' : anchorLine,
-      `A breathing-space recap of ${sourceBeat.summary}`,
-      `A storybook spread that lingers on ${sourceBeat.visualIntent} with extra warmth and visual detail.`
+      role.layoutType,
+      role.leftPageText,
+      role.rightPageText,
+      role.sceneBrief,
+      role.illustrationPrompt
     )
   }
 
+  const olderReaderRoles = [
+    {
+      layoutType: 'hero' as const,
+      leftPageText: summary,
+      rightPageText: '',
+      sceneBrief: `A wider scene-setting spread built from ${sourceBeat.summary}`,
+      illustrationPrompt: `A cinematic illustrated spread expanding ${sourceBeat.visualIntent} into a fuller environment with strong story focus.`,
+    },
+    {
+      layoutType: 'text_art' as const,
+      leftPageText: anchorLine,
+      rightPageText: 'The moment felt bigger when there was time to really look at it.',
+      sceneBrief: `A reflective pause that holds on ${sourceBeat.summary}`,
+      illustrationPrompt: `A reflective story spread based on ${sourceBeat.visualIntent}, giving visual space to mood, scale, and continuity.`,
+    },
+    {
+      layoutType: 'hero' as const,
+      leftPageText: 'Some parts of the adventure deserved a full spread all to themselves.',
+      rightPageText: '',
+      sceneBrief: `A hero-image emphasis spread inspired by ${sourceBeat.summary}`,
+      illustrationPrompt: `A full, cinematic hero spread revisiting ${sourceBeat.visualIntent} with depth, atmosphere, and emotional clarity.`,
+    },
+    {
+      layoutType: 'quiet' as const,
+      leftPageText: `By now, ${profile.name} could feel the story turning toward rest.`,
+      rightPageText: clampText(summary, 90),
+      sceneBrief: `A quiet transition that lowers the tempo after ${sourceBeat.summary}`,
+      illustrationPrompt: `A calm transition spread derived from ${sourceBeat.visualIntent}, easing the book toward a bedtime finish.`,
+    },
+  ] as const
+  const role = olderReaderRoles[roleIndex]
   return createSpread(
     bookProjectId,
     sequence,
     pageStart,
-    variantIndex % 2 === 0 ? 'hero' : 'text_art',
-    summary,
-    variantIndex % 2 === 0 ? '' : anchorLine,
-    `A reflective expansion of ${sourceBeat.summary}`,
-    `A cinematic illustrated spread revisiting ${sourceBeat.visualIntent} with richer environment detail and emotional continuity.`
+    role.layoutType,
+    role.leftPageText,
+    role.rightPageText,
+    role.sceneBrief,
+    role.illustrationPrompt
   )
 }
 

@@ -53,7 +53,7 @@ function GenerateForm() {
       const res = await fetch('/api/stories/suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profileId: pid }),
+        body: JSON.stringify({ profileId: pid, locale }),
       })
       const data = await res.json()
       if (res.ok) setSuggestions(data)

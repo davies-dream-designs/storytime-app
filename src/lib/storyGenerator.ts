@@ -118,8 +118,10 @@ export async function generateStory(input: GenerateStoryInput): Promise<Generate
 
 export async function generateSuggestions(
   profile: ChildProfile,
-  recentTitles: string[]
+  recentTitles: string[],
+  locale?: string
 ): Promise<StorySuggestion[]> {
+  const language = LOCALE_LANGUAGE[locale ?? 'en'] ?? 'English'
 
   const avoidSection =
     recentTitles.length > 0
@@ -144,12 +146,15 @@ Each should:
 - Be warm and cosy, suitable for bedtime
 - Feel genuinely different from each other in setting, tone, and focus
 
+Write the title and premise in ${language}.
+The "theme" field must always be a single English word (e.g. bravery, kindness, curiosity) — this is used as a database key.
+
 Respond ONLY with valid JSON — no markdown, no extra text:
 [
   {
     "title": "Short catchy title",
     "premise": "One or two sentences describing the specific story. Make it vivid and specific.",
-    "theme": "one word theme e.g. bravery, kindness, curiosity"
+    "theme": "one word theme in English e.g. bravery, kindness, curiosity"
   }
 ]`
 

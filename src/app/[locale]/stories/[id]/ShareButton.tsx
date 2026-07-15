@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 export default function ShareButton({ storyId }: { storyId: string }) {
   const [state, setState] = useState<'idle' | 'loading' | 'copied'>('idle')
+  const t = useTranslations('stories')
 
   async function handleShare() {
     setState('loading')
@@ -25,7 +27,7 @@ export default function ShareButton({ storyId }: { storyId: string }) {
       disabled={state === 'loading'}
       className="rounded-full border border-night-200 px-4 py-2 text-sm font-bold text-night-600 transition hover:bg-night-50 disabled:opacity-60"
     >
-      {state === 'copied' ? '✅ Link copied!' : state === 'loading' ? '…' : '🔗 Share'}
+      {state === 'copied' ? t('shareLinkCopied') : state === 'loading' ? '…' : t('shareIdle')}
     </button>
   )
 }

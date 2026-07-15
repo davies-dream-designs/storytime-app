@@ -22,11 +22,12 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const { profileId, theme, premise, notes } = (await req.json()) as {
+  const { profileId, theme, premise, notes, locale } = (await req.json()) as {
     profileId: string
     theme?: string
     premise?: string
     notes?: string
+    locale?: string
   }
 
   if (!profileId) return NextResponse.json({ error: 'profileId is required' }, { status: 400 })
@@ -58,6 +59,7 @@ export async function POST(req: NextRequest) {
     premise,
     notes: notes ?? '',
     recentTitles,
+    locale,
   })
 
   const wordCount = generated.pages.reduce((acc, p) => acc + p.text.split(/\s+/).length, 0)

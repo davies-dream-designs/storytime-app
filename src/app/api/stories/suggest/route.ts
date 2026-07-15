@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { profileId } = (await req.json()) as { profileId: string }
+  const { profileId, locale } = (await req.json()) as { profileId: string; locale?: string }
   if (!profileId) return NextResponse.json({ error: 'profileId is required' }, { status: 400 })
 
   const profile = await db.profiles.getById(profileId)
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 503 })
   }
 
-  const cacheKey = `suggestions:${profileId}`
+  const cacheKey = `suggestions:${profileId}:${locale ?? 'en'}`
   const cached = await kv.get<StorySuggestion[]>(cacheKey)
   if (cached) return NextResponse.json(cached)
 
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     .slice(0, 5)
     .map((s) => s.title)
 
-  const suggestions = await generateSuggestions(profile, recentStories)
+  const suggestions = await generateSuggestions(profile, recentStories, locale)
   await kv.set(cacheKey, suggestions, { ex: CACHE_TTL_SECONDS })
   return NextResponse.json(suggestions)
 }

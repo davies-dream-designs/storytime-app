@@ -1,13 +1,14 @@
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import { auth } from '@clerk/nextjs/server'
+import { getTranslations } from 'next-intl/server'
+import { Link } from '@/i18n/navigation'
 import Nav from '@/components/Nav'
 import { db } from '@/lib/db'
-import { formatAge } from '@/types'
 import DeleteProfileButton from './DeleteProfileButton'
 
 export default async function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
+  const [t, tCommon] = await Promise.all([getTranslations('profiles'), getTranslations('common')])
   const { id } = await params
   const profile = await db.profiles.getById(id)
   if (!profile || profile.userId !== userId) notFound()
@@ -18,6 +19,26 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
   ])
   const stories = storiesRaw.filter((s) => s.userId === userId).sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1))
   const myCharacters = characters.filter((c) => c.userId === userId)
+
+  let ageString: string
+  if (profile.dateOfBirth) {
+    const now = new Date()
+    const dob = new Date(profile.dateOfBirth)
+    const totalMonths = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth())
+    ageString = totalMonths < 12
+      ? tCommon('monthsOld', { months: Math.max(totalMonths, 0) })
+      : tCommon('yearsOld', { years: Math.floor(totalMonths / 12) })
+  } else {
+    ageString = tCommon('yearsOld', { years: profile.age ?? 0 })
+  }
+
+  const details = [
+    { label: t('detailChars'), values: profile.favouriteCharacters },
+    { label: t('detailActivities'), values: profile.favouriteActivities },
+    { label: t('detailAnimals'), values: profile.favouriteAnimals },
+    { label: t('detailPlaces'), values: profile.favouritePlaces },
+    { label: t('detailThemes'), values: profile.lessons },
+  ]
 
   return (
     <>
@@ -30,12 +51,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
             </div>
             <div>
               <h1 className="font-display text-4xl font-bold text-night-800">{profile.name}</h1>
-              <p className="text-night-500">{formatAge(profile)} old · {stories.length} stor{stories.length === 1 ? 'y' : 'ies'}</p>
+              <p className="text-night-500">{ageString} · {stories.length === 1 ? t('storyCount', { count: stories.length }) : t('storiesCount', { count: stories.length })}</p>
             </div>
           </div>
           <div className="flex gap-3">
-            <Link href={`/stories/new?profileId=${id}`} className="rounded-full bg-night-700 px-5 py-2.5 font-bold text-moon-200 transition hover:bg-night-600">
-              ✨ Generate story
+            <Link href={`/stories/new?profileId=${id}` as string} className="rounded-full bg-night-700 px-5 py-2.5 font-bold text-moon-200 transition hover:bg-night-600">
+              {t('generateStory')}
             </Link>
             <DeleteProfileButton profileId={id} />
           </div>
@@ -44,15 +65,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
         <div className="grid gap-8 lg:grid-cols-3">
           <div className="lg:col-span-1 space-y-5">
             <div className="rounded-2xl border border-night-100 bg-white p-5">
-              <h2 className="mb-4 font-display text-lg font-bold text-night-700">Profile details</h2>
+              <h2 className="mb-4 font-display text-lg font-bold text-night-700">{t('detailsTitle')}</h2>
               <div className="space-y-4">
-                {[
-                  { label: 'Favourite characters & toys', values: profile.favouriteCharacters },
-                  { label: 'Favourite activities', values: profile.favouriteActivities },
-                  { label: 'Favourite animals', values: profile.favouriteAnimals },
-                  { label: 'Favourite places', values: profile.favouritePlaces },
-                  { label: 'Themes & lessons', values: profile.lessons },
-                ].map(({ label, values }) =>
+                {details.map(({ label, values }) =>
                   values.length > 0 ? (
                     <div key={label}>
                       <p className="text-xs font-bold uppercase tracking-wide text-night-400">{label}</p>
@@ -65,14 +80,14 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
                   ) : null
                 )}
               </div>
-              <Link href={`/profiles/${id}/edit`} className="mt-5 block w-full rounded-xl border border-night-200 py-2 text-center text-sm font-bold text-night-600 transition hover:bg-night-50">
-                Edit profile
+              <Link href={`/profiles/${id}/edit` as string} className="mt-5 block w-full rounded-xl border border-night-200 py-2 text-center text-sm font-bold text-night-600 transition hover:bg-night-50">
+                {t('editProfile')}
               </Link>
             </div>
 
             {myCharacters.length > 0 && (
               <div className="rounded-2xl border border-night-100 bg-white p-5">
-                <h2 className="mb-4 font-display text-lg font-bold text-night-700">Character memory</h2>
+                <h2 className="mb-4 font-display text-lg font-bold text-night-700">{t('characterMemory')}</h2>
                 <div className="space-y-3">
                   {myCharacters.map((c) => (
                     <div key={c.id} className="rounded-xl bg-star-50 p-3">
@@ -81,8 +96,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
                     </div>
                   ))}
                 </div>
-                <Link href={`/profiles/${id}/characters`} className="mt-4 block text-center text-sm font-bold text-star-500 hover:text-star-600">
-                  Manage characters →
+                <Link href={`/profiles/${id}/characters` as string} className="mt-4 block text-center text-sm font-bold text-star-500 hover:text-star-600">
+                  {t('manageCharacters')}
                 </Link>
               </div>
             )}
@@ -90,27 +105,27 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
 
           <div className="lg:col-span-2">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-display text-2xl font-bold text-night-800">Stories</h2>
-              <Link href={`/stories/new?profileId=${id}`} className="text-sm font-bold text-star-500 hover:text-star-600">+ New story</Link>
+              <h2 className="font-display text-2xl font-bold text-night-800">{t('storiesTitle')}</h2>
+              <Link href={`/stories/new?profileId=${id}` as string} className="text-sm font-bold text-star-500 hover:text-star-600">{t('newStoryButton')}</Link>
             </div>
             {stories.length === 0 ? (
               <div className="rounded-2xl border-2 border-dashed border-night-200 p-10 text-center">
                 <div className="text-3xl" aria-hidden>📖</div>
-                <p className="mt-3 font-display font-bold text-night-600">No stories yet</p>
-                <p className="text-sm text-night-400">Generate the first story for {profile.name}.</p>
-                <Link href={`/stories/new?profileId=${id}`} className="mt-4 inline-block rounded-full bg-night-700 px-5 py-2.5 text-sm font-bold text-moon-200 transition hover:bg-night-600">
-                  Generate a story
+                <p className="mt-3 font-display font-bold text-night-600">{t('profileEmptyTitle')}</p>
+                <p className="text-sm text-night-400">{t('profileEmptySub', { name: profile.name })}</p>
+                <Link href={`/stories/new?profileId=${id}` as string} className="mt-4 inline-block rounded-full bg-night-700 px-5 py-2.5 text-sm font-bold text-moon-200 transition hover:bg-night-600">
+                  {t('profileEmptyButton')}
                 </Link>
               </div>
             ) : (
               <div className="space-y-3">
                 {stories.map((story) => (
-                  <Link key={story.id} href={`/stories/${story.id}`} className="flex items-center justify-between rounded-2xl border border-night-100 bg-white p-5 transition hover:shadow-md">
+                  <Link key={story.id} href={`/stories/${story.id}` as string} className="flex items-center justify-between rounded-2xl border border-night-100 bg-white p-5 transition hover:shadow-md">
                     <div className="flex items-center gap-3 min-w-0">
                       <span className="text-2xl flex-shrink-0" aria-hidden>📖</span>
                       <div className="min-w-0">
                         <p className="font-display font-bold text-night-800 truncate">{story.title}</p>
-                        <p className="text-sm text-night-400">{story.theme} · {new Date(story.createdAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                        <p className="text-sm text-night-400">{story.theme} · {new Date(story.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                       </div>
                     </div>
                     <span className="ml-4 flex-shrink-0 text-sm text-night-300">{story.wordCount}w →</span>

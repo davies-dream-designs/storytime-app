@@ -1,16 +1,18 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 const PACKS = [
-  { id: 'starter', label: 'Starter',     stories: 10,  price: '$4.99',  priceNote: 'AUD', popular: false },
-  { id: 'family',  label: 'Family',       stories: 30,  price: '$11.99', priceNote: 'AUD', popular: true },
-  { id: 'pro',     label: 'Bedtime Pro',  stories: 100, price: '$29.99', priceNote: 'AUD', popular: false },
+  { id: 'starter', label: 'Starter',    stories: 10,  price: '$4.99',  priceNote: 'AUD', popular: false },
+  { id: 'family',  label: 'Family',      stories: 30,  price: '$11.99', priceNote: 'AUD', popular: true },
+  { id: 'pro',     label: 'Bedtime Pro', stories: 100, price: '$29.99', priceNote: 'AUD', popular: false },
 ] as const
 
 export default function CreditPacks() {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const t = useTranslations('account')
 
   async function handlePurchase(packId: string) {
     setLoading(packId)
@@ -32,8 +34,8 @@ export default function CreditPacks() {
 
   return (
     <div className="mt-8">
-      <h2 className="font-display text-2xl font-bold text-night-800">Top up credits</h2>
-      <p className="mt-1 text-night-400">Pay once, no subscription. Credits never expire.</p>
+      <h2 className="font-display text-2xl font-bold text-night-800">{t('packsTitle')}</h2>
+      <p className="mt-1 text-night-400">{t('packsSub')}</p>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-3">
         {PACKS.map((pack) => (
@@ -45,11 +47,11 @@ export default function CreditPacks() {
           >
             {pack.popular && (
               <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-moon-400 px-3 py-0.5 text-xs font-bold text-night-900">
-                Most popular
+                {t('packPopular')}
               </span>
             )}
             <p className="font-display text-lg font-bold text-night-700">{pack.label}</p>
-            <p className="mt-1 text-night-500">{pack.stories} stories</p>
+            <p className="mt-1 text-night-500">{t('packGet', { count: pack.stories })}</p>
             <p className="mt-3 font-display text-2xl font-bold text-night-800">
               {pack.price} <span className="text-sm font-normal text-night-400">{pack.priceNote}</span>
             </p>
@@ -62,7 +64,7 @@ export default function CreditPacks() {
                   : 'bg-night-100 text-night-700 hover:bg-night-200 disabled:opacity-60'
               }`}
             >
-              {loading === pack.id ? '…' : `Get ${pack.stories} stories`}
+              {loading === pack.id ? '…' : t('packGet', { count: pack.stories })}
             </button>
           </div>
         ))}
@@ -72,9 +74,7 @@ export default function CreditPacks() {
         <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">{error}</p>
       )}
 
-      <p className="mt-4 text-center text-xs text-night-400">
-        Secure payments via Stripe · AUD pricing · Credits never expire
-      </p>
+      <p className="mt-4 text-center text-xs text-night-400">{t('packFooter')}</p>
     </div>
   )
 }

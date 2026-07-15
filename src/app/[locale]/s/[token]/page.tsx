@@ -1,13 +1,17 @@
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
+import { getTranslations } from 'next-intl/server'
+import { Link } from '@/i18n/navigation'
 import { db } from '@/lib/db'
 
-export default async function SharedStoryPage({ params }: { params: Promise<{ token: string }> }) {
-  const { token } = await params
+export default async function SharedStoryPage({ params }: { params: Promise<{ token: string; locale: string }> }) {
+  const { token, locale } = await params
   const story = await db.stories.getByShareToken(token)
   if (!story) notFound()
 
-  const dateStr = new Date(story.createdAt).toLocaleDateString('en-AU', {
+  const t = await getTranslations('share')
+
+  const dateLocale = locale === 'zh' ? 'zh-CN' : locale === 'es' ? 'es-ES' : locale === 'fr' ? 'fr-FR' : 'en-AU'
+  const dateStr = new Date(story.createdAt).toLocaleDateString(dateLocale, {
     day: 'numeric', month: 'long', year: 'numeric',
   })
 
@@ -23,7 +27,7 @@ export default async function SharedStoryPage({ params }: { params: Promise<{ to
             href="/sign-up"
             className="rounded-full bg-night-700 px-4 py-2 text-sm font-bold text-moon-200 transition hover:bg-night-600"
           >
-            Create your own story →
+            {t('createOwn')}
           </Link>
         </div>
       </div>
@@ -34,7 +38,7 @@ export default async function SharedStoryPage({ params }: { params: Promise<{ to
           <div className="text-5xl" aria-hidden>🌙</div>
           <h1 className="mt-4 font-display text-3xl font-bold text-moon-200 sm:text-4xl">{story.title}</h1>
           <p className="mt-2 text-night-300">
-            A story created especially for <span className="font-bold text-moon-300">{story.profileName}</span>
+            {t('createdFor')} <span className="font-bold text-moon-300">{story.profileName}</span>
           </p>
           <p className="mt-1 text-sm text-night-500">{dateStr}</p>
         </div>
@@ -57,22 +61,18 @@ export default async function SharedStoryPage({ params }: { params: Promise<{ to
         <div className="mt-12 rounded-3xl bg-gradient-to-br from-star-100 to-moon-100 p-8 text-center">
           <div className="text-4xl" aria-hidden>✨</div>
           <h2 className="mt-3 font-display text-2xl font-bold text-night-800">
-            Create a story for your little one
+            {t('ctaTitle')}
           </h2>
-          <p className="mt-2 text-night-500">
-            Storycot generates personalised bedtime stories in seconds — tailored to your child&apos;s name, age, and favourite things.
-          </p>
+          <p className="mt-2 text-night-500">{t('ctaSub')}</p>
           <Link
             href="/sign-up"
             className="mt-6 inline-block rounded-full bg-night-700 px-8 py-3 font-bold text-moon-200 transition hover:bg-night-600"
           >
-            Get 3 free stories →
+            {t('ctaButton')}
           </Link>
         </div>
 
-        <p className="mt-8 text-center text-xs text-night-400">
-          Made with Storycot · storycot.com · Every child deserves a story made just for them.
-        </p>
+        <p className="mt-8 text-center text-xs text-night-400">{t('footer')}</p>
       </main>
     </div>
   )

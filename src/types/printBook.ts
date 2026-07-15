@@ -71,6 +71,10 @@ export interface BookAsset {
   previewPdfUrl?: string
   printPdfUrl?: string
   previewImages?: string[]
+  exportProfile?: string
+  proofingPassed?: boolean
+  proofingWarnings?: string[]
+  proofingErrors?: string[]
   proofVersion: number
 }
 

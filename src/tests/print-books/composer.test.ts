@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { composeHardcoverSpreads, createEmptyBookProject } from '@/lib/print-books/composer'
 import { deriveBeatsFromStory } from '@/lib/print-books/beats'
 import type { ChildProfile, Story } from '@/types'
+import type { CharacterBible } from '@/types/printBook'
 
 function createProfile(age: number): ChildProfile {
   return {
@@ -70,6 +71,19 @@ function createSentenceStory(): Story {
         illustrationPrompt: 'Quiet garden at bedtime',
       },
     ],
+  }
+}
+
+function createCharacterBible(): CharacterBible {
+  return {
+    childAppearance: 'Mila has curly dark hair and bright brown eyes.',
+    outfitRules: 'Keep Mila in a yellow cardigan over blue pajamas.',
+    recurringProps: ['silver lantern'],
+    companionCharacters: ['sleepy fox'],
+    palette: 'soft indigo, butter yellow, silver',
+    renderStyle: 'storybook gouache',
+    lightingTone: 'cozy moonlight',
+    doNotChange: ['curly dark hair', 'yellow cardigan'],
   }
 }
 
@@ -216,5 +230,22 @@ describe('composeHardcoverSpreads', () => {
     expect(spreads[2]?.sceneBrief).toContain('Story page 1')
     expect(spreads[2]?.sceneBrief).not.toContain('Illustration prompt 1')
     expect(spreads[2]?.illustrationPrompt).toBe('Illustration prompt 1')
+  })
+
+  it('threads character bible continuity into illustration prompts when available', () => {
+    const story = createStory(2)
+    const spreads = composeHardcoverSpreads({
+      bookProjectId: 'book-1',
+      story,
+      profile: createProfile(4),
+      ageBand: '3-5',
+      beats: deriveBeatsFromStory(story),
+      characterBible: createCharacterBible(),
+    })
+
+    expect(spreads[0]?.illustrationPrompt).toContain('Child appearance: Mila has curly dark hair and bright brown eyes.')
+    expect(spreads[0]?.illustrationPrompt).toContain('Scene direction:')
+    expect(spreads[2]?.illustrationPrompt).toContain('Do not change: curly dark hair; yellow cardigan')
+    expect(spreads[2]?.illustrationPrompt).toContain('Illustration prompt 1')
   })
 })

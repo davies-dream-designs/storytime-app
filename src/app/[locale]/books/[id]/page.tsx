@@ -31,6 +31,7 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
 
   const story = await db.stories.getById(project.sourceStoryId)
   if (!story || story.userId !== userId) notFound()
+  const coverSpread = project.spreads.find((spread) => spread.sequence === 1 || spread.title === 'Cover')
 
   return (
     <>
@@ -47,6 +48,86 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
         </div>
 
         <BookStatusPanel initialProject={project} />
+
+        {project.assets.coverImageUrl ? (
+          <section className="mt-8 rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
+            <div className="mx-auto max-w-md">
+              {/* Dynamic Blob URLs and data URL fallbacks do not fit the current next/image config. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={project.assets.coverImageUrl}
+                alt={coverSpread?.title || story.title}
+                className="w-full rounded-2xl border border-night-100 object-cover shadow-sm"
+              />
+            </div>
+          </section>
+        ) : null}
+
+        {project.assets.previewPdfUrl || project.assets.printPdfUrl ? (
+          <section className="mt-8 rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
+            <h2 className="font-display text-2xl font-bold text-night-800">{t('downloadsTitle')}</h2>
+            <div className="mt-4 flex flex-wrap gap-3">
+              {project.assets.previewPdfUrl ? (
+                <a
+                  href={project.assets.previewPdfUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-full bg-night-700 px-5 py-3 text-sm font-bold text-moon-200 transition hover:bg-night-600"
+                >
+                  {t('previewPdfButton')}
+                </a>
+              ) : null}
+              {project.assets.printPdfUrl ? (
+                <a
+                  href={project.assets.printPdfUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-full border border-night-200 px-5 py-3 text-sm font-bold text-night-700 transition hover:bg-night-50"
+                >
+                  {t('printPdfButton')}
+                </a>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
+
+        {project.assets.exportProfile || project.assets.proofingWarnings?.length || project.assets.proofingErrors?.length ? (
+          <section className="mt-8 rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
+            <h2 className="font-display text-2xl font-bold text-night-800">{t('proofingTitle')}</h2>
+            <p className="mt-3 text-night-600">
+              {project.assets.proofingPassed ? t('proofingPassed') : t('proofingReviewNeeded')}
+            </p>
+
+            {project.assets.exportProfile ? (
+              <div className="mt-4 rounded-2xl bg-night-50 p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-night-400">{t('exportProfileLabel')}</p>
+                <p className="mt-2 text-sm font-medium text-night-700">{project.assets.exportProfile}</p>
+              </div>
+            ) : null}
+
+            {project.assets.proofingWarnings && project.assets.proofingWarnings.length > 0 ? (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-bold text-amber-800">{t('proofingWarningsLabel')}</p>
+                <ul className="mt-2 space-y-2 text-sm text-amber-900">
+                  {project.assets.proofingWarnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {project.assets.proofingErrors && project.assets.proofingErrors.length > 0 ? (
+              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                <p className="text-sm font-bold text-rose-800">{t('proofingErrorsLabel')}</p>
+                <ul className="mt-2 space-y-2 text-sm text-rose-900">
+                  {project.assets.proofingErrors.map((error) => (
+                    <li key={error}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
         <section className="mt-8 rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
           <h2 className="font-display text-2xl font-bold text-night-800">{t('bookPlanTitle')}</h2>

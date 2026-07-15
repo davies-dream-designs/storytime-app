@@ -1,9 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import type { ChildProfile, Story } from '@/types'
-import type { BookProject } from '@/types/printBook'
+import type { BookProject, CharacterBible } from '@/types/printBook'
 
 const mockAuth = vi.fn(async () => ({ userId: 'user-1' }))
+const mockGenerateCharacterBible = vi.fn()
+const mockGenerateCoverIllustration = vi.fn()
+const mockGenerateSpreadIllustration = vi.fn()
+const mockGenerateBookPdfs = vi.fn()
 
 const mockDb = {
   stories: {
@@ -11,6 +15,9 @@ const mockDb = {
   },
   profiles: {
     getById: vi.fn(),
+  },
+  characters: {
+    getByProfileId: vi.fn(),
   },
   bookProjects: {
     getById: vi.fn(),
@@ -24,6 +31,28 @@ vi.mock('@clerk/nextjs/server', () => ({
 
 vi.mock('@/lib/db', () => ({
   db: mockDb,
+}))
+
+vi.mock('@/lib/print-books/characterBible', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/print-books/characterBible')>(
+    '@/lib/print-books/characterBible'
+  )
+
+  return {
+    ...actual,
+    generateCharacterBible: mockGenerateCharacterBible,
+  }
+})
+
+vi.mock('@/lib/print-books/illustrations', () => ({
+  generateCoverIllustration: mockGenerateCoverIllustration,
+  generateSpreadIllustration: mockGenerateSpreadIllustration,
+  applySpreadIllustration: (spreads: BookProject['spreads'], nextSpread: BookProject['spreads'][number]) =>
+    spreads.map((spread) => (spread.id === nextSpread.id ? nextSpread : spread)),
+}))
+
+vi.mock('@/lib/print-books/pdf', () => ({
+  generateBookPdfs: mockGenerateBookPdfs,
 }))
 
 function createStory(): Story {
@@ -83,6 +112,19 @@ function createBookProject(): BookProject {
   }
 }
 
+function createCharacterBible(): CharacterBible {
+  return {
+    childAppearance: 'Mila has curly dark hair and round cheeks.',
+    outfitRules: 'Keep Mila in a yellow cardigan and blue pajamas.',
+    recurringProps: ['silver lantern'],
+    companionCharacters: ['sleepy fox'],
+    palette: 'soft indigo, moonlit silver, warm butter yellow',
+    renderStyle: 'storybook gouache with gentle texture',
+    lightingTone: 'soft moonlight with warm window glow',
+    doNotChange: ['curly dark hair', 'yellow cardigan', 'silver lantern'],
+  }
+}
+
 describe('POST /api/books/[id]/build', () => {
   beforeEach(() => {
     vi.resetModules()
@@ -91,13 +133,41 @@ describe('POST /api/books/[id]/build', () => {
     mockDb.bookProjects.getById.mockResolvedValue(createBookProject())
     mockDb.stories.getById.mockResolvedValue(createStory())
     mockDb.profiles.getById.mockResolvedValue(createProfile())
+    mockDb.characters.getByProfileId.mockResolvedValue([])
     mockDb.bookProjects.update.mockImplementation(async (_id: string, updates: Partial<BookProject>) => ({
       ...createBookProject(),
       ...updates,
     }))
+    mockGenerateCharacterBible.mockResolvedValue(createCharacterBible())
+    mockGenerateCoverIllustration.mockImplementation(async ({ project }: { project: BookProject }) => ({
+      coverImageUrl: 'https://example.com/books/book-1/cover.svg',
+      spreads: project.spreads.map((spread, index) =>
+        index === 0
+          ? {
+              ...spread,
+              imageUrl: 'https://example.com/books/book-1/cover.svg',
+              thumbnailUrl: 'https://example.com/books/book-1/cover.svg',
+            }
+          : spread
+      ),
+      provider: 'placeholder',
+    }))
+    mockGenerateSpreadIllustration.mockImplementation(async ({ spread }: { spread: BookProject['spreads'][number] }) => ({
+      spread: {
+        ...spread,
+        imageUrl: `https://example.com/books/book-1/spreads/${spread.sequence}.svg`,
+        thumbnailUrl: `https://example.com/books/book-1/spreads/${spread.sequence}.svg`,
+      },
+      provider: 'placeholder',
+    }))
+    mockGenerateBookPdfs.mockResolvedValue({
+      previewPdfUrl: 'https://example.com/books/book-1/preview.pdf',
+      printPdfUrl: 'https://example.com/books/book-1/print.pdf',
+      previewImages: ['https://example.com/books/book-1/cover.svg'],
+    })
   })
 
-  it('runs the planning-only build flow and returns a ready project', async () => {
+  it('builds a character bible, generates a cover, and returns a ready project', async () => {
     const { POST } = await import('@/app/api/books/[id]/build/route')
     const res = await POST(new NextRequest('http://localhost/api/books/book-1/build', { method: 'POST' }), {
       params: Promise.resolve({ id: 'book-1' }),
@@ -106,6 +176,73 @@ describe('POST /api/books/[id]/build', () => {
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.status).toBe('ready')
-    expect(mockDb.bookProjects.update).toHaveBeenCalledTimes(3)
+    expect(mockGenerateCharacterBible).toHaveBeenCalledTimes(1)
+    expect(mockGenerateCoverIllustration).toHaveBeenCalledTimes(1)
+    expect(mockGenerateSpreadIllustration).toHaveBeenCalledTimes(15)
+    expect(mockGenerateBookPdfs).toHaveBeenCalledTimes(1)
+    expect(mockDb.bookProjects.update).toHaveBeenCalledTimes(22)
+    expect(mockDb.bookProjects.update).toHaveBeenNthCalledWith(
+      2,
+      'book-1',
+      expect.objectContaining({
+        status: 'bible',
+        currentStageLabel: 'Sketching your little hero...',
+        beats: expect.any(Array),
+      })
+    )
+    expect(mockDb.bookProjects.update).toHaveBeenNthCalledWith(
+      3,
+      'book-1',
+      expect.objectContaining({
+        status: 'illustrating',
+        characterBible: createCharacterBible(),
+        spreads: expect.any(Array),
+      })
+    )
+    expect(mockDb.bookProjects.update).toHaveBeenNthCalledWith(
+      4,
+      'book-1',
+      expect.objectContaining({
+        status: 'illustrating',
+        completedSpreads: 1,
+        totalSpreads: 16,
+        assets: expect.objectContaining({
+          coverImageUrl: 'https://example.com/books/book-1/cover.svg',
+        }),
+      })
+    )
+    expect(mockDb.bookProjects.update).toHaveBeenNthCalledWith(
+      20,
+      'book-1',
+      expect.objectContaining({
+        status: 'composing',
+        characterBible: createCharacterBible(),
+        assets: expect.objectContaining({
+          coverImageUrl: 'https://example.com/books/book-1/cover.svg',
+        }),
+        completedSpreads: 16,
+        totalSpreads: 16,
+        spreads: expect.any(Array),
+      })
+    )
+    expect(mockDb.bookProjects.update).toHaveBeenNthCalledWith(
+      21,
+      'book-1',
+      expect.objectContaining({
+        status: 'proofing',
+        assets: expect.objectContaining({
+          exportProfile: 'Lulu Square Hardcover 8.5x8.5',
+          previewPdfUrl: 'https://example.com/books/book-1/preview.pdf',
+          printPdfUrl: 'https://example.com/books/book-1/print.pdf',
+          proofingPassed: true,
+          proofingWarnings: expect.any(Array),
+          proofingErrors: expect.any(Array),
+        }),
+      })
+    )
+    expect(body.assets?.coverImageUrl).toBe('https://example.com/books/book-1/cover.svg')
+    expect(body.assets?.previewPdfUrl).toBe('https://example.com/books/book-1/preview.pdf')
+    expect(body.assets?.printPdfUrl).toBe('https://example.com/books/book-1/print.pdf')
+    expect(body.assets?.proofingPassed).toBe(true)
   })
 })

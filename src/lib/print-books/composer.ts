@@ -1,5 +1,13 @@
 import type { ChildProfile, Story } from '@/types'
-import type { AgeBand, Beat, BookProject, BookSpread, BookSpreadLayoutType } from '@/types/printBook'
+import type {
+  AgeBand,
+  Beat,
+  BookProject,
+  BookSpread,
+  BookSpreadLayoutType,
+  CharacterBible,
+} from '@/types/printBook'
+import { buildIllustrationDirection } from '@/lib/print-books/characterBible'
 
 const HARDCOVER_PAGE_COUNT = 32
 const INTERIOR_START_PAGE = 5
@@ -130,7 +138,17 @@ function createSpread(
   }
 }
 
-function createFrontMatterSpreads(bookProjectId: string, story: Story, profile: ChildProfile): BookSpread[] {
+function withCharacterBiblePrompt(prompt: string, characterBible?: CharacterBible): string {
+  if (!characterBible) return prompt
+  return `${buildIllustrationDirection(characterBible)} Scene direction: ${prompt}`.trim()
+}
+
+function createFrontMatterSpreads(
+  bookProjectId: string,
+  story: Story,
+  profile: ChildProfile,
+  characterBible?: CharacterBible
+): BookSpread[] {
   return [
     createSpread(
       bookProjectId,
@@ -140,7 +158,10 @@ function createFrontMatterSpreads(bookProjectId: string, story: Story, profile: 
       story.title,
       '',
       `Front cover for ${story.title}`,
-      `A magical hardcover picture-book cover for "${story.title}" starring ${profile.name}.`,
+      withCharacterBiblePrompt(
+        `A magical hardcover picture-book cover for "${story.title}" starring ${profile.name}.`,
+        characterBible
+      ),
       'Cover'
     ),
     createSpread(
@@ -151,13 +172,18 @@ function createFrontMatterSpreads(bookProjectId: string, story: Story, profile: 
       story.title,
       `Created especially for ${profile.name}.`,
       `Title and dedication pages for ${story.title}`,
-      `A gentle title-page illustration motif for "${story.title}".`,
+      withCharacterBiblePrompt(`A gentle title-page illustration motif for "${story.title}".`, characterBible),
       'Title'
     ),
   ]
 }
 
-function createEndMatterSpreads(bookProjectId: string, story: Story, profile: ChildProfile): BookSpread[] {
+function createEndMatterSpreads(
+  bookProjectId: string,
+  story: Story,
+  profile: ChildProfile,
+  characterBible?: CharacterBible
+): BookSpread[] {
   return [
     createSpread(
       bookProjectId,
@@ -167,7 +193,10 @@ function createEndMatterSpreads(bookProjectId: string, story: Story, profile: Ch
       `The End.\n\nSweet dreams, ${profile.name}.`,
       'A Storycot story',
       `Closing pages for ${story.title}`,
-      `A peaceful closing image for ${profile.name} settling into sleep.`,
+      withCharacterBiblePrompt(
+        `A peaceful closing image for ${profile.name} settling into sleep.`,
+        characterBible
+      ),
       'The End'
     ),
     createSpread(
@@ -178,7 +207,10 @@ function createEndMatterSpreads(bookProjectId: string, story: Story, profile: Ch
       '',
       'Storycot',
       `Back cover for ${story.title}`,
-      `A simple back cover design for a Storycot hardcover children's book.`,
+      withCharacterBiblePrompt(
+        `A simple back cover design for a Storycot hardcover children's book.`,
+        characterBible
+      ),
       'Back Cover'
     ),
   ]
@@ -242,8 +274,9 @@ function createStoryExpansionSpread(input: {
   ageBand: AgeBand
   sourceBeat: Beat
   variantIndex: number
+  characterBible?: CharacterBible
 }): BookSpread {
-  const { bookProjectId, profile, sequence, pageStart, ageBand, sourceBeat, variantIndex } = input
+  const { bookProjectId, profile, sequence, pageStart, ageBand, sourceBeat, variantIndex, characterBible } = input
   const anchorLine = clampText(getFirstSentence(sourceBeat.textDraft), 120)
   const summary = clampText(sourceBeat.summary, 110)
   const roleIndex = variantIndex % 4
@@ -273,7 +306,16 @@ function createStoryExpansionSpread(input: {
     ] as const
 
     const role = toddlerRoles[roleIndex]
-    return createSpread(bookProjectId, sequence, pageStart, 'quiet', role.leftPageText, '', role.sceneBrief, role.illustrationPrompt)
+    return createSpread(
+      bookProjectId,
+      sequence,
+      pageStart,
+      'quiet',
+      role.leftPageText,
+      '',
+      role.sceneBrief,
+      withCharacterBiblePrompt(role.illustrationPrompt, characterBible)
+    )
   }
 
   if (ageBand === '3-5') {
@@ -317,7 +359,7 @@ function createStoryExpansionSpread(input: {
       role.leftPageText,
       role.rightPageText,
       role.sceneBrief,
-      role.illustrationPrompt
+      withCharacterBiblePrompt(role.illustrationPrompt, characterBible)
     )
   }
 
@@ -360,7 +402,7 @@ function createStoryExpansionSpread(input: {
     role.leftPageText,
     role.rightPageText,
     role.sceneBrief,
-    role.illustrationPrompt
+    withCharacterBiblePrompt(role.illustrationPrompt, characterBible)
   )
 }
 
@@ -368,7 +410,8 @@ function createStorySpreads(
   bookProjectId: string,
   profile: ChildProfile,
   ageBand: AgeBand,
-  beats: Beat[]
+  beats: Beat[],
+  characterBible?: CharacterBible
 ): BookSpread[] {
   const targetCount = getTargetStorySpreadCount(ageBand)
   const storyBeats = beats.length <= targetCount ? beats : groupStoryBeatsForSpreads(beats)
@@ -395,7 +438,7 @@ function createStorySpreads(
         leftPageText,
         rightPageText,
         buildSceneBrief(beat),
-        beat.visualIntent
+        withCharacterBiblePrompt(beat.visualIntent, characterBible)
       )
     )
 
@@ -419,6 +462,7 @@ function createStorySpreads(
           ageBand,
           sourceBeat,
           variantIndex,
+          characterBible,
         })
       )
       pageStart += 2
@@ -436,7 +480,10 @@ function createStorySpreads(
         isFinalQuiet ? 'A final calm breath before bedtime.' : '',
         '',
         'A quiet visual pause that gives the story room to breathe.',
-        'A peaceful children’s-book spread with soft night-time atmosphere and room for reflection.'
+        withCharacterBiblePrompt(
+          'A peaceful children’s-book spread with soft night-time atmosphere and room for reflection.',
+          characterBible
+        )
       )
     )
     pageStart += 2
@@ -452,13 +499,14 @@ export function composeHardcoverSpreads(input: {
   profile: ChildProfile
   ageBand: AgeBand
   beats: Beat[]
+  characterBible?: CharacterBible
 }): BookSpread[] {
-  const { bookProjectId, story, profile, ageBand, beats } = input
+  const { bookProjectId, story, profile, ageBand, beats, characterBible } = input
 
   return [
-    ...createFrontMatterSpreads(bookProjectId, story, profile),
-    ...createStorySpreads(bookProjectId, profile, ageBand, beats),
-    ...createEndMatterSpreads(bookProjectId, story, profile),
+    ...createFrontMatterSpreads(bookProjectId, story, profile, characterBible),
+    ...createStorySpreads(bookProjectId, profile, ageBand, beats, characterBible),
+    ...createEndMatterSpreads(bookProjectId, story, profile, characterBible),
   ]
 }
 

@@ -82,6 +82,18 @@ export default function EditProfileForm({ profile }: { profile: ChildProfile }) 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  async function getErrorMessage(res: Response, fallback: string): Promise<string> {
+    const contentType = res.headers.get('content-type') ?? ''
+    if (contentType.includes('application/json')) {
+      const data = (await res.json().catch(() => null)) as { error?: string } | null
+      return data?.error ?? fallback
+    }
+
+    const text = await res.text().catch(() => '')
+    if (text.includes('<')) return fallback
+    return text || fallback
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -109,7 +121,7 @@ export default function EditProfileForm({ profile }: { profile: ChildProfile }) 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim(), age, dateOfBirth, favouriteCharacters, favouriteActivities, favouriteAnimals, favouritePlaces, lessons }),
       })
-      if (!res.ok) throw new Error((await res.json()).error)
+      if (!res.ok) throw new Error(await getErrorMessage(res, 'Could not save changes'))
       router.push(`/profiles/${profile.id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')

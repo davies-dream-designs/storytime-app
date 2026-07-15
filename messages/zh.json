@@ -209,6 +209,8 @@
     "createButton": "📖 创建印刷图书",
     "creatingButton": "正在梦绘你的图书…",
     "createError": "我们无法开始创建印刷图书。",
+    "buildError": "我们无法完成第一轮规划。",
+    "createErrorTitle": "印刷图书无法开始创建",
     "listTitle": "印刷图书",
     "listSub": "由你最喜欢的故事打造的精装图书项目。",
     "emptyTitle": "还没有印刷图书",

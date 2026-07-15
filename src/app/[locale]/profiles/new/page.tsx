@@ -79,6 +79,18 @@ export default function NewProfilePage() {
   const MONTH_KEYS = ['months.1','months.2','months.3','months.4','months.5','months.6','months.7','months.8','months.9','months.10','months.11','months.12'] as const
   const MONTHS = MONTH_KEYS.map((key, i) => ({ value: i + 1, label: t(key) }))
 
+  async function getErrorMessage(res: Response, fallback: string): Promise<string> {
+    const contentType = res.headers.get('content-type') ?? ''
+    if (contentType.includes('application/json')) {
+      const data = (await res.json().catch(() => null)) as { error?: string } | null
+      return data?.error ?? fallback
+    }
+
+    const text = await res.text().catch(() => '')
+    if (text.includes('<')) return fallback
+    return text || fallback
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -104,7 +116,7 @@ export default function NewProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim(), age, dateOfBirth, favouriteCharacters, favouriteActivities, favouriteAnimals, favouritePlaces, lessons }),
       })
-      if (!res.ok) throw new Error((await res.json()).error)
+      if (!res.ok) throw new Error(await getErrorMessage(res, 'Could not create profile'))
       const profile = await res.json()
       router.push(`/profiles/${profile.id}` as string)
     } catch (err) {

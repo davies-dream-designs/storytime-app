@@ -209,6 +209,8 @@
     "createButton": "📖 Crear libro impreso",
     "creatingButton": "Soñando tu libro…",
     "createError": "No pudimos iniciar el libro impreso.",
+    "buildError": "No pudimos completar la primera fase de planificación.",
+    "createErrorTitle": "No se pudo iniciar el libro",
     "listTitle": "Libros impresos",
     "listSub": "Proyectos listos para tapa dura creados a partir de tus cuentos favoritos.",
     "emptyTitle": "Aún no hay libros impresos",

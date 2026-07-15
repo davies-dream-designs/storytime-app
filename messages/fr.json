@@ -209,6 +209,8 @@
     "createButton": "📖 Créer le livre imprimé",
     "creatingButton": "Le livre prend forme…",
     "createError": "Impossible de démarrer le livre imprimé.",
+    "buildError": "Impossible de terminer la première phase de planification.",
+    "createErrorTitle": "Le livre n’a pas pu démarrer",
     "listTitle": "Livres imprimés",
     "listSub": "Des projets prêts pour une couverture rigide, construits à partir de vos histoires préférées.",
     "emptyTitle": "Aucun livre imprimé pour le moment",

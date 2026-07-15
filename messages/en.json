@@ -209,6 +209,8 @@
     "createButton": "📖 Create print book",
     "creatingButton": "Dreaming up your book…",
     "createError": "We couldn't start the print book.",
+    "buildError": "We couldn't finish the first planning pass.",
+    "createErrorTitle": "The print book couldn't start",
     "listTitle": "Print books",
     "listSub": "Hardcover-ready book projects built from your favourite stories.",
     "emptyTitle": "No print books yet",

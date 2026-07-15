@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, clip, endPath, popGraphicsState, pushGraphicsState, rectangle, rgb } from 'pdf-lib'
+import { PDFDocument, StandardFonts, clip, degrees, endPath, popGraphicsState, pushGraphicsState, rectangle, rgb } from 'pdf-lib'
 import type { ChildProfile, Story } from '@/types'
 import type { BookProject, BookSpread } from '@/types/printBook'
 import { storeBookAsset } from '@/lib/print-books/storage'
@@ -12,6 +12,9 @@ const PRINT_PAGE_WIDTH = (LULU_SQUARE_HARDCOVER_SPEC.trimWidthIn + LULU_SQUARE_H
 const PRINT_PAGE_HEIGHT = (LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn + LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2) * POINTS_PER_INCH
 const BLEED = LULU_SQUARE_HARDCOVER_SPEC.bleedIn * POINTS_PER_INCH
 const SAFE_MARGIN = LULU_SQUARE_HARDCOVER_SPEC.safetyMarginIn * POINTS_PER_INCH
+const APPROX_CASEWRAP_SPINE_WIDTH_IN = 0.25
+const COVER_SPINE_WIDTH = APPROX_CASEWRAP_SPINE_WIDTH_IN * POINTS_PER_INCH
+const COVER_TOTAL_WIDTH = PRINT_PAGE_WIDTH * 2 + COVER_SPINE_WIDTH
 const INNER_TEXT_MARGIN = BLEED + SAFE_MARGIN
 const OUTER_TEXT_MARGIN = BLEED + SAFE_MARGIN
 const TOP_TEXT_MARGIN = BLEED + SAFE_MARGIN
@@ -524,18 +527,151 @@ async function buildPrintPdf(input: {
   return pdfDoc.save()
 }
 
+async function buildCoverPdf(input: {
+  project: BookProject
+  story: Story
+  profile: ChildProfile
+}): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.create()
+  const serif = await pdfDoc.embedFont(StandardFonts.TimesRoman)
+  const serifBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold)
+  const sans = await pdfDoc.embedFont(StandardFonts.Helvetica)
+  const sansBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+  const page = pdfDoc.addPage([COVER_TOTAL_WIDTH, PRINT_PAGE_HEIGHT])
+  const coverSpread = input.project.spreads.find((spread) => spread.sequence === 1)
+  const image = await embedSpreadImage(pdfDoc, input.project.assets.coverImageUrl || coverSpread?.imageUrl)
+  const backCoverX = 0
+  const spineX = PRINT_PAGE_WIDTH
+  const frontCoverX = PRINT_PAGE_WIDTH + COVER_SPINE_WIDTH
+
+  page.drawRectangle({
+    x: 0,
+    y: 0,
+    width: COVER_TOTAL_WIDTH,
+    height: PRINT_PAGE_HEIGHT,
+    color: rgb(0.12, 0.14, 0.24),
+  })
+
+  page.drawRectangle({
+    x: backCoverX,
+    y: 0,
+    width: PRINT_PAGE_WIDTH,
+    height: PRINT_PAGE_HEIGHT,
+    color: rgb(0.97, 0.95, 0.9),
+  })
+
+  page.drawRectangle({
+    x: spineX,
+    y: 0,
+    width: COVER_SPINE_WIDTH,
+    height: PRINT_PAGE_HEIGHT,
+    color: rgb(0.17, 0.2, 0.33),
+  })
+
+  if (image) {
+    const scale = Math.max(PRINT_PAGE_WIDTH / image.width, PRINT_PAGE_HEIGHT / image.height)
+    const drawWidth = image.width * scale
+    const drawHeight = image.height * scale
+    page.drawImage(image, {
+      x: frontCoverX + (PRINT_PAGE_WIDTH - drawWidth) / 2,
+      y: (PRINT_PAGE_HEIGHT - drawHeight) / 2,
+      width: drawWidth,
+      height: drawHeight,
+    })
+  } else {
+    page.drawRectangle({
+      x: frontCoverX,
+      y: 0,
+      width: PRINT_PAGE_WIDTH,
+      height: PRINT_PAGE_HEIGHT,
+      color: rgb(0.96, 0.94, 0.9),
+    })
+  }
+
+  page.drawText(input.story.title, {
+    x: frontCoverX + BLEED + 42,
+    y: PRINT_PAGE_HEIGHT - 120,
+    font: serifBold,
+    size: 28,
+    color: rgb(0.99, 0.96, 0.88),
+  })
+  page.drawText(`Created for ${input.profile.name}`, {
+    x: frontCoverX + BLEED + 42,
+    y: PRINT_PAGE_HEIGHT - 156,
+    font: serif,
+    size: 16,
+    color: rgb(0.97, 0.92, 0.82),
+  })
+
+  page.drawText('A personalised story from Storycot', {
+    x: backCoverX + BLEED + 42,
+    y: PRINT_PAGE_HEIGHT - 116,
+    font: sansBold,
+    size: 13,
+    color: rgb(0.21, 0.23, 0.29),
+  })
+  drawWrappedText({
+    page,
+    text: clampText(input.story.pages.map((storyPage) => storyPage.text).join(' '), 360),
+    x: backCoverX + BLEED + 42,
+    y: PRINT_PAGE_HEIGHT - 148,
+    maxChars: 42,
+    lineHeight: 18,
+    font: serif,
+    size: 12,
+    color: rgb(0.24, 0.26, 0.32),
+  })
+  page.drawText('ISBN pending', {
+    x: backCoverX + PRINT_PAGE_WIDTH - BLEED - 92,
+    y: BLEED + 48,
+    font: sans,
+    size: 10,
+    color: rgb(0.46, 0.32, 0.22),
+  })
+
+  page.drawText('Storycot', {
+    x: spineX + COVER_SPINE_WIDTH / 2 - 20,
+    y: PRINT_PAGE_HEIGHT / 2 - 18,
+    font: sansBold,
+    size: 10,
+    color: rgb(0.95, 0.93, 0.87),
+    rotate: degrees(90),
+  })
+
+  if (input.project.pageCount >= 100) {
+    page.drawText(clampText(input.story.title, 36), {
+      x: spineX + COVER_SPINE_WIDTH / 2 - 10,
+      y: PRINT_PAGE_HEIGHT / 2 - 72,
+      font: sansBold,
+      size: 9,
+      color: rgb(0.95, 0.93, 0.87),
+      rotate: degrees(90),
+    })
+  }
+
+  return pdfDoc.save()
+}
+
 export async function generateBookPdfs(input: {
   project: BookProject
   story: Story
   profile: ChildProfile
 }): Promise<{
+  coverPdfUrl: string
+  coverPdfReadyForOrdering: boolean
   previewPdfUrl: string
   printPdfUrl: string
   previewImages: string[]
 }> {
+  const coverBytes = await buildCoverPdf(input)
   const previewBytes = await buildPreviewPdf(input)
   const printBytes = await buildPrintPdf(input)
 
+  const coverPdfUrl = await storeBookAsset({
+    pathname: `books/${input.project.id}/cover.pdf`,
+    body: Buffer.from(coverBytes),
+    contentType: 'application/pdf',
+  })
   const previewPdfUrl = await storeBookAsset({
     pathname: `books/${input.project.id}/preview.pdf`,
     body: Buffer.from(previewBytes),
@@ -548,6 +684,8 @@ export async function generateBookPdfs(input: {
   })
 
   return {
+    coverPdfUrl,
+    coverPdfReadyForOrdering: false,
     previewPdfUrl,
     printPdfUrl,
     previewImages: input.project.spreads

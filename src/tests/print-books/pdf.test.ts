@@ -113,11 +113,12 @@ describe('generateBookPdfs', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockStoreBookAsset
+      .mockResolvedValueOnce('data:application/pdf;base64,cover')
       .mockResolvedValueOnce('data:application/pdf;base64,preview')
       .mockResolvedValueOnce('data:application/pdf;base64,print')
   })
 
-  it('stores preview and print pdf artifacts and returns preview images', async () => {
+  it('stores cover, preview, and print pdf artifacts and returns preview images', async () => {
     const { generateBookPdfs } = await import('@/lib/print-books/pdf')
     const result = await generateBookPdfs({
       project: createProject(),
@@ -125,18 +126,27 @@ describe('generateBookPdfs', () => {
       profile: createProfile(),
     })
 
+    expect(result.coverPdfUrl).toBe('data:application/pdf;base64,cover')
+    expect(result.coverPdfReadyForOrdering).toBe(false)
     expect(result.previewPdfUrl).toBe('data:application/pdf;base64,preview')
     expect(result.printPdfUrl).toBe('data:application/pdf;base64,print')
     expect(result.previewImages).toEqual(['data:image/svg+xml;base64,cover', 'data:image/svg+xml;base64,spread'])
     expect(mockStoreBookAsset).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
-        pathname: 'books/book-1/preview.pdf',
+        pathname: 'books/book-1/cover.pdf',
         contentType: 'application/pdf',
       })
     )
     expect(mockStoreBookAsset).toHaveBeenNthCalledWith(
       2,
+      expect.objectContaining({
+        pathname: 'books/book-1/preview.pdf',
+        contentType: 'application/pdf',
+      })
+    )
+    expect(mockStoreBookAsset).toHaveBeenNthCalledWith(
+      3,
       expect.objectContaining({
         pathname: 'books/book-1/print.pdf',
         contentType: 'application/pdf',

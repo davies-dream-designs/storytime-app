@@ -247,6 +247,7 @@
     "planningDetailsSub": "Scene briefs and illustration prompts used to compose this draft.",
     "planningDetailsToggle": "Show planning notes",
     "downloadsTitle": "Exports",
+    "coverPdfButton": "Open cover PDF",
     "previewPdfButton": "Open preview PDF",
     "printPdfButton": "Open print PDF",
     "fallbackExportsTitle": "Downloadable exports unavailable",

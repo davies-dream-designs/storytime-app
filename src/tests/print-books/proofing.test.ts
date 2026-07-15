@@ -69,4 +69,16 @@ describe('runLuluProofing', () => {
     expect(report.errors.some((error) => error.includes('Print PDF is missing'))).toBe(true)
     expect(report.errors.some((error) => error.includes('Spread images are missing'))).toBe(true)
   })
+
+  it('fails when the cover pdf is present but still generic', async () => {
+    const { runLuluProofing } = await import('@/lib/print-books/proofing')
+    const project = createBookProject()
+    project.assets.coverPdfReadyForOrdering = false
+
+    const report = runLuluProofing(project)
+    expect(report.passed).toBe(false)
+    expect(
+      report.errors.some((error) => error.includes('Cover PDF still uses a generic spine width'))
+    ).toBe(true)
+  })
 })

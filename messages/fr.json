@@ -256,6 +256,7 @@
     "planningDetailsSub": "Résumés de scène et prompts d’illustration utilisés pour composer ce brouillon.",
     "planningDetailsToggle": "Afficher les notes de planification",
     "downloadsTitle": "Exports",
+    "coverPdfButton": "Ouvrir le PDF de couverture",
     "previewPdfButton": "Ouvrir le PDF d’aperçu",
     "printPdfButton": "Ouvrir le PDF d’impression",
     "fallbackExportsTitle": "Exports téléchargeables indisponibles",

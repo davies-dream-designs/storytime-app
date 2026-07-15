@@ -161,6 +161,8 @@ describe('POST /api/books/[id]/build', () => {
       provider: 'placeholder',
     }))
     mockGenerateBookPdfs.mockResolvedValue({
+      coverPdfUrl: 'https://example.com/books/book-1/cover.pdf',
+      coverPdfReadyForOrdering: false,
       previewPdfUrl: 'https://example.com/books/book-1/preview.pdf',
       printPdfUrl: 'https://example.com/books/book-1/print.pdf',
       previewImages: ['https://example.com/books/book-1/cover.svg'],
@@ -232,6 +234,7 @@ describe('POST /api/books/[id]/build', () => {
         status: 'proofing',
         assets: expect.objectContaining({
           exportProfile: 'Lulu Square Hardcover 8.5x8.5',
+          coverPdfUrl: 'https://example.com/books/book-1/cover.pdf',
           previewPdfUrl: 'https://example.com/books/book-1/preview.pdf',
           printPdfUrl: 'https://example.com/books/book-1/print.pdf',
           proofingPassed: false,
@@ -241,9 +244,12 @@ describe('POST /api/books/[id]/build', () => {
       })
     )
     expect(body.assets?.coverImageUrl).toBe('https://example.com/books/book-1/cover.svg')
+    expect(body.assets?.coverPdfUrl).toBe('https://example.com/books/book-1/cover.pdf')
     expect(body.assets?.previewPdfUrl).toBe('https://example.com/books/book-1/preview.pdf')
     expect(body.assets?.printPdfUrl).toBe('https://example.com/books/book-1/print.pdf')
     expect(body.assets?.proofingPassed).toBe(false)
-    expect(body.assets?.proofingErrors).toContain('Separate Lulu cover PDF is missing.')
+    expect(body.assets?.proofingErrors).toContain(
+      'Cover PDF still uses a generic spine width and must be replaced with a Lulu template-matched cover before ordering.'
+    )
   })
 })

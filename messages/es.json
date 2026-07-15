@@ -256,6 +256,7 @@
     "planningDetailsSub": "Resúmenes de escena y prompts de ilustración usados para componer este borrador.",
     "planningDetailsToggle": "Mostrar notas de planificación",
     "downloadsTitle": "Exportaciones",
+    "coverPdfButton": "Abrir PDF de portada",
     "previewPdfButton": "Abrir PDF de vista previa",
     "printPdfButton": "Abrir PDF de impresión",
     "fallbackExportsTitle": "Exportaciones descargables no disponibles",

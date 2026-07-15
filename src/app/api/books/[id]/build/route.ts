@@ -195,6 +195,8 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       assets: {
         ...composingProject.assets,
         coverImageUrl: composingProject.assets.coverImageUrl,
+        coverPdfUrl: pdfAssets.coverPdfUrl,
+        coverPdfReadyForOrdering: pdfAssets.coverPdfReadyForOrdering,
         previewPdfUrl: pdfAssets.previewPdfUrl,
         printPdfUrl: pdfAssets.printPdfUrl,
         previewImages: pdfAssets.previewImages,
@@ -208,6 +210,8 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       assets: {
         ...composingProject.assets,
         coverImageUrl: composingProject.assets.coverImageUrl,
+        coverPdfUrl: pdfAssets.coverPdfUrl,
+        coverPdfReadyForOrdering: pdfAssets.coverPdfReadyForOrdering,
         previewPdfUrl: pdfAssets.previewPdfUrl,
         printPdfUrl: pdfAssets.printPdfUrl,
         previewImages: pdfAssets.previewImages,

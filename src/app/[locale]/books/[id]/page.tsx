@@ -36,6 +36,7 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
   const coverSpread = project.spreads.find((spread) => spread.sequence === 1 || spread.title === 'Cover')
   const readinessState = getBookReadinessState(project)
   const hasProofingErrors = Boolean(project.assets.proofingErrors && project.assets.proofingErrors.length > 0)
+  const coverPdfUrl = isDownloadableBookAssetUrl(project.assets.coverPdfUrl) ? project.assets.coverPdfUrl : undefined
   const previewPdfUrl = isDownloadableBookAssetUrl(project.assets.previewPdfUrl) ? project.assets.previewPdfUrl : undefined
   const printPdfUrl = isDownloadableBookAssetUrl(project.assets.printPdfUrl) ? project.assets.printPdfUrl : undefined
   const hasInlineFallbackExports = isInlineBookAssetUrl(project.assets.previewPdfUrl) || isInlineBookAssetUrl(project.assets.printPdfUrl)
@@ -78,11 +79,21 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
           </section>
         ) : null}
 
-        {previewPdfUrl || printPdfUrl || hasInlineFallbackExports ? (
+        {coverPdfUrl || previewPdfUrl || printPdfUrl || hasInlineFallbackExports ? (
           <section className="mt-8 rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
             <h2 className="font-display text-2xl font-bold text-night-800">{t('downloadsTitle')}</h2>
-            {previewPdfUrl || printPdfUrl ? (
+            {coverPdfUrl || previewPdfUrl || printPdfUrl ? (
               <div className="mt-4 flex flex-wrap gap-3">
+                {coverPdfUrl ? (
+                  <a
+                    href={coverPdfUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-full border border-night-200 px-5 py-3 text-sm font-bold text-night-700 transition hover:bg-night-50"
+                  >
+                    {t('coverPdfButton')}
+                  </a>
+                ) : null}
                 {previewPdfUrl ? (
                   <a
                     href={previewPdfUrl}

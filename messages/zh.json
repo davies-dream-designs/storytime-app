@@ -256,6 +256,7 @@
     "planningDetailsSub": "用于生成当前草稿的场景摘要和插图提示词。",
     "planningDetailsToggle": "显示规划备注",
     "downloadsTitle": "导出文件",
+    "coverPdfButton": "打开封面 PDF",
     "previewPdfButton": "打开预览 PDF",
     "printPdfButton": "打开印刷 PDF",
     "fallbackExportsTitle": "无法提供可下载导出文件",

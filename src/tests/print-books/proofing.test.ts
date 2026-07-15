@@ -34,8 +34,18 @@ function createBookProject(): BookProject {
       artMode: 'generated',
       coverImageUrl: 'https://example.com/cover.png',
       coverPdfUrl: 'https://example.com/cover.pdf',
+      coverPdfPageWidthIn: 17.75,
+      coverPdfPageHeightIn: 8.75,
+      coverPdfSpineSource: 'lulu_table',
+      coverPdfSpineWidthIn: 0.25,
+      coverSpineTextIncluded: false,
       previewPdfUrl: 'https://example.com/preview.pdf',
+      previewPdfPageWidthIn: 8.5,
+      previewPdfPageHeightIn: 8.5,
       printPdfUrl: 'https://example.com/print.pdf',
+      printPdfPageWidthIn: 8.75,
+      printPdfPageHeightIn: 8.75,
+      interiorTextSafeMarginIn: 0.625,
       previewImages: Array.from({ length: 16 }, (_, index) => `https://example.com/${index + 1}.png`),
     },
     retryCount: 0,
@@ -74,17 +84,15 @@ describe('runLuluProofing', () => {
     expect(report.orderabilityState).toBe('draft_only')
   })
 
-  it('warns when the cover spine width is assumed from page count', async () => {
+  it('passes when the cover spine width comes from the Lulu hardcover table', async () => {
     const { runLuluProofing } = await import('@/lib/print-books/proofing')
     const project = createBookProject()
-    project.assets.coverPdfSpineSource = 'assumed'
-    project.assets.coverPdfSpineWidthIn = 0.08
+    project.assets.coverPdfSpineSource = 'lulu_table'
+    project.assets.coverPdfSpineWidthIn = 0.25
 
     const report = runLuluProofing(project)
     expect(report.passed).toBe(true)
-    expect(
-      report.warnings.some((warning) => warning.includes('Cover spine width is assumed from page count'))
-    ).toBe(true)
+    expect(report.checks.some((check) => check.key === 'spine_width' && check.status === 'pass')).toBe(true)
     expect(report.orderabilityState).toBe('export_ready')
   })
 
@@ -102,25 +110,22 @@ describe('runLuluProofing', () => {
   it('only returns order_ready during strict finalization', async () => {
     const { runLuluProofing } = await import('@/lib/print-books/proofing')
     const project = createBookProject()
-    project.assets.coverPdfSpineSource = 'configured'
-    project.assets.coverPdfSpineWidthIn = 0.31
+    project.assets.coverPdfSpineSource = 'lulu_table'
+    project.assets.coverPdfSpineWidthIn = 0.25
 
     const report = runLuluProofing(project, { strictForOrdering: true })
     expect(report.passed).toBe(true)
     expect(report.orderabilityState).toBe('order_ready')
   })
 
-  it('blocks strict finalization when draft artwork or assumed spine values remain', async () => {
+  it('blocks strict finalization when draft artwork remains', async () => {
     const { runLuluProofing } = await import('@/lib/print-books/proofing')
     const project = createBookProject()
     project.assets.artMode = 'placeholder'
-    project.assets.coverPdfSpineSource = 'assumed'
-    project.assets.coverPdfSpineWidthIn = 0.08
 
     const report = runLuluProofing(project, { strictForOrdering: true })
     expect(report.passed).toBe(false)
     expect(report.orderabilityState).toBe('export_ready')
     expect(report.checks.some((check) => check.key === 'spread_art' && check.status === 'fail')).toBe(true)
-    expect(report.checks.some((check) => check.key === 'spine_width' && check.status === 'fail')).toBe(true)
   })
 })

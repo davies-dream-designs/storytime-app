@@ -129,10 +129,18 @@ describe('generateBookPdfs', () => {
 
     expect(result.coverPdfUrl).toBe('data:application/pdf;base64,cover')
     expect(result.coverPdfReadyForOrdering).toBe(true)
-    expect(result.coverPdfSpineSource).toBe('assumed')
-    expect(result.coverPdfSpineWidthIn).toBe(0.08)
+    expect(result.coverPdfSpineSource).toBe('lulu_table')
+    expect(result.coverPdfSpineWidthIn).toBe(0.25)
+    expect(result.coverPdfPageWidthIn).toBe(17.75)
+    expect(result.coverPdfPageHeightIn).toBe(8.75)
+    expect(result.coverSpineTextIncluded).toBe(false)
     expect(result.previewPdfUrl).toBe('data:application/pdf;base64,preview')
+    expect(result.previewPdfPageWidthIn).toBe(8.5)
+    expect(result.previewPdfPageHeightIn).toBe(8.5)
     expect(result.printPdfUrl).toBe('data:application/pdf;base64,print')
+    expect(result.printPdfPageWidthIn).toBe(8.75)
+    expect(result.printPdfPageHeightIn).toBe(8.75)
+    expect(result.interiorTextSafeMarginIn).toBe(0.625)
     expect(result.previewImages).toEqual(['data:image/svg+xml;base64,cover', 'data:image/svg+xml;base64,spread'])
     expect(mockStoreBookAsset).toHaveBeenNthCalledWith(
       1,

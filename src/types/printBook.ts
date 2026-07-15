@@ -84,9 +84,17 @@ export interface BookAsset {
   coverPdfUrl?: string
   coverPdfReadyForOrdering?: boolean
   coverPdfSpineWidthIn?: number
-  coverPdfSpineSource?: 'configured' | 'assumed'
+  coverPdfSpineSource?: 'configured' | 'lulu_table'
+  coverPdfPageWidthIn?: number
+  coverPdfPageHeightIn?: number
+  coverSpineTextIncluded?: boolean
   previewPdfUrl?: string
+  previewPdfPageWidthIn?: number
+  previewPdfPageHeightIn?: number
   printPdfUrl?: string
+  printPdfPageWidthIn?: number
+  printPdfPageHeightIn?: number
+  interiorTextSafeMarginIn?: number
   previewImages?: string[]
   artMode?: BookArtMode
   exportVersion?: number

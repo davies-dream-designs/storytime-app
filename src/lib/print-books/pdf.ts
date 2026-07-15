@@ -11,6 +11,7 @@ const PREVIEW_PAGE_HEIGHT = LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn * POINTS_PER
 const PRINT_PAGE_WIDTH = (LULU_SQUARE_HARDCOVER_SPEC.trimWidthIn + LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2) * POINTS_PER_INCH
 const PRINT_PAGE_HEIGHT = (LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn + LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2) * POINTS_PER_INCH
 const BLEED = LULU_SQUARE_HARDCOVER_SPEC.bleedIn * POINTS_PER_INCH
+const FULL_BLEED_TEXT_SAFE_MARGIN = LULU_SQUARE_HARDCOVER_SPEC.fullBleedTextSafeMarginIn * POINTS_PER_INCH
 
 type PlaceholderTheme = {
   sky: ReturnType<typeof rgb>
@@ -916,9 +917,9 @@ async function buildPrintPdf(input: {
         height: PRINT_PAGE_HEIGHT * 0.65 - BLEED,
       },
       textRect: {
-        x: BLEED + 18,
-        y: BLEED + 18,
-        width: PRINT_PAGE_WIDTH - (BLEED + 18) * 2,
+        x: FULL_BLEED_TEXT_SAFE_MARGIN,
+        y: FULL_BLEED_TEXT_SAFE_MARGIN,
+        width: PRINT_PAGE_WIDTH - FULL_BLEED_TEXT_SAFE_MARGIN * 2,
         height: PRINT_PAGE_HEIGHT * 0.24,
       },
       serif,
@@ -943,9 +944,9 @@ async function buildPrintPdf(input: {
         height: PRINT_PAGE_HEIGHT * 0.65 - BLEED,
       },
       textRect: {
-        x: BLEED + 18,
-        y: BLEED + 18,
-        width: PRINT_PAGE_WIDTH - (BLEED + 18) * 2,
+        x: FULL_BLEED_TEXT_SAFE_MARGIN,
+        y: FULL_BLEED_TEXT_SAFE_MARGIN,
+        width: PRINT_PAGE_WIDTH - FULL_BLEED_TEXT_SAFE_MARGIN * 2,
         height: PRINT_PAGE_HEIGHT * 0.24,
       },
       serif,
@@ -968,7 +969,8 @@ async function buildCoverPdf(input: {
   const sans = await pdfDoc.embedFont(StandardFonts.Helvetica)
   const sansBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
   const theme = pickPlaceholderTheme(input.story)
-  const coverSpineWidth = getLuluCoverSpineWidth(input.project.pageCount).widthIn * POINTS_PER_INCH
+  const spine = getLuluCoverSpineWidth(input.project.pageCount)
+  const coverSpineWidth = spine.widthIn * POINTS_PER_INCH
   const coverTotalWidth = PRINT_PAGE_WIDTH * 2 + coverSpineWidth
   const page = pdfDoc.addPage([coverTotalWidth, PRINT_PAGE_HEIGHT])
   const coverSpread = input.project.spreads.find((spread) => spread.sequence === 1)
@@ -1097,16 +1099,16 @@ async function buildCoverPdf(input: {
     color: rgb(0.46, 0.32, 0.22),
   })
 
-  page.drawText('Storycot', {
-    x: spineX + coverSpineWidth / 2 - 20,
-    y: PRINT_PAGE_HEIGHT / 2 - 18,
-    font: sansBold,
-    size: 10,
-    color: rgb(0.95, 0.93, 0.87),
-    rotate: degrees(90),
-  })
+  if (input.project.pageCount >= LULU_SQUARE_HARDCOVER_SPEC.spineTextMinPageCount) {
+    page.drawText('Storycot', {
+      x: spineX + coverSpineWidth / 2 - 20,
+      y: PRINT_PAGE_HEIGHT / 2 - 18,
+      font: sansBold,
+      size: 10,
+      color: rgb(0.95, 0.93, 0.87),
+      rotate: degrees(90),
+    })
 
-  if (coverSpineWidth >= 18) {
     page.drawText(clampText(input.story.title, 36), {
       x: spineX + coverSpineWidth / 2 - 10,
       y: PRINT_PAGE_HEIGHT / 2 - 72,
@@ -1128,9 +1130,17 @@ export async function generateBookPdfs(input: {
   coverPdfUrl: string
   coverPdfReadyForOrdering: boolean
   coverPdfSpineWidthIn: number
-  coverPdfSpineSource: 'configured' | 'assumed'
+  coverPdfSpineSource: 'configured' | 'lulu_table'
+  coverPdfPageWidthIn: number
+  coverPdfPageHeightIn: number
+  coverSpineTextIncluded: boolean
   previewPdfUrl: string
+  previewPdfPageWidthIn: number
+  previewPdfPageHeightIn: number
   printPdfUrl: string
+  printPdfPageWidthIn: number
+  printPdfPageHeightIn: number
+  interiorTextSafeMarginIn: number
   previewImages: string[]
 }> {
   const coverSpine = getLuluCoverSpineWidth(input.project.pageCount)
@@ -1159,8 +1169,16 @@ export async function generateBookPdfs(input: {
     coverPdfReadyForOrdering: true,
     coverPdfSpineWidthIn: coverSpine.widthIn,
     coverPdfSpineSource: coverSpine.source,
+    coverPdfPageWidthIn: Number(((LULU_SQUARE_HARDCOVER_SPEC.trimWidthIn + LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2) * 2 + coverSpine.widthIn).toFixed(3)),
+    coverPdfPageHeightIn: Number((LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn + LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2).toFixed(3)),
+    coverSpineTextIncluded: input.project.pageCount >= LULU_SQUARE_HARDCOVER_SPEC.spineTextMinPageCount,
     previewPdfUrl,
+    previewPdfPageWidthIn: LULU_SQUARE_HARDCOVER_SPEC.trimWidthIn,
+    previewPdfPageHeightIn: LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn,
     printPdfUrl,
+    printPdfPageWidthIn: Number((LULU_SQUARE_HARDCOVER_SPEC.trimWidthIn + LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2).toFixed(3)),
+    printPdfPageHeightIn: Number((LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn + LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2).toFixed(3)),
+    interiorTextSafeMarginIn: LULU_SQUARE_HARDCOVER_SPEC.fullBleedTextSafeMarginIn,
     previewImages: input.project.spreads
       .map((spread) => spread.imageUrl)
       .filter((url): url is string => typeof url === 'string' && url.length > 0),

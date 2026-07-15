@@ -163,10 +163,18 @@ describe('POST /api/books/[id]/build', () => {
     mockGenerateBookPdfs.mockResolvedValue({
       coverPdfUrl: 'https://example.com/books/book-1/cover.pdf',
       coverPdfReadyForOrdering: true,
-      coverPdfSpineWidthIn: 0.08,
-      coverPdfSpineSource: 'assumed',
+      coverPdfSpineWidthIn: 0.25,
+      coverPdfSpineSource: 'lulu_table',
+      coverPdfPageWidthIn: 17.75,
+      coverPdfPageHeightIn: 8.75,
+      coverSpineTextIncluded: false,
       previewPdfUrl: 'https://example.com/books/book-1/preview.pdf',
+      previewPdfPageWidthIn: 8.5,
+      previewPdfPageHeightIn: 8.5,
       printPdfUrl: 'https://example.com/books/book-1/print.pdf',
+      printPdfPageWidthIn: 8.75,
+      printPdfPageHeightIn: 8.75,
+      interiorTextSafeMarginIn: 0.625,
       previewImages: ['https://example.com/books/book-1/cover.svg'],
     })
   })
@@ -237,7 +245,7 @@ describe('POST /api/books/[id]/build', () => {
       expect.objectContaining({
         status: 'proofing',
         assets: expect.objectContaining({
-          exportProfile: 'Lulu Square Hardcover 8.5x8.5',
+          exportProfile: 'Lulu Square 8.5x8.5 Hardcover Casewrap / Premium Color / 80# White',
           coverPdfUrl: 'https://example.com/books/book-1/cover.pdf',
           previewPdfUrl: 'https://example.com/books/book-1/preview.pdf',
           printPdfUrl: 'https://example.com/books/book-1/print.pdf',
@@ -258,8 +266,8 @@ describe('POST /api/books/[id]/build', () => {
     expect(body.assets?.exportVersion).toBe(1)
     expect(body.assets?.orderabilityState).toBe('export_ready')
     expect(body.assets?.proofingPassed).toBe(true)
-    expect(body.assets?.proofingWarnings?.some((warning: string) => warning.includes('Cover spine width is assumed from page count'))).toBe(true)
     expect(body.assets?.proofingErrors).toEqual([])
+    expect(body.assets?.proofingChecks?.some((check: { key: string; status: string }) => check.key === 'spine_width' && check.status === 'pass')).toBe(true)
   })
 
   it('can refresh exports without rerunning planning or illustrations', async () => {
@@ -344,8 +352,8 @@ describe('POST /api/books/[id]/build', () => {
         proofVersion: 3,
         exportVersion: 3,
         artMode: 'generated' as const,
-        coverPdfSpineSource: 'configured' as const,
-        coverPdfSpineWidthIn: 0.31,
+        coverPdfSpineSource: 'lulu_table' as const,
+        coverPdfSpineWidthIn: 0.25,
         coverImageUrl: 'https://example.com/books/book-1/cover.png',
         previewPdfUrl: 'https://example.com/books/book-1/preview.pdf',
         printPdfUrl: 'https://example.com/books/book-1/print.pdf',
@@ -363,10 +371,18 @@ describe('POST /api/books/[id]/build', () => {
     mockGenerateBookPdfs.mockResolvedValue({
       coverPdfUrl: 'https://example.com/books/book-1/cover.pdf',
       coverPdfReadyForOrdering: true,
-      coverPdfSpineWidthIn: 0.31,
-      coverPdfSpineSource: 'configured',
+      coverPdfSpineWidthIn: 0.25,
+      coverPdfSpineSource: 'lulu_table',
+      coverPdfPageWidthIn: 17.75,
+      coverPdfPageHeightIn: 8.75,
+      coverSpineTextIncluded: false,
       previewPdfUrl: 'https://example.com/books/book-1/preview.pdf',
+      previewPdfPageWidthIn: 8.5,
+      previewPdfPageHeightIn: 8.5,
       printPdfUrl: 'https://example.com/books/book-1/print.pdf',
+      printPdfPageWidthIn: 8.75,
+      printPdfPageHeightIn: 8.75,
+      interiorTextSafeMarginIn: 0.625,
       previewImages: ['https://example.com/books/book-1/cover.png'],
     })
 

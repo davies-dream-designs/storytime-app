@@ -63,8 +63,16 @@ async function finalizeProjectExports(input: {
     coverPdfReadyForOrdering: pdfAssets.coverPdfReadyForOrdering,
     coverPdfSpineWidthIn: pdfAssets.coverPdfSpineWidthIn,
     coverPdfSpineSource: pdfAssets.coverPdfSpineSource,
+    coverPdfPageWidthIn: pdfAssets.coverPdfPageWidthIn,
+    coverPdfPageHeightIn: pdfAssets.coverPdfPageHeightIn,
+    coverSpineTextIncluded: pdfAssets.coverSpineTextIncluded,
     previewPdfUrl: pdfAssets.previewPdfUrl,
+    previewPdfPageWidthIn: pdfAssets.previewPdfPageWidthIn,
+    previewPdfPageHeightIn: pdfAssets.previewPdfPageHeightIn,
     printPdfUrl: pdfAssets.printPdfUrl,
+    printPdfPageWidthIn: pdfAssets.printPdfPageWidthIn,
+    printPdfPageHeightIn: pdfAssets.printPdfPageHeightIn,
+    interiorTextSafeMarginIn: pdfAssets.interiorTextSafeMarginIn,
     previewImages: pdfAssets.previewImages,
   }
   const proofingReport = runLuluProofing(

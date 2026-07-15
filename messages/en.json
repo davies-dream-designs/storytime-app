@@ -126,9 +126,18 @@
     "errorName": "Name is required",
     "errorYear": "Birth year is required",
     "months": {
-      "1": "January", "2": "February", "3": "March", "4": "April",
-      "5": "May", "6": "June", "7": "July", "8": "August",
-      "9": "September", "10": "October", "11": "November", "12": "December"
+      "1": "January",
+      "2": "February",
+      "3": "March",
+      "4": "April",
+      "5": "May",
+      "6": "June",
+      "7": "July",
+      "8": "August",
+      "9": "September",
+      "10": "October",
+      "11": "November",
+      "12": "December"
     },
     "profileTitle": "{name}",
     "profileAge": "{age} old · {count} stories",
@@ -277,7 +286,10 @@
       "hero": "Hero spread",
       "quiet": "Quiet spread",
       "end_matter": "End matter"
-    }
+    },
+    "updatedLabel": "Updated {value}",
+    "rebuildButton": "Refresh draft",
+    "rebuildingButton": "Refreshing draft…"
   },
   "account": {
     "title": "Your account",

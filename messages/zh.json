@@ -286,7 +286,10 @@
       "hero": "Hero spread",
       "quiet": "Quiet spread",
       "end_matter": "End matter"
-    }
+    },
+    "updatedLabel": "Updated {value}",
+    "rebuildButton": "Refresh draft",
+    "rebuildingButton": "Refreshing draft…"
   },
   "account": {
     "title": "您的账户",

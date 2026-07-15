@@ -20,6 +20,7 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
   const router = useRouter()
   const [project, setProject] = useState(initialProject)
   const [retrying, setRetrying] = useState(false)
+  const [rebuilding, setRebuilding] = useState(false)
   const [startingBuild, setStartingBuild] = useState(false)
   const buildStartedRef = useRef(false)
 
@@ -72,11 +73,30 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
     setRetrying(false)
   }
 
+  async function handleRebuild() {
+    setRebuilding(true)
+    const res = await fetch(`/api/books/${project.id}/build`, { method: 'POST' })
+    if (res.ok) {
+      const next = (await res.json()) as BookProject
+      setProject(next)
+      router.refresh()
+    }
+    setRebuilding(false)
+  }
+
   const progress = project.totalSpreads > 0
     ? Math.round((project.completedSpreads / project.totalSpreads) * 100)
     : 0
   const readinessState = getBookReadinessState(project)
   const isActiveBuild = project.status !== 'ready' && project.status !== 'failed'
+  const lastUpdated = project.updatedAt
+    ? new Intl.DateTimeFormat(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(new Date(project.updatedAt))
+    : null
 
   return (
     <section className="rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
@@ -90,6 +110,11 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
               total: project.totalSpreads,
             })}
           </p>
+          {lastUpdated ? (
+            <p className="mt-2 text-xs font-medium uppercase tracking-wide text-night-400">
+              {t('updatedLabel', { value: lastUpdated })}
+            </p>
+          ) : null}
         </div>
         <div className="rounded-2xl bg-night-50 px-4 py-3 text-right">
           <p className="text-xs font-bold uppercase tracking-wide text-night-400">{t('progressLabel')}</p>
@@ -150,6 +175,17 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
               ? t('readySub')
               : (project.assets?.proofingErrors?.length ? t('reviewBlockedSub') : t('reviewFallbackSub'))}
           </p>
+          <button
+            onClick={handleRebuild}
+            disabled={rebuilding}
+            className={`mt-4 rounded-full px-4 py-2 text-sm font-bold transition disabled:opacity-60 ${
+              readinessState === 'ready'
+                ? 'bg-green-700 text-white hover:bg-green-600'
+                : 'bg-amber-600 text-white hover:bg-amber-500'
+            }`}
+          >
+            {rebuilding ? t('rebuildingButton') : t('rebuildButton')}
+          </button>
         </div>
       ) : null}
     </section>

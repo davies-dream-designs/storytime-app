@@ -4,6 +4,7 @@ import type { AgeBand, Beat, BookProject, BookSpread, BookSpreadLayoutType } fro
 const HARDCOVER_PAGE_COUNT = 32
 const INTERIOR_START_PAGE = 5
 const INTERIOR_END_PAGE = 28
+const MAX_INTERIOR_STORY_SPREADS = (INTERIOR_END_PAGE - INTERIOR_START_PAGE + 1) / 2
 
 function getTargetStorySpreadCount(ageBand: AgeBand): number {
   switch (ageBand) {
@@ -25,7 +26,7 @@ function getHeroSpreadSequences(ageBand: AgeBand, total: number): Set<number> {
 }
 
 function buildSceneBrief(beat: Beat): string {
-  return [beat.summary, beat.visualIntent].filter(Boolean).join(' ')
+  return beat.summary
 }
 
 function getFirstSentence(text: string): string {
@@ -183,15 +184,54 @@ function createEndMatterSpreads(bookProjectId: string, story: Story, profile: Ch
   ]
 }
 
-function selectStoryBeats(beats: Beat[], targetSpreadCount: number): Beat[] {
-  if (beats.length <= targetSpreadCount) return beats
-
-  const selected: Beat[] = []
-  for (let i = 0; i < targetSpreadCount; i += 1) {
-    const index = Math.round((i * (beats.length - 1)) / (targetSpreadCount - 1))
-    selected.push(beats[index])
+function combineBeatGroup(beats: Beat[], sequence: number): Beat {
+  const firstBeat = beats[0]
+  const lastBeat = beats[beats.length - 1]
+  if (!firstBeat || !lastBeat) {
+    throw new Error('Cannot compose an empty beat group')
   }
-  return selected
+
+  if (beats.length === 1) {
+    return firstBeat
+  }
+
+  const summary = clampText(
+    `${firstBeat.summary} ${lastBeat.summary === firstBeat.summary ? '' : lastBeat.summary}`.replace(/\s+/g, ' ').trim(),
+    180
+  )
+  const visualIntent = beats
+    .map((beat) => beat.visualIntent)
+    .filter(Boolean)
+    .join(' Then, ')
+
+  return {
+    id: `${firstBeat.id}:group:${sequence}`,
+    sequence,
+    purpose: firstBeat.purpose,
+    summary,
+    textDraft: beats.map((beat) => beat.textDraft).join('\n\n'),
+    visualIntent,
+    mood: lastBeat.mood,
+    isQuietBeat: beats.every((beat) => beat.isQuietBeat),
+  }
+}
+
+function groupStoryBeatsForSpreads(beats: Beat[]): Beat[] {
+  if (beats.length <= MAX_INTERIOR_STORY_SPREADS) return beats
+
+  const groups: Beat[] = []
+  let cursor = 0
+
+  for (let i = 0; i < MAX_INTERIOR_STORY_SPREADS; i += 1) {
+    const remainingBeats = beats.length - cursor
+    const remainingGroups = MAX_INTERIOR_STORY_SPREADS - i
+    const groupSize = Math.ceil(remainingBeats / remainingGroups)
+    const group = beats.slice(cursor, cursor + groupSize)
+    groups.push(combineBeatGroup(group, i + 1))
+    cursor += groupSize
+  }
+
+  return groups
 }
 
 function createStoryExpansionSpread(input: {
@@ -331,7 +371,7 @@ function createStorySpreads(
   beats: Beat[]
 ): BookSpread[] {
   const targetCount = getTargetStorySpreadCount(ageBand)
-  const storyBeats = selectStoryBeats(beats, targetCount)
+  const storyBeats = beats.length <= targetCount ? beats : groupStoryBeatsForSpreads(beats)
   const heroSpreadSequences = getHeroSpreadSequences(ageBand, storyBeats.length)
   const spreads: BookSpread[] = []
   let pageStart = INTERIOR_START_PAGE

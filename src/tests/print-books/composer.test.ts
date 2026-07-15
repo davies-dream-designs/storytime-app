@@ -186,4 +186,35 @@ describe('composeHardcoverSpreads', () => {
     expect(interiorSpreads.some((spread) => spread.sceneBrief.includes('notice-and-linger'))).toBe(true)
     expect(interiorSpreads.some((spread) => spread.sceneBrief.includes('turn-the-page'))).toBe(true)
   })
+
+  it('keeps every story page when there are more source pages than hardcover story spreads', () => {
+    const story = createStory(14)
+    const spreads = composeHardcoverSpreads({
+      bookProjectId: 'book-1',
+      story,
+      profile: createProfile(2),
+      ageBand: '0-2',
+      beats: deriveBeatsFromStory(story),
+    })
+
+    const composedText = spreads.map((spread) => `${spread.leftPageText} ${spread.rightPageText}`).join(' ')
+    for (let page = 1; page <= 14; page += 1) {
+      expect(composedText).toContain(`Story page ${page}`)
+    }
+  })
+
+  it('keeps scene brief separate from illustration intent', () => {
+    const story = createStory(1)
+    const spreads = composeHardcoverSpreads({
+      bookProjectId: 'book-1',
+      story,
+      profile: createProfile(4),
+      ageBand: '3-5',
+      beats: deriveBeatsFromStory(story),
+    })
+
+    expect(spreads[2]?.sceneBrief).toContain('Story page 1')
+    expect(spreads[2]?.sceneBrief).not.toContain('Illustration prompt 1')
+    expect(spreads[2]?.illustrationPrompt).toBe('Illustration prompt 1')
+  })
 })

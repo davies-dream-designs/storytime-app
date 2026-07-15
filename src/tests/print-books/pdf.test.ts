@@ -112,6 +112,7 @@ function createProject(): BookProject {
 describe('generateBookPdfs', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    delete process.env.LULU_COVER_SPINE_WIDTH_IN
     mockStoreBookAsset
       .mockResolvedValueOnce('data:application/pdf;base64,cover')
       .mockResolvedValueOnce('data:application/pdf;base64,preview')
@@ -152,5 +153,23 @@ describe('generateBookPdfs', () => {
         contentType: 'application/pdf',
       })
     )
+  })
+
+  it('marks the cover export orderable when an explicit Lulu spine width is configured', async () => {
+    process.env.LULU_COVER_SPINE_WIDTH_IN = '0.31'
+    mockStoreBookAsset.mockReset()
+    mockStoreBookAsset
+      .mockResolvedValueOnce('data:application/pdf;base64,cover')
+      .mockResolvedValueOnce('data:application/pdf;base64,preview')
+      .mockResolvedValueOnce('data:application/pdf;base64,print')
+
+    const { generateBookPdfs } = await import('@/lib/print-books/pdf')
+    const result = await generateBookPdfs({
+      project: createProject(),
+      story: createStory(),
+      profile: createProfile(),
+    })
+
+    expect(result.coverPdfReadyForOrdering).toBe(true)
   })
 })

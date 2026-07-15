@@ -1,6 +1,7 @@
 import { PDFDocument, StandardFonts, clip, degrees, endPath, popGraphicsState, pushGraphicsState, rectangle, rgb } from 'pdf-lib'
 import type { ChildProfile, Story } from '@/types'
 import type { BookProject, BookSpread } from '@/types/printBook'
+import { getLuluCoverSpineWidthIn, hasConfiguredLuluCoverSpineWidth } from '@/lib/print-books/cover'
 import { storeBookAsset } from '@/lib/print-books/storage'
 import { LULU_SQUARE_HARDCOVER_SPEC } from '@/lib/print-books/proofing'
 
@@ -12,9 +13,6 @@ const PRINT_PAGE_WIDTH = (LULU_SQUARE_HARDCOVER_SPEC.trimWidthIn + LULU_SQUARE_H
 const PRINT_PAGE_HEIGHT = (LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn + LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2) * POINTS_PER_INCH
 const BLEED = LULU_SQUARE_HARDCOVER_SPEC.bleedIn * POINTS_PER_INCH
 const SAFE_MARGIN = LULU_SQUARE_HARDCOVER_SPEC.safetyMarginIn * POINTS_PER_INCH
-const APPROX_CASEWRAP_SPINE_WIDTH_IN = 0.25
-const COVER_SPINE_WIDTH = APPROX_CASEWRAP_SPINE_WIDTH_IN * POINTS_PER_INCH
-const COVER_TOTAL_WIDTH = PRINT_PAGE_WIDTH * 2 + COVER_SPINE_WIDTH
 const INNER_TEXT_MARGIN = BLEED + SAFE_MARGIN
 const OUTER_TEXT_MARGIN = BLEED + SAFE_MARGIN
 const TOP_TEXT_MARGIN = BLEED + SAFE_MARGIN
@@ -537,17 +535,19 @@ async function buildCoverPdf(input: {
   const serifBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold)
   const sans = await pdfDoc.embedFont(StandardFonts.Helvetica)
   const sansBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-  const page = pdfDoc.addPage([COVER_TOTAL_WIDTH, PRINT_PAGE_HEIGHT])
+  const coverSpineWidth = getLuluCoverSpineWidthIn() * POINTS_PER_INCH
+  const coverTotalWidth = PRINT_PAGE_WIDTH * 2 + coverSpineWidth
+  const page = pdfDoc.addPage([coverTotalWidth, PRINT_PAGE_HEIGHT])
   const coverSpread = input.project.spreads.find((spread) => spread.sequence === 1)
   const image = await embedSpreadImage(pdfDoc, input.project.assets.coverImageUrl || coverSpread?.imageUrl)
   const backCoverX = 0
   const spineX = PRINT_PAGE_WIDTH
-  const frontCoverX = PRINT_PAGE_WIDTH + COVER_SPINE_WIDTH
+  const frontCoverX = PRINT_PAGE_WIDTH + coverSpineWidth
 
   page.drawRectangle({
     x: 0,
     y: 0,
-    width: COVER_TOTAL_WIDTH,
+    width: coverTotalWidth,
     height: PRINT_PAGE_HEIGHT,
     color: rgb(0.12, 0.14, 0.24),
   })
@@ -563,7 +563,7 @@ async function buildCoverPdf(input: {
   page.drawRectangle({
     x: spineX,
     y: 0,
-    width: COVER_SPINE_WIDTH,
+    width: coverSpineWidth,
     height: PRINT_PAGE_HEIGHT,
     color: rgb(0.17, 0.2, 0.33),
   })
@@ -630,7 +630,7 @@ async function buildCoverPdf(input: {
   })
 
   page.drawText('Storycot', {
-    x: spineX + COVER_SPINE_WIDTH / 2 - 20,
+    x: spineX + coverSpineWidth / 2 - 20,
     y: PRINT_PAGE_HEIGHT / 2 - 18,
     font: sansBold,
     size: 10,
@@ -640,7 +640,7 @@ async function buildCoverPdf(input: {
 
   if (input.project.pageCount >= 100) {
     page.drawText(clampText(input.story.title, 36), {
-      x: spineX + COVER_SPINE_WIDTH / 2 - 10,
+      x: spineX + coverSpineWidth / 2 - 10,
       y: PRINT_PAGE_HEIGHT / 2 - 72,
       font: sansBold,
       size: 9,
@@ -685,7 +685,7 @@ export async function generateBookPdfs(input: {
 
   return {
     coverPdfUrl,
-    coverPdfReadyForOrdering: false,
+    coverPdfReadyForOrdering: hasConfiguredLuluCoverSpineWidth(),
     previewPdfUrl,
     printPdfUrl,
     previewImages: input.project.spreads

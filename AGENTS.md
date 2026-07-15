@@ -49,6 +49,8 @@ Never mark a task complete if any of these fail.
 - Never commit `.env`, `.env.local`, or any file containing real secrets.
 - Never push directly to `main`.
 - Always write a clear, imperative commit message (e.g. `add user profile page`).
+- Work on one feature/fix PR at a time.
+- Keep `dev.storycot.com` pointed at the current active feature/fix branch while that PR is in progress. When starting a new branch, update the Vercel project domain mapping for `dev.storycot.com` to that branch before handing the environment back.
 
 ## Adding dependencies
 

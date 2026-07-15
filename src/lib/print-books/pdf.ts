@@ -24,6 +24,8 @@ type PlaceholderTheme = {
   motif: 'ocean' | 'garden' | 'night' | 'adventure'
 }
 
+type PlaceholderVariant = 0 | 1 | 2
+
 function sanitizeText(value: string): string {
   return value.replace(/\s+/g, ' ').trim()
 }
@@ -199,6 +201,10 @@ function getPageFallbackText(pageNumber: number): string {
   }
 }
 
+function getPlaceholderVariant(seed: number): PlaceholderVariant {
+  return (Math.abs(seed) % 3) as PlaceholderVariant
+}
+
 function drawPageBackground(page: ReturnType<PDFDocument['addPage']>, width: number, height: number, color = rgb(1, 0.99, 0.97)) {
   page.drawRectangle({ x: 0, y: 0, width, height, color })
 }
@@ -207,10 +213,16 @@ function drawThemeArtPanel(input: {
   page: ReturnType<PDFDocument['addPage']>
   rect: { x: number; y: number; width: number; height: number }
   theme: PlaceholderTheme
+  variant?: PlaceholderVariant
   title?: string
   subtitle?: string
 }) {
-  const { page, rect, theme, title, subtitle } = input
+  const { page, rect, theme, title, subtitle, variant = 0 } = input
+  const moonX = variant === 0 ? 0.82 : variant === 1 ? 0.24 : 0.68
+  const moonY = variant === 0 ? 0.84 : variant === 1 ? 0.76 : 0.88
+  const ridgeOneX = variant === 0 ? 0.25 : variant === 1 ? 0.35 : 0.18
+  const ridgeTwoX = variant === 0 ? 0.7 : variant === 1 ? 0.63 : 0.78
+  const ridgeThreeX = variant === 0 ? 0.5 : variant === 1 ? 0.42 : 0.6
   page.drawRectangle({
     x: rect.x,
     y: rect.y,
@@ -227,28 +239,28 @@ function drawThemeArtPanel(input: {
     opacity: 0.35,
   })
   page.drawCircle({
-    x: rect.x + rect.width * 0.82,
-    y: rect.y + rect.height * 0.84,
+    x: rect.x + rect.width * moonX,
+    y: rect.y + rect.height * moonY,
     size: Math.min(rect.width, rect.height) * 0.1,
     color: theme.moon,
     opacity: 0.95,
   })
   page.drawEllipse({
-    x: rect.x + rect.width * 0.25,
+    x: rect.x + rect.width * ridgeOneX,
     y: rect.y + rect.height * 0.12,
     xScale: rect.width * 0.34,
     yScale: rect.height * 0.1,
     color: theme.ground,
   })
   page.drawEllipse({
-    x: rect.x + rect.width * 0.7,
+    x: rect.x + rect.width * ridgeTwoX,
     y: rect.y + rect.height * 0.08,
     xScale: rect.width * 0.38,
     yScale: rect.height * 0.12,
     color: theme.groundAccent,
   })
   page.drawEllipse({
-    x: rect.x + rect.width * 0.5,
+    x: rect.x + rect.width * ridgeThreeX,
     y: rect.y + rect.height * 0.02,
     xScale: rect.width * 0.5,
     yScale: rect.height * 0.08,
@@ -299,10 +311,11 @@ async function drawSpreadArtIntoRect(input: {
   side: 'start' | 'end' | 'cover'
   rect: { x: number; y: number; width: number; height: number }
   story: Story
+  variantSeed?: number
   title?: string
   subtitle?: string
 }) {
-  const { pdfDoc, page, spread, side, rect, story, title, subtitle } = input
+  const { pdfDoc, page, spread, side, rect, story, variantSeed = spread.sequence, title, subtitle } = input
   const image = await embedSpreadImage(pdfDoc, spread.imageUrl)
 
   if (image) {
@@ -352,8 +365,93 @@ async function drawSpreadArtIntoRect(input: {
     page,
     rect,
     theme: pickPlaceholderTheme(story),
+    variant: getPlaceholderVariant(variantSeed + (side === 'end' ? 1 : side === 'cover' ? 2 : 0)),
     title,
     subtitle,
+  })
+}
+
+function drawHalfTitlePage(input: {
+  page: ReturnType<PDFDocument['addPage']>
+  pageWidth: number
+  pageHeight: number
+  story: Story
+  profile: ChildProfile
+  theme: PlaceholderTheme
+  serifBold: Awaited<ReturnType<PDFDocument['embedFont']>>
+  serif: Awaited<ReturnType<PDFDocument['embedFont']>>
+  sansBold: Awaited<ReturnType<PDFDocument['embedFont']>>
+}) {
+  const { page, pageWidth, pageHeight, story, profile, theme, serifBold, serif, sansBold } = input
+  drawPageBackground(page, pageWidth, pageHeight, theme.paper)
+  page.drawText('Storycot', {
+    x: pageWidth * 0.12,
+    y: pageHeight - 72,
+    font: sansBold,
+    size: 12,
+    color: theme.skyAccent,
+  })
+  page.drawText(story.title, {
+    x: pageWidth * 0.12,
+    y: pageHeight * 0.62,
+    font: serifBold,
+    size: 24,
+    color: theme.ink,
+  })
+  page.drawText(`A Storycot story for ${profile.name}`, {
+    x: pageWidth * 0.12,
+    y: pageHeight * 0.56,
+    font: serif,
+    size: 14,
+    color: rgb(0.34, 0.35, 0.4),
+  })
+}
+
+async function drawPreviewCoverPage(input: {
+  pdfDoc: PDFDocument
+  page: ReturnType<PDFDocument['addPage']>
+  spread: BookSpread
+  story: Story
+  profile: ChildProfile
+  pageWidth: number
+  pageHeight: number
+  serifBold: Awaited<ReturnType<PDFDocument['embedFont']>>
+  serif: Awaited<ReturnType<PDFDocument['embedFont']>>
+  sans: Awaited<ReturnType<PDFDocument['embedFont']>>
+}) {
+  const { pdfDoc, page, spread, story, profile, pageWidth, pageHeight, serifBold, serif, sans } = input
+  const theme = pickPlaceholderTheme(story)
+  drawPageBackground(page, pageWidth, pageHeight, theme.paper)
+  const artRect = { x: 0, y: pageHeight * 0.26, width: pageWidth, height: pageHeight * 0.74 }
+  await drawSpreadArtIntoRect({
+    pdfDoc,
+    page,
+    spread,
+    side: 'cover',
+    rect: artRect,
+    story,
+    variantSeed: spread.sequence + 20,
+  })
+  page.drawText('Storycot personalised bedtime story', {
+    x: 28,
+    y: pageHeight - 28,
+    font: sans,
+    size: 10,
+    color: rgb(0.95, 0.93, 0.87),
+  })
+  page.drawText(story.title, {
+    x: pageWidth * 0.12,
+    y: pageHeight * 0.17,
+    font: serifBold,
+    size: 28,
+    color: theme.ink,
+  })
+  page.drawText(`Created for ${profile.name}`, {
+    x: pageWidth * 0.12,
+    y: pageHeight * 0.11,
+    font: serif,
+    size: 16,
+    color: rgb(0.34, 0.35, 0.4),
   })
 }
 
@@ -369,18 +467,10 @@ function drawQuietPage(input: {
 }) {
   const { page, pageWidth, pageHeight, theme, label, note, serifBold, serif } = input
   drawPageBackground(page, pageWidth, pageHeight, theme.paper)
-  page.drawRectangle({
-    x: pageWidth * 0.09,
-    y: pageHeight * 0.2,
-    width: pageWidth * 0.82,
-    height: pageHeight * 0.6,
-    color: rgb(1, 1, 1),
-    opacity: 0.86,
-  })
   if (label) {
     page.drawText(label, {
       x: pageWidth * 0.14,
-      y: pageHeight * 0.64,
+      y: pageHeight * 0.68,
       font: serifBold,
       size: 18,
       color: theme.ink,
@@ -391,7 +481,7 @@ function drawQuietPage(input: {
       page,
       text: note,
       x: pageWidth * 0.14,
-      topY: pageHeight * 0.58,
+      topY: pageHeight * 0.6,
       maxWidth: pageWidth * 0.68,
       lineHeight: 18,
       font: serif,
@@ -423,14 +513,14 @@ function drawTitlePage(input: {
   })
   page.drawText(story.title, {
     x: pageWidth * 0.12,
-    y: pageHeight * 0.56,
+    y: pageHeight * 0.6,
     font: serifBold,
     size: 28,
     color: theme.ink,
   })
   page.drawText(`Created for ${profile.name}`, {
     x: pageWidth * 0.12,
-    y: pageHeight * 0.48,
+    y: pageHeight * 0.54,
     font: serif,
     size: 16,
     color: rgb(0.33, 0.34, 0.4),
@@ -533,18 +623,15 @@ async function drawBookPage(input: {
   drawPageBackground(page, pageWidth, pageHeight, theme.paper)
 
   const text = getPageText(spread, side) || getPageFallbackText(pageNumber)
-  const title = pageNumber === 1 ? story.title : undefined
-  const subtitle = pageNumber === 1 ? `Created for ${story.profileName}` : undefined
 
   await drawSpreadArtIntoRect({
     pdfDoc,
     page,
     spread,
-    side: pageNumber === 1 ? 'cover' : side,
+    side,
     rect: artRect,
     story,
-    title,
-    subtitle,
+    variantSeed: spread.sequence * 2 + (side === 'end' ? 1 : 0),
   })
 
   page.drawRectangle({
@@ -588,15 +675,7 @@ async function drawBookPage(input: {
     })
   }
 
-  if (pageNumber === 1) {
-    page.drawText('Storycot personalised bedtime story', {
-      x: artRect.x + 18,
-      y: artRect.y + artRect.height - 26,
-      font: sans,
-      size: 10,
-      color: rgb(0.95, 0.93, 0.87),
-    })
-  } else if (spread.title && spread.title !== 'Cover' && spread.title !== 'Back Cover') {
+  if (spread.title && spread.title !== 'Cover' && spread.title !== 'Back Cover' && spread.title !== 'Title') {
     page.drawText(spread.title, {
       x: artRect.x + 18,
       y: artRect.y + artRect.height - 26,
@@ -620,6 +699,33 @@ async function buildPreviewPdf(input: {
   const theme = pickPlaceholderTheme(input.story)
 
   for (const spread of input.project.spreads) {
+    if (spread.title === 'Cover') {
+      const coverPage = pdfDoc.addPage([PREVIEW_PAGE_WIDTH, PREVIEW_PAGE_HEIGHT])
+      await drawPreviewCoverPage({
+        pdfDoc,
+        page: coverPage,
+        spread,
+        story: input.story,
+        profile: input.profile,
+        pageWidth: PREVIEW_PAGE_WIDTH,
+        pageHeight: PREVIEW_PAGE_HEIGHT,
+        serifBold,
+        serif,
+        sans,
+      })
+
+      const quietPage = pdfDoc.addPage([PREVIEW_PAGE_WIDTH, PREVIEW_PAGE_HEIGHT])
+      drawQuietPage({
+        page: quietPage,
+        pageWidth: PREVIEW_PAGE_WIDTH,
+        pageHeight: PREVIEW_PAGE_HEIGHT,
+        theme,
+        serifBold,
+        serif,
+      })
+      continue
+    }
+
     if (spread.title === 'Title') {
       const titlePage = pdfDoc.addPage([PREVIEW_PAGE_WIDTH, PREVIEW_PAGE_HEIGHT])
       drawTitlePage({
@@ -715,15 +821,16 @@ async function buildPrintPdf(input: {
   for (const spread of input.project.spreads) {
     if (spread.title === 'Cover') {
       const halfTitlePage = pdfDoc.addPage([PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT])
-      drawQuietPage({
+      drawHalfTitlePage({
         page: halfTitlePage,
         pageWidth: PRINT_PAGE_WIDTH,
         pageHeight: PRINT_PAGE_HEIGHT,
+        story: input.story,
+        profile: input.profile,
         theme,
-        label: input.story.title,
-        note: `A Storycot story for ${input.profile.name}`,
         serifBold,
         serif,
+        sansBold,
       })
 
       const blankFrontMatter = pdfDoc.addPage([PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT])
@@ -732,7 +839,6 @@ async function buildPrintPdf(input: {
         pageWidth: PRINT_PAGE_WIDTH,
         pageHeight: PRINT_PAGE_HEIGHT,
         theme,
-        note: getPageFallbackText(2),
         serifBold,
         serif,
       })
@@ -915,8 +1021,7 @@ async function buildCoverPdf(input: {
         height: PRINT_PAGE_HEIGHT,
       },
       theme,
-      title: input.story.title,
-      subtitle: `Created for ${input.profile.name}`,
+      variant: 1,
     })
   }
 

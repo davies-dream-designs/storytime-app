@@ -51,16 +51,18 @@ export default function CreatePrintBookButton({ storyId }: { storyId: string }) 
   }
 
   return (
-    <div className="flex flex-col items-start gap-2">
+    <div className={error ? 'basis-full sm:basis-auto' : ''}>
       <button
         onClick={handleCreate}
         disabled={loading}
-        className="rounded-full border border-star-200 bg-star-50 px-4 py-2 text-sm font-bold text-star-700 transition hover:bg-star-100 disabled:cursor-not-allowed disabled:opacity-60"
+        className={`rounded-full border border-star-200 bg-star-50 px-4 py-2 text-sm font-bold text-star-700 transition hover:bg-star-100 disabled:cursor-not-allowed disabled:opacity-60 ${
+          error ? 'w-full sm:w-auto' : ''
+        }`}
       >
         {loading ? t('creatingButton') : t('createButton')}
       </button>
       {error ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="mt-3 max-w-md rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 sm:max-w-sm">
           <p className="font-bold">{t('createErrorTitle')}</p>
           <p className="mt-1">{error}</p>
         </div>

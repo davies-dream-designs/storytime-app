@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { PDFDocument, StandardFonts, clip, endPath, popGraphicsState, pushGraphicsState, rectangle, rgb } from 'pdf-lib'
 import type { ChildProfile, Story } from '@/types'
 import type { BookProject, BookSpread } from '@/types/printBook'
 import { storeBookAsset } from '@/lib/print-books/storage'
@@ -373,15 +373,40 @@ async function drawPrintPage(input: {
   const image = await embedSpreadImage(pdfDoc, spread.imageUrl)
 
   if (image) {
-    const scale = Math.max(PRINT_PAGE_WIDTH / image.width, PRINT_PAGE_HEIGHT / image.height)
-    const drawWidth = image.width * scale
-    const drawHeight = image.height * scale
-    page.drawImage(image, {
-      x: (PRINT_PAGE_WIDTH - drawWidth) / 2,
-      y: (PRINT_PAGE_HEIGHT - drawHeight) / 2,
-      width: drawWidth,
-      height: drawHeight,
-    })
+    const shouldSplitSpreadImage = spread.layoutType !== 'front_matter' && spread.layoutType !== 'end_matter'
+
+    if (shouldSplitSpreadImage) {
+      const spreadWidth = PRINT_PAGE_WIDTH * 2
+      const scale = Math.max(spreadWidth / image.width, PRINT_PAGE_HEIGHT / image.height)
+      const drawWidth = image.width * scale
+      const drawHeight = image.height * scale
+      const spreadX = (spreadWidth - drawWidth) / 2
+      const pageOffsetX = side === 'start' ? 0 : -PRINT_PAGE_WIDTH
+
+      page.pushOperators(
+        pushGraphicsState(),
+        rectangle(0, 0, PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT),
+        clip(),
+        endPath(),
+      )
+      page.drawImage(image, {
+        x: spreadX + pageOffsetX,
+        y: (PRINT_PAGE_HEIGHT - drawHeight) / 2,
+        width: drawWidth,
+        height: drawHeight,
+      })
+      page.pushOperators(popGraphicsState())
+    } else {
+      const scale = Math.max(PRINT_PAGE_WIDTH / image.width, PRINT_PAGE_HEIGHT / image.height)
+      const drawWidth = image.width * scale
+      const drawHeight = image.height * scale
+      page.drawImage(image, {
+        x: (PRINT_PAGE_WIDTH - drawWidth) / 2,
+        y: (PRINT_PAGE_HEIGHT - drawHeight) / 2,
+        width: drawWidth,
+        height: drawHeight,
+      })
+    }
   } else {
     page.drawRectangle({ x: 0, y: 0, width: PRINT_PAGE_WIDTH, height: PRINT_PAGE_HEIGHT, color: rgb(0.97, 0.95, 0.9) })
   }

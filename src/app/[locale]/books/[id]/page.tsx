@@ -32,6 +32,7 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
   const story = await db.stories.getById(project.sourceStoryId)
   if (!story || story.userId !== userId) notFound()
   const coverSpread = project.spreads.find((spread) => spread.sequence === 1 || spread.title === 'Cover')
+  const hasProofingErrors = Boolean(project.assets.proofingErrors && project.assets.proofingErrors.length > 0)
 
   return (
     <>
@@ -95,7 +96,11 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
           <section className="mt-8 rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
             <h2 className="font-display text-2xl font-bold text-night-800">{t('proofingTitle')}</h2>
             <p className="mt-3 text-night-600">
-              {project.assets.proofingPassed ? t('proofingPassed') : t('proofingReviewNeeded')}
+              {hasProofingErrors
+                ? t('proofingBlocked')
+                : project.assets.proofingPassed
+                  ? t('proofingPassed')
+                  : t('proofingReviewNeeded')}
             </p>
 
             {project.assets.exportProfile ? (

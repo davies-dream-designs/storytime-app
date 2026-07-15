@@ -68,6 +68,7 @@ export interface BookSpread {
 
 export interface BookAsset {
   coverImageUrl?: string
+  coverPdfUrl?: string
   previewPdfUrl?: string
   printPdfUrl?: string
   previewImages?: string[]

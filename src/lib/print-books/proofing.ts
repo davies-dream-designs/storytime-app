@@ -39,6 +39,10 @@ export function runLuluProofing(project: BookProject): ProofingReport {
     errors.push('Cover image asset is missing.')
   }
 
+  if (!project.assets.coverPdfUrl) {
+    errors.push('Separate Lulu cover PDF is missing.')
+  }
+
   const spreadsMissingImages = project.spreads.filter((spread) => !spread.imageUrl).map((spread) => spread.sequence)
   if (spreadsMissingImages.length > 0) {
     errors.push(`Spread images are missing for spreads: ${spreadsMissingImages.join(', ')}.`)
@@ -61,11 +65,7 @@ export function runLuluProofing(project: BookProject): ProofingReport {
   )
 
   warnings.push(
-    'Print PDF is now single-page and bleed-aware, but the current spread model is conceptual and should still be visually reviewed for left/right page flow.'
-  )
-
-  warnings.push(
-    'Lulu distribution still requires a separate one-piece cover PDF with template-specific spine width; the current build stores cover art, not a final cover PDF.'
+    'Interior print pages are rendered as single pages with split spread artwork, but every project still needs a manual Lulu preview check before ordering.'
   )
 
   return {

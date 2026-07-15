@@ -32,6 +32,7 @@ function createBookProject(): BookProject {
     assets: {
       proofVersion: 0,
       coverImageUrl: 'https://example.com/cover.png',
+      coverPdfUrl: 'https://example.com/cover.pdf',
       previewPdfUrl: 'https://example.com/preview.pdf',
       printPdfUrl: 'https://example.com/print.pdf',
       previewImages: Array.from({ length: 16 }, (_, index) => `https://example.com/${index + 1}.png`),
@@ -55,6 +56,7 @@ describe('runLuluProofing', () => {
   it('fails when core print artifacts are missing', async () => {
     const { runLuluProofing } = await import('@/lib/print-books/proofing')
     const project = createBookProject()
+    project.assets.coverPdfUrl = undefined
     project.assets.printPdfUrl = undefined
     project.spreads[4] = {
       ...project.spreads[4]!,
@@ -63,6 +65,7 @@ describe('runLuluProofing', () => {
 
     const report = runLuluProofing(project)
     expect(report.passed).toBe(false)
+    expect(report.errors.some((error) => error.includes('Separate Lulu cover PDF is missing'))).toBe(true)
     expect(report.errors.some((error) => error.includes('Print PDF is missing'))).toBe(true)
     expect(report.errors.some((error) => error.includes('Spread images are missing'))).toBe(true)
   })

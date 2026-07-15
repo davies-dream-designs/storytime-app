@@ -167,7 +167,7 @@ describe('POST /api/books/[id]/build', () => {
     })
   })
 
-  it('builds a character bible, generates a cover, and returns a ready project', async () => {
+  it('builds a character bible, generates a cover, and returns a ready project with proofing issues surfaced', async () => {
     const { POST } = await import('@/app/api/books/[id]/build/route')
     const res = await POST(new NextRequest('http://localhost/api/books/book-1/build', { method: 'POST' }), {
       params: Promise.resolve({ id: 'book-1' }),
@@ -234,7 +234,7 @@ describe('POST /api/books/[id]/build', () => {
           exportProfile: 'Lulu Square Hardcover 8.5x8.5',
           previewPdfUrl: 'https://example.com/books/book-1/preview.pdf',
           printPdfUrl: 'https://example.com/books/book-1/print.pdf',
-          proofingPassed: true,
+          proofingPassed: false,
           proofingWarnings: expect.any(Array),
           proofingErrors: expect.any(Array),
         }),
@@ -243,6 +243,7 @@ describe('POST /api/books/[id]/build', () => {
     expect(body.assets?.coverImageUrl).toBe('https://example.com/books/book-1/cover.svg')
     expect(body.assets?.previewPdfUrl).toBe('https://example.com/books/book-1/preview.pdf')
     expect(body.assets?.printPdfUrl).toBe('https://example.com/books/book-1/print.pdf')
-    expect(body.assets?.proofingPassed).toBe(true)
+    expect(body.assets?.proofingPassed).toBe(false)
+    expect(body.assets?.proofingErrors).toContain('Separate Lulu cover PDF is missing.')
   })
 })

@@ -29,6 +29,9 @@ export default async function BookProjectPage({
   const printPdfUrl = isDownloadableBookAssetUrl(project.assets.printPdfUrl)
     ? project.assets.printPdfUrl
     : undefined;
+  const epubUrl = isDownloadableBookAssetUrl(project.assets.epubUrl)
+    ? project.assets.epubUrl
+    : undefined;
   const hasInlineFallbackExports = isInlineBookAssetUrl(
     project.assets.printPdfUrl
   );
@@ -60,21 +63,33 @@ export default async function BookProjectPage({
 
         <BookStatusPanel initialProject={project} />
 
-        {printPdfUrl || hasInlineFallbackExports ? (
+        {printPdfUrl || epubUrl || hasInlineFallbackExports ? (
           <section className="mt-8 rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
             <h2 className="font-display text-2xl font-bold text-night-800">
               {t("illustratedPdfDownloadTitle")}
             </h2>
-            {printPdfUrl ? (
+            {printPdfUrl || epubUrl ? (
               <div className="mt-4 flex flex-wrap gap-3">
-                <a
-                  href={printPdfUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full bg-night-700 px-5 py-3 text-sm font-bold text-moon-200 transition hover:bg-night-600"
-                >
-                  {t("illustratedPdfButton")}
-                </a>
+                {printPdfUrl ? (
+                  <a
+                    href={printPdfUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-full bg-night-700 px-5 py-3 text-sm font-bold text-moon-200 transition hover:bg-night-600"
+                  >
+                    {t("illustratedPdfButton")}
+                  </a>
+                ) : null}
+                {epubUrl ? (
+                  <a
+                    href={epubUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-full border border-night-200 px-5 py-3 text-sm font-bold text-night-700 transition hover:bg-night-50"
+                  >
+                    {t("epubButton")}
+                  </a>
+                ) : null}
               </div>
             ) : null}
             {hasInlineFallbackExports ? (

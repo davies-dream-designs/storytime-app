@@ -16,6 +16,7 @@ import {
   submitBookImageBatch,
 } from "@/lib/print-books/illustrations";
 import { generateBookPdfs } from "@/lib/print-books/pdf";
+import { generateBookEpub } from "@/lib/print-books/epub";
 import {
   LULU_SQUARE_HARDCOVER_SPEC,
   runLuluProofing,
@@ -368,6 +369,11 @@ async function finalizeProjectExports(input: {
     story: input.story,
     profile: input.profile,
   });
+  const epubAssets = await generateBookEpub({
+    project: input.project,
+    story: input.story,
+    profile: input.profile,
+  });
 
   const proofingAssets = {
     ...input.project.assets,
@@ -383,6 +389,7 @@ async function finalizeProjectExports(input: {
     previewPdfPageWidthIn: undefined,
     previewPdfPageHeightIn: undefined,
     printPdfUrl: pdfAssets.printPdfUrl,
+    epubUrl: epubAssets.epubUrl,
     printPdfPageWidthIn: pdfAssets.printPdfPageWidthIn,
     printPdfPageHeightIn: pdfAssets.printPdfPageHeightIn,
     interiorTextSafeMarginIn: pdfAssets.interiorTextSafeMarginIn,

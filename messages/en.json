@@ -363,7 +363,8 @@
     "finalizeButton": "Finalize for order",
     "refreshFinalButton": "Refresh final package",
     "finalizingButton": "Finalizing package…",
-    "finalizedAtLabel": "Finalized {value}"
+    "finalizedAtLabel": "Finalized {value}",
+    "epubButton": "Open EPUB for e-readers"
   },
   "account": {
     "title": "Your account",

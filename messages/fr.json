@@ -363,7 +363,8 @@
     "illustratedPdfButton": "Ouvrir le PDF illustré",
     "hardcoverTitle": "Couverture rigide",
     "hardcoverSub": "La commande en couverture rigide utilisera ce PDF illustré lorsque l’option sera disponible.",
-    "hardcoverButton": "Commande couverture rigide bientôt disponible"
+    "hardcoverButton": "Commande couverture rigide bientôt disponible",
+    "epubButton": "Ouvrir l’EPUB pour liseuses"
   },
   "account": {
     "title": "Votre compte",

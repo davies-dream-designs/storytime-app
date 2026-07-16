@@ -363,7 +363,8 @@
     "illustratedPdfButton": "打开插图 PDF",
     "hardcoverTitle": "精装书",
     "hardcoverSub": "精装订购启用后将使用此插图 PDF。",
-    "hardcoverButton": "精装订购即将推出"
+    "hardcoverButton": "精装订购即将推出",
+    "epubButton": "打开电子书 EPUB"
   },
   "account": {
     "title": "您的账户",

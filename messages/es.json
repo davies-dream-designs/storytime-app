@@ -363,7 +363,8 @@
     "illustratedPdfButton": "Abrir PDF ilustrado",
     "hardcoverTitle": "Tapa dura",
     "hardcoverSub": "El pedido de tapa dura usará este PDF ilustrado cuando esté disponible.",
-    "hardcoverButton": "Pedido de tapa dura próximamente"
+    "hardcoverButton": "Pedido de tapa dura próximamente",
+    "epubButton": "Abrir EPUB para lectores electrónicos"
   },
   "account": {
     "title": "Tu cuenta",

@@ -115,6 +115,7 @@ export interface BookAsset {
   previewPdfPageWidthIn?: number;
   previewPdfPageHeightIn?: number;
   printPdfUrl?: string;
+  epubUrl?: string;
   printPdfPageWidthIn?: number;
   printPdfPageHeightIn?: number;
   interiorTextSafeMarginIn?: number;

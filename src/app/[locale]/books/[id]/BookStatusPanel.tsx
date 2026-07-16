@@ -26,7 +26,7 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
   const [finalizing, setFinalizing] = useState(false)
   const [startingBuild, setStartingBuild] = useState(false)
   const buildStartedRef = useRef(false)
-  const continuationInFlightRef = useRef(false)
+  const activeJobStatus = project.assets.activeJobStatus
 
   useEffect(() => {
     if (project.status !== 'queued' || buildStartedRef.current) return
@@ -39,7 +39,6 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
         if (!res.ok) return
         const next = (await res.json()) as BookProject
         setProject(next)
-        router.refresh()
       })
       .catch(() => {
         buildStartedRef.current = false
@@ -47,44 +46,26 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
       .finally(() => {
         setStartingBuild(false)
       })
-  }, [project.assets.lastBuildMode, project.id, project.status, router])
+  }, [project.id, project.status])
 
   useEffect(() => {
-    if (isTerminal(project.status)) return
+    if (isTerminal(project.status) && !activeJobStatus) return
 
     const interval = window.setInterval(async () => {
-      if (continuationInFlightRef.current) return
-      continuationInFlightRef.current = true
+      const res = await fetch(`/api/books/${project.id}/status`, { cache: 'no-store' })
+      if (!res.ok) return
+      const next = (await res.json()) as BookStatusPayload
+      setProject((current) => ({ ...current, ...next }))
 
-      try {
-        if (project.assets.lastBuildMode === 'art' && project.status === 'illustrating') {
-          const res = await fetch(`/api/books/${project.id}/build`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mode: 'art' }),
-          })
-          if (res.ok) {
-            const next = (await res.json()) as BookProject
-            setProject(next)
-            if (next.status === 'ready') router.refresh()
-          }
-        } else {
-          const res = await fetch(`/api/books/${project.id}/status`, { cache: 'no-store' })
-          if (!res.ok) return
-          const next = (await res.json()) as BookStatusPayload
-          setProject((current) => ({ ...current, ...next }))
-
-          if (next.status === 'ready') {
-            router.refresh()
-          }
+      if (next.status === 'ready' || next.status === 'failed') {
+        if (!next.assets.activeJobStatus) {
+          router.refresh()
         }
-      } finally {
-        continuationInFlightRef.current = false
       }
     }, 4000)
 
     return () => window.clearInterval(interval)
-  }, [project.assets.lastBuildMode, project.id, project.status, router])
+  }, [activeJobStatus, project.id, project.status, router])
 
   async function handleRetry() {
     setRetrying(true)
@@ -92,7 +73,6 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
     if (res.ok) {
       const next = (await res.json()) as BookProject
       setProject(next)
-      router.refresh()
     }
     setRetrying(false)
   }
@@ -107,7 +87,6 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
     if (res.ok) {
       const next = (await res.json()) as BookProject
       setProject(next)
-      router.refresh()
     }
     setRebuilding(false)
   }
@@ -122,7 +101,6 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
     if (res.ok) {
       const next = (await res.json()) as BookProject
       setProject(next)
-      router.refresh()
     }
     setRefreshingExports(false)
   }
@@ -137,7 +115,6 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
     if (res.ok) {
       const next = (await res.json()) as BookProject
       setProject(next)
-      router.refresh()
     }
     setGeneratingArt(false)
   }
@@ -152,7 +129,6 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
     if (res.ok) {
       const next = (await res.json()) as BookProject
       setProject(next)
-      router.refresh()
     }
     setFinalizing(false)
   }
@@ -161,7 +137,8 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
     ? Math.round((project.completedSpreads / project.totalSpreads) * 100)
     : 0
   const readinessState = getBookReadinessState(project)
-  const isActiveBuild = project.status !== 'ready' && project.status !== 'failed'
+  const isActiveBuild = project.status !== 'ready' && project.status !== 'failed' || Boolean(activeJobStatus)
+  const actionLocked = Boolean(activeJobStatus) || retrying || rebuilding || generatingArt || refreshingExports || finalizing
   const lastUpdated = project.updatedAt
     ? new Intl.DateTimeFormat(undefined, {
       month: 'short',
@@ -283,7 +260,7 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
           <div className="mt-4 flex flex-wrap gap-3">
             <button
               onClick={handleGenerateFinalArt}
-              disabled={generatingArt || finalizing || rebuilding || refreshingExports}
+              disabled={actionLocked}
               className="rounded-full border border-night-300 px-4 py-2 text-sm font-bold text-night-700 transition hover:bg-night-50 disabled:opacity-60"
             >
               {generatingArt
@@ -294,7 +271,7 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
             </button>
             <button
               onClick={handleRefreshExports}
-              disabled={refreshingExports || rebuilding || finalizing || generatingArt}
+              disabled={actionLocked}
               className={`rounded-full px-4 py-2 text-sm font-bold transition disabled:opacity-60 ${
                 readinessState === 'order_ready'
                   ? 'border border-green-300 text-green-700 hover:bg-green-100'
@@ -307,7 +284,7 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
             </button>
             <button
               onClick={handleRebuild}
-              disabled={rebuilding || refreshingExports || finalizing || generatingArt}
+              disabled={actionLocked}
               className={`rounded-full px-4 py-2 text-sm font-bold transition disabled:opacity-60 ${
                 readinessState === 'order_ready'
                   ? 'bg-green-700 text-white hover:bg-green-600'
@@ -320,7 +297,7 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
             </button>
             <button
               onClick={handleFinalizeForOrder}
-              disabled={finalizing || rebuilding || refreshingExports || generatingArt || readinessState === 'draft_ready'}
+              disabled={actionLocked || readinessState === 'draft_ready'}
               className="rounded-full bg-night-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-night-700 disabled:opacity-60"
             >
               {finalizing ? t('finalizingButton') : readinessState === 'order_ready' ? t('refreshFinalButton') : t('finalizeButton')}

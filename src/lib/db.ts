@@ -1,6 +1,6 @@
 import { kv } from '@vercel/kv'
 import type { ChildProfile, Story, Character } from '@/types'
-import type { BookProject } from '@/types/printBook'
+import type { BookBuildJob, BookProject } from '@/types/printBook'
 
 export const db = {
   profiles: {
@@ -164,6 +164,61 @@ export const db = {
       }
 
       await this.replace(id, next)
+      return next
+    },
+  },
+
+  bookBuildJobs: {
+    jobKey(id: string): string {
+      return `bookBuildJob:${id}`
+    },
+    projectIndexKey(projectId: string): string {
+      return `bookBuildJobByProject:${projectId}`
+    },
+    async getById(id: string): Promise<BookBuildJob | undefined> {
+      return (await kv.get<BookBuildJob>(this.jobKey(id))) ?? undefined
+    },
+    async getCurrentByProjectId(projectId: string): Promise<BookBuildJob | undefined> {
+      const jobId = await kv.get<string>(this.projectIndexKey(projectId))
+      if (!jobId) return undefined
+      const job = await this.getById(jobId)
+      if (!job) {
+        await kv.del(this.projectIndexKey(projectId))
+        return undefined
+      }
+      return job
+    },
+    async create(job: BookBuildJob): Promise<void> {
+      await Promise.all([
+        kv.set(this.jobKey(job.id), job),
+        kv.set(this.projectIndexKey(job.projectId), job.id),
+      ])
+    },
+    async replace(id: string, job: BookBuildJob): Promise<void> {
+      await kv.set(this.jobKey(id), job)
+      if (job.status === 'queued' || job.status === 'running') {
+        await kv.set(this.projectIndexKey(job.projectId), job.id)
+      }
+    },
+    async update(id: string, updates: Partial<BookBuildJob>): Promise<BookBuildJob | undefined> {
+      const current = await this.getById(id)
+      if (!current) return undefined
+
+      const next: BookBuildJob = {
+        ...current,
+        ...updates,
+        updatedAt: updates.updatedAt ?? new Date().toISOString(),
+      }
+
+      await this.replace(id, next)
+
+      if (next.status === 'completed' || next.status === 'failed') {
+        const indexedJobId = await kv.get<string>(this.projectIndexKey(next.projectId))
+        if (indexedJobId === id) {
+          await kv.del(this.projectIndexKey(next.projectId))
+        }
+      }
+
       return next
     },
   },

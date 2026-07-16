@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
+import { dispatchBookBuildJob, isBookBuildJobStale } from '@/lib/print-books/jobs'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
@@ -10,6 +11,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const project = await db.bookProjects.getById(id)
   if (!project || project.userId !== userId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
+  const activeJob = project.assets.activeJobId
+    ? await db.bookBuildJobs.getById(project.assets.activeJobId)
+    : await db.bookBuildJobs.getCurrentByProjectId(project.id)
+
+  if (activeJob && activeJob.projectId === project.id && isBookBuildJobStale(activeJob)) {
+    after(async () => {
+      await dispatchBookBuildJob(activeJob)
+    })
   }
 
   return NextResponse.json({
@@ -24,6 +35,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     errorMessage: project.errorMessage,
     assets: {
       lastBuildMode: project.assets.lastBuildMode,
+      activeJobId: project.assets.activeJobId,
+      activeJobMode: project.assets.activeJobMode,
+      activeJobStatus: project.assets.activeJobStatus,
+      activeJobUpdatedAt: project.assets.activeJobUpdatedAt,
       artMode: project.assets.artMode,
       artGenerationCursor: project.assets.artGenerationCursor,
       artGenerationTotal: project.assets.artGenerationTotal,

@@ -12,6 +12,10 @@ const mockDb = {
   profiles: {
     getById: vi.fn(),
   },
+  bookBuildJobs: {
+    getById: vi.fn(),
+    getCurrentByProjectId: vi.fn(),
+  },
   bookProjects: {
     getById: vi.fn(),
     getByUserId: vi.fn(),
@@ -87,6 +91,8 @@ describe('/api/books', () => {
     mockAuth.mockResolvedValue({ userId: 'user-1' })
     mockDb.stories.getById.mockResolvedValue(createStory())
     mockDb.profiles.getById.mockResolvedValue(createProfile())
+    mockDb.bookBuildJobs.getById.mockResolvedValue(undefined)
+    mockDb.bookBuildJobs.getCurrentByProjectId.mockResolvedValue(undefined)
     mockDb.bookProjects.getByUserId.mockResolvedValue([])
     mockDb.bookProjects.create.mockResolvedValue(undefined)
   })
@@ -123,6 +129,8 @@ describe('/api/books/[id] and /status', () => {
     vi.resetModules()
     vi.clearAllMocks()
     mockAuth.mockResolvedValue({ userId: 'user-1' })
+    mockDb.bookBuildJobs.getById.mockResolvedValue(undefined)
+    mockDb.bookBuildJobs.getCurrentByProjectId.mockResolvedValue(undefined)
     mockDb.bookProjects.getById.mockResolvedValue(createBookProject())
   })
 

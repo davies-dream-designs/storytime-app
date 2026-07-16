@@ -11,6 +11,7 @@ export type BookProjectStatus =
   | 'failed'
 
 export type BookBuildMode = 'full' | 'art' | 'exports' | 'finalize'
+export type BookBuildJobStatus = 'queued' | 'running' | 'completed' | 'failed'
 
 export type BookArtMode = 'placeholder' | 'generated' | 'mixed'
 
@@ -100,6 +101,10 @@ export interface BookAsset {
   exportVersion?: number
   finalExportVersion?: number
   lastBuildMode?: BookBuildMode
+  activeJobId?: string
+  activeJobMode?: BookBuildMode
+  activeJobStatus?: BookBuildJobStatus
+  activeJobUpdatedAt?: string
   artGenerationCursor?: number
   artGenerationTotal?: number
   orderabilityState?: BookOrderabilityState
@@ -135,4 +140,22 @@ export interface BookProject {
   createdAt: string
   updatedAt: string
   readyAt?: string
+}
+
+export interface BookBuildJob {
+  id: string
+  projectId: string
+  userId: string
+  mode: BookBuildMode
+  status: BookBuildJobStatus
+  step: number
+  totalSteps?: number
+  token: string
+  baseUrl: string
+  currentStepLabel?: string
+  errorMessage?: string
+  startedAt?: string
+  completedAt?: string
+  createdAt: string
+  updatedAt: string
 }

@@ -240,6 +240,24 @@ function getPageText(spread: BookSpread, side: 'start' | 'end'): string {
   return side === 'start' ? spread.leftPageText : spread.rightPageText
 }
 
+function getWordmarkWidth(font: Awaited<ReturnType<PDFDocument['embedFont']>>, iconSize: number): number {
+  const fontSize = Math.round(iconSize * 0.56)
+  return iconSize + 8 + font.widthOfTextAtSize('Storycot', fontSize)
+}
+
+function drawCenteredText(input: {
+  page: ReturnType<PDFDocument['addPage']>
+  text: string
+  centerX: number
+  y: number
+  font: Awaited<ReturnType<PDFDocument['embedFont']>>
+  size: number
+  color: ReturnType<typeof rgb>
+}) {
+  const { page, text, centerX, y, font, size, color } = input
+  page.drawText(text, { x: centerX - font.widthOfTextAtSize(text, size) / 2, y, font, size, color })
+}
+
 function getPlaceholderVariant(seed: number): PlaceholderVariant {
   return (Math.abs(seed) % 3) as PlaceholderVariant
 }
@@ -606,6 +624,41 @@ async function drawCopyrightPage(input: {
   })
 }
 
+// Second-to-last interior page: a clean, centred "The End" leaf.
+async function drawEndLeafPage(input: {
+  pdfDoc: PDFDocument
+  page: ReturnType<PDFDocument['addPage']>
+  pageWidth: number
+  pageHeight: number
+  serif: Awaited<ReturnType<PDFDocument['embedFont']>>
+  serifBold: Awaited<ReturnType<PDFDocument['embedFont']>>
+  sans: Awaited<ReturnType<PDFDocument['embedFont']>>
+}) {
+  const { pdfDoc, page, pageWidth, pageHeight, serifBold, sans } = input
+  const centerX = pageWidth / 2
+  drawPageBackground(page, pageWidth, pageHeight, BRAND_PURPLE)
+  const iconSize = 44
+  await drawBrandWordmark({
+    pdfDoc,
+    page,
+    variant: 'light',
+    x: centerX - getWordmarkWidth(sans, iconSize) / 2,
+    y: pageHeight * 0.7,
+    iconSize,
+    font: sans,
+  })
+  drawCenteredText({
+    page,
+    text: 'The End',
+    centerX,
+    y: pageHeight * 0.46,
+    font: serifBold,
+    size: 34,
+    color: rgb(0.99, 0.96, 0.88),
+  })
+}
+
+// Final interior page: centred Storycot colophon with a gentle call to action.
 async function drawClosingBrandPage(input: {
   pdfDoc: PDFDocument
   page: ReturnType<PDFDocument['addPage']>
@@ -615,26 +668,32 @@ async function drawClosingBrandPage(input: {
   sans: Awaited<ReturnType<PDFDocument['embedFont']>>
 }) {
   const { pdfDoc, page, pageWidth, pageHeight, serif, sans } = input
+  const centerX = pageWidth / 2
   drawPageBackground(page, pageWidth, pageHeight, BRAND_PURPLE)
+  const iconSize = 52
   await drawBrandWordmark({
     pdfDoc,
     page,
     variant: 'light',
-    x: pageWidth / 2 - 98,
-    y: pageHeight * 0.64,
-    iconSize: 52,
+    x: centerX - getWordmarkWidth(sans, iconSize) / 2,
+    y: pageHeight * 0.6,
+    iconSize,
     font: sans,
   })
-  page.drawText('Sweet dreams.', {
-    x: pageWidth * 0.28,
-    y: pageHeight * 0.48,
+  drawCenteredText({
+    page,
+    text: 'Sweet dreams.',
+    centerX,
+    y: pageHeight * 0.44,
     font: serif,
-    size: 22,
+    size: 24,
     color: rgb(0.99, 0.96, 0.88),
   })
-  page.drawText('Create your own personalised bedtime story at storycot.com', {
-    x: pageWidth * 0.14,
-    y: pageHeight * 0.18,
+  drawCenteredText({
+    page,
+    text: 'Create your own personalised bedtime story at storycot.com',
+    centerX,
+    y: pageHeight * 0.16,
     font: serif,
     size: 12,
     color: rgb(0.95, 0.93, 0.87),
@@ -771,6 +830,17 @@ async function buildPrintPdf(input: {
     }
 
     if (spread.title === 'Back Cover') {
+      const endLeafPage = pdfDoc.addPage([PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT])
+      await drawEndLeafPage({
+        pdfDoc,
+        page: endLeafPage,
+        pageWidth: PRINT_PAGE_WIDTH,
+        pageHeight: PRINT_PAGE_HEIGHT,
+        serif,
+        serifBold,
+        sans,
+      })
+
       const closingBrandPage = pdfDoc.addPage([PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT])
       await drawClosingBrandPage({
         pdfDoc,
@@ -779,18 +849,6 @@ async function buildPrintPdf(input: {
         pageHeight: PRINT_PAGE_HEIGHT,
         serif,
         sans,
-      })
-
-      const backMatterPage = pdfDoc.addPage([PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT])
-      await drawFrontispiecePage({
-        pdfDoc,
-        page: backMatterPage,
-        spread: { ...spread, imageUrl: undefined },
-        story: input.story,
-        pageWidth: PRINT_PAGE_WIDTH,
-        pageHeight: PRINT_PAGE_HEIGHT,
-        sans,
-        branded: true,
       })
       continue
     }

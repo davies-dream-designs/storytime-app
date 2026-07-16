@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import Image from "next/image";
 import { usePathname } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 
@@ -133,14 +134,15 @@ export function GlobalPendingProvider({ children }: { children: ReactNode }) {
             active ? "scale-100 opacity-100" : "scale-95 opacity-0"
           }`}
         >
-          <div className="storycot-loader-scene" aria-hidden="true">
-            <div className="storycot-loader-moon" />
-            <div className="storycot-loader-book">
-              <div className="storycot-loader-page storycot-loader-page-left" />
-              <div className="storycot-loader-page storycot-loader-page-right" />
-            </div>
-            <div className="storycot-loader-star storycot-loader-star-a" />
-            <div className="storycot-loader-star storycot-loader-star-b" />
+          <div className="animate-drift flex justify-center" aria-hidden="true">
+            <Image
+              src="/icon-dark.svg"
+              alt=""
+              width={88}
+              height={88}
+              className="rounded-2xl shadow-xl shadow-night-900/20"
+              priority={false}
+            />
           </div>
           <span className="mt-4 block font-display text-xl font-bold text-night-800">
             {label}

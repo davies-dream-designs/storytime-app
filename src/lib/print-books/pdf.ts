@@ -90,7 +90,9 @@ function drawWrappedText(input: {
       : x
     const lineY = topY - index * lineHeight
     if (shadow) {
-      page.drawText(line, { x: lineX + 1, y: lineY - 1.5, font, size, color: rgb(0, 0, 0), opacity: 0.65 })
+      for (const [dx, dy] of [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]) {
+        page.drawText(line, { x: lineX + dx, y: lineY + dy, font, size, color: rgb(0, 0, 0), opacity: 0.82 })
+      }
     }
     page.drawText(line, { x: lineX, y: lineY, font, size, color })
   })

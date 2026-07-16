@@ -240,6 +240,7 @@
   },
   "books": {
     "createButton": "📖 Crear libro impreso",
+    "viewBookButton": "📖 Ver libro impreso",
     "creatingButton": "Soñando tu libro…",
     "createError": "No pudimos iniciar el libro impreso.",
     "buildError": "No pudimos completar la primera fase de planificación.",

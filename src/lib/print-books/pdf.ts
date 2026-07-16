@@ -378,7 +378,7 @@ async function drawSpreadArtIntoRect(input: {
     }
 
     const spreadWidth = rect.width * 2
-    const scale = Math.min(spreadWidth / image.width, rect.height / image.height)
+    const scale = Math.max(spreadWidth / image.width, rect.height / image.height)
     const drawWidth = image.width * scale
     const drawHeight = image.height * scale
     const spreadX = rect.x + (spreadWidth - drawWidth) / 2
@@ -658,7 +658,7 @@ async function drawBookPage(input: {
     pdfDoc,
     page,
     spread,
-    side: 'cover',
+    side,
     rect: artRect,
     story,
     variantSeed: spread.sequence * 2 + (side === 'end' ? 1 : 0),

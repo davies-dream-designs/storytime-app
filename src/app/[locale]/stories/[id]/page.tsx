@@ -16,6 +16,8 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
   if (!story || story.userId !== userId) notFound()
 
   const profile = await db.profiles.getById(story.profileId)
+  const bookProjects = await db.bookProjects.getByStoryId(id)
+  const existingBook = bookProjects.find((p) => p.status !== 'failed') ?? null
 
   const dateLocale = locale === 'zh' ? 'zh-CN' : locale === 'es' ? 'es-ES' : locale === 'fr' ? 'fr-FR' : 'en-AU'
 
@@ -45,7 +47,16 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
             <a href={`/stories/${id}/print`} target="_blank" rel="noopener noreferrer" className="rounded-full border border-night-200 px-4 py-2 text-sm font-bold text-night-600 transition hover:bg-night-50">
               {t('printButton')}
             </a>
-            <CreatePrintBookButton storyId={id} />
+            {existingBook ? (
+              <Link
+                href={`/books/${existingBook.id}` as string}
+                className="rounded-full border border-star-200 bg-star-50 px-4 py-2 text-sm font-bold text-star-700 transition hover:bg-star-100"
+              >
+                {t('viewBookButton')}
+              </Link>
+            ) : (
+              <CreatePrintBookButton storyId={id} />
+            )}
             <Link href={`/stories/new?profileId=${story.profileId}` as string} className="rounded-full bg-night-700 px-4 py-2 text-sm font-bold text-moon-200 transition hover:bg-night-600">
               {t('newStoryButton')}
             </Link>

@@ -240,6 +240,7 @@
   },
   "books": {
     "createButton": "📖 创建印刷图书",
+    "viewBookButton": "📖 查看印刷图书",
     "creatingButton": "正在梦绘你的图书…",
     "createError": "我们无法开始创建印刷图书。",
     "buildError": "我们无法完成第一轮规划。",

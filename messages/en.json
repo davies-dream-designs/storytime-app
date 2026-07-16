@@ -240,6 +240,7 @@
   },
   "books": {
     "createButton": "📖 Create print book",
+    "viewBookButton": "📖 View print book",
     "creatingButton": "Dreaming up your book…",
     "createError": "We couldn't start the print book.",
     "buildError": "We couldn't finish the first planning pass.",

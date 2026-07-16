@@ -122,19 +122,31 @@ export function GlobalPendingProvider({ children }: { children: ReactNode }) {
       <div
         aria-live="polite"
         aria-hidden={!active}
-        className={`pointer-events-none fixed inset-x-0 top-4 z-50 flex justify-center px-4 transition duration-300 ${
-          active ? "translate-y-0 opacity-100" : "-translate-y-3 opacity-0"
+        className={`fixed inset-0 z-50 flex items-center justify-center bg-night-900/28 px-5 backdrop-blur-sm transition duration-300 ${
+          active
+            ? "pointer-events-auto opacity-100"
+            : "pointer-events-none opacity-0"
         }`}
       >
-        <div className="storycot-loader rounded-full border border-night-100 bg-parchment/95 px-4 py-3 shadow-xl shadow-night-900/10 backdrop-blur">
+        <div
+          className={`storycot-loader rounded-3xl border border-night-100 bg-parchment/95 px-8 py-7 text-center shadow-2xl shadow-night-900/20 transition duration-300 ${
+            active ? "scale-100 opacity-100" : "scale-95 opacity-0"
+          }`}
+        >
           <div className="storycot-loader-scene" aria-hidden="true">
-            <div className="storycot-loader-book" />
             <div className="storycot-loader-moon" />
+            <div className="storycot-loader-book">
+              <div className="storycot-loader-page storycot-loader-page-left" />
+              <div className="storycot-loader-page storycot-loader-page-right" />
+            </div>
             <div className="storycot-loader-star storycot-loader-star-a" />
             <div className="storycot-loader-star storycot-loader-star-b" />
           </div>
-          <span className="font-display text-sm font-bold text-night-700">
+          <span className="mt-4 block font-display text-xl font-bold text-night-800">
             {label}
+          </span>
+          <span className="mt-1 block text-sm font-bold text-night-400">
+            Storycot
           </span>
         </div>
       </div>

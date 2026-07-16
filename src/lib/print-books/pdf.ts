@@ -954,6 +954,42 @@ async function buildCoverPdf(input: {
     color: theme.groundAccent,
   })
 
+  // Use the generated "Back Cover" spread art on the physical back cover.
+  // Falls back to the plain paper panel when there's no raster image (e.g.
+  // placeholder/preview mode, where the asset is an SVG we can't embed).
+  const backCoverSpread = input.project.spreads.find((spread) => spread.title === 'Back Cover')
+  const backImage = await embedSpreadImage(
+    pdfDoc,
+    backCoverSpread?.leftPageImageUrl ?? backCoverSpread?.rightPageImageUrl ?? backCoverSpread?.imageUrl
+  )
+  if (backImage) {
+    const backScale = Math.max(PRINT_PAGE_WIDTH / backImage.width, PRINT_PAGE_HEIGHT / backImage.height)
+    const backDrawWidth = backImage.width * backScale
+    const backDrawHeight = backImage.height * backScale
+    page.pushOperators(
+      pushGraphicsState(),
+      rectangle(backCoverX, 0, PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT),
+      clip(),
+      endPath(),
+    )
+    page.drawImage(backImage, {
+      x: backCoverX + (PRINT_PAGE_WIDTH - backDrawWidth) / 2,
+      y: (PRINT_PAGE_HEIGHT - backDrawHeight) / 2,
+      width: backDrawWidth,
+      height: backDrawHeight,
+    })
+    page.pushOperators(popGraphicsState())
+    // Soft paper scrim so the dark blurb text stays legible over the art.
+    page.drawRectangle({
+      x: backCoverX + BLEED + 24,
+      y: PRINT_PAGE_HEIGHT - 300,
+      width: PRINT_PAGE_WIDTH - (BLEED + 24) * 2,
+      height: 216,
+      color: theme.paper,
+      opacity: 0.86,
+    })
+  }
+
   if (image) {
     const scale = Math.max(PRINT_PAGE_WIDTH / image.width, PRINT_PAGE_HEIGHT / image.height)
     const drawWidth = image.width * scale

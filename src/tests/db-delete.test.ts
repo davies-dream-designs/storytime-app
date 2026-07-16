@@ -38,6 +38,8 @@ describe("db delete cascades", () => {
       id: "book-1",
       userId: "user-1",
       sourceStoryId: "story-1",
+      assets: { proofVersion: 0 },
+      spreads: [],
     });
 
     await expect(db.stories.delete("story-1")).resolves.toBe(true);

@@ -1,6 +1,7 @@
 import { kv } from "@vercel/kv";
 import type { ChildProfile, Story, Character } from "@/types";
 import type { BookBuildJob, BookProject } from "@/types/printBook";
+import { deleteBookProjectAssets } from "@/lib/print-books/storage";
 
 export const db = {
   profiles: {
@@ -189,6 +190,7 @@ export const db = {
     async delete(id: string): Promise<boolean> {
       const project = await this.getById(id);
       if (!project) return false;
+      await deleteBookProjectAssets(project);
 
       const [storyIds, userIds, currentJob] = await Promise.all([
         kv.get<string[]>(this.storyIndexKey(project.sourceStoryId)),

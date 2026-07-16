@@ -239,7 +239,8 @@
     "pagesCount": "{count} pages",
     "viewBookButton": "View illustrated PDF",
     "textEpubButton": "Text EPUB for Kindle/Books",
-    "epubHelp": "For Kindle or Apple Books: download the EPUB, then share/open the file in your reader app."
+    "epubHelp": "For Kindle or Apple Books: download the EPUB, then share/open the file in your reader app.",
+    "downloadStarting": "Starting download…"
   },
   "books": {
     "createButton": "Generate illustrated PDF",
@@ -371,7 +372,8 @@
     "mixedArtTitle": "Some illustrations need another try",
     "mixedArtSub": "A few pages fell back to draft placeholders. Regenerate the illustrations to replace them before sharing or ordering.",
     "repairArtButton": "Regenerate illustrations",
-    "repairingArtButton": "Regenerating…"
+    "repairingArtButton": "Regenerating…",
+    "downloadStarting": "Starting download…"
   },
   "account": {
     "title": "Your account",
@@ -404,7 +406,9 @@
     "usageIllustratedTitle": "Illustrated PDF: extra credits",
     "usageIllustratedBody": "Illustrated PDFs use AI art and will cost more credits than a plain text story. Exact pricing will be shown before generation.",
     "usageHardcoverTitle": "Hardcover: separate product checkout",
-    "usageHardcoverBody": "Hardcovers include printing and shipping costs, so they will be charged per order rather than paid with credits."
+    "usageHardcoverBody": "Hardcovers include printing and shipping costs, so they will be charged per order rather than paid with credits.",
+    "packConfirmAu": "Confirm Australia first",
+    "packLoading": "Opening checkout…"
   },
   "share": {
     "createdFor": "A story created especially for",

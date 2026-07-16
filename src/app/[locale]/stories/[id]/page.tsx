@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
+import DownloadLink from "@/components/DownloadLink";
 import { db } from "@/lib/db";
 import StoryReader from "./StoryReader";
 import ShareButton from "./ShareButton";
@@ -70,20 +71,22 @@ export default async function StoryPage({
           </div>
           <div className="flex flex-shrink-0 flex-wrap gap-2">
             <ShareButton storyId={id} />
-            <a
+            <DownloadLink
               href={`/stories/${id}/print`}
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-full border border-night-200 px-4 py-2 text-sm font-bold text-night-600 transition hover:bg-night-50"
+              pendingLabel={t("downloadStarting")}
             >
               {t("printButton")}
-            </a>
-            <a
+            </DownloadLink>
+            <DownloadLink
               href={`/api/stories/${id}/epub`}
               className="rounded-full border border-night-200 px-4 py-2 text-sm font-bold text-night-600 transition hover:bg-night-50"
+              pendingLabel={t("downloadStarting")}
             >
               {t("textEpubButton")}
-            </a>
+            </DownloadLink>
             {existingBook ? (
               <Link
                 href={`/books/${existingBook.id}` as string}

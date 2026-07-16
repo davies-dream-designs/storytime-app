@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
+import DownloadLink from "@/components/DownloadLink";
 import { db } from "@/lib/db";
 import BookStatusPanel from "./BookStatusPanel";
 
@@ -59,24 +60,26 @@ export default async function BookProjectPage({
             </h2>
             <div className="mt-4 flex flex-wrap gap-3">
               {hasPrintPdf ? (
-                <a
+                <DownloadLink
                   href={`/api/books/${project.id}/download?asset=printPdf`}
                   target="_blank"
                   rel="noreferrer"
                   className="rounded-full bg-night-700 px-5 py-3 text-sm font-bold text-moon-200 transition hover:bg-night-600"
+                  pendingLabel={t("downloadStarting")}
                 >
                   {t("illustratedPdfButton")}
-                </a>
+                </DownloadLink>
               ) : null}
               {hasEpub ? (
-                <a
+                <DownloadLink
                   href={`/api/books/${project.id}/download?asset=epub`}
                   target="_blank"
                   rel="noreferrer"
                   className="rounded-full border border-night-200 px-5 py-3 text-sm font-bold text-night-700 transition hover:bg-night-50"
+                  pendingLabel={t("downloadStarting")}
                 >
                   {t("epubButton")}
-                </a>
+                </DownloadLink>
               ) : null}
             </div>
             {hasEpub ? (

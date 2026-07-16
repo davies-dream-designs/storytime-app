@@ -239,7 +239,8 @@
     "pagesCount": "{count} 页",
     "viewBookButton": "查看插图 PDF",
     "textEpubButton": "Kindle/Books 纯文本 EPUB",
-    "epubHelp": "用于 Kindle 或 Apple Books：下载 EPUB 后，将文件分享或打开到阅读器应用中。"
+    "epubHelp": "用于 Kindle 或 Apple Books：下载 EPUB 后，将文件分享或打开到阅读器应用中。",
+    "downloadStarting": "正在开始下载…"
   },
   "books": {
     "createButton": "生成插图 PDF",
@@ -371,7 +372,8 @@
     "mixedArtTitle": "部分插图需要重试",
     "mixedArtSub": "有些页面回退到了占位草图。分享或订购前请重新生成插图。",
     "repairArtButton": "重新生成插图",
-    "repairingArtButton": "正在重新生成…"
+    "repairingArtButton": "正在重新生成…",
+    "downloadStarting": "正在开始下载…"
   },
   "account": {
     "title": "您的账户",
@@ -404,7 +406,9 @@
     "usageIllustratedTitle": "插图 PDF：额外积分",
     "usageIllustratedBody": "插图 PDF 使用 AI 绘图，因此会比纯文本故事消耗更多积分。生成前会显示准确价格。",
     "usageHardcoverTitle": "精装书：单独结账",
-    "usageHardcoverBody": "精装书包含印刷和配送成本，因此会按订单收费，而不是使用积分支付。"
+    "usageHardcoverBody": "精装书包含印刷和配送成本，因此会按订单收费，而不是使用积分支付。",
+    "packConfirmAu": "请先确认澳大利亚",
+    "packLoading": "正在打开结账…"
   },
   "share": {
     "createdFor": "专为以下人创作的故事：",

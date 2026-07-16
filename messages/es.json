@@ -239,7 +239,8 @@
     "pagesCount": "{count} páginas",
     "viewBookButton": "Ver PDF ilustrado",
     "textEpubButton": "EPUB de texto para Kindle/Books",
-    "epubHelp": "Para Kindle o Apple Books: descarga el EPUB y luego compártelo o ábrelo en tu app de lectura."
+    "epubHelp": "Para Kindle o Apple Books: descarga el EPUB y luego compártelo o ábrelo en tu app de lectura.",
+    "downloadStarting": "Iniciando descarga…"
   },
   "books": {
     "createButton": "Generar PDF ilustrado",
@@ -371,7 +372,8 @@
     "mixedArtTitle": "Algunas ilustraciones necesitan otro intento",
     "mixedArtSub": "Algunas páginas usaron marcadores de posición. Vuelve a generar las ilustraciones antes de compartir o pedir una copia.",
     "repairArtButton": "Regenerar ilustraciones",
-    "repairingArtButton": "Regenerando…"
+    "repairingArtButton": "Regenerando…",
+    "downloadStarting": "Iniciando descarga…"
   },
   "account": {
     "title": "Tu cuenta",
@@ -404,7 +406,9 @@
     "usageIllustratedTitle": "PDF ilustrado: créditos extra",
     "usageIllustratedBody": "Los PDFs ilustrados usan arte con IA y costarán más créditos que un cuento de texto. El precio exacto se mostrará antes de generar.",
     "usageHardcoverTitle": "Tapa dura: pago separado",
-    "usageHardcoverBody": "Los libros de tapa dura incluyen impresión y envío, por lo que se cobrarán por pedido en lugar de pagarse con créditos."
+    "usageHardcoverBody": "Los libros de tapa dura incluyen impresión y envío, por lo que se cobrarán por pedido en lugar de pagarse con créditos.",
+    "packConfirmAu": "Confirma Australia primero",
+    "packLoading": "Abriendo pago…"
   },
   "share": {
     "createdFor": "Un cuento creado especialmente para",

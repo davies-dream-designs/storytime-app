@@ -43,28 +43,92 @@
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-12px) rotate(-2deg); }
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-12px) rotate(-2deg);
+  }
 }
 
 @keyframes twinkle {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.8); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
 }
 
 @keyframes drift {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
-.animate-float { animation: float 6s ease-in-out infinite; }
-.animate-float-slow { animation: float 9s ease-in-out infinite; }
-.animate-twinkle { animation: twinkle 3s ease-in-out infinite; }
-.animate-drift { animation: drift 4s ease-in-out infinite; }
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+.animate-float-slow {
+  animation: float 9s ease-in-out infinite;
+}
+.animate-twinkle {
+  animation: twinkle 3s ease-in-out infinite;
+}
+.animate-drift {
+  animation: drift 4s ease-in-out infinite;
+}
+
+button,
+a[href] {
+  transition-property:
+    transform, background-color, border-color, color, opacity, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: ease-out;
+}
+
+button:focus-visible,
+a[href]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(251, 191, 36, 0.55);
+  outline-offset: 3px;
+}
+
+button:disabled,
+button[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (hover: hover) {
+  button:not(:disabled):not([aria-disabled="true"]):hover,
+  a[href]:hover {
+    transform: translateY(-1px);
+  }
+}
+
+button:not(:disabled):not([aria-disabled="true"]):active,
+a[href]:active {
+  transform: translateY(0) scale(0.98);
+}
 
 @media print {
-  .no-print { display: none !important; }
-  body { background: white !important; }
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white !important;
+  }
   .print-page {
     page-break-after: always;
     break-after: page;

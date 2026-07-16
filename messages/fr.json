@@ -239,7 +239,8 @@
     "pagesCount": "{count} pages",
     "viewBookButton": "Voir le PDF illustré",
     "textEpubButton": "EPUB texte pour Kindle/Books",
-    "epubHelp": "Pour Kindle ou Apple Books : téléchargez l’EPUB, puis partagez/ouvrez le fichier dans votre application de lecture."
+    "epubHelp": "Pour Kindle ou Apple Books : téléchargez l’EPUB, puis partagez/ouvrez le fichier dans votre application de lecture.",
+    "downloadStarting": "Téléchargement…"
   },
   "books": {
     "createButton": "Générer le PDF illustré",
@@ -371,7 +372,8 @@
     "mixedArtTitle": "Certaines illustrations doivent être relancées",
     "mixedArtSub": "Quelques pages sont revenues à des images provisoires. Régénérez les illustrations avant de partager ou commander.",
     "repairArtButton": "Régénérer les illustrations",
-    "repairingArtButton": "Régénération…"
+    "repairingArtButton": "Régénération…",
+    "downloadStarting": "Téléchargement…"
   },
   "account": {
     "title": "Votre compte",
@@ -404,7 +406,9 @@
     "usageIllustratedTitle": "PDF illustré : crédits supplémentaires",
     "usageIllustratedBody": "Les PDFs illustrés utilisent de l’art IA et coûteront plus de crédits qu’une histoire texte. Le prix exact sera affiché avant génération.",
     "usageHardcoverTitle": "Couverture rigide : paiement séparé",
-    "usageHardcoverBody": "Les livres reliés incluent impression et livraison, ils seront donc facturés par commande plutôt que payés avec des crédits."
+    "usageHardcoverBody": "Les livres reliés incluent impression et livraison, ils seront donc facturés par commande plutôt que payés avec des crédits.",
+    "packConfirmAu": "Confirmez l'Australie",
+    "packLoading": "Ouverture du paiement…"
   },
   "share": {
     "createdFor": "Une histoire créée spécialement pour",

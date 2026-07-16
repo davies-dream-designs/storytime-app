@@ -87,47 +87,54 @@ export default function CreditPacks() {
       </div>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-3">
-        {PACKS.map((pack) => (
-          <div
-            key={pack.id}
-            className={`relative rounded-2xl border p-6 ${
-              pack.popular
-                ? "border-moon-400 bg-moon-50"
-                : "border-night-100 bg-white"
-            }`}
-          >
-            {pack.popular && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-moon-400 px-3 py-0.5 text-xs font-bold text-night-900">
-                {t("packPopular")}
-              </span>
-            )}
-            <p className="font-display text-lg font-bold text-night-700">
-              {pack.label}
-            </p>
-            <p className="mt-1 text-night-500">
-              {t("packGet", { count: pack.credits })}
-            </p>
-            <p className="mt-3 font-display text-2xl font-bold text-night-800">
-              {pack.price}{" "}
-              <span className="text-sm font-normal text-night-400">
-                {pack.priceNote}
-              </span>
-            </p>
-            <button
-              onClick={() => handlePurchase(pack.id)}
-              disabled={loading !== null}
-              className={`mt-4 w-full rounded-xl py-2.5 text-sm font-bold transition ${
+        {PACKS.map((pack) => {
+          const disabled = !auConfirmed || loading !== null;
+
+          return (
+            <div
+              key={pack.id}
+              className={`relative rounded-2xl border p-6 transition ${
                 pack.popular
-                  ? "bg-night-700 text-moon-200 hover:bg-night-600 disabled:opacity-60"
-                  : "bg-night-100 text-night-700 hover:bg-night-200 disabled:opacity-60"
-              }`}
+                  ? "border-moon-400 bg-moon-50"
+                  : "border-night-100 bg-white"
+              } ${!auConfirmed ? "opacity-75" : ""}`}
             >
-              {loading === pack.id
-                ? "…"
-                : t("packGet", { count: pack.credits })}
-            </button>
-          </div>
-        ))}
+              {pack.popular && (
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-moon-400 px-3 py-0.5 text-xs font-bold text-night-900">
+                  {t("packPopular")}
+                </span>
+              )}
+              <p className="font-display text-lg font-bold text-night-700">
+                {pack.label}
+              </p>
+              <p className="mt-1 text-night-500">
+                {t("packGet", { count: pack.credits })}
+              </p>
+              <p className="mt-3 font-display text-2xl font-bold text-night-800">
+                {pack.price}{" "}
+                <span className="text-sm font-normal text-night-400">
+                  {pack.priceNote}
+                </span>
+              </p>
+              <button
+                onClick={() => handlePurchase(pack.id)}
+                disabled={disabled}
+                title={!auConfirmed ? t("packConfirmAu") : undefined}
+                className={`mt-4 w-full rounded-xl py-2.5 text-sm font-bold transition ${
+                  pack.popular
+                    ? "bg-night-700 text-moon-200 hover:bg-night-600"
+                    : "bg-night-100 text-night-700 hover:bg-night-200"
+                } disabled:bg-night-100 disabled:text-night-400 disabled:shadow-none`}
+              >
+                {loading === pack.id
+                  ? t("packLoading")
+                  : !auConfirmed
+                    ? t("packConfirmAu")
+                    : t("packGet", { count: pack.credits })}
+              </button>
+            </div>
+          );
+        })}
       </div>
 
       {error && (

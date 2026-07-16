@@ -4,10 +4,6 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
 import { db } from "@/lib/db";
-import {
-  isDownloadableBookAssetUrl,
-  isInlineBookAssetUrl,
-} from "@/lib/print-books/assets";
 import BookStatusPanel from "./BookStatusPanel";
 
 export default async function BookProjectPage({
@@ -26,15 +22,8 @@ export default async function BookProjectPage({
   const story = await db.stories.getById(project.sourceStoryId);
   if (!story || story.userId !== userId) notFound();
 
-  const printPdfUrl = isDownloadableBookAssetUrl(project.assets.printPdfUrl)
-    ? project.assets.printPdfUrl
-    : undefined;
-  const epubUrl = isDownloadableBookAssetUrl(project.assets.epubUrl)
-    ? project.assets.epubUrl
-    : undefined;
-  const hasInlineFallbackExports = isInlineBookAssetUrl(
-    project.assets.printPdfUrl
-  );
+  const hasPrintPdf = Boolean(project.assets.printPdfUrl);
+  const hasEpub = Boolean(project.assets.epubUrl);
 
   return (
     <>
@@ -63,49 +52,37 @@ export default async function BookProjectPage({
 
         <BookStatusPanel initialProject={project} />
 
-        {printPdfUrl || epubUrl || hasInlineFallbackExports ? (
+        {hasPrintPdf || hasEpub ? (
           <section className="mt-8 rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
             <h2 className="font-display text-2xl font-bold text-night-800">
               {t("illustratedPdfDownloadTitle")}
             </h2>
-            {printPdfUrl || epubUrl ? (
-              <div className="mt-4 flex flex-wrap gap-3">
-                {printPdfUrl ? (
-                  <a
-                    href={printPdfUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-full bg-night-700 px-5 py-3 text-sm font-bold text-moon-200 transition hover:bg-night-600"
-                  >
-                    {t("illustratedPdfButton")}
-                  </a>
-                ) : null}
-                {epubUrl ? (
-                  <a
-                    href={epubUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-full border border-night-200 px-5 py-3 text-sm font-bold text-night-700 transition hover:bg-night-50"
-                  >
-                    {t("epubButton")}
-                  </a>
-                ) : null}
-              </div>
-            ) : null}
-            {hasInlineFallbackExports ? (
-              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                <p className="text-sm font-bold text-amber-800">
-                  {t("fallbackExportsTitle")}
-                </p>
-                <p className="mt-1 text-sm text-amber-900">
-                  {t("fallbackExportsBody")}
-                </p>
-              </div>
-            ) : null}
+            <div className="mt-4 flex flex-wrap gap-3">
+              {hasPrintPdf ? (
+                <a
+                  href={`/api/books/${project.id}/download?asset=printPdf`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-full bg-night-700 px-5 py-3 text-sm font-bold text-moon-200 transition hover:bg-night-600"
+                >
+                  {t("illustratedPdfButton")}
+                </a>
+              ) : null}
+              {hasEpub ? (
+                <a
+                  href={`/api/books/${project.id}/download?asset=epub`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-full border border-night-200 px-5 py-3 text-sm font-bold text-night-700 transition hover:bg-night-50"
+                >
+                  {t("epubButton")}
+                </a>
+              ) : null}
+            </div>
           </section>
         ) : null}
 
-        {printPdfUrl ? (
+        {hasPrintPdf ? (
           <section className="mt-8 rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
             <h2 className="font-display text-2xl font-bold text-night-800">
               {t("hardcoverTitle")}

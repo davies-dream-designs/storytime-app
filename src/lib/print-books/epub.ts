@@ -346,6 +346,105 @@ export async function buildBookEpub(input: {
   return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 }
 
+export async function buildStoryTextEpub(input: {
+  story: Story;
+  profile?: ChildProfile;
+}): Promise<Buffer> {
+  const { story, profile } = input;
+  const zip = new JSZip();
+  const identifier = `storycot:story:${story.id}`;
+  const title = story.title || "Storycot story";
+  const modified = new Date(story.createdAt)
+    .toISOString()
+    .replace(/\.\d{3}Z$/, "Z");
+
+  zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
+  zip.file(
+    "META-INF/container.xml",
+    `<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml" />
+  </rootfiles>
+</container>`
+  );
+
+  const pages = [
+    {
+      id: "title-page",
+      href: "title.xhtml",
+      title,
+      content: renderPageXhtml({
+        title,
+        heading: title,
+        body: profile
+          ? `A Storycot story for ${profile.name}.`
+          : "A Storycot story.",
+      }),
+    },
+    ...story.pages.map((page) => ({
+      id: `page-${page.pageNumber}`,
+      href: `page-${page.pageNumber}.xhtml`,
+      title: `${title} - Page ${page.pageNumber}`,
+      content: renderPageXhtml({
+        title,
+        heading: title,
+        body: page.text,
+        pageLabel: `Page ${page.pageNumber}`,
+      }),
+    })),
+  ];
+
+  for (const page of pages) {
+    zip.file(`OEBPS/${page.href}`, page.content);
+  }
+
+  zip.file("OEBPS/styles/storycot.css", getStylesheet());
+  zip.file(
+    "OEBPS/nav.xhtml",
+    `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="en">
+  <head>
+    <title>${escapeXml(title)}</title>
+  </head>
+  <body>
+    <nav epub:type="toc" id="toc">
+      <h1>${escapeXml(title)}</h1>
+      <ol>
+        ${pages.map((page) => `<li><a href="${escapeXml(page.href)}">${escapeXml(page.title)}</a></li>`).join("\n")}
+      </ol>
+    </nav>
+  </body>
+</html>`
+  );
+
+  zip.file(
+    "OEBPS/content.opf",
+    `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="book-id">${escapeXml(identifier)}</dc:identifier>
+    <dc:title>${escapeXml(title)}</dc:title>
+    <dc:creator>Storycot</dc:creator>
+    <dc:language>en</dc:language>
+    <dc:publisher>Storycot</dc:publisher>
+    <meta property="dcterms:modified">${modified}</meta>
+  </metadata>
+  <manifest>
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav" />
+    <item id="css" href="styles/storycot.css" media-type="text/css" />
+    ${pages.map((page) => `<item id="${escapeXml(page.id)}" href="${escapeXml(page.href)}" media-type="application/xhtml+xml" />`).join("\n")}
+  </manifest>
+  <spine>
+    ${pages.map((page) => `<itemref idref="${escapeXml(page.id)}" />`).join("\n")}
+  </spine>
+</package>`
+  );
+
+  return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+}
+
 export async function generateBookEpub(input: {
   project: BookProject;
   story: Story;

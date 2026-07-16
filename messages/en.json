@@ -237,7 +237,8 @@
     "goToPage": "Go to page {page}",
     "wordsCount": "{count} words",
     "pagesCount": "{count} pages",
-    "viewBookButton": "View illustrated PDF"
+    "viewBookButton": "View illustrated PDF",
+    "textEpubButton": "Text EPUB"
   },
   "books": {
     "createButton": "Generate illustrated PDF",

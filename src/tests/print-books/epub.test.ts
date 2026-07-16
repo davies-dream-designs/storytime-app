@@ -147,4 +147,25 @@ describe("buildBookEpub", () => {
       })
     );
   });
+
+  it("creates a text-only EPUB from a story", async () => {
+    const { buildStoryTextEpub } = await import("@/lib/print-books/epub");
+
+    const epub = await buildStoryTextEpub({
+      story: createStory(),
+      profile: createProfile(),
+    });
+
+    const zip = await JSZip.loadAsync(epub);
+    await expect(zip.file("mimetype")?.async("string")).resolves.toBe(
+      "application/epub+zip"
+    );
+    await expect(
+      zip.file("OEBPS/content.opf")?.async("string")
+    ).resolves.toContain("<dc:title>Moonlight Garden</dc:title>");
+    await expect(
+      zip.file("OEBPS/page-1.xhtml")?.async("string")
+    ).resolves.toContain("Mila stepped into the moonlight garden.");
+    expect(zip.file("OEBPS/images/spread-2-left.png")).toBeNull();
+  });
 });

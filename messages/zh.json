@@ -237,7 +237,8 @@
     "goToPage": "转到第 {page} 页",
     "wordsCount": "{count} 字",
     "pagesCount": "{count} 页",
-    "viewBookButton": "查看插图 PDF"
+    "viewBookButton": "查看插图 PDF",
+    "textEpubButton": "纯文本 EPUB"
   },
   "books": {
     "createButton": "生成插图 PDF",

@@ -254,6 +254,17 @@ function shouldTryNextImageModel(status: number, bodyText: string): boolean {
   )
 }
 
+function parseRetryAfterMs(bodyText: string, headers: Headers): number {
+  const retryHeader = headers.get('Retry-After')
+  if (retryHeader) {
+    const secs = parseFloat(retryHeader)
+    if (!isNaN(secs)) return Math.ceil(secs) * 1000
+  }
+  const match = bodyText.match(/try again in (\d+(?:\.\d+)?)s/i)
+  if (match) return Math.ceil(parseFloat(match[1]!)) * 1000
+  return 15000
+}
+
 async function generateOpenAIImage(input: {
   prompt: string
   size: '1024x1536' | '1536x1024' | '1024x1024'
@@ -268,39 +279,50 @@ async function generateOpenAIImage(input: {
 
   for (let index = 0; index < models.length; index += 1) {
     const model = models[index]!
-    const response = await fetch('https://api.openai.com/v1/images/generations', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        prompt: input.prompt,
-        size: input.size,
-        output_format: 'png',
-        quality: 'medium',
-      }),
-    })
+    const MAX_RETRIES = 3
 
-    if (!response.ok) {
-      const errorBody = await response.text()
-      lastErrorMessage = `OpenAI image generation failed for ${model}: ${response.status} ${errorBody}`
-      const canFallback = index < models.length - 1 && shouldTryNextImageModel(response.status, errorBody)
-      if (canFallback) continue
-      throw new Error(lastErrorMessage)
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
+      const response = await fetch('https://api.openai.com/v1/images/generations', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          prompt: input.prompt,
+          size: input.size,
+          output_format: 'png',
+          quality: 'medium',
+        }),
+      })
+
+      if (!response.ok) {
+        const errorBody = await response.text()
+        lastErrorMessage = `OpenAI image generation failed for ${model}: ${response.status} ${errorBody}`
+
+        if (response.status === 429 && attempt < MAX_RETRIES - 1) {
+          const waitMs = parseRetryAfterMs(errorBody, response.headers)
+          await new Promise((resolve) => setTimeout(resolve, waitMs))
+          continue
+        }
+
+        const canFallback = index < models.length - 1 && shouldTryNextImageModel(response.status, errorBody)
+        if (canFallback) break
+        throw new Error(lastErrorMessage)
+      }
+
+      const payload = (await response.json()) as {
+        data?: Array<{ b64_json?: string }>
+      }
+
+      const base64Image = payload.data?.[0]?.b64_json
+      if (!base64Image) {
+        throw new Error(`OpenAI image generation returned no image data for ${model}`)
+      }
+
+      return Buffer.from(base64Image, 'base64')
     }
-
-    const payload = (await response.json()) as {
-      data?: Array<{ b64_json?: string }>
-    }
-
-    const base64Image = payload.data?.[0]?.b64_json
-    if (!base64Image) {
-      throw new Error(`OpenAI image generation returned no image data for ${model}`)
-    }
-
-    return Buffer.from(base64Image, 'base64')
   }
 
   throw new Error(lastErrorMessage)
@@ -447,10 +469,9 @@ export async function generateSpreadIllustration(input: {
   const base = `books/${project.id}/spreads/${spread.sequence}`
 
   if (isGeneratedIllustrationConfigured()) {
-    const [leftPng, rightPng] = await Promise.all([
-      generateOpenAISquarePng(buildPageIllustrationPrompt({ ...input, side: 'left' })),
-      generateOpenAISquarePng(buildPageIllustrationPrompt({ ...input, side: 'right' })),
-    ])
+    // Generate sequentially to avoid hitting the OpenAI image rate limit (5/min)
+    const leftPng = await generateOpenAISquarePng(buildPageIllustrationPrompt({ ...input, side: 'left' }))
+    const rightPng = await generateOpenAISquarePng(buildPageIllustrationPrompt({ ...input, side: 'right' }))
 
     const [leftPageImageUrl, rightPageImageUrl] = await Promise.all([
       storeBookAsset({ pathname: `${base}-left.png`, body: leftPng, contentType: 'image/png' }),

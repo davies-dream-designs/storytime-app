@@ -2,7 +2,13 @@ import { after, NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
 import { dispatchBookBuildJob, enqueueBookBuildJob } from '@/lib/print-books/jobs'
+import { inngest, INNGEST_EVENTS } from '@/lib/inngest/client'
 import type { BookBuildMode } from '@/types/printBook'
+
+// Opt-in switch: set BOOK_PIPELINE_DRIVER=inngest to run builds through the
+// durable Inngest queue. Defaults to the in-process after() continuation so
+// nothing changes until Inngest is wired up and validated.
+const useInngestPipeline = process.env.BOOK_PIPELINE_DRIVER === 'inngest'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
@@ -31,9 +37,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       baseUrl: req.nextUrl.origin,
     })
 
-    after(async () => {
-      await dispatchBookBuildJob(job)
-    })
+    if (useInngestPipeline) {
+      await inngest.send({ name: INNGEST_EVENTS.bookBuildRequested, data: { jobId: job.id } })
+    } else {
+      after(async () => {
+        await dispatchBookBuildJob(job)
+      })
+    }
 
     return NextResponse.json(queuedProject)
   } catch (error) {

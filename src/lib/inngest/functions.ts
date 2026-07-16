@@ -24,10 +24,13 @@ const MAX_ADVANCE_STEPS = 80
 export const buildBook = inngest.createFunction(
   {
     id: 'build-book',
-    // Cap concurrent builds account-wide. Each stage generates at most one
-    // spread's images sequentially, so a small cap keeps us near OpenAI limits
-    // until the Batch API step lands.
-    concurrency: { limit: 3 },
+    // Serialise builds account-wide. This is the core fix for the rate-limit
+    // pain: the old after() chain ran unlimited builds at once, stampeding
+    // OpenAI's ~5 images/min cap. One build at a time generates its spread
+    // images sequentially (~10-25s each), which naturally stays near the cap;
+    // the existing 429 retry absorbs any brief overage. Raise this limit once
+    // the Batch API step lands and per-minute limits no longer apply.
+    concurrency: { limit: 1 },
     retries: 3,
     triggers: [{ event: INNGEST_EVENTS.bookBuildRequested }],
   },

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { usePendingUI } from "@/components/GlobalPending";
 
 const PACKS = [
   {
@@ -35,6 +36,7 @@ export default function CreditPacks() {
   const [error, setError] = useState("");
   const [auConfirmed, setAuConfirmed] = useState(false);
   const t = useTranslations("account");
+  const { startPending } = usePendingUI();
 
   async function handlePurchase(packId: string) {
     if (!auConfirmed) {
@@ -44,6 +46,7 @@ export default function CreditPacks() {
 
     setLoading(packId);
     setError("");
+    const stopPending = startPending(t("checkoutPending"), 20000);
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
@@ -52,10 +55,12 @@ export default function CreditPacks() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Something went wrong");
+      startPending(t("checkoutRedirecting"), 20000);
       window.location.href = data.url;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setLoading(null);
+      stopPending();
     }
   }
 

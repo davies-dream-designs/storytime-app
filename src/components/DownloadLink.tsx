@@ -2,6 +2,7 @@
 
 import type { AnchorHTMLAttributes, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
+import { usePendingUI } from "@/components/GlobalPending";
 
 type DownloadLinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
   children: ReactNode;
@@ -17,10 +18,13 @@ export default function DownloadLink({
 }: DownloadLinkProps) {
   const [pending, setPending] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stopGlobalPendingRef = useRef<(() => void) | null>(null);
+  const { startPending } = usePendingUI();
 
   useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      stopGlobalPendingRef.current?.();
     };
   }, []);
 
@@ -34,8 +38,14 @@ export default function DownloadLink({
         if (event.defaultPrevented) return;
 
         setPending(true);
+        stopGlobalPendingRef.current?.();
+        stopGlobalPendingRef.current = startPending(pendingLabel, 4500);
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        timeoutRef.current = setTimeout(() => setPending(false), 4500);
+        timeoutRef.current = setTimeout(() => {
+          setPending(false);
+          stopGlobalPendingRef.current?.();
+          stopGlobalPendingRef.current = null;
+        }, 4500);
       }}
     >
       <span

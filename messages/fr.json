@@ -408,7 +408,9 @@
     "usageHardcoverTitle": "Couverture rigide : paiement séparé",
     "usageHardcoverBody": "Les livres reliés incluent impression et livraison, ils seront donc facturés par commande plutôt que payés avec des crédits.",
     "packConfirmAu": "Confirmez l'Australie",
-    "packLoading": "Ouverture du paiement…"
+    "packLoading": "Ouverture du paiement…",
+    "checkoutPending": "Préparation du paiement sécurisé…",
+    "checkoutRedirecting": "Ouverture du paiement sécurisé…"
   },
   "share": {
     "createdFor": "Une histoire créée spécialement pour",
@@ -424,6 +426,7 @@
     "tryAgain": "Réessayer",
     "monthsOld": "{months} mois",
     "yearsOld": "{years} ans",
-    "andMonths": "{years} ans {months} mois"
+    "andMonths": "{years} ans {months} mois",
+    "navigating": "Ouverture de la page…"
   }
 }

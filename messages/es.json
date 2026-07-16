@@ -408,7 +408,9 @@
     "usageHardcoverTitle": "Tapa dura: pago separado",
     "usageHardcoverBody": "Los libros de tapa dura incluyen impresión y envío, por lo que se cobrarán por pedido en lugar de pagarse con créditos.",
     "packConfirmAu": "Confirma Australia primero",
-    "packLoading": "Abriendo pago…"
+    "packLoading": "Abriendo pago…",
+    "checkoutPending": "Preparando pago seguro…",
+    "checkoutRedirecting": "Abriendo pago seguro…"
   },
   "share": {
     "createdFor": "Un cuento creado especialmente para",
@@ -424,6 +426,7 @@
     "tryAgain": "Intentar de nuevo",
     "monthsOld": "{months} meses",
     "yearsOld": "{years} años",
-    "andMonths": "{years} años {months} meses"
+    "andMonths": "{years} años {months} meses",
+    "navigating": "Abriendo página…"
   }
 }

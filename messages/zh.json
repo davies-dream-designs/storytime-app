@@ -408,7 +408,9 @@
     "usageHardcoverTitle": "精装书：单独结账",
     "usageHardcoverBody": "精装书包含印刷和配送成本，因此会按订单收费，而不是使用积分支付。",
     "packConfirmAu": "请先确认澳大利亚",
-    "packLoading": "正在打开结账…"
+    "packLoading": "正在打开结账…",
+    "checkoutPending": "正在准备安全结账…",
+    "checkoutRedirecting": "正在打开安全结账…"
   },
   "share": {
     "createdFor": "专为以下人创作的故事：",
@@ -424,6 +426,7 @@
     "tryAgain": "重试",
     "monthsOld": "{months} 个月",
     "yearsOld": "{years} 岁",
-    "andMonths": "{years} 岁 {months} 个月"
+    "andMonths": "{years} 岁 {months} 个月",
+    "navigating": "正在打开页面…"
   }
 }

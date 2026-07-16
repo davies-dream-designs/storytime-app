@@ -2,10 +2,10 @@
 
 > Auto-maintained by the `update-handover` skill. Run `/update-handover` after any significant changes.
 
-**Last updated:** 2026-07-15  
+**Last updated:** 2026-07-16  
 **Branch:** main  
 **Live URL:** https://storycot.com  
-**Preview:** https://storytime-app-git-feat-multilingual-davies-dream-designs.vercel.app (stale — main now deployed)
+**Active feature branch:** `feat/print-book-preview` — print book MVP (not yet merged to main)
 
 ---
 
@@ -205,6 +205,45 @@ messages/
 4. **Stripe live/restricted key** — `STRIPE_SECRET_KEY` must be `rk_live_*` (restricted), never `sk_live_*`.
 5. **KV → Postgres migration** — Issue #6. Currently all data is in Vercel KV (Redis). No SQL, no relational queries. Long-term plan to move to Postgres for better querying.
 6. **Existing stories are English** — Stories generated before multilingual was deployed are stored in English. No migration path — generate new ones in the desired language.
+7. **OpenAI image rate limits** — `feat/print-book-preview` currently hits OpenAI's 5 images/min limit under multi-user load. Retry logic exists but the architectural fix (Inngest + OpenAI Batch API) is the agreed next step — not yet built.
+
+---
+
+## Print Book Feature (`feat/print-book-preview`)
+
+**Worktree:** `/home/openhands/workspaces/storycot-printbook-preview`  
+**Status:** All committed and pushed. Not yet merged to main.
+
+### What's built
+- Lulu 8.5"×8.5" square hardcover spec PDF generation (cover + interior, 630×630pt pages)
+- Per-page 1024×1024 square illustrations (`leftPageImageUrl` + `rightPageImageUrl` per spread, replaces shared landscape)
+- 8-direction black text outline on story text + page numbers for readability over illustrations
+- Step-by-step build pipeline: `BookBuildJob` with `artGenerationCursor`, chained via Next.js `after()`
+- 429 retry with wait time parsed from OpenAI error body; sequential (not parallel) image gen per spread
+- Moderation-blocked images retry without page text before failing
+- Story page shows "View print book" button once a book exists (translation key fixed)
+
+### Key files
+| File | Purpose |
+|---|---|
+| `src/lib/print-books/pdf.ts` | PDF renderer — cover, interior, frontispiece, page layout |
+| `src/lib/print-books/illustrations.ts` | OpenAI image gen, placeholder SVGs, rate limit handling |
+| `src/lib/print-books/jobs.ts` | Book build job pipeline (`processBookBuildJob`, `enqueueBookBuildJob`) |
+| `src/app/api/books/[id]/build/route.ts` | Build trigger API route |
+| `src/app/api/book-jobs/[jobId]/run/route.ts` | Job step runner |
+| `src/types/printBook.ts` | `BookSpread`, `BookProject`, `BookBuildJob` types |
+
+### Agreed next step — Inngest + OpenAI Batch API
+Replace `after()` chains with **Inngest** (proper job queue, rate limiting, concurrency control) and replace per-image OpenAI calls with **OpenAI Batch API** (`/v1/images/generations` is supported, 50% discount, no per-minute limits).
+
+**Flow:** Build triggers → Inngest job → planning/bible/spreads compose → submit ALL images as one OpenAI batch → Inngest polls for batch completion → images stored → PDFs generated → book ready.
+
+**Start here in new session:**
+1. Install `inngest` + `@inngest/next`
+2. Create Inngest client and Next.js serve handler at `src/app/api/inngest/route.ts`
+3. Migrate `regenerateProjectArt` into an Inngest function with concurrency limits
+4. Replace per-image OpenAI calls with a batch submission function
+5. Add Inngest polling loop for batch completion
 
 ---
 
@@ -213,11 +252,14 @@ messages/
 | # | Title | Priority |
 |---|---|---|
 | #13 | Stripe test/live key separation | High |
+| #25 | Print book: age-based layout variations | Future |
+| #24 | Print book: per-page square illustrations — **done on `feat/print-book-preview`**, not merged | Done/pending merge |
+| #11 | Phase 5: Multilingual support — full UI + story localisation | Future |
 | #9 | storycot.com.au domain redirect | Medium |
 | #6 | Migrate KV → Postgres | Low (future) |
-| #4 | Print-on-demand physical books | Future |
-| #3 | AI illustrations per page | Future |
-| #2 | Voice narration | Future |
+| #4 | Print-on-demand physical books (Lulu integration) | Future |
+| #3 | Phase 4: AI illustration generation per story page | Future |
+| #2 | Phase 3: Voice narration / audio playback | Future |
 
 ---
 

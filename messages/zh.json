@@ -15,6 +15,18 @@
     "closeMenu": "关闭菜单",
     "language": "语言"
   },
+  "errors": {
+    "notFoundEyebrow": "迷路的故事页",
+    "notFoundTitle": "这个页面走丢了。",
+    "notFoundBody": "它可能已被删除、移动，或被收进资料库的其他地方。",
+    "errorEyebrow": "故事被打断了",
+    "errorTitle": "有一页飘走了。",
+    "errorBody": "发生了意外情况。请重试，或回到你的资料库。",
+    "storiesButton": "打开故事",
+    "booksButton": "打开图书",
+    "dashboardButton": "前往首页",
+    "tryAgainButton": "重试"
+  },
   "home": {
     "hero": "专属于他们的睡前故事。",
     "heroSub": "创作个性化的AI睡前故事，让您的孩子成为主角——每一页都融入他们最喜爱的玩具、动物和冒险。",

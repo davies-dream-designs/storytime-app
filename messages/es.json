@@ -15,6 +15,18 @@
     "closeMenu": "Cerrar menú",
     "language": "Idioma"
   },
+  "errors": {
+    "notFoundEyebrow": "Página perdida",
+    "notFoundTitle": "Esta página se escapó.",
+    "notFoundBody": "Puede que se haya eliminado, movido o guardado en otra parte de la biblioteca.",
+    "errorEyebrow": "Cuento interrumpido",
+    "errorTitle": "Una página salió volando.",
+    "errorBody": "Ocurrió algo inesperado. Inténtalo de nuevo o vuelve a tu biblioteca.",
+    "storiesButton": "Abrir cuentos",
+    "booksButton": "Abrir libros",
+    "dashboardButton": "Ir al inicio",
+    "tryAgainButton": "Intentar de nuevo"
+  },
   "home": {
     "hero": "Cuentos de buenas noches hechos para ellos.",
     "heroSub": "Crea cuentos personalizados con inteligencia artificial protagonizados por tu hijo, con sus juguetes favoritos, animales y aventuras en cada página.",

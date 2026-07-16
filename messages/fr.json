@@ -15,6 +15,18 @@
     "closeMenu": "Fermer le menu",
     "language": "Langue"
   },
+  "errors": {
+    "notFoundEyebrow": "Page perdue",
+    "notFoundTitle": "Cette page s'est égarée.",
+    "notFoundBody": "Elle a peut-être été supprimée, déplacée ou rangée ailleurs dans la bibliothèque.",
+    "errorEyebrow": "Histoire interrompue",
+    "errorTitle": "Une page s'est envolée.",
+    "errorBody": "Quelque chose d'inattendu s'est produit. Réessayez ou retournez à votre bibliothèque.",
+    "storiesButton": "Ouvrir les histoires",
+    "booksButton": "Ouvrir les livres",
+    "dashboardButton": "Aller au tableau de bord",
+    "tryAgainButton": "Réessayer"
+  },
   "home": {
     "hero": "Des histoires du soir faites rien que pour eux.",
     "heroSub": "Créez des histoires personnalisées générées par IA avec votre enfant comme héros — avec leurs jouets préférés, animaux et aventures à chaque page.",

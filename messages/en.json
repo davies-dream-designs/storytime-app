@@ -15,6 +15,18 @@
     "closeMenu": "Close menu",
     "language": "Language"
   },
+  "errors": {
+    "notFoundEyebrow": "Lost story page",
+    "notFoundTitle": "This page wandered off.",
+    "notFoundBody": "It may have been deleted, moved, or tucked into another part of the library.",
+    "errorEyebrow": "Story interrupted",
+    "errorTitle": "A page fluttered out of place.",
+    "errorBody": "Something unexpected happened. Try again, or head back to your library.",
+    "storiesButton": "Open stories",
+    "booksButton": "Open books",
+    "dashboardButton": "Go to dashboard",
+    "tryAgainButton": "Try again"
+  },
   "home": {
     "hero": "Bedtime stories made just for them.",
     "heroSub": "Create personalised, AI-generated bedtime stories starring your child — with their favourite toys, animals, and adventures woven into every page.",

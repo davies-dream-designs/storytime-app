@@ -367,7 +367,11 @@
     "hardcoverSub": "精装订购启用后将使用此插图 PDF。",
     "hardcoverButton": "精装订购即将推出",
     "epubButton": "Kindle/Books EPUB",
-    "epubHelp": "用于 Kindle 或 Apple Books：下载 EPUB 后，将文件分享或打开到阅读器应用中。图片会压缩以适配 Kindle 50MB 发送限制。"
+    "epubHelp": "用于 Kindle 或 Apple Books：下载 EPUB 后，将文件分享或打开到阅读器应用中。图片会压缩以适配 Kindle 50MB 发送限制。",
+    "mixedArtTitle": "部分插图需要重试",
+    "mixedArtSub": "有些页面回退到了占位草图。分享或订购前请重新生成插图。",
+    "repairArtButton": "重新生成插图",
+    "repairingArtButton": "正在重新生成…"
   },
   "account": {
     "title": "您的账户",

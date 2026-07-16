@@ -32,6 +32,7 @@ export default function BookStatusPanel({
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
   const [retrying, setRetrying] = useState(false);
+  const [repairingArt, setRepairingArt] = useState(false);
   const [startingBuild, setStartingBuild] = useState(false);
   const buildStartedRef = useRef(false);
   const activeJobStatus = project.assets.activeJobStatus;
@@ -93,6 +94,20 @@ export default function BookStatusPanel({
     setRetrying(false);
   }
 
+  async function handleRepairArt() {
+    setRepairingArt(true);
+    const res = await fetch(`/api/books/${project.id}/build`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "art" }),
+    });
+    if (res.ok) {
+      const next = (await res.json()) as BookProject;
+      setProject(next);
+    }
+    setRepairingArt(false);
+  }
+
   const progress =
     project.totalSpreads > 0
       ? Math.round((project.completedSpreads / project.totalSpreads) * 100)
@@ -100,6 +115,8 @@ export default function BookStatusPanel({
   const isActiveBuild =
     (project.status !== "ready" && project.status !== "failed") ||
     Boolean(activeJobStatus);
+  const hasMixedArt =
+    project.status === "ready" && project.assets.artMode === "mixed";
   const lastUpdated = project.updatedAt
     ? new Intl.DateTimeFormat(undefined, {
         month: "short",
@@ -188,6 +205,20 @@ export default function BookStatusPanel({
             className="mt-4 rounded-full bg-rose-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-rose-500 disabled:opacity-60"
           >
             {retrying ? t("retryingButton") : t("retryButton")}
+          </button>
+        </div>
+      ) : null}
+
+      {hasMixedArt ? (
+        <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="font-bold text-amber-800">{t("mixedArtTitle")}</p>
+          <p className="mt-1 text-sm text-amber-900">{t("mixedArtSub")}</p>
+          <button
+            onClick={handleRepairArt}
+            disabled={repairingArt || Boolean(activeJobStatus)}
+            className="mt-4 rounded-full bg-amber-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-amber-500 disabled:opacity-60"
+          >
+            {repairingArt ? t("repairingArtButton") : t("repairArtButton")}
           </button>
         </div>
       ) : null}

@@ -367,7 +367,11 @@
     "finalizingButton": "Finalizing package…",
     "finalizedAtLabel": "Finalized {value}",
     "epubButton": "EPUB for Kindle/Books",
-    "epubHelp": "For Kindle or Apple Books: download the EPUB, then share/open the file in your reader app. Images are compressed for Kindle’s 50 MB send limit."
+    "epubHelp": "For Kindle or Apple Books: download the EPUB, then share/open the file in your reader app. Images are compressed for Kindle’s 50 MB send limit.",
+    "mixedArtTitle": "Some illustrations need another try",
+    "mixedArtSub": "A few pages fell back to draft placeholders. Regenerate the illustrations to replace them before sharing or ordering.",
+    "repairArtButton": "Regenerate illustrations",
+    "repairingArtButton": "Regenerating…"
   },
   "account": {
     "title": "Your account",

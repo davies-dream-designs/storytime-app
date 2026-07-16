@@ -367,7 +367,11 @@
     "hardcoverSub": "La commande en couverture rigide utilisera ce PDF illustré lorsque l’option sera disponible.",
     "hardcoverButton": "Commande couverture rigide bientôt disponible",
     "epubButton": "EPUB pour Kindle/Books",
-    "epubHelp": "Pour Kindle ou Apple Books : téléchargez l’EPUB, puis partagez/ouvrez le fichier dans votre application de lecture. Les images sont compressées pour la limite Kindle de 50 Mo."
+    "epubHelp": "Pour Kindle ou Apple Books : téléchargez l’EPUB, puis partagez/ouvrez le fichier dans votre application de lecture. Les images sont compressées pour la limite Kindle de 50 Mo.",
+    "mixedArtTitle": "Certaines illustrations doivent être relancées",
+    "mixedArtSub": "Quelques pages sont revenues à des images provisoires. Régénérez les illustrations avant de partager ou commander.",
+    "repairArtButton": "Régénérer les illustrations",
+    "repairingArtButton": "Régénération…"
   },
   "account": {
     "title": "Votre compte",

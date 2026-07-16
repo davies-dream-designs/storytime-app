@@ -202,7 +202,7 @@ describe("generateCoverIllustration", () => {
     expect(requests[1]?.size).toBe("1024x1024");
   });
 
-  it("applies batch output and uses placeholders for missing image lines", async () => {
+  it("fails batch output when generated image lines are missing", async () => {
     const { applyBookImageBatchOutput } =
       await import("@/lib/print-books/illustrations");
     const project = createProject();
@@ -216,10 +216,6 @@ describe("generateCoverIllustration", () => {
       illustrationPrompt:
         'A gentle title-page illustration motif for "Moonlight Garden".',
     };
-    mockStoreBookAsset.mockImplementation(
-      async ({ pathname }) => `https://assets.example/${pathname}`
-    );
-
     const outputText = [
       JSON.stringify({
         custom_id: "cover",
@@ -239,24 +235,18 @@ describe("generateCoverIllustration", () => {
       }),
     ].join("\n");
 
-    const result = await applyBookImageBatchOutput({
-      project: { ...project, spreads: [...project.spreads, spread] },
-      story: createStory(),
-      profile: createProfile(),
-      characterBible: createCharacterBible(),
-      outputText,
-    });
-
-    expect(result.provider).toBe("mixed");
-    expect(result.coverImageUrl).toBe(
-      "https://assets.example/books/book-1/cover.png"
+    await expect(
+      applyBookImageBatchOutput({
+        project: { ...project, spreads: [...project.spreads, spread] },
+        story: createStory(),
+        profile: createProfile(),
+        characterBible: createCharacterBible(),
+        outputText,
+      })
+    ).rejects.toThrow(
+      "OpenAI image batch completed without 1 generated image result"
     );
-    expect(result.spreads[1]?.leftPageImageUrl).toBe(
-      "https://assets.example/books/book-1/spreads/2-left.png"
-    );
-    expect(result.spreads[1]?.rightPageImageUrl).toBe(
-      "https://assets.example/books/book-1/spreads/2-right.svg"
-    );
+    expect(mockStoreBookAsset).not.toHaveBeenCalled();
   });
 
   it("creates a placeholder spread asset when provider credentials are missing", async () => {

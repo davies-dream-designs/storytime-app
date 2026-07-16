@@ -707,30 +707,34 @@ export async function applyBookImageBatchOutput(input: {
 }): Promise<{
   coverImageUrl: string;
   spreads: BookSpread[];
-  provider: "openai" | "mixed";
+  provider: "openai";
 }> {
   const requests = buildBookImageBatchRequests(input);
   const images = parseOpenAIImageBatchOutput(input.outputText);
-  let provider: "openai" | "mixed" = "openai";
+  const missingRequests = requests.filter(
+    (request) => !images.has(request.customId)
+  );
 
-  const storeGeneratedOrPlaceholder = async (
-    request: OpenAIImageBatchRequest,
-    fallbackSvg: string
-  ) => {
+  if (missingRequests.length > 0) {
+    throw new Error(
+      `OpenAI image batch completed without ${missingRequests.length} generated image result${missingRequests.length === 1 ? "" : "s"}: ${missingRequests
+        .map((request) => request.customId)
+        .join(", ")}`
+    );
+  }
+
+  const storeGenerated = async (request: OpenAIImageBatchRequest) => {
     const generated = images.get(request.customId);
-    if (generated) {
-      return storeBookAsset({
-        pathname: request.pathname,
-        body: generated,
-        contentType: request.contentType,
-      });
+    if (!generated) {
+      throw new Error(
+        `OpenAI image batch missing generated image ${request.customId}`
+      );
     }
 
-    provider = "mixed";
     return storeBookAsset({
-      pathname: request.pathname.replace(/\.png$/, ".svg"),
-      body: fallbackSvg,
-      contentType: "image/svg+xml",
+      pathname: request.pathname,
+      body: generated,
+      contentType: request.contentType,
     });
   };
 
@@ -739,10 +743,7 @@ export async function applyBookImageBatchOutput(input: {
     throw new Error("OpenAI image batch had no cover request");
   }
 
-  const coverImageUrl = await storeGeneratedOrPlaceholder(
-    coverRequest,
-    createPlaceholderCoverSvg(input)
-  );
+  const coverImageUrl = await storeGenerated(coverRequest);
 
   let spreads = replaceCoverSpreadImage(input.project.spreads, coverImageUrl);
 
@@ -757,14 +758,8 @@ export async function applyBookImageBatchOutput(input: {
     );
     if (!leftRequest || !rightRequest) continue;
 
-    const leftPageImageUrl = await storeGeneratedOrPlaceholder(
-      leftRequest,
-      createPlaceholderPageSvg({ ...input, spread, side: "left" })
-    );
-    const rightPageImageUrl = await storeGeneratedOrPlaceholder(
-      rightRequest,
-      createPlaceholderPageSvg({ ...input, spread, side: "right" })
-    );
+    const leftPageImageUrl = await storeGenerated(leftRequest);
+    const rightPageImageUrl = await storeGenerated(rightRequest);
     spreads = replaceSpreadImage(spreads, {
       ...spread,
       leftPageImageUrl,
@@ -773,7 +768,7 @@ export async function applyBookImageBatchOutput(input: {
     });
   }
 
-  return { coverImageUrl, spreads, provider };
+  return { coverImageUrl, spreads, provider: "openai" };
 }
 
 function createPlaceholderPageSvg(input: {

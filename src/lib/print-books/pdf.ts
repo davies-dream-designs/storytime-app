@@ -80,20 +80,19 @@ function drawWrappedText(input: {
   size: number
   color?: ReturnType<typeof rgb>
   align?: 'left' | 'center'
+  shadow?: boolean
 }) {
-  const { page, text, x, topY, maxWidth, lineHeight, font, size, color = rgb(0.15, 0.18, 0.24), align = 'left' } = input
+  const { page, text, x, topY, maxWidth, lineHeight, font, size, color = rgb(0.15, 0.18, 0.24), align = 'left', shadow = false } = input
   const lines = wrapTextToWidth({ text, font, size, maxWidth })
   lines.forEach((line, index) => {
     const lineX = align === 'center'
       ? x + (maxWidth - font.widthOfTextAtSize(line, size)) / 2
       : x
-    page.drawText(line, {
-      x: lineX,
-      y: topY - index * lineHeight,
-      font,
-      size,
-      color,
-    })
+    const lineY = topY - index * lineHeight
+    if (shadow) {
+      page.drawText(line, { x: lineX + 1, y: lineY - 1.5, font, size, color: rgb(0, 0, 0), opacity: 0.65 })
+    }
+    page.drawText(line, { x: lineX, y: lineY, font, size, color })
   })
   return lines.length
 }
@@ -665,25 +664,18 @@ async function drawBookPage(input: {
   })
 
   if (text) {
-    page.drawRectangle({
-      x: 0,
-      y: textRect.y,
-      width: pageWidth,
-      height: textRect.height,
-      color: rgb(0.05, 0.03, 0.1),
-      opacity: 0.56,
-    })
     drawWrappedText({
       page,
       text,
       x: textRect.x + 18,
       topY: textRect.y + textRect.height - 30,
       maxWidth: textRect.width - 36,
-      lineHeight: 18,
+      lineHeight: 20,
       font: serif,
-      size: 14,
-      color: rgb(0.99, 0.96, 0.88),
+      size: 15,
+      color: rgb(0.99, 0.97, 0.90),
       align: 'center',
+      shadow: true,
     })
   }
 

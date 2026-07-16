@@ -395,6 +395,13 @@ function drawHalfTitlePage(input: {
       color: rgb(0.34, 0.35, 0.4),
     })
   }
+  page.drawText('Personalised bedtime stories', {
+    x: pageWidth * 0.12,
+    y: pageHeight * 0.18,
+    font: serif,
+    size: 13,
+    color: rgb(0.34, 0.35, 0.4),
+  })
 }
 
 async function drawFrontispiecePage(input: {
@@ -454,6 +461,13 @@ function drawTitlePage(input: {
     size: 16,
     color: rgb(0.33, 0.34, 0.4),
   })
+  page.drawText('Personalised bedtime stories made for home reading', {
+    x: pageWidth * 0.12,
+    y: pageHeight * 0.16,
+    font: serif,
+    size: 12,
+    color: rgb(0.34, 0.35, 0.4),
+  })
 }
 
 function drawCopyrightPage(input: {
@@ -489,6 +503,13 @@ function drawCopyrightPage(input: {
     size: 10,
     color: rgb(0.34, 0.35, 0.4),
   })
+  page.drawText('storycot.com', {
+    x: pageWidth * 0.12,
+    y: pageHeight * 0.11,
+    font: sansBold,
+    size: 10,
+    color: rgb(0.31, 0.36, 0.67),
+  })
 }
 
 function drawClosingBrandPage(input: {
@@ -514,6 +535,13 @@ function drawClosingBrandPage(input: {
     font: serif,
     size: 18,
     color: theme.ink,
+  })
+  page.drawText('Create your own personalised bedtime story at storycot.com', {
+    x: pageWidth * 0.12,
+    y: pageHeight * 0.2,
+    font: serif,
+    size: 12,
+    color: rgb(0.34, 0.35, 0.4),
   })
 }
 
@@ -578,6 +606,14 @@ async function drawBookPage(input: {
       color: rgb(0.45, 0.46, 0.52),
     })
   }
+
+  page.drawText('Storycot', {
+    x: 26,
+    y: 20,
+    font: sans,
+    size: 9,
+    color: rgb(0.45, 0.46, 0.52),
+  })
 
 }
 
@@ -859,6 +895,13 @@ async function buildCoverPdf(input: {
     font: sans,
     size: 10,
     color: rgb(0.34, 0.35, 0.4),
+  })
+  page.drawText('Create your own at storycot.com', {
+    x: backCoverX + BLEED + 58,
+    y: 96,
+    font: sansBold,
+    size: 10,
+    color: theme.skyAccent,
   })
   page.drawText('ISBN pending', {
     x: backCoverX + PRINT_PAGE_WIDTH - BLEED - 92,

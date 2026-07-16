@@ -238,7 +238,8 @@
     "wordsCount": "{count} palabras",
     "pagesCount": "{count} páginas",
     "viewBookButton": "Ver PDF ilustrado",
-    "textEpubButton": "EPUB de texto"
+    "textEpubButton": "EPUB de texto para Kindle/Books",
+    "epubHelp": "Para Kindle o Apple Books: descarga el EPUB y luego compártelo o ábrelo en tu app de lectura."
   },
   "books": {
     "createButton": "Generar PDF ilustrado",
@@ -365,7 +366,8 @@
     "hardcoverTitle": "Tapa dura",
     "hardcoverSub": "El pedido de tapa dura usará este PDF ilustrado cuando esté disponible.",
     "hardcoverButton": "Pedido de tapa dura próximamente",
-    "epubButton": "Abrir EPUB para lectores electrónicos"
+    "epubButton": "EPUB para Kindle/Books",
+    "epubHelp": "Para Kindle o Apple Books: descarga el EPUB y luego compártelo o ábrelo en tu app de lectura. Las imágenes se comprimen para el límite de 50 MB de Kindle."
   },
   "account": {
     "title": "Tu cuenta",

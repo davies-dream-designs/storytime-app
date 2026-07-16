@@ -238,7 +238,8 @@
     "wordsCount": "{count} 字",
     "pagesCount": "{count} 页",
     "viewBookButton": "查看插图 PDF",
-    "textEpubButton": "纯文本 EPUB"
+    "textEpubButton": "Kindle/Books 纯文本 EPUB",
+    "epubHelp": "用于 Kindle 或 Apple Books：下载 EPUB 后，将文件分享或打开到阅读器应用中。"
   },
   "books": {
     "createButton": "生成插图 PDF",
@@ -365,7 +366,8 @@
     "hardcoverTitle": "精装书",
     "hardcoverSub": "精装订购启用后将使用此插图 PDF。",
     "hardcoverButton": "精装订购即将推出",
-    "epubButton": "打开电子书 EPUB"
+    "epubButton": "Kindle/Books EPUB",
+    "epubHelp": "用于 Kindle 或 Apple Books：下载 EPUB 后，将文件分享或打开到阅读器应用中。图片会压缩以适配 Kindle 50MB 发送限制。"
   },
   "account": {
     "title": "您的账户",

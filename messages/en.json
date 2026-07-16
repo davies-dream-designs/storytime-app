@@ -238,7 +238,8 @@
     "wordsCount": "{count} words",
     "pagesCount": "{count} pages",
     "viewBookButton": "View illustrated PDF",
-    "textEpubButton": "Text EPUB"
+    "textEpubButton": "Text EPUB for Kindle/Books",
+    "epubHelp": "For Kindle or Apple Books: download the EPUB, then share/open the file in your reader app."
   },
   "books": {
     "createButton": "Generate illustrated PDF",
@@ -365,7 +366,8 @@
     "refreshFinalButton": "Refresh final package",
     "finalizingButton": "Finalizing package…",
     "finalizedAtLabel": "Finalized {value}",
-    "epubButton": "Open EPUB for e-readers"
+    "epubButton": "EPUB for Kindle/Books",
+    "epubHelp": "For Kindle or Apple Books: download the EPUB, then share/open the file in your reader app. Images are compressed for Kindle’s 50 MB send limit."
   },
   "account": {
     "title": "Your account",

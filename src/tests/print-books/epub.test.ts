@@ -4,6 +4,12 @@ import type { ChildProfile, Story } from "@/types";
 import type { BookProject } from "@/types/printBook";
 
 const mockStoreBookAsset = vi.fn();
+const coverSvg = Buffer.from(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="160"><rect width="120" height="160" fill="#252748"/></svg>'
+).toString("base64");
+const pageSvg = Buffer.from(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#f7d897"/></svg>'
+).toString("base64");
 
 vi.mock("@/lib/print-books/storage", () => ({
   storeBookAsset: mockStoreBookAsset,
@@ -73,7 +79,7 @@ function createProject(): BookProject {
         rightPageText: "",
         sceneBrief: "Front cover for Moonlight Garden",
         illustrationPrompt: "A magical cover.",
-        imageUrl: "data:image/svg+xml;base64,Y292ZXI=",
+        imageUrl: `data:image/svg+xml;base64,${coverSvg}`,
       },
       {
         id: "book-1:spread:2",
@@ -86,13 +92,13 @@ function createProject(): BookProject {
         rightPageText: "The silver lantern glowed softly.",
         sceneBrief: "The first moment in the garden",
         illustrationPrompt: "A moonlit path.",
-        leftPageImageUrl: "data:image/png;base64,bGVmdA==",
-        rightPageImageUrl: "data:image/png;base64,cmlnaHQ=",
+        leftPageImageUrl: `data:image/svg+xml;base64,${pageSvg}`,
+        rightPageImageUrl: `data:image/svg+xml;base64,${pageSvg}`,
       },
     ],
     assets: {
       proofVersion: 0,
-      coverImageUrl: "data:image/svg+xml;base64,Y292ZXI=",
+      coverImageUrl: `data:image/svg+xml;base64,${coverSvg}`,
     },
     retryCount: 0,
     createdAt: "2026-07-15T00:00:00.000Z",
@@ -131,7 +137,7 @@ describe("buildBookEpub", () => {
     ).resolves.toContain("Moonlight Garden");
     expect(zip.file("OEBPS/cover.xhtml")).toBeTruthy();
     expect(zip.file("OEBPS/spread-2-left.xhtml")).toBeTruthy();
-    expect(zip.file("OEBPS/images/spread-2-left.png")).toBeTruthy();
+    expect(zip.file("OEBPS/images/spread-2-left.jpg")).toBeTruthy();
 
     const stored = await generateBookEpub({
       project: createProject(),
@@ -164,8 +170,12 @@ describe("buildBookEpub", () => {
       zip.file("OEBPS/content.opf")?.async("string")
     ).resolves.toContain("<dc:title>Moonlight Garden</dc:title>");
     await expect(
+      zip.file("OEBPS/content.opf")?.async("string")
+    ).resolves.toContain('properties="cover-image"');
+    await expect(
       zip.file("OEBPS/page-1.xhtml")?.async("string")
     ).resolves.toContain("Mila stepped into the moonlight garden.");
-    expect(zip.file("OEBPS/images/spread-2-left.png")).toBeNull();
+    expect(zip.file("OEBPS/images/cover.jpg")).toBeTruthy();
+    expect(zip.file("OEBPS/images/spread-2-left.jpg")).toBeNull();
   });
 });

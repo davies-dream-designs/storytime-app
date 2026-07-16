@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import sharp from "sharp";
 import type { ChildProfile, Story } from "@/types";
 import type { BookProject, BookSpread } from "@/types/printBook";
 import { storeBookAsset } from "@/lib/print-books/storage";
@@ -9,6 +10,9 @@ type EpubImageAsset = {
   mediaType: string;
   bytes: Buffer;
 };
+
+const EPUB_IMAGE_MAX_WIDTH = 1400;
+const EPUB_IMAGE_QUALITY = 72;
 
 function escapeXml(value: string): string {
   return value
@@ -55,17 +59,60 @@ function getDataUrlAsset(
   };
 }
 
-function getExtension(mediaType: string): string {
-  switch (mediaType) {
-    case "image/jpeg":
-    case "image/jpg":
-      return "jpg";
-    case "image/svg+xml":
-      return "svg";
-    case "image/png":
-    default:
-      return "png";
-  }
+async function toCompactJpeg(bytes: Buffer): Promise<Buffer> {
+  return sharp(bytes)
+    .rotate()
+    .resize({
+      width: EPUB_IMAGE_MAX_WIDTH,
+      height: EPUB_IMAGE_MAX_WIDTH,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .jpeg({ quality: EPUB_IMAGE_QUALITY, mozjpeg: true })
+    .toBuffer();
+}
+
+function createTextCoverSvg(input: { story: Story; profile?: ChildProfile }) {
+  const title = escapeXml(input.story.title || "Storycot story");
+  const childName = escapeXml(
+    input.profile?.name ?? input.story.profileName ?? ""
+  );
+  const subtitle = childName
+    ? `A Storycot story for ${childName}`
+    : "A Storycot story";
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#252748"/>
+      <stop offset="62%" stop-color="#6f62bb"/>
+      <stop offset="100%" stop-color="#f7d897"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="1600" fill="url(#sky)"/>
+  <circle cx="930" cy="220" r="115" fill="#fff1b8" opacity="0.95"/>
+  <circle cx="930" cy="220" r="165" fill="#fff1b8" opacity="0.12"/>
+  <path d="M0 1130 C170 1060 350 1030 510 1064 C690 1102 812 1180 980 1150 C1070 1135 1142 1094 1200 1060 L1200 1600 L0 1600 Z" fill="#26355f"/>
+  <path d="M0 1240 C180 1190 360 1180 520 1214 C710 1255 830 1340 1015 1304 C1095 1288 1160 1255 1200 1230 L1200 1600 L0 1600 Z" fill="#182547" opacity="0.92"/>
+  <rect x="120" y="120" width="960" height="1360" rx="52" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="5"/>
+  <text x="160" y="260" fill="#fff6d7" font-size="34" font-family="Arial, sans-serif" font-weight="700" letter-spacing="4">STORYCOT</text>
+  <text x="160" y="470" fill="#fffdf8" font-size="82" font-family="Georgia, serif" font-weight="700">${title}</text>
+  <text x="160" y="590" fill="#fff0c5" font-size="42" font-family="Georgia, serif">${escapeXml(subtitle)}</text>
+  <text x="160" y="1390" fill="#fff8dd" font-size="30" font-family="Arial, sans-serif">Personalised bedtime story</text>
+</svg>`;
+}
+
+async function createTextCoverAsset(input: {
+  story: Story;
+  profile?: ChildProfile;
+}): Promise<EpubImageAsset> {
+  const cover = await toCompactJpeg(Buffer.from(createTextCoverSvg(input)));
+  return {
+    id: "cover",
+    href: "images/cover.jpg",
+    mediaType: "image/jpeg",
+    bytes: cover,
+  };
 }
 
 async function loadImageAsset(input: {
@@ -76,25 +123,25 @@ async function loadImageAsset(input: {
 
   const dataAsset = getDataUrlAsset(input.url);
   if (dataAsset) {
-    const extension = getExtension(dataAsset.mediaType);
+    const compact = await toCompactJpeg(dataAsset.bytes);
     return {
       id: input.id,
-      href: `images/${input.id}.${extension}`,
-      mediaType: dataAsset.mediaType,
-      bytes: dataAsset.bytes,
+      href: `images/${input.id}.jpg`,
+      mediaType: "image/jpeg",
+      bytes: compact,
     };
   }
 
   const response = await fetch(input.url);
   if (!response.ok) return undefined;
-  const mediaType =
-    response.headers.get("content-type")?.split(";")[0] ?? "image/png";
-  const extension = getExtension(mediaType);
+  const compact = await toCompactJpeg(
+    Buffer.from(await response.arrayBuffer())
+  );
   return {
     id: input.id,
-    href: `images/${input.id}.${extension}`,
-    mediaType,
-    bytes: Buffer.from(await response.arrayBuffer()),
+    href: `images/${input.id}.jpg`,
+    mediaType: "image/jpeg",
+    bytes: compact,
   };
 }
 
@@ -357,6 +404,7 @@ export async function buildStoryTextEpub(input: {
   const modified = new Date(story.createdAt)
     .toISOString()
     .replace(/\.\d{3}Z$/, "Z");
+  const coverAsset = await createTextCoverAsset({ story, profile });
 
   zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
   zip.file(
@@ -377,6 +425,7 @@ export async function buildStoryTextEpub(input: {
       content: renderPageXhtml({
         title,
         heading: title,
+        imageHref: coverAsset.href,
         body: profile
           ? `A Storycot story for ${profile.name}.`
           : "A Storycot story.",
@@ -399,6 +448,7 @@ export async function buildStoryTextEpub(input: {
     zip.file(`OEBPS/${page.href}`, page.content);
   }
 
+  zip.file(`OEBPS/${coverAsset.href}`, coverAsset.bytes);
   zip.file("OEBPS/styles/storycot.css", getStylesheet());
   zip.file(
     "OEBPS/nav.xhtml",
@@ -434,6 +484,7 @@ export async function buildStoryTextEpub(input: {
   <manifest>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav" />
     <item id="css" href="styles/storycot.css" media-type="text/css" />
+    <item id="cover" href="${coverAsset.href}" media-type="${coverAsset.mediaType}" properties="cover-image" />
     ${pages.map((page) => `<item id="${escapeXml(page.id)}" href="${escapeXml(page.href)}" media-type="application/xhtml+xml" />`).join("\n")}
   </manifest>
   <spine>

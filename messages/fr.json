@@ -238,7 +238,8 @@
     "wordsCount": "{count} mots",
     "pagesCount": "{count} pages",
     "viewBookButton": "Voir le PDF illustré",
-    "textEpubButton": "EPUB texte"
+    "textEpubButton": "EPUB texte pour Kindle/Books",
+    "epubHelp": "Pour Kindle ou Apple Books : téléchargez l’EPUB, puis partagez/ouvrez le fichier dans votre application de lecture."
   },
   "books": {
     "createButton": "Générer le PDF illustré",
@@ -365,7 +366,8 @@
     "hardcoverTitle": "Couverture rigide",
     "hardcoverSub": "La commande en couverture rigide utilisera ce PDF illustré lorsque l’option sera disponible.",
     "hardcoverButton": "Commande couverture rigide bientôt disponible",
-    "epubButton": "Ouvrir l’EPUB pour liseuses"
+    "epubButton": "EPUB pour Kindle/Books",
+    "epubHelp": "Pour Kindle ou Apple Books : téléchargez l’EPUB, puis partagez/ouvrez le fichier dans votre application de lecture. Les images sont compressées pour la limite Kindle de 50 Mo."
   },
   "account": {
     "title": "Votre compte",

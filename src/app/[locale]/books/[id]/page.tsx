@@ -79,6 +79,11 @@ export default async function BookProjectPage({
                 </a>
               ) : null}
             </div>
+            {hasEpub ? (
+              <p className="mt-3 text-sm leading-6 text-night-500">
+                {t("epubHelp")}
+              </p>
+            ) : null}
           </section>
         ) : null}
 

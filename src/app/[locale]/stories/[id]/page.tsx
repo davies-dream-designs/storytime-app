@@ -100,6 +100,9 @@ export default async function StoryPage({
             >
               {t("newStoryButton")}
             </Link>
+            <p className="basis-full text-xs leading-5 text-night-400 sm:max-w-md">
+              {t("epubHelp")}
+            </p>
           </div>
         </div>
         <StoryReader story={story} />

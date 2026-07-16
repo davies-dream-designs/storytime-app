@@ -100,6 +100,7 @@ describe('generateCoverIllustration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     delete process.env.OPENAI_API_KEY
+    delete process.env.OPENAI_IMAGE_MODEL
     delete process.env.BLOB_READ_WRITE_TOKEN
     mockStoreBookAsset.mockResolvedValue('data:image/svg+xml;base64,cover')
   })
@@ -191,5 +192,47 @@ describe('generateCoverIllustration', () => {
         contentType: 'image/svg+xml',
       })
     )
+  })
+
+  it('falls back from gpt-image-2 to gpt-image-1 when the newer model is unavailable', async () => {
+    process.env.OPENAI_API_KEY = 'test-key'
+
+    vi.doMock('@/lib/print-books/storage', () => ({
+      storeBookAsset: mockStoreBookAsset,
+      isBookAssetStorageConfigured: () => true,
+    }))
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        text: async () => JSON.stringify({ error: { message: 'The model `gpt-image-2` does not exist or is not available.' } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: [{ b64_json: Buffer.from('png-bytes').toString('base64') }] }),
+      })
+
+    vi.stubGlobal('fetch', fetchMock)
+    mockStoreBookAsset.mockResolvedValue('https://example.com/cover.png')
+
+    vi.resetModules()
+    const { generateCoverIllustration } = await import('@/lib/print-books/illustrations')
+
+    const result = await generateCoverIllustration({
+      project: createProject(),
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+    })
+
+    expect(result.provider).toBe('openai')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(String(fetchMock.mock.calls[0]?.[1]?.body)).toContain('"model":"gpt-image-2"')
+    expect(String(fetchMock.mock.calls[1]?.[1]?.body)).toContain('"model":"gpt-image-1"')
+
+    vi.unstubAllGlobals()
+    vi.doUnmock('@/lib/print-books/storage')
   })
 })

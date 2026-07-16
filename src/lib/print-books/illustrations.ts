@@ -222,73 +222,88 @@ function createPlaceholderCoverSvg(input: {
 }
 
 async function generateOpenAICoverPng(prompt: string): Promise<Buffer> {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) {
-    throw new Error('OPENAI_API_KEY is not configured')
-  }
-
-  const response = await fetch('https://api.openai.com/v1/images/generations', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-image-2',
-      prompt,
-      size: '1024x1536',
-    }),
+  return generateOpenAIImage({
+    prompt,
+    size: '1024x1536',
   })
-
-  if (!response.ok) {
-    throw new Error(`OpenAI image generation failed: ${response.status} ${response.statusText}`)
-  }
-
-  const payload = (await response.json()) as {
-    data?: Array<{ b64_json?: string }>
-  }
-
-  const base64Image = payload.data?.[0]?.b64_json
-  if (!base64Image) {
-    throw new Error('OpenAI image generation returned no image data')
-  }
-
-  return Buffer.from(base64Image, 'base64')
 }
 
 async function generateOpenAIInteriorPng(prompt: string): Promise<Buffer> {
+  return generateOpenAIImage({
+    prompt,
+    size: '1536x1024',
+  })
+}
+
+function getPreferredOpenAIImageModels(): string[] {
+  const configured = process.env.OPENAI_IMAGE_MODEL?.trim()
+  if (configured) return [configured]
+
+  return ['gpt-image-2', 'gpt-image-1']
+}
+
+function shouldTryNextImageModel(status: number, bodyText: string): boolean {
+  if (!(status === 400 || status === 404)) return false
+  const normalized = bodyText.toLowerCase()
+  return (
+    normalized.includes('model') ||
+    normalized.includes('not found') ||
+    normalized.includes('unsupported') ||
+    normalized.includes('not available') ||
+    normalized.includes('does not exist')
+  )
+}
+
+async function generateOpenAIImage(input: {
+  prompt: string
+  size: '1024x1536' | '1536x1024'
+}): Promise<Buffer> {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY is not configured')
   }
 
-  const response = await fetch('https://api.openai.com/v1/images/generations', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-image-2',
-      prompt,
-      size: '1536x1024',
-    }),
-  })
+  const models = getPreferredOpenAIImageModels()
+  let lastErrorMessage = 'Unknown OpenAI image generation error'
 
-  if (!response.ok) {
-    throw new Error(`OpenAI image generation failed: ${response.status} ${response.statusText}`)
+  for (let index = 0; index < models.length; index += 1) {
+    const model = models[index]!
+    const response = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        prompt: input.prompt,
+        size: input.size,
+        output_format: 'png',
+        quality: 'medium',
+      }),
+    })
+
+    if (!response.ok) {
+      const errorBody = await response.text()
+      lastErrorMessage = `OpenAI image generation failed for ${model}: ${response.status} ${errorBody}`
+      const canFallback = index < models.length - 1 && shouldTryNextImageModel(response.status, errorBody)
+      if (canFallback) continue
+      throw new Error(lastErrorMessage)
+    }
+
+    const payload = (await response.json()) as {
+      data?: Array<{ b64_json?: string }>
+    }
+
+    const base64Image = payload.data?.[0]?.b64_json
+    if (!base64Image) {
+      throw new Error(`OpenAI image generation returned no image data for ${model}`)
+    }
+
+    return Buffer.from(base64Image, 'base64')
   }
 
-  const payload = (await response.json()) as {
-    data?: Array<{ b64_json?: string }>
-  }
-
-  const base64Image = payload.data?.[0]?.b64_json
-  if (!base64Image) {
-    throw new Error('OpenAI image generation returned no image data')
-  }
-
-  return Buffer.from(base64Image, 'base64')
+  throw new Error(lastErrorMessage)
 }
 
 function replaceCoverSpreadImage(spreads: BookSpread[], coverImageUrl: string): BookSpread[] {

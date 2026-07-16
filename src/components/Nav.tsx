@@ -6,6 +6,7 @@ import { useAuth, SignInButton, UserButton } from "@clerk/nextjs";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { buttonClassName } from "@/components/ui/buttonStyles";
 
 export default function Nav() {
   const { isSignedIn } = useAuth();
@@ -97,7 +98,7 @@ export default function Nav() {
             <>
               <LanguageSwitcher />
               <SignInButton mode="modal">
-                <button className="rounded-full bg-night-700 px-4 py-2 text-sm font-bold text-moon-200 transition hover:bg-night-600">
+                <button className={buttonClassName({ size: "compact" })}>
                   {t("signIn")}
                 </button>
               </SignInButton>
@@ -148,7 +149,7 @@ export default function Nav() {
             </>
           ) : (
             <SignInButton mode="modal">
-              <button className="rounded-full bg-night-700 px-4 py-2 text-sm font-bold text-moon-200">
+              <button className={buttonClassName({ size: "compact" })}>
                 {t("signIn")}
               </button>
             </SignInButton>
@@ -202,7 +203,7 @@ export default function Nav() {
           <Link
             href="/stories/new"
             onClick={() => setOpen(false)}
-            className="mt-2 rounded-full bg-night-700 px-4 py-3 text-center text-sm font-bold text-moon-200 transition hover:bg-night-600"
+            className={buttonClassName({ className: "mt-2 w-full" })}
           >
             {t("newStory")}
           </Link>

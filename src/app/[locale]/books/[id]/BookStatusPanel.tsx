@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
+import Button from "@/components/ui/Button";
 import type { BookProject } from "@/types/printBook";
 
 type BookStatusPayload = Pick<
@@ -193,33 +194,38 @@ export default function BookStatusPanel({
       ) : null}
 
       {project.status === "failed" ? (
-        <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4">
-          <p className="font-bold text-rose-700">{t("failedTitle")}</p>
-          <p className="mt-1 text-sm text-rose-600">
+        <div className="mt-6 rounded-2xl border border-blush-200 bg-blush-100 p-4">
+          <p className="font-bold text-blush-700">{t("failedTitle")}</p>
+          <p className="mt-1 text-sm text-blush-600">
             {project.errorMessage ?? t("failedFallback")}
           </p>
-          <p className="mt-2 text-sm text-rose-600">{t("failedPaymentNote")}</p>
-          <button
+          <p className="mt-2 text-sm text-blush-600">
+            {t("failedPaymentNote")}
+          </p>
+          <Button
+            variant="danger"
+            size="compact"
             onClick={handleRetry}
             disabled={retrying}
-            className="mt-4 rounded-full bg-rose-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-rose-500 disabled:opacity-60"
+            className="mt-4"
           >
             {retrying ? t("retryingButton") : t("retryButton")}
-          </button>
+          </Button>
         </div>
       ) : null}
 
       {hasMixedArt ? (
-        <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <p className="font-bold text-amber-800">{t("mixedArtTitle")}</p>
-          <p className="mt-1 text-sm text-amber-900">{t("mixedArtSub")}</p>
-          <button
+        <div className="mt-6 rounded-2xl border border-moon-200 bg-moon-100 p-4">
+          <p className="font-bold text-night-700">{t("mixedArtTitle")}</p>
+          <p className="mt-1 text-sm text-night-600">{t("mixedArtSub")}</p>
+          <Button
+            size="compact"
             onClick={handleRepairArt}
             disabled={repairingArt || Boolean(activeJobStatus)}
-            className="mt-4 rounded-full bg-amber-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-amber-500 disabled:opacity-60"
+            className="mt-4"
           >
             {repairingArt ? t("repairingArtButton") : t("repairArtButton")}
-          </button>
+          </Button>
         </div>
       ) : null}
     </section>

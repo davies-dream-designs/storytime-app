@@ -6,6 +6,7 @@ import { getMessages } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import { GlobalPendingProvider } from "@/components/GlobalPending";
+import { storycotTheme } from "@/lib/theme";
 import "../globals.css";
 
 const fredoka = Fredoka({
@@ -71,11 +72,7 @@ export default async function LocaleLayout({
   return (
     <ClerkProvider
       appearance={{
-        variables: {
-          colorPrimary: "#fbbf24",
-          colorBackground: "#faf9f6",
-          borderRadius: "0.75rem",
-        },
+        variables: storycotTheme.clerk,
       }}
     >
       <NextIntlClientProvider locale={locale} messages={messages}>

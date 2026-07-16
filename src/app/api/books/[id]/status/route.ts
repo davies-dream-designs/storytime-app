@@ -17,7 +17,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ? await db.bookBuildJobs.getById(project.assets.activeJobId)
     : await db.bookBuildJobs.getCurrentByProjectId(project.id)
 
-  if (activeJob && activeJob.projectId === project.id && isBookBuildJobStale(activeJob)) {
+  const shouldDispatchQueuedJob =
+    activeJob &&
+    activeJob.projectId === project.id &&
+    (activeJob.status === 'queued' || isBookBuildJobStale(activeJob))
+
+  if (shouldDispatchQueuedJob) {
     after(async () => {
       await dispatchBookBuildJob(activeJob)
     })

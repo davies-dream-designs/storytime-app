@@ -3,7 +3,19 @@ import { NextRequest } from 'next/server'
 import type { ChildProfile, Story } from '@/types'
 import type { BookProject } from '@/types/printBook'
 
-const mockAuth = vi.fn(async () => ({ userId: 'user-1' }))
+const {
+  mockAuth,
+  mockAfter,
+  mockDispatchBookBuildJob,
+  mockIsBookBuildJobStale,
+} = vi.hoisted(() => ({
+  mockAuth: vi.fn(async () => ({ userId: 'user-1' })),
+  mockAfter: vi.fn(async (callback: () => Promise<void> | void) => {
+    await callback()
+  }),
+  mockDispatchBookBuildJob: vi.fn(),
+  mockIsBookBuildJobStale: vi.fn(() => false),
+}))
 
 const mockDb = {
   stories: {
@@ -27,8 +39,21 @@ vi.mock('@clerk/nextjs/server', () => ({
   auth: mockAuth,
 }))
 
+vi.mock('next/server', async () => {
+  const actual = await vi.importActual<typeof import('next/server')>('next/server')
+  return {
+    ...actual,
+    after: mockAfter,
+  }
+})
+
 vi.mock('@/lib/db', () => ({
   db: mockDb,
+}))
+
+vi.mock('@/lib/print-books/jobs', () => ({
+  dispatchBookBuildJob: mockDispatchBookBuildJob,
+  isBookBuildJobStale: mockIsBookBuildJobStale,
 }))
 
 function createStory(): Story {
@@ -93,6 +118,9 @@ describe('/api/books', () => {
     mockDb.profiles.getById.mockResolvedValue(createProfile())
     mockDb.bookBuildJobs.getById.mockResolvedValue(undefined)
     mockDb.bookBuildJobs.getCurrentByProjectId.mockResolvedValue(undefined)
+    mockDispatchBookBuildJob.mockReset()
+    mockIsBookBuildJobStale.mockReset()
+    mockIsBookBuildJobStale.mockReturnValue(false)
     mockDb.bookProjects.getByUserId.mockResolvedValue([])
     mockDb.bookProjects.create.mockResolvedValue(undefined)
   })
@@ -131,6 +159,9 @@ describe('/api/books/[id] and /status', () => {
     mockAuth.mockResolvedValue({ userId: 'user-1' })
     mockDb.bookBuildJobs.getById.mockResolvedValue(undefined)
     mockDb.bookBuildJobs.getCurrentByProjectId.mockResolvedValue(undefined)
+    mockDispatchBookBuildJob.mockReset()
+    mockIsBookBuildJobStale.mockReset()
+    mockIsBookBuildJobStale.mockReturnValue(false)
     mockDb.bookProjects.getById.mockResolvedValue(createBookProject())
   })
 
@@ -159,5 +190,38 @@ describe('/api/books/[id] and /status', () => {
       completedSpreads: 0,
       totalSpreads: 16,
     })
+  })
+
+  it('nudges queued jobs during status polling', async () => {
+    mockDb.bookProjects.getById.mockResolvedValue({
+      ...createBookProject(),
+      assets: {
+        proofVersion: 0,
+        activeJobId: 'job-1',
+        activeJobStatus: 'queued',
+      },
+    })
+    mockDb.bookBuildJobs.getById.mockResolvedValue({
+      id: 'job-1',
+      projectId: 'book-1',
+      userId: 'user-1',
+      mode: 'full',
+      status: 'queued',
+      step: 0,
+      token: 'token',
+      baseUrl: 'http://localhost',
+      createdAt: '2026-07-16T00:00:00.000Z',
+      updatedAt: '2026-07-16T00:00:00.000Z',
+    })
+
+    const { GET } = await import('@/app/api/books/[id]/status/route')
+    const res = await GET(new NextRequest('http://localhost/api/books/book-1/status'), {
+      params: Promise.resolve({ id: 'book-1' }),
+    })
+
+    expect(res.status).toBe(200)
+    expect(mockDispatchBookBuildJob).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'job-1' })
+    )
   })
 })

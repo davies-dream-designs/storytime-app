@@ -18,6 +18,11 @@ import {
 import { generateBookPdfs } from "@/lib/print-books/pdf";
 import { generateBookEpub } from "@/lib/print-books/epub";
 import {
+  captureIllustratedBookCredits,
+  refundIllustratedBookCredits,
+  reserveIllustratedBookCredits,
+} from "@/lib/credits";
+import {
   LULU_SQUARE_HARDCOVER_SPEC,
   runLuluProofing,
 } from "@/lib/print-books/proofing";
@@ -87,6 +92,8 @@ async function markJobProjectFailure(
   errorCode: string,
   message: string
 ) {
+  await refundIllustratedBookCredits(project);
+
   await db.bookProjects.update(project.id, {
     status: "failed",
     currentStageLabel: getBookProjectStageLabel("failed"),
@@ -651,17 +658,22 @@ export async function enqueueBookBuildJob(input: {
     );
   }
 
+  const billableProject =
+    input.mode === "full" || input.mode === "art"
+      ? await reserveIllustratedBookCredits(input.project)
+      : input.project;
+
   const createdAt = getNowIso();
   const job: BookBuildJob = {
     id: uuidv4(),
-    projectId: input.project.id,
-    userId: input.project.userId,
+    projectId: billableProject.id,
+    userId: billableProject.userId,
     mode: input.mode,
     status: "queued",
     step: 0,
     totalSteps:
       input.mode === "art" || input.mode === "full"
-        ? input.project.spreadCount
+        ? billableProject.spreadCount
         : 1,
     token: uuidv4(),
     baseUrl: input.baseUrl,
@@ -671,7 +683,7 @@ export async function enqueueBookBuildJob(input: {
 
   await db.bookBuildJobs.create(job);
 
-  const updatedProject = await db.bookProjects.update(input.project.id, {
+  const updatedProject = await db.bookProjects.update(billableProject.id, {
     status:
       input.mode === "full"
         ? "queued"
@@ -680,31 +692,32 @@ export async function enqueueBookBuildJob(input: {
           : input.mode === "finalize"
             ? "proofing"
             : "composing",
-    currentStageLabel: getQueuedStageLabel(input.mode, input.project),
+    currentStageLabel: getQueuedStageLabel(input.mode, billableProject),
     errorCode: undefined,
     errorMessage: undefined,
-    completedSpreads: input.mode === "art" ? 0 : input.project.completedSpreads,
+    completedSpreads:
+      input.mode === "art" ? 0 : billableProject.completedSpreads,
     totalSpreads:
       input.mode === "art"
-        ? input.project.spreads.length
-        : input.project.totalSpreads,
+        ? billableProject.spreads.length
+        : billableProject.totalSpreads,
     assets: {
-      ...input.project.assets,
+      ...billableProject.assets,
       activeJobId: job.id,
       activeJobMode: input.mode,
       activeJobStatus: "queued",
       activeJobUpdatedAt: createdAt,
       lastBuildMode: input.mode,
       artGenerationCursor:
-        input.mode === "art" ? 0 : input.project.assets.artGenerationCursor,
+        input.mode === "art" ? 0 : billableProject.assets.artGenerationCursor,
       artGenerationTotal:
         input.mode === "art"
-          ? input.project.spreads.length
-          : input.project.assets.artGenerationTotal,
+          ? billableProject.spreads.length
+          : billableProject.assets.artGenerationTotal,
       openAIImageBatch:
         input.mode === "art" || input.mode === "full"
           ? undefined
-          : input.project.assets.openAIImageBatch,
+          : billableProject.assets.openAIImageBatch,
     },
   });
 
@@ -794,7 +807,7 @@ export async function processBookBuildJob(jobId: string) {
       throw new Error("Job not found");
     }
 
-    const finalProject = await db.bookProjects.update(project.id, {
+    let finalProject = await db.bookProjects.update(project.id, {
       assets: {
         ...nextProject.assets,
         activeJobId: terminalProject ? undefined : job.id,
@@ -803,6 +816,12 @@ export async function processBookBuildJob(jobId: string) {
         activeJobUpdatedAt: updatedJob.updatedAt,
       },
     });
+
+    if (terminalProject && nextProject.status === "ready") {
+      finalProject = await captureIllustratedBookCredits(
+        finalProject ?? nextProject
+      );
+    }
 
     const waitingForImageBatch =
       !terminalProject &&

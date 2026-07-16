@@ -48,7 +48,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json(queuedProject)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown build error'
-    const status = /already running|complete draft|OPENAI_API_KEY/i.test(message) ? 409 : 500
+    const status = /insufficient credits/i.test(message)
+      ? 402
+      : /already running|complete draft|OPENAI_API_KEY/i.test(message)
+        ? 409
+        : 500
     return NextResponse.json({ error: message }, { status })
   }
 }

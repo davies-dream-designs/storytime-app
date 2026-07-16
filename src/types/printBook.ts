@@ -141,6 +141,15 @@ export interface BookAsset {
   proofVersion: number;
 }
 
+export interface BookBilling {
+  product: "illustrated_book";
+  status: "reserved" | "captured" | "refunded";
+  credits: number;
+  reservedAt?: string;
+  capturedAt?: string;
+  refundedAt?: string;
+}
+
 export interface BookProject {
   id: string;
   userId: string;
@@ -158,6 +167,7 @@ export interface BookProject {
   beats: Beat[];
   spreads: BookSpread[];
   assets: BookAsset;
+  billing?: BookBilling;
   errorCode?: string;
   errorMessage?: string;
   retryCount: number;

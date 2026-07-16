@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
-import DeleteBookButton from "@/components/DeleteBookButton";
+import BooksLibrary from "@/components/BooksLibrary";
 import { db } from "@/lib/db";
 
 export default async function BooksPage() {
@@ -15,9 +15,6 @@ export default async function BooksPage() {
     a.createdAt > b.createdAt ? -1 : 1
   );
   const stories = await db.stories.getByUserId(userId);
-  const storyTitleById = new Map(
-    stories.map((story) => [story.id, story.title])
-  );
 
   return (
     <>
@@ -44,48 +41,7 @@ export default async function BooksPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid gap-4">
-            {projects.map((project) => (
-              <article
-                key={project.id}
-                className="rounded-3xl border border-night-100 bg-white p-6 shadow-sm transition hover:border-star-200 hover:shadow-md"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-bold uppercase tracking-wide text-star-600">
-                      {project.currentStageLabel}
-                    </p>
-                    <h2 className="mt-2 font-display text-2xl font-bold text-night-800">
-                      {storyTitleById.get(project.sourceStoryId) ??
-                        t("untitledBook")}
-                    </h2>
-                    <p className="mt-1 text-sm text-night-500">
-                      {t("spreadProgress", {
-                        completed: project.completedSpreads,
-                        total: project.totalSpreads,
-                      })}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl bg-night-50 px-4 py-3 text-sm font-bold text-night-600">
-                    {project.status}
-                  </div>
-                </div>
-                <div className="mt-5 flex flex-wrap gap-2">
-                  <Link
-                    href={`/books/${project.id}` as string}
-                    className="storycot-btn storycot-btn-primary storycot-btn-compact"
-                  >
-                    {t("viewBookButton")}
-                  </Link>
-                  <DeleteBookButton
-                    bookId={project.id}
-                    redirectTo="/books"
-                    compact
-                  />
-                </div>
-              </article>
-            ))}
-          </div>
+          <BooksLibrary projects={projects} stories={stories} />
         )}
       </main>
     </>

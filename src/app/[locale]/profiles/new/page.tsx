@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import Nav from '@/components/Nav'
-import { LESSON_OPTIONS } from '@/types'
+import AppearanceFields from '@/components/profiles/AppearanceFields'
+import { createEmptyChildAppearance, LESSON_OPTIONS, type ChildAppearance } from '@/types'
 
 type TagsFieldProps = {
   label: string
@@ -73,6 +74,7 @@ export default function NewProfilePage() {
   const [favouriteAnimals, setFavouriteAnimals] = useState<string[]>([])
   const [favouritePlaces, setFavouritePlaces] = useState<string[]>([])
   const [lessons, setLessons] = useState<string[]>([])
+  const [appearance, setAppearance] = useState<ChildAppearance>(createEmptyChildAppearance())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -114,7 +116,7 @@ export default function NewProfilePage() {
       const res = await fetch('/api/profiles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), age, dateOfBirth, favouriteCharacters, favouriteActivities, favouriteAnimals, favouritePlaces, lessons }),
+        body: JSON.stringify({ name: name.trim(), age, dateOfBirth, appearance, favouriteCharacters, favouriteActivities, favouriteAnimals, favouritePlaces, lessons }),
       })
       if (!res.ok) throw new Error(await getErrorMessage(res, 'Could not create profile'))
       const profile = await res.json()
@@ -173,6 +175,8 @@ export default function NewProfilePage() {
           <TagsField label={t('activitiesLabel')} values={favouriteActivities} onChange={setFavouriteActivities} placeholder={t('activitiesPlaceholder')} />
           <TagsField label={t('animalsLabel')} values={favouriteAnimals} onChange={setFavouriteAnimals} placeholder={t('animalsPlaceholder')} />
           <TagsField label={t('placesLabel')} values={favouritePlaces} onChange={setFavouritePlaces} placeholder={t('placesPlaceholder')} />
+
+          <AppearanceFields appearance={appearance} onChange={setAppearance} />
 
           <div>
             <p className="mb-2 text-sm font-bold text-night-700">{t('lessonsLabel')}</p>

@@ -48,7 +48,19 @@ describe('POST /api/profiles', () => {
     const req = new NextRequest('http://localhost/api/profiles', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Max', age: 3, favouriteAnimals: ['Fox'] }),
+      body: JSON.stringify({
+        name: 'Max',
+        age: 3,
+        favouriteAnimals: ['Fox'],
+        appearance: {
+          skinTone: 'medium',
+          hairColor: 'dark_brown',
+          hairTexture: 'curly',
+          hairStyles: ['pigtails'],
+          featureEmphasis: ['round_cheeks', 'wide_eyes', 'button_nose', 'other'],
+          consistencyNote: 'Round cheeks, dark curls, red glasses, tiny gap in front teeth that should definitely stay consistent forever',
+        },
+      }),
     })
     const res = await POST(req)
     expect(res.status).toBe(201)
@@ -56,6 +68,10 @@ describe('POST /api/profiles', () => {
     expect(body.name).toBe('Max')
     expect(body.age).toBe(3)
     expect(body.userId).toBe('user-1')
+    expect(body.appearance.skinTone).toBe('medium')
+    expect(body.appearance.hairStyles).toEqual(['pigtails'])
+    expect(body.appearance.featureEmphasis).toEqual(['round_cheeks', 'wide_eyes', 'button_nose'])
+    expect(body.appearance.consistencyNote.length).toBeLessThanOrEqual(140)
   })
 
   it('rejects a profile without a name', async () => {

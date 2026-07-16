@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server'
 import { Link } from '@/i18n/navigation'
 import Nav from '@/components/Nav'
 import { db } from '@/lib/db'
+import { buildChildAppearanceDoNotChange, buildChildAppearanceSummary, getAppearanceOptionLabel } from '@/types'
 import DeleteProfileButton from './DeleteProfileButton'
 
 export default async function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
@@ -39,6 +40,14 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
     { label: t('detailPlaces'), values: profile.favouritePlaces },
     { label: t('detailThemes'), values: profile.lessons },
   ]
+  const appearanceSummary = buildChildAppearanceSummary(profile.appearance)
+  const appearanceLocks = buildChildAppearanceDoNotChange(profile.appearance)
+  const appearanceDetails = [
+    ...(profile.appearance?.hairStyles ?? []),
+    ...(profile.appearance?.featureEmphasis ?? []),
+    ...(profile.appearance?.distinguishingFeatures ?? []),
+    ...(profile.appearance?.expressionVibes ?? []),
+  ]
 
   return (
     <>
@@ -67,6 +76,26 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
             <div className="rounded-2xl border border-night-100 bg-white p-5">
               <h2 className="mb-4 font-display text-lg font-bold text-night-700">{t('detailsTitle')}</h2>
               <div className="space-y-4">
+                {appearanceSummary ? (
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-night-400">{t('detailAppearance')}</p>
+                    <p className="mt-1.5 text-sm leading-6 text-night-600">{appearanceSummary}</p>
+                    {appearanceLocks.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {appearanceLocks.map((value) => (
+                          <span key={value} className="rounded-full bg-star-50 px-3 py-1 text-xs font-semibold text-star-700">{value}</span>
+                        ))}
+                      </div>
+                    ) : null}
+                    {appearanceDetails.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {Array.from(new Set(appearanceDetails)).slice(0, 8).map((value) => (
+                          <span key={value} className="rounded-full bg-night-50 px-3 py-1 text-xs text-night-500">{getAppearanceOptionLabel(value)}</span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
                 {details.map(({ label, values }) =>
                   values.length > 0 ? (
                     <div key={label}>

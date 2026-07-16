@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { Character, ChildProfile, Story } from '@/types'
+import { buildChildAppearanceDoNotChange, buildChildAppearanceSummary } from '@/types'
 import type { CharacterBible } from '@/types/printBook'
 import { getAge } from '@/types'
 
@@ -49,6 +50,8 @@ Your job is to create one stable visual identity package that can be reused acro
 Child profile:
 - Name: ${profile.name}
 - Age: ${getAge(profile)}
+- Visual appearance: ${buildChildAppearanceSummary(profile.appearance) || 'No structured appearance details provided.'}
+- Keep consistent: ${buildChildAppearanceDoNotChange(profile.appearance).join(', ') || 'none'}
 - Favourite characters or toys: ${profile.favouriteCharacters.join(', ') || 'none'}
 - Favourite activities: ${profile.favouriteActivities.join(', ') || 'none'}
 - Favourite animals: ${profile.favouriteAnimals.join(', ') || 'none'}

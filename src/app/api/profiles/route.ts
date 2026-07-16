@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto'
 import { auth } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
 import type { ChildProfile } from '@/types'
+import { sanitizeChildAppearance } from '@/types'
 
 export async function GET() {
   const { userId } = await auth()
@@ -29,6 +30,7 @@ export async function POST(req: NextRequest) {
     name: body.name.trim(),
     age: body.age ?? 0,
     dateOfBirth: body.dateOfBirth,
+    appearance: sanitizeChildAppearance(body.appearance),
     favouriteCharacters: body.favouriteCharacters ?? [],
     favouriteActivities: body.favouriteActivities ?? [],
     favouriteAnimals: body.favouriteAnimals ?? [],

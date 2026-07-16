@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Nav from '@/components/Nav'
-import { LESSON_OPTIONS, type ChildProfile } from '@/types'
+import AppearanceFields from '@/components/profiles/AppearanceFields'
+import { createEmptyChildAppearance, LESSON_OPTIONS, type ChildProfile } from '@/types'
 
 function TagsField({
   label,
@@ -79,6 +80,7 @@ export default function EditProfileForm({ profile }: { profile: ChildProfile }) 
   const [favouriteAnimals, setFavouriteAnimals] = useState(profile.favouriteAnimals)
   const [favouritePlaces, setFavouritePlaces] = useState(profile.favouritePlaces)
   const [lessons, setLessons] = useState(profile.lessons)
+  const [appearance, setAppearance] = useState(profile.appearance ?? createEmptyChildAppearance())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -119,7 +121,7 @@ export default function EditProfileForm({ profile }: { profile: ChildProfile }) 
       const res = await fetch(`/api/profiles/${profile.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), age, dateOfBirth, favouriteCharacters, favouriteActivities, favouriteAnimals, favouritePlaces, lessons }),
+        body: JSON.stringify({ name: name.trim(), age, dateOfBirth, appearance, favouriteCharacters, favouriteActivities, favouriteAnimals, favouritePlaces, lessons }),
       })
       if (!res.ok) throw new Error(await getErrorMessage(res, 'Could not save changes'))
       router.push(`/profiles/${profile.id}`)
@@ -181,6 +183,8 @@ export default function EditProfileForm({ profile }: { profile: ChildProfile }) 
           <TagsField label="Favourite activities" values={favouriteActivities} onChange={setFavouriteActivities} placeholder="e.g. space, pancakes, trucks" />
           <TagsField label="Favourite animals" values={favouriteAnimals} onChange={setFavouriteAnimals} placeholder="e.g. elephants, dogs" />
           <TagsField label="Favourite places" values={favouritePlaces} onChange={setFavouritePlaces} placeholder="e.g. the beach, the park" />
+
+          <AppearanceFields appearance={appearance} onChange={setAppearance} />
 
           <div>
             <p className="mb-2 text-sm font-bold text-night-700">Lessons &amp; themes to explore</p>

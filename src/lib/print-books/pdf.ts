@@ -666,12 +666,12 @@ async function drawBookPage(input: {
 
   if (text) {
     page.drawRectangle({
-      x: textRect.x,
+      x: 0,
       y: textRect.y,
-      width: textRect.width,
+      width: pageWidth,
       height: textRect.height,
-      color: rgb(0.99, 0.98, 0.95),
-      opacity: 0.78,
+      color: rgb(0.05, 0.03, 0.1),
+      opacity: 0.56,
     })
     drawWrappedText({
       page,
@@ -682,7 +682,7 @@ async function drawBookPage(input: {
       lineHeight: 18,
       font: serif,
       size: 14,
-      color: theme.ink,
+      color: rgb(0.99, 0.96, 0.88),
       align: 'center',
     })
   }
@@ -785,7 +785,7 @@ async function buildPrintPdf(input: {
       await drawFrontispiecePage({
         pdfDoc,
         page: backMatterPage,
-        spread,
+        spread: { ...spread, imageUrl: undefined },
         story: input.story,
         pageWidth: PRINT_PAGE_WIDTH,
         pageHeight: PRINT_PAGE_HEIGHT,

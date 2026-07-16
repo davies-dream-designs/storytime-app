@@ -332,21 +332,21 @@ describe('POST /api/books/[id]/build', () => {
     expect(body.assets?.lastBuildMode).toBe('exports')
   })
 
-  it('can regenerate final art without rerunning planning', async () => {
-    const readyProject = {
+  it('can regenerate final art across resumable requests without rerunning planning', async () => {
+    const readyProject: BookProject = {
       ...createBookProject(),
       status: 'ready' as const,
       completedSpreads: 16,
       beats: [{ id: 'beat-1', sequence: 1, purpose: 'setup' as const, summary: 'Summary', textDraft: 'Draft', visualIntent: 'Visual', mood: 'calm' as const, isQuietBeat: false }],
       characterBible: createCharacterBible(),
-      spreads: Array.from({ length: 16 }, (_, index) => ({
+      spreads: Array.from({ length: 2 }, (_, index) => ({
         id: `spread-${index + 1}`,
         bookProjectId: 'book-1',
         sequence: index + 1,
         pageStart: index * 2 + 1,
         pageEnd: index * 2 + 2,
-        layoutType: index < 2 ? 'front_matter' : index > 13 ? 'end_matter' : 'text_art',
-        title: index === 0 ? 'Cover' : index === 1 ? 'Title' : index === 15 ? 'Back Cover' : undefined,
+        layoutType: 'front_matter',
+        title: index === 0 ? 'Cover' : 'Title',
         leftPageText: 'Left text',
         rightPageText: 'Right text',
         sceneBrief: 'Scene brief',
@@ -362,15 +362,19 @@ describe('POST /api/books/[id]/build', () => {
         printPdfUrl: 'https://example.com/books/book-1/print.pdf',
       },
     }
-    mockDb.bookProjects.getById.mockResolvedValue(readyProject)
-    mockDb.bookProjects.update.mockImplementation(async (_id: string, updates: Partial<BookProject>) => ({
-      ...readyProject,
-      ...updates,
-      assets: {
-        ...readyProject.assets,
-        ...(updates.assets ?? {}),
-      },
-    }))
+    let currentProject = readyProject
+    mockDb.bookProjects.getById.mockImplementation(async () => currentProject)
+    mockDb.bookProjects.update.mockImplementation(async (_id: string, updates: Partial<BookProject>) => {
+      currentProject = {
+        ...currentProject,
+        ...updates,
+        assets: {
+          ...currentProject.assets,
+          ...(updates.assets ?? {}),
+        },
+      }
+      return currentProject
+    })
     mockGenerateCoverIllustration.mockImplementation(async ({ project }: { project: BookProject }) => ({
       coverImageUrl: 'https://example.com/books/book-1/cover.png',
       spreads: project.spreads.map((spread) =>
@@ -390,7 +394,7 @@ describe('POST /api/books/[id]/build', () => {
     }))
 
     const { POST } = await import('@/app/api/books/[id]/build/route')
-    const res = await POST(
+    const firstRes = await POST(
       new NextRequest('http://localhost/api/books/book-1/build', {
         method: 'POST',
         body: JSON.stringify({ mode: 'art' }),
@@ -399,16 +403,32 @@ describe('POST /api/books/[id]/build', () => {
       { params: Promise.resolve({ id: 'book-1' }) },
     )
 
-    expect(res.status).toBe(200)
+    expect(firstRes.status).toBe(200)
+    const firstBody = await firstRes.json()
+    expect(firstBody.status).toBe('illustrating')
+    expect(firstBody.assets?.artGenerationCursor).toBe(1)
     expect(mockGenerateCharacterBible).not.toHaveBeenCalled()
     expect(mockGenerateCoverIllustration).toHaveBeenCalledTimes(1)
-    expect(mockGenerateSpreadIllustration).toHaveBeenCalledTimes(15)
-    expect(mockGenerateBookPdfs).toHaveBeenCalledTimes(1)
+    expect(mockGenerateSpreadIllustration).toHaveBeenCalledTimes(0)
+    expect(mockGenerateBookPdfs).toHaveBeenCalledTimes(0)
 
-    const body = await res.json()
-    expect(body.assets?.artMode).toBe('generated')
-    expect(body.assets?.lastBuildMode).toBe('art')
-    expect(body.assets?.exportVersion).toBe(4)
+    const secondRes = await POST(
+      new NextRequest('http://localhost/api/books/book-1/build', {
+        method: 'POST',
+        body: JSON.stringify({ mode: 'art' }),
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      { params: Promise.resolve({ id: 'book-1' }) },
+    )
+
+    expect(secondRes.status).toBe(200)
+    const secondBody = await secondRes.json()
+    expect(secondBody.status).toBe('ready')
+    expect(secondBody.assets?.artMode).toBe('generated')
+    expect(secondBody.assets?.lastBuildMode).toBe('art')
+    expect(secondBody.assets?.exportVersion).toBe(4)
+    expect(mockGenerateSpreadIllustration).toHaveBeenCalledTimes(1)
+    expect(mockGenerateBookPdfs).toHaveBeenCalledTimes(1)
   })
 
   it('can finalize a generated book into an order-ready package', async () => {

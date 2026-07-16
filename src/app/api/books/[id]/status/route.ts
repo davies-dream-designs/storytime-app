@@ -22,5 +22,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     readyAt: project.readyAt,
     errorCode: project.errorCode,
     errorMessage: project.errorMessage,
+    assets: {
+      lastBuildMode: project.assets.lastBuildMode,
+      artMode: project.assets.artMode,
+      artGenerationCursor: project.assets.artGenerationCursor,
+      artGenerationTotal: project.assets.artGenerationTotal,
+      orderabilityState: project.assets.orderabilityState,
+      exportVersion: project.assets.exportVersion,
+      finalExportVersion: project.assets.finalExportVersion,
+      proofVersion: project.assets.proofVersion,
+    },
   })
 }

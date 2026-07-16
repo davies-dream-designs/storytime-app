@@ -48,59 +48,22 @@ async function regenerateProjectArt(input: {
   story: Story
   profile: ChildProfile
   characterBible: CharacterBible
+  restart?: boolean
+  chunked?: boolean
 }) {
-  const cover = await generateCoverIllustration({
-    project: input.project,
-    story: input.story,
-    profile: input.profile,
-    characterBible: input.characterBible,
-  })
-
-  let illustratedSpreads = cover.spreads
-  const spreadProviders: Array<'openai' | 'placeholder'> = []
-  let completedSpreads = illustratedSpreads.filter((spread) => Boolean(spread.imageUrl)).length
-
-  const afterCoverProject = await db.bookProjects.update(input.id, {
-    status: 'illustrating',
-    currentStageLabel: getBookProjectStageLabel('illustrating'),
-    characterBible: input.characterBible,
-    spreads: illustratedSpreads,
-    completedSpreads,
-    totalSpreads: illustratedSpreads.length,
-    assets: {
-      ...input.project.assets,
-      coverImageUrl: cover.coverImageUrl,
-      artMode: getProjectArtMode({ coverProvider: cover.provider }),
-    },
-  })
-
-  if (!afterCoverProject) {
-    return undefined
-  }
-
-  for (const spread of illustratedSpreads) {
-    if (spread.sequence === 1) continue
-
-    const illustrated = await generateSpreadIllustration({
-      project: {
-        ...afterCoverProject,
-        spreads: illustratedSpreads,
-        assets: {
-          ...afterCoverProject.assets,
-          coverImageUrl: cover.coverImageUrl,
-        },
-      },
+  if (!input.chunked) {
+    const cover = await generateCoverIllustration({
+      project: input.project,
       story: input.story,
       profile: input.profile,
       characterBible: input.characterBible,
-      spread,
     })
 
-    illustratedSpreads = applySpreadIllustration(illustratedSpreads, illustrated.spread)
-    spreadProviders.push(illustrated.provider)
-    completedSpreads = illustratedSpreads.filter((currentSpread) => Boolean(currentSpread.imageUrl)).length
+    let illustratedSpreads = cover.spreads
+    const spreadProviders: Array<'openai' | 'placeholder'> = []
+    let completedSpreads = illustratedSpreads.filter((spread) => Boolean(spread.imageUrl)).length
 
-    const progressProject = await db.bookProjects.update(input.id, {
+    const afterCoverProject = await db.bookProjects.update(input.id, {
       status: 'illustrating',
       currentStageLabel: getBookProjectStageLabel('illustrating'),
       characterBible: input.characterBible,
@@ -108,37 +71,193 @@ async function regenerateProjectArt(input: {
       completedSpreads,
       totalSpreads: illustratedSpreads.length,
       assets: {
-        ...afterCoverProject.assets,
+        ...input.project.assets,
+        coverImageUrl: cover.coverImageUrl,
+        artMode: getProjectArtMode({ coverProvider: cover.provider }),
+        lastBuildMode: input.project.assets.lastBuildMode,
+      },
+    })
+
+    if (!afterCoverProject) {
+      return undefined
+    }
+
+    for (const spread of illustratedSpreads) {
+      if (spread.sequence === 1) continue
+
+      const illustrated = await generateSpreadIllustration({
+        project: {
+          ...afterCoverProject,
+          spreads: illustratedSpreads,
+          assets: {
+            ...afterCoverProject.assets,
+            coverImageUrl: cover.coverImageUrl,
+          },
+        },
+        story: input.story,
+        profile: input.profile,
+        characterBible: input.characterBible,
+        spread,
+      })
+
+      illustratedSpreads = applySpreadIllustration(illustratedSpreads, illustrated.spread)
+      spreadProviders.push(illustrated.provider)
+      completedSpreads = illustratedSpreads.filter((currentSpread) => Boolean(currentSpread.imageUrl)).length
+
+      const progressProject = await db.bookProjects.update(input.id, {
+        status: 'illustrating',
+        currentStageLabel: getBookProjectStageLabel('illustrating'),
+        characterBible: input.characterBible,
+        spreads: illustratedSpreads,
+        completedSpreads,
+        totalSpreads: illustratedSpreads.length,
+        assets: {
+          ...afterCoverProject.assets,
+          coverImageUrl: cover.coverImageUrl,
+          artMode: getProjectArtMode({
+            coverProvider: cover.provider,
+            spreadProviders,
+            existingArtMode: afterCoverProject.assets.artMode,
+          }),
+          lastBuildMode: input.project.assets.lastBuildMode,
+        },
+      })
+
+      if (!progressProject) {
+        return undefined
+      }
+    }
+
+    return db.bookProjects.update(input.id, {
+      status: 'composing',
+      currentStageLabel: getBookProjectStageLabel('composing'),
+      beats: input.project.beats,
+      characterBible: input.characterBible,
+      spreads: illustratedSpreads,
+      completedSpreads,
+      totalSpreads: illustratedSpreads.length,
+      assets: {
+        ...input.project.assets,
         coverImageUrl: cover.coverImageUrl,
         artMode: getProjectArtMode({
           coverProvider: cover.provider,
           spreadProviders,
-          existingArtMode: afterCoverProject.assets.artMode,
+          existingArtMode: input.project.assets.artMode,
         }),
+        lastBuildMode: input.project.assets.lastBuildMode,
       },
     })
+  }
 
-    if (!progressProject) {
-      return undefined
-    }
+  const totalArtSteps = input.project.spreads.length
+  const currentCursor = input.restart ? 0 : (input.project.assets.artGenerationCursor ?? 0)
+
+  if (currentCursor >= totalArtSteps) {
+    return db.bookProjects.update(input.id, {
+      status: 'composing',
+      currentStageLabel: getBookProjectStageLabel('composing'),
+      beats: input.project.beats,
+      characterBible: input.characterBible,
+      completedSpreads: input.project.totalSpreads,
+      totalSpreads: input.project.totalSpreads,
+      assets: {
+        ...input.project.assets,
+        artGenerationCursor: undefined,
+        artGenerationTotal: totalArtSteps,
+        artMode: 'generated',
+        lastBuildMode: 'art',
+      },
+    })
+  }
+
+  if (currentCursor === 0) {
+    const cover = await generateCoverIllustration({
+      project: input.project,
+      story: input.story,
+      profile: input.profile,
+      characterBible: input.characterBible,
+    })
+
+    return db.bookProjects.update(input.id, {
+      status: 'illustrating',
+      currentStageLabel: `Generating final art 1 of ${totalArtSteps}...`,
+      characterBible: input.characterBible,
+      spreads: cover.spreads,
+      completedSpreads: 1,
+      totalSpreads: totalArtSteps,
+      assets: {
+        ...input.project.assets,
+        coverImageUrl: cover.coverImageUrl,
+        artMode: cover.provider === 'openai' ? 'generated' : 'placeholder',
+        lastBuildMode: 'art',
+        artGenerationCursor: 1,
+        artGenerationTotal: totalArtSteps,
+      },
+    })
+  }
+
+  const spread = input.project.spreads[currentCursor]
+  if (!spread) {
+    return db.bookProjects.update(input.id, {
+      status: 'composing',
+      currentStageLabel: getBookProjectStageLabel('composing'),
+      beats: input.project.beats,
+      characterBible: input.characterBible,
+      completedSpreads: input.project.totalSpreads,
+      totalSpreads: input.project.totalSpreads,
+      assets: {
+        ...input.project.assets,
+        artGenerationCursor: undefined,
+        artGenerationTotal: totalArtSteps,
+        artMode: 'generated',
+        lastBuildMode: 'art',
+      },
+    })
+  }
+
+  const illustrated = await generateSpreadIllustration({
+    project: input.project,
+    story: input.story,
+    profile: input.profile,
+    characterBible: input.characterBible,
+    spread,
+  })
+
+  const illustratedSpreads = applySpreadIllustration(input.project.spreads, illustrated.spread)
+  const nextCursor = currentCursor + 1
+
+  if (nextCursor >= totalArtSteps) {
+    return db.bookProjects.update(input.id, {
+      status: 'composing',
+      currentStageLabel: getBookProjectStageLabel('composing'),
+      beats: input.project.beats,
+      characterBible: input.characterBible,
+      spreads: illustratedSpreads,
+      completedSpreads: totalArtSteps,
+      totalSpreads: totalArtSteps,
+      assets: {
+        ...input.project.assets,
+        artMode: illustrated.provider === 'openai' ? 'generated' : input.project.assets.artMode,
+        lastBuildMode: 'art',
+        artGenerationCursor: undefined,
+        artGenerationTotal: totalArtSteps,
+      },
+    })
   }
 
   return db.bookProjects.update(input.id, {
-    status: 'composing',
-    currentStageLabel: getBookProjectStageLabel('composing'),
-    beats: input.project.beats,
+    status: 'illustrating',
+    currentStageLabel: `Generating final art ${nextCursor + 1} of ${totalArtSteps}...`,
     characterBible: input.characterBible,
     spreads: illustratedSpreads,
-    completedSpreads,
-    totalSpreads: illustratedSpreads.length,
+    completedSpreads: nextCursor,
+    totalSpreads: totalArtSteps,
     assets: {
       ...input.project.assets,
-      coverImageUrl: cover.coverImageUrl,
-      artMode: getProjectArtMode({
-        coverProvider: cover.provider,
-        spreadProviders,
-        existingArtMode: input.project.assets.artMode,
-      }),
+      artMode: illustrated.provider === 'openai' ? 'generated' : input.project.assets.artMode,
+      lastBuildMode: 'art',
+      artGenerationCursor: nextCursor,
+      artGenerationTotal: totalArtSteps,
     },
   })
 }
@@ -296,33 +415,49 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
 
       failureCode = 'illustrating_failed'
-      const illustratingProject = await db.bookProjects.update(id, {
-        status: 'illustrating',
-        currentStageLabel: getBookProjectStageLabel('illustrating'),
-        errorCode: undefined,
-        errorMessage: undefined,
-      })
+      const artProject = project.status === 'ready'
+        ? await db.bookProjects.update(id, {
+            status: 'illustrating',
+            currentStageLabel: `Generating final art 1 of ${project.spreads.length}...`,
+            errorCode: undefined,
+            errorMessage: undefined,
+            completedSpreads: 0,
+            totalSpreads: project.spreads.length,
+            assets: {
+              ...project.assets,
+              lastBuildMode: 'art',
+              artGenerationCursor: 0,
+              artGenerationTotal: project.spreads.length,
+            },
+          })
+        : project
 
-      if (!illustratingProject) {
+      if (!artProject) {
         return NextResponse.json({ error: 'Not found' }, { status: 404 })
       }
 
-      const composedProject = await regenerateProjectArt({
+      const nextProject = await regenerateProjectArt({
         id,
-        project: illustratingProject,
+        project: artProject,
         story,
         profile,
         characterBible: project.characterBible,
+        restart: project.status === 'ready',
+        chunked: true,
       })
 
-      if (!composedProject) {
+      if (!nextProject) {
         return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      }
+
+      if (nextProject.status !== 'composing') {
+        return NextResponse.json(nextProject)
       }
 
       failureCode = 'proofing_failed'
       const readyProject = await finalizeProjectExports({
         id,
-        project: composedProject,
+        project: nextProject,
         story,
         profile,
         buildMode,
@@ -392,6 +527,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       story,
       profile,
       characterBible,
+      chunked: false,
     })
 
     if (!composingProject) {

@@ -100,6 +100,8 @@ export interface BookAsset {
   exportVersion?: number
   finalExportVersion?: number
   lastBuildMode?: BookBuildMode
+  artGenerationCursor?: number
+  artGenerationTotal?: number
   orderabilityState?: BookOrderabilityState
   finalizedAt?: string
   exportProfile?: string

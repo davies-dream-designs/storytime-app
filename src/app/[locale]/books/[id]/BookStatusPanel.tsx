@@ -26,6 +26,7 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
   const [finalizing, setFinalizing] = useState(false)
   const [startingBuild, setStartingBuild] = useState(false)
   const buildStartedRef = useRef(false)
+  const continuationInFlightRef = useRef(false)
 
   useEffect(() => {
     if (project.status !== 'queued' || buildStartedRef.current) return
@@ -46,24 +47,44 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
       .finally(() => {
         setStartingBuild(false)
       })
-  }, [project.id, project.status, router])
+  }, [project.assets.lastBuildMode, project.id, project.status, router])
 
   useEffect(() => {
     if (isTerminal(project.status)) return
 
     const interval = window.setInterval(async () => {
-      const res = await fetch(`/api/books/${project.id}/status`, { cache: 'no-store' })
-      if (!res.ok) return
-      const next = (await res.json()) as BookStatusPayload
-      setProject((current) => ({ ...current, ...next }))
+      if (continuationInFlightRef.current) return
+      continuationInFlightRef.current = true
 
-      if (next.status === 'ready') {
-        router.refresh()
+      try {
+        if (project.assets.lastBuildMode === 'art' && project.status === 'illustrating') {
+          const res = await fetch(`/api/books/${project.id}/build`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode: 'art' }),
+          })
+          if (res.ok) {
+            const next = (await res.json()) as BookProject
+            setProject(next)
+            if (next.status === 'ready') router.refresh()
+          }
+        } else {
+          const res = await fetch(`/api/books/${project.id}/status`, { cache: 'no-store' })
+          if (!res.ok) return
+          const next = (await res.json()) as BookStatusPayload
+          setProject((current) => ({ ...current, ...next }))
+
+          if (next.status === 'ready') {
+            router.refresh()
+          }
+        }
+      } finally {
+        continuationInFlightRef.current = false
       }
     }, 4000)
 
     return () => window.clearInterval(interval)
-  }, [project.id, project.status, router])
+  }, [project.assets.lastBuildMode, project.id, project.status, router])
 
   async function handleRetry() {
     setRetrying(true)

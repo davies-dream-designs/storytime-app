@@ -11,10 +11,13 @@ type EpubImageAsset = {
   bytes: Buffer;
 };
 
-const EPUB_IMAGE_MAX_WIDTH = 1400;
-const EPUB_IMAGE_QUALITY = 72;
-const EPUB_COVER_WIDTH = 1200;
-const EPUB_COVER_HEIGHT = 1600;
+const KINDLE_SEND_TO_DEVICE_LIMIT_BYTES = 50 * 1024 * 1024;
+const EPUB_TARGET_MAX_BYTES = 45 * 1024 * 1024;
+const EPUB_IMAGE_MAX_BYTES = 850 * 1024;
+const EPUB_IMAGE_MAX_WIDTH = 960;
+const EPUB_IMAGE_QUALITY = 62;
+const EPUB_COVER_WIDTH = 900;
+const EPUB_COVER_HEIGHT = 1200;
 
 function escapeXml(value: string): string {
   return value
@@ -61,17 +64,50 @@ function getDataUrlAsset(
   };
 }
 
-async function toCompactJpeg(bytes: Buffer): Promise<Buffer> {
-  return sharp(bytes)
-    .rotate()
-    .resize({
-      width: EPUB_IMAGE_MAX_WIDTH,
-      height: EPUB_IMAGE_MAX_WIDTH,
-      fit: "inside",
-      withoutEnlargement: true,
-    })
-    .jpeg({ quality: EPUB_IMAGE_QUALITY, mozjpeg: true })
-    .toBuffer();
+async function toCompactWebp(
+  bytes: Buffer,
+  options: {
+    maxWidth?: number;
+    maxBytes?: number;
+    quality?: number;
+  } = {}
+): Promise<Buffer> {
+  const maxBytes = options.maxBytes ?? EPUB_IMAGE_MAX_BYTES;
+  const widths = [
+    options.maxWidth ?? EPUB_IMAGE_MAX_WIDTH,
+    820,
+    700,
+    560,
+  ];
+  const qualities = [
+    options.quality ?? EPUB_IMAGE_QUALITY,
+    56,
+    48,
+    40,
+    34,
+  ];
+
+  let smallest: Buffer | undefined;
+
+  for (const width of widths) {
+    for (const quality of qualities) {
+      const output = await sharp(bytes)
+        .rotate()
+        .resize({
+          width,
+          height: width,
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .webp({ quality, effort: 6 })
+        .toBuffer();
+
+      if (!smallest || output.length < smallest.length) smallest = output;
+      if (output.length <= maxBytes) return output;
+    }
+  }
+
+  return smallest ?? bytes;
 }
 
 function createTextCoverArtSvg(input: { story: Story }) {
@@ -178,12 +214,12 @@ async function createTextCoverAsset(input: {
 
   const cover = await sharp(Buffer.from(createTextCoverArtSvg(input)))
     .resize(EPUB_COVER_WIDTH, EPUB_COVER_HEIGHT, { fit: "cover" })
-    .jpeg({ quality: EPUB_IMAGE_QUALITY, mozjpeg: true })
+    .webp({ quality: EPUB_IMAGE_QUALITY, effort: 6 })
     .toBuffer();
   return {
     id: "cover",
-    href: "images/cover.jpg",
-    mediaType: "image/jpeg",
+    href: "images/cover.webp",
+    mediaType: "image/webp",
     bytes: cover,
   };
 }
@@ -196,24 +232,24 @@ async function loadImageAsset(input: {
 
   const dataAsset = getDataUrlAsset(input.url);
   if (dataAsset) {
-    const compact = await toCompactJpeg(dataAsset.bytes);
+    const compact = await toCompactWebp(dataAsset.bytes);
     return {
       id: input.id,
-      href: `images/${input.id}.jpg`,
-      mediaType: "image/jpeg",
+      href: `images/${input.id}.webp`,
+      mediaType: "image/webp",
       bytes: compact,
     };
   }
 
   const response = await fetch(input.url);
   if (!response.ok) return undefined;
-  const compact = await toCompactJpeg(
+  const compact = await toCompactWebp(
     Buffer.from(await response.arrayBuffer())
   );
   return {
     id: input.id,
-    href: `images/${input.id}.jpg`,
-    mediaType: "image/jpeg",
+    href: `images/${input.id}.webp`,
+    mediaType: "image/webp",
     bytes: compact,
   };
 }
@@ -344,6 +380,7 @@ export async function buildBookEpub(input: {
   project: BookProject;
   story: Story;
   profile: ChildProfile;
+  compact?: boolean;
 }): Promise<Buffer> {
   const { project, story, profile } = input;
   const zip = new JSZip();
@@ -369,6 +406,13 @@ export async function buildBookEpub(input: {
   const addImage = async (id: string, url?: string) => {
     const asset = await loadImageAsset({ id, url });
     if (!asset) return undefined;
+    if (input.compact) {
+      asset.bytes = await toCompactWebp(asset.bytes, {
+        maxWidth: 700,
+        maxBytes: 520 * 1024,
+        quality: 48,
+      });
+    }
     imageAssets.push(asset);
     return asset.href;
   };
@@ -499,7 +543,21 @@ export async function buildBookEpub(input: {
 </package>`
   );
 
-  return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+  const epub = await zip.generateAsync({
+    type: "nodebuffer",
+    compression: "DEFLATE",
+    compressionOptions: { level: 9 },
+  });
+
+  if (
+    !input.compact &&
+    epub.length > EPUB_TARGET_MAX_BYTES &&
+    epub.length < KINDLE_SEND_TO_DEVICE_LIMIT_BYTES * 2
+  ) {
+    return buildBookEpub({ ...input, compact: true });
+  }
+
+  return epub;
 }
 
 export async function buildStoryTextEpub(input: {

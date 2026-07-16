@@ -137,7 +137,7 @@ describe("buildBookEpub", () => {
     ).resolves.toContain("Moonlight Garden");
     expect(zip.file("OEBPS/cover.xhtml")).toBeTruthy();
     expect(zip.file("OEBPS/spread-2-left.xhtml")).toBeTruthy();
-    expect(zip.file("OEBPS/images/spread-2-left.jpg")).toBeTruthy();
+    expect(zip.file("OEBPS/images/spread-2-left.webp")).toBeTruthy();
 
     const stored = await generateBookEpub({
       project: createProject(),
@@ -175,7 +175,47 @@ describe("buildBookEpub", () => {
     await expect(
       zip.file("OEBPS/page-1.xhtml")?.async("string")
     ).resolves.toContain("Mila stepped into the moonlight garden.");
-    expect(zip.file("OEBPS/images/cover.jpg")).toBeTruthy();
-    expect(zip.file("OEBPS/images/spread-2-left.jpg")).toBeNull();
+    expect(zip.file("OEBPS/images/cover.webp")).toBeTruthy();
+    expect(zip.file("OEBPS/images/spread-2-left.webp")).toBeNull();
+  });
+
+  it("keeps illustrated EPUB image assets under a Kindle-friendly budget", async () => {
+    const { buildBookEpub } = await import("@/lib/print-books/epub");
+    const largeImage = await (await import("sharp")).default({
+      create: {
+        width: 3000,
+        height: 3000,
+        channels: 3,
+        background: { r: 120, g: 80, b: 220 },
+      },
+    })
+      .png()
+      .toBuffer();
+    const largeImageDataUrl = `data:image/png;base64,${largeImage.toString("base64")}`;
+    const project = createProject();
+    project.assets.coverImageUrl = largeImageDataUrl;
+    project.spreads = project.spreads.map((spread) => ({
+      ...spread,
+      imageUrl: largeImageDataUrl,
+      leftPageImageUrl: largeImageDataUrl,
+      rightPageImageUrl: largeImageDataUrl,
+    }));
+
+    const epub = await buildBookEpub({
+      project,
+      story: createStory(),
+      profile: createProfile(),
+    });
+
+    const zip = await JSZip.loadAsync(epub);
+    const imageFiles = Object.values(zip.files).filter((file) =>
+      file.name.startsWith("OEBPS/images/")
+    );
+    expect(epub.length).toBeLessThan(50 * 1024 * 1024);
+    expect(imageFiles.length).toBeGreaterThan(0);
+    for (const file of imageFiles) {
+      const bytes = await file.async("nodebuffer");
+      expect(bytes.length).toBeLessThanOrEqual(850 * 1024);
+    }
   });
 });

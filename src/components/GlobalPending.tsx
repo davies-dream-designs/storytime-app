@@ -145,9 +145,6 @@ export function GlobalPendingProvider({ children }: { children: ReactNode }) {
           <span className="mt-4 block font-display text-xl font-bold text-night-800">
             {label}
           </span>
-          <span className="mt-1 block text-sm font-bold text-night-400">
-            Storycot
-          </span>
         </div>
       </div>
     </PendingContext.Provider>

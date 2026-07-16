@@ -240,7 +240,11 @@
     "viewBookButton": "View illustrated PDF",
     "textEpubButton": "Text EPUB for Kindle/Books",
     "epubHelp": "For Kindle or Apple Books: download the EPUB, then share/open the file in your reader app.",
-    "downloadStarting": "Starting download…"
+    "downloadStarting": "Starting download…",
+    "deleteStory": "Delete story",
+    "deleteConfirm": "Delete this story? Any illustrated PDF/book created from it will also be removed from your library.",
+    "deleting": "Deleting…",
+    "deleteError": "We couldn't delete this story."
   },
   "books": {
     "createButton": "Generate illustrated PDF",
@@ -373,7 +377,11 @@
     "mixedArtSub": "A few pages fell back to draft placeholders. Regenerate the illustrations to replace them before sharing or ordering.",
     "repairArtButton": "Regenerate illustrations",
     "repairingArtButton": "Regenerating…",
-    "downloadStarting": "Starting download…"
+    "downloadStarting": "Starting download…",
+    "deleteBook": "Delete illustrated PDF",
+    "deleteConfirm": "Delete this illustrated PDF/book project? The original story will stay in your library.",
+    "deleting": "Deleting…",
+    "deleteError": "We couldn't delete this illustrated PDF."
   },
   "account": {
     "title": "Your account",

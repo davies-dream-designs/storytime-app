@@ -6,6 +6,7 @@ import Nav from "@/components/Nav";
 import DownloadLink from "@/components/DownloadLink";
 import { db } from "@/lib/db";
 import BookStatusPanel from "./BookStatusPanel";
+import DeleteBookButton from "./DeleteBookButton";
 
 export default async function BookProjectPage({
   params,
@@ -49,6 +50,9 @@ export default async function BookProjectPage({
               ? t("illustratedPdfReadyPageSub", { title: story.title })
               : t("illustratedPdfPageSub", { title: story.title })}
           </p>
+          <div className="mt-4">
+            <DeleteBookButton bookId={project.id} storyId={story.id} />
+          </div>
         </div>
 
         <BookStatusPanel initialProject={project} />

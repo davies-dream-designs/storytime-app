@@ -240,7 +240,11 @@
     "viewBookButton": "Ver PDF ilustrado",
     "textEpubButton": "EPUB de texto para Kindle/Books",
     "epubHelp": "Para Kindle o Apple Books: descarga el EPUB y luego compártelo o ábrelo en tu app de lectura.",
-    "downloadStarting": "Iniciando descarga…"
+    "downloadStarting": "Iniciando descarga…",
+    "deleteStory": "Eliminar historia",
+    "deleteConfirm": "¿Eliminar esta historia? También se eliminará cualquier PDF/libro ilustrado creado a partir de ella.",
+    "deleting": "Eliminando…",
+    "deleteError": "No pudimos eliminar esta historia."
   },
   "books": {
     "createButton": "Generar PDF ilustrado",
@@ -373,7 +377,11 @@
     "mixedArtSub": "Algunas páginas usaron marcadores de posición. Vuelve a generar las ilustraciones antes de compartir o pedir una copia.",
     "repairArtButton": "Regenerar ilustraciones",
     "repairingArtButton": "Regenerando…",
-    "downloadStarting": "Iniciando descarga…"
+    "downloadStarting": "Iniciando descarga…",
+    "deleteBook": "Eliminar PDF ilustrado",
+    "deleteConfirm": "¿Eliminar este PDF/libro ilustrado? La historia original permanecerá en tu biblioteca.",
+    "deleting": "Eliminando…",
+    "deleteError": "No pudimos eliminar este PDF ilustrado."
   },
   "account": {
     "title": "Tu cuenta",

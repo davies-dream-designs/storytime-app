@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import StoryReader from "./StoryReader";
 import ShareButton from "./ShareButton";
 import CreatePrintBookButton from "./CreatePrintBookButton";
+import DeleteStoryButton from "./DeleteStoryButton";
 
 export default async function StoryPage({
   params,
@@ -103,6 +104,7 @@ export default async function StoryPage({
             >
               {t("newStoryButton")}
             </Link>
+            <DeleteStoryButton storyId={id} />
             <p className="basis-full text-xs leading-5 text-night-400 sm:max-w-md">
               {t("epubHelp")}
             </p>

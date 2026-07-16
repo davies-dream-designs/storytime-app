@@ -240,7 +240,11 @@
     "viewBookButton": "Voir le PDF illustré",
     "textEpubButton": "EPUB texte pour Kindle/Books",
     "epubHelp": "Pour Kindle ou Apple Books : téléchargez l’EPUB, puis partagez/ouvrez le fichier dans votre application de lecture.",
-    "downloadStarting": "Téléchargement…"
+    "downloadStarting": "Téléchargement…",
+    "deleteStory": "Supprimer l'histoire",
+    "deleteConfirm": "Supprimer cette histoire ? Tous les PDF/livres illustrés créés depuis cette histoire seront aussi retirés de votre bibliothèque.",
+    "deleting": "Suppression…",
+    "deleteError": "Impossible de supprimer cette histoire."
   },
   "books": {
     "createButton": "Générer le PDF illustré",
@@ -373,7 +377,11 @@
     "mixedArtSub": "Quelques pages sont revenues à des images provisoires. Régénérez les illustrations avant de partager ou commander.",
     "repairArtButton": "Régénérer les illustrations",
     "repairingArtButton": "Régénération…",
-    "downloadStarting": "Téléchargement…"
+    "downloadStarting": "Téléchargement…",
+    "deleteBook": "Supprimer le PDF illustré",
+    "deleteConfirm": "Supprimer ce PDF/livre illustré ? L'histoire originale restera dans votre bibliothèque.",
+    "deleting": "Suppression…",
+    "deleteError": "Impossible de supprimer ce PDF illustré."
   },
   "account": {
     "title": "Votre compte",

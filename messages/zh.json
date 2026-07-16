@@ -240,7 +240,11 @@
     "viewBookButton": "查看插图 PDF",
     "textEpubButton": "Kindle/Books 纯文本 EPUB",
     "epubHelp": "用于 Kindle 或 Apple Books：下载 EPUB 后，将文件分享或打开到阅读器应用中。",
-    "downloadStarting": "正在开始下载…"
+    "downloadStarting": "正在开始下载…",
+    "deleteStory": "删除故事",
+    "deleteConfirm": "要删除这个故事吗？由它创建的插图 PDF/图书也会从资料库中移除。",
+    "deleting": "正在删除…",
+    "deleteError": "无法删除这个故事。"
   },
   "books": {
     "createButton": "生成插图 PDF",
@@ -373,7 +377,11 @@
     "mixedArtSub": "有些页面回退到了占位草图。分享或订购前请重新生成插图。",
     "repairArtButton": "重新生成插图",
     "repairingArtButton": "正在重新生成…",
-    "downloadStarting": "正在开始下载…"
+    "downloadStarting": "正在开始下载…",
+    "deleteBook": "删除插图 PDF",
+    "deleteConfirm": "要删除这个插图 PDF/图书项目吗？原始故事会保留在资料库中。",
+    "deleting": "正在删除…",
+    "deleteError": "无法删除这个插图 PDF。"
   },
   "account": {
     "title": "您的账户",

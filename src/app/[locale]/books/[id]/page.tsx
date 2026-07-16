@@ -4,9 +4,9 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
 import DownloadLink from "@/components/DownloadLink";
+import DeleteBookButton from "@/components/DeleteBookButton";
 import { db } from "@/lib/db";
 import BookStatusPanel from "./BookStatusPanel";
-import DeleteBookButton from "./DeleteBookButton";
 
 export default async function BookProjectPage({
   params,
@@ -51,7 +51,10 @@ export default async function BookProjectPage({
               : t("illustratedPdfPageSub", { title: story.title })}
           </p>
           <div className="mt-4">
-            <DeleteBookButton bookId={project.id} storyId={story.id} />
+            <DeleteBookButton
+              bookId={project.id}
+              redirectTo={`/stories/${story.id}`}
+            />
           </div>
         </div>
 
@@ -68,7 +71,7 @@ export default async function BookProjectPage({
                   href={`/api/books/${project.id}/download?asset=printPdf`}
                   target="_blank"
                   rel="noreferrer"
-                  className="rounded-full bg-night-700 px-5 py-3 text-sm font-bold text-moon-200 transition hover:bg-night-600"
+                  className="storycot-btn storycot-btn-primary"
                   pendingLabel={t("downloadStarting")}
                 >
                   {t("illustratedPdfButton")}
@@ -79,7 +82,7 @@ export default async function BookProjectPage({
                   href={`/api/books/${project.id}/download?asset=epub`}
                   target="_blank"
                   rel="noreferrer"
-                  className="rounded-full border border-night-200 px-5 py-3 text-sm font-bold text-night-700 transition hover:bg-night-50"
+                  className="storycot-btn storycot-btn-secondary"
                   pendingLabel={t("downloadStarting")}
                 >
                   {t("epubButton")}
@@ -103,7 +106,7 @@ export default async function BookProjectPage({
             <button
               type="button"
               disabled
-              className="mt-4 rounded-full border border-night-200 px-5 py-3 text-sm font-bold text-night-400"
+              className="storycot-btn storycot-btn-secondary mt-4"
             >
               {t("hardcoverButton")}
             </button>

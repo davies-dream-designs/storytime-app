@@ -125,11 +125,11 @@ export default function CreditPacks() {
                 onClick={() => handlePurchase(pack.id)}
                 disabled={disabled}
                 title={!auConfirmed ? t("packConfirmAu") : undefined}
-                className={`mt-4 w-full rounded-xl py-2.5 text-sm font-bold transition ${
+                className={`storycot-btn mt-4 w-full ${
                   pack.popular
-                    ? "bg-night-700 text-moon-200 hover:bg-night-600"
-                    : "bg-night-100 text-night-700 hover:bg-night-200"
-                } disabled:bg-night-100 disabled:text-night-400 disabled:shadow-none`}
+                    ? "storycot-btn-primary"
+                    : "storycot-btn-secondary"
+                }`}
               >
                 {loading === pack.id
                   ? t("packLoading")

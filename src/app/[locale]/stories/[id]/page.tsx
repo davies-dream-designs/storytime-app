@@ -4,11 +4,11 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
 import DownloadLink from "@/components/DownloadLink";
+import DeleteStoryButton from "@/components/DeleteStoryButton";
 import { db } from "@/lib/db";
 import StoryReader from "./StoryReader";
 import ShareButton from "./ShareButton";
 import CreatePrintBookButton from "./CreatePrintBookButton";
-import DeleteStoryButton from "./DeleteStoryButton";
 
 export default async function StoryPage({
   params,
@@ -76,14 +76,14 @@ export default async function StoryPage({
               href={`/stories/${id}/print`}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-full border border-night-200 px-4 py-2 text-sm font-bold text-night-600 transition hover:bg-night-50"
+              className="storycot-btn storycot-btn-secondary"
               pendingLabel={t("downloadStarting")}
             >
               {t("printButton")}
             </DownloadLink>
             <DownloadLink
               href={`/api/stories/${id}/epub`}
-              className="rounded-full border border-night-200 px-4 py-2 text-sm font-bold text-night-600 transition hover:bg-night-50"
+              className="storycot-btn storycot-btn-secondary"
               pendingLabel={t("downloadStarting")}
             >
               {t("textEpubButton")}
@@ -91,7 +91,7 @@ export default async function StoryPage({
             {existingBook ? (
               <Link
                 href={`/books/${existingBook.id}` as string}
-                className="rounded-full border border-star-200 bg-star-50 px-4 py-2 text-sm font-bold text-star-700 transition hover:bg-star-100"
+                className="storycot-btn storycot-btn-secondary"
               >
                 {t("viewBookButton")}
               </Link>
@@ -100,11 +100,11 @@ export default async function StoryPage({
             )}
             <Link
               href={`/stories/new?profileId=${story.profileId}` as string}
-              className="rounded-full bg-night-700 px-4 py-2 text-sm font-bold text-moon-200 transition hover:bg-night-600"
+              className="storycot-btn storycot-btn-primary"
             >
               {t("newStoryButton")}
             </Link>
-            <DeleteStoryButton storyId={id} />
+            <DeleteStoryButton storyId={id} redirectTo="/stories" />
             <p className="basis-full text-xs leading-5 text-night-400 sm:max-w-md">
               {t("epubHelp")}
             </p>

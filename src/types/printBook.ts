@@ -77,6 +77,8 @@ export interface BookSpread {
   sceneBrief: string
   illustrationPrompt: string
   imageUrl?: string
+  leftPageImageUrl?: string
+  rightPageImageUrl?: string
   thumbnailUrl?: string
 }
 

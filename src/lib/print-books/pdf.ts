@@ -355,10 +355,15 @@ async function drawSpreadArtIntoRect(input: {
   subtitle?: string
 }) {
   const { pdfDoc, page, spread, side, rect, story, variantSeed = spread.sequence, title, subtitle } = input
-  const image = await embedSpreadImage(pdfDoc, spread.imageUrl)
+
+  // Per-page square images take priority (new books). Fall back to shared spread image (legacy).
+  const perPageUrl = side === 'start' ? spread.leftPageImageUrl : side === 'end' ? spread.rightPageImageUrl : undefined
+  const imageUrl = perPageUrl ?? spread.imageUrl
+  const image = await embedSpreadImage(pdfDoc, imageUrl)
 
   if (image) {
-    if (side === 'cover') {
+    if (perPageUrl || side === 'cover') {
+      // Per-page square or explicit cover crop: fill rect edge-to-edge
       const scale = Math.max(rect.width / image.width, rect.height / image.height)
       const drawWidth = image.width * scale
       const drawHeight = image.height * scale
@@ -378,6 +383,7 @@ async function drawSpreadArtIntoRect(input: {
       return
     }
 
+    // Legacy shared landscape image: span full spread, show left or right half
     const spreadWidth = rect.width * 2
     const scale = Math.max(spreadWidth / image.width, rect.height / image.height)
     const drawWidth = image.width * scale
@@ -682,13 +688,13 @@ async function drawBookPage(input: {
   }
 
   if (pageNumber > 4) {
-    page.drawText(`${pageNumber}`, {
-      x: side === 'start' ? 28 : pageWidth - 40,
-      y: 20,
-      font: sans,
-      size: 10,
-      color: rgb(0.45, 0.46, 0.52),
-    })
+    const numStr = `${pageNumber}`
+    const numX = side === 'start' ? 28 : pageWidth - 40
+    const numY = 20
+    for (const [dx, dy] of [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]] as const) {
+      page.drawText(numStr, { x: numX + dx, y: numY + dy, font: sans, size: 10, color: rgb(0, 0, 0), opacity: 0.82 })
+    }
+    page.drawText(numStr, { x: numX, y: numY, font: sans, size: 10, color: rgb(0.99, 0.96, 0.88) })
   }
 
 }
@@ -1064,7 +1070,7 @@ export async function generateBookPdfs(input: {
     printPdfPageHeightIn: Number((LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn + LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2).toFixed(3)),
     interiorTextSafeMarginIn: LULU_SQUARE_HARDCOVER_SPEC.fullBleedTextSafeMarginIn,
     previewImages: input.project.spreads
-      .map((spread) => spread.imageUrl)
+      .map((spread) => spread.leftPageImageUrl ?? spread.imageUrl)
       .filter((url): url is string => typeof url === 'string' && url.length > 0),
   }
 }

@@ -139,7 +139,7 @@ export function buildCoverIllustrationPrompt(input: {
     `Age band: ${input.project.ageBand}.`,
     `Theme: ${story.theme || 'gentle bedtime adventure'}.`,
     `Cover scene: ${sceneDirection}`,
-    'Create a portrait-oriented children’s hardcover front cover with space for title treatment and a warm bedtime-book feeling.',
+    "Create a portrait-oriented children's hardcover front cover with space for title treatment and a warm bedtime-book feeling.",
     'Do not render any visible publisher logo or extra text into the art itself.',
   ].join(' ')
 }
@@ -228,10 +228,10 @@ async function generateOpenAICoverPng(prompt: string): Promise<Buffer> {
   })
 }
 
-async function generateOpenAIInteriorPng(prompt: string): Promise<Buffer> {
+async function generateOpenAISquarePng(prompt: string): Promise<Buffer> {
   return generateOpenAIImage({
     prompt,
-    size: '1536x1024',
+    size: '1024x1024',
   })
 }
 
@@ -256,7 +256,7 @@ function shouldTryNextImageModel(status: number, bodyText: string): boolean {
 
 async function generateOpenAIImage(input: {
   prompt: string
-  size: '1024x1536' | '1536x1024'
+  size: '1024x1536' | '1536x1024' | '1024x1024'
 }): Promise<Buffer> {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
@@ -326,74 +326,73 @@ export function applySpreadIllustration(spreads: BookSpread[], nextSpread: BookS
   return replaceSpreadImage(spreads, nextSpread)
 }
 
-function buildSpreadIllustrationPrompt(input: {
+function buildPageIllustrationPrompt(input: {
   project: BookProject
   story: Story
   profile: ChildProfile
   characterBible: CharacterBible
   spread: BookSpread
+  side: 'left' | 'right'
 }): string {
-  const { project, story, profile, characterBible, spread } = input
+  const { project, story, profile, characterBible, spread, side } = input
+  const pageText = side === 'left' ? spread.leftPageText : spread.rightPageText
 
   return [
     buildIllustrationDirection(characterBible),
     `Book title: ${story.title}.`,
     `Main child: ${profile.name}.`,
     `Age band: ${project.ageBand}.`,
-    `Spread sequence: ${spread.sequence}.`,
-    `Pages: ${spread.pageStart}-${spread.pageEnd}.`,
-    `Layout type: ${spread.layoutType}.`,
+    `Spread sequence: ${spread.sequence}, ${side} page.`,
     `Scene brief: ${spread.sceneBrief}.`,
     `Illustration direction: ${spread.illustrationPrompt}.`,
-    `Left page text: ${spread.leftPageText || 'None'}.`,
-    `Right page text: ${spread.rightPageText || 'None'}.`,
-    'Create a warm landscape children’s book spread illustration with no visible printed text or page numbers inside the art.',
+    `Page text: ${pageText || 'None'}.`,
+    'Create a warm square children\'s book page illustration for full-bleed printing. No visible text or page numbers inside the art.',
   ].join(' ')
 }
 
-function createPlaceholderSpreadSvg(input: {
+function createPlaceholderPageSvg(input: {
   story: Story
   profile: ChildProfile
   characterBible: CharacterBible
   spread: BookSpread
+  side: 'left' | 'right'
 }): string {
-  const { story, profile, characterBible, spread } = input
+  const { story, profile, characterBible, spread, side } = input
   const title = escapeXml(clampText(story.title, 48))
-  const sceneBrief = escapeXml(clampText(spread.sceneBrief, 140))
-  const illustrationPrompt = escapeXml(clampText(spread.illustrationPrompt, 180))
+  const sceneBrief = escapeXml(clampText(spread.sceneBrief, 120))
   const childName = escapeXml(profile.name)
   const palette = escapeXml(characterBible.palette)
+  const pageText = escapeXml(clampText(side === 'left' ? spread.leftPageText : spread.rightPageText, 160))
+  const sideLabel = side === 'left' ? `PAGE ${spread.pageStart}` : `PAGE ${spread.pageEnd}`
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1536" height="1024" viewBox="0 0 1536 1024" role="img" aria-label="${title}">
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="${title}">
   <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#1b2b5a"/>
-      <stop offset="48%" stop-color="#5e5aa3"/>
+      <stop offset="55%" stop-color="#5e5aa3"/>
       <stop offset="100%" stop-color="#f0d39d"/>
     </linearGradient>
   </defs>
-  <rect width="1536" height="1024" fill="url(#sky)"/>
-  <circle cx="1240" cy="180" r="86" fill="#fff1be" opacity="0.9"/>
-  <path d="M0 780 C220 720 420 710 620 760 S1020 850 1230 800 S1430 760 1536 790 L1536 1024 L0 1024 Z" fill="#21345d"/>
-  <path d="M0 845 C230 795 410 785 610 835 S1010 925 1210 880 S1420 835 1536 860 L1536 1024 L0 1024 Z" fill="#162546" opacity="0.85"/>
-  <rect x="72" y="72" width="1392" height="880" rx="36" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="5"/>
-  <text x="120" y="138" fill="#fff8ea" font-size="28" font-family="Arial, sans-serif">SPREAD ${spread.sequence} · PAGES ${spread.pageStart}-${spread.pageEnd}</text>
-  <text x="120" y="214" fill="#fffef8" font-size="54" font-family="Georgia, serif" font-weight="700">${title}</text>
-  <text x="120" y="278" fill="#fef0c9" font-size="30" font-family="Georgia, serif">${childName} · ${escapeXml(spread.layoutType)}</text>
-  <g transform="translate(550 520)">
-    <circle cx="220" cy="-80" r="24" fill="#ffebc6"/>
-    <rect x="150" y="-54" width="140" height="180" rx="46" fill="#f2ca57"/>
-    <rect x="178" y="126" width="34" height="135" rx="17" fill="#94a7d6"/>
-    <rect x="228" y="126" width="34" height="135" rx="17" fill="#94a7d6"/>
-    <rect x="116" y="-8" width="34" height="112" rx="16" fill="#ffebc6"/>
-    <rect x="290" y="-8" width="34" height="112" rx="16" fill="#ffebc6"/>
-    <circle cx="106" cy="144" r="24" fill="#ffd36e" opacity="0.88"/>
+  <rect width="1024" height="1024" fill="url(#sky)"/>
+  <circle cx="820" cy="160" r="72" fill="#fff1be" opacity="0.9"/>
+  <path d="M0 740 C140 690 280 680 420 710 S680 780 840 740 S960 710 1024 730 L1024 1024 L0 1024 Z" fill="#21345d"/>
+  <path d="M0 800 C150 760 290 750 420 780 S680 860 840 820 S960 790 1024 808 L1024 1024 L0 1024 Z" fill="#162546" opacity="0.85"/>
+  <text x="72" y="110" fill="#fff8ea" font-size="22" font-family="Arial, sans-serif">SPREAD ${spread.sequence} · ${sideLabel}</text>
+  <text x="72" y="178" fill="#fffef8" font-size="44" font-family="Georgia, serif" font-weight="700">${title}</text>
+  <text x="72" y="234" fill="#fef0c9" font-size="26" font-family="Georgia, serif">${childName}</text>
+  <g transform="translate(360 440)">
+    <circle cx="152" cy="-60" r="20" fill="#ffebc6"/>
+    <rect x="102" y="-38" width="100" height="128" rx="32" fill="#f2ca57"/>
+    <rect x="124" y="90" width="24" height="96" rx="12" fill="#94a7d6"/>
+    <rect x="158" y="90" width="24" height="96" rx="12" fill="#94a7d6"/>
+    <rect x="78" y="-6" width="24" height="80" rx="11" fill="#ffebc6"/>
+    <rect x="202" y="-6" width="24" height="80" rx="11" fill="#ffebc6"/>
   </g>
-  <text x="120" y="748" fill="#fff8ea" font-size="30" font-family="Arial, sans-serif">Palette: ${escapeXml(clampText(palette, 90))}</text>
-  <text x="120" y="812" fill="#fff8ea" font-size="28" font-family="Arial, sans-serif">${sceneBrief}</text>
-  <foreignObject x="120" y="850" width="1296" height="110">
-    <div xmlns="http://www.w3.org/1999/xhtml" style="color:#fff8ea;font-family:Arial,sans-serif;font-size:24px;line-height:1.4;">
-      ${illustrationPrompt}
+  <text x="72" y="700" fill="#fff8ea" font-size="22" font-family="Arial, sans-serif">Palette: ${escapeXml(clampText(palette, 70))}</text>
+  <text x="72" y="746" fill="#fff8ea" font-size="22" font-family="Arial, sans-serif">${sceneBrief}</text>
+  <foreignObject x="72" y="784" width="880" height="180">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="color:#fff8ea;font-family:Arial,sans-serif;font-size:20px;line-height:1.45;">
+      ${pageText}
     </div>
   </foreignObject>
 </svg>`
@@ -444,39 +443,38 @@ export async function generateSpreadIllustration(input: {
   characterBible: CharacterBible
   spread: BookSpread
 }): Promise<{ spread: BookSpread; provider: 'openai' | 'placeholder' }> {
-  const prompt = buildSpreadIllustrationPrompt(input)
+  const { project, spread } = input
+  const base = `books/${project.id}/spreads/${spread.sequence}`
 
   if (isGeneratedIllustrationConfigured()) {
-    const png = await generateOpenAIInteriorPng(prompt)
-    const imageUrl = await storeBookAsset({
-      pathname: `books/${input.project.id}/spreads/${input.spread.sequence}.png`,
-      body: png,
-      contentType: 'image/png',
-    })
+    const [leftPng, rightPng] = await Promise.all([
+      generateOpenAISquarePng(buildPageIllustrationPrompt({ ...input, side: 'left' })),
+      generateOpenAISquarePng(buildPageIllustrationPrompt({ ...input, side: 'right' })),
+    ])
+
+    const [leftPageImageUrl, rightPageImageUrl] = await Promise.all([
+      storeBookAsset({ pathname: `${base}-left.png`, body: leftPng, contentType: 'image/png' }),
+      storeBookAsset({ pathname: `${base}-right.png`, body: rightPng, contentType: 'image/png' }),
+    ])
 
     return {
-      spread: {
-        ...input.spread,
-        imageUrl,
-        thumbnailUrl: imageUrl,
-      },
+      spread: { ...spread, leftPageImageUrl, rightPageImageUrl, thumbnailUrl: leftPageImageUrl },
       provider: 'openai',
     }
   }
 
-  const svg = createPlaceholderSpreadSvg(input)
-  const imageUrl = await storeBookAsset({
-    pathname: `books/${input.project.id}/spreads/${input.spread.sequence}.svg`,
-    body: svg,
-    contentType: 'image/svg+xml',
-  })
+  const [leftSvg, rightSvg] = [
+    createPlaceholderPageSvg({ ...input, side: 'left' }),
+    createPlaceholderPageSvg({ ...input, side: 'right' }),
+  ]
+
+  const [leftPageImageUrl, rightPageImageUrl] = await Promise.all([
+    storeBookAsset({ pathname: `${base}-left.svg`, body: leftSvg, contentType: 'image/svg+xml' }),
+    storeBookAsset({ pathname: `${base}-right.svg`, body: rightSvg, contentType: 'image/svg+xml' }),
+  ])
 
   return {
-    spread: {
-      ...input.spread,
-      imageUrl,
-      thumbnailUrl: imageUrl,
-    },
+    spread: { ...spread, leftPageImageUrl, rightPageImageUrl, thumbnailUrl: leftPageImageUrl },
     provider: 'placeholder',
   }
 }

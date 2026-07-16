@@ -185,10 +185,17 @@ describe('generateCoverIllustration', () => {
     })
 
     expect(result.provider).toBe('placeholder')
-    expect(result.spread.imageUrl).toBe('data:image/svg+xml;base64,cover')
+    expect(result.spread.leftPageImageUrl).toBe('data:image/svg+xml;base64,cover')
+    expect(result.spread.rightPageImageUrl).toBe('data:image/svg+xml;base64,cover')
     expect(mockStoreBookAsset).toHaveBeenCalledWith(
       expect.objectContaining({
-        pathname: 'books/book-1/spreads/2.svg',
+        pathname: 'books/book-1/spreads/2-left.svg',
+        contentType: 'image/svg+xml',
+      })
+    )
+    expect(mockStoreBookAsset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pathname: 'books/book-1/spreads/2-right.svg',
         contentType: 'image/svg+xml',
       })
     )

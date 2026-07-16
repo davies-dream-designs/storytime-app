@@ -236,7 +236,8 @@
     "readFullText": "Leer cuento completo como texto",
     "goToPage": "Ir a la página {page}",
     "wordsCount": "{count} palabras",
-    "pagesCount": "{count} páginas"
+    "pagesCount": "{count} páginas",
+    "viewBookButton": "📖 Ver libro impreso"
   },
   "books": {
     "createButton": "📖 Crear libro impreso",

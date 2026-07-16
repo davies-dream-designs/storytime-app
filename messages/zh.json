@@ -236,7 +236,8 @@
     "readFullText": "阅读完整故事文本",
     "goToPage": "转到第 {page} 页",
     "wordsCount": "{count} 字",
-    "pagesCount": "{count} 页"
+    "pagesCount": "{count} 页",
+    "viewBookButton": "📖 查看印刷书籍"
   },
   "books": {
     "createButton": "📖 创建印刷图书",

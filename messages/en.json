@@ -236,7 +236,8 @@
     "readFullText": "Read full story as text",
     "goToPage": "Go to page {page}",
     "wordsCount": "{count} words",
-    "pagesCount": "{count} pages"
+    "pagesCount": "{count} pages",
+    "viewBookButton": "📖 View print book"
   },
   "books": {
     "createButton": "📖 Create print book",

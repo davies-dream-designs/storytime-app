@@ -236,7 +236,8 @@
     "readFullText": "Lire l'histoire complète en texte",
     "goToPage": "Aller à la page {page}",
     "wordsCount": "{count} mots",
-    "pagesCount": "{count} pages"
+    "pagesCount": "{count} pages",
+    "viewBookButton": "📖 Voir le livre imprimé"
   },
   "books": {
     "createButton": "📖 Créer le livre imprimé",

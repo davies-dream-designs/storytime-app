@@ -17,15 +17,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ? await db.bookBuildJobs.getById(project.assets.activeJobId)
     : await db.bookBuildJobs.getCurrentByProjectId(project.id)
 
-  const shouldDispatchQueuedJob =
-    activeJob &&
-    activeJob.projectId === project.id &&
-    (activeJob.status === 'queued' || isBookBuildJobStale(activeJob))
-
-  if (shouldDispatchQueuedJob) {
-    after(async () => {
+  if (activeJob && activeJob.projectId === project.id) {
+    if (activeJob.status === 'queued') {
       await dispatchBookBuildJob(activeJob)
-    })
+    } else if (isBookBuildJobStale(activeJob)) {
+      after(async () => {
+        await dispatchBookBuildJob(activeJob)
+      })
+    }
   }
 
   return NextResponse.json({

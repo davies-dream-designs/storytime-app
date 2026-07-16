@@ -223,5 +223,6 @@ describe('/api/books/[id] and /status', () => {
     expect(mockDispatchBookBuildJob).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'job-1' })
     )
+    expect(mockAfter).not.toHaveBeenCalled()
   })
 })

@@ -32,13 +32,23 @@ function GenerateForm() {
   const [notes, setNotes] = useState('')
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')
+  const [profilesError, setProfilesError] = useState('')
 
   useEffect(() => {
     fetch('/api/profiles')
-      .then((r) => r.json())
-      .then((data: ChildProfile[]) => {
+      .then(async (r) => {
+        if (!r.ok) {
+          const data = (await r.json().catch(() => null)) as { error?: string } | null
+          throw new Error(data?.error ?? 'Could not load profiles')
+        }
+        return r.json() as Promise<ChildProfile[]>
+      })
+      .then((data) => {
         setProfiles(data)
         if (!defaultProfileId && data.length > 0) setProfileId(data[0].id)
+      })
+      .catch((err) => {
+        setProfilesError(err instanceof Error ? err.message : 'Could not load profiles')
       })
       .finally(() => setLoadingProfiles(false))
   }, [defaultProfileId])
@@ -97,6 +107,22 @@ function GenerateForm() {
   const selectedProfile = profiles.find((p) => p.id === profileId)
 
   if (loadingProfiles) return <p className="text-night-400">{t('loadingProfiles')}</p>
+
+  if (profilesError) {
+    return (
+      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center">
+        <p className="font-display font-bold text-rose-700">{t('noProfiles')}</p>
+        <p className="mt-2 text-sm text-rose-600">{profilesError}</p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-4 rounded-full bg-rose-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-rose-500"
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
 
   if (profiles.length === 0) {
     return (

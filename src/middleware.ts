@@ -18,6 +18,10 @@ const isPublicRoute = createRouteMatcher([
 ])
 
 export default clerkMiddleware(async (auth, req) => {
+  if (req.nextUrl.pathname.startsWith('/api/')) {
+    return NextResponse.next()
+  }
+
   const intlResponse = handleI18n(req)
 
   // Return locale redirects immediately — don't auth-check paths being redirected

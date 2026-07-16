@@ -1,22 +1,38 @@
-import { notFound } from 'next/navigation'
-import { auth } from '@clerk/nextjs/server'
-import { getTranslations } from 'next-intl/server'
-import { Link } from '@/i18n/navigation'
-import Nav from '@/components/Nav'
-import { db } from '@/lib/db'
-import StoryReader from './StoryReader'
-import ShareButton from './ShareButton'
+import { notFound } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
+import { getTranslations } from "next-intl/server";
+import { Link } from "@/i18n/navigation";
+import Nav from "@/components/Nav";
+import DownloadLink from "@/components/DownloadLink";
+import DeleteStoryButton from "@/components/DeleteStoryButton";
+import { db } from "@/lib/db";
+import StoryReader from "./StoryReader";
+import ShareButton from "./ShareButton";
+import CreatePrintBookButton from "./CreatePrintBookButton";
 
-export default async function StoryPage({ params }: { params: Promise<{ id: string; locale: string }> }) {
-  const { userId } = await auth()
-  const t = await getTranslations('stories')
-  const { id, locale } = await params
-  const story = await db.stories.getById(id)
-  if (!story || story.userId !== userId) notFound()
+export default async function StoryPage({
+  params,
+}: {
+  params: Promise<{ id: string; locale: string }>;
+}) {
+  const { userId } = await auth();
+  const t = await getTranslations("stories");
+  const { id, locale } = await params;
+  const story = await db.stories.getById(id);
+  if (!story || story.userId !== userId) notFound();
 
-  const profile = await db.profiles.getById(story.profileId)
+  const profile = await db.profiles.getById(story.profileId);
+  const bookProjects = await db.bookProjects.getByStoryId(id);
+  const existingBook = bookProjects.find((p) => p.status !== "failed") ?? null;
 
-  const dateLocale = locale === 'zh' ? 'zh-CN' : locale === 'es' ? 'es-ES' : locale === 'fr' ? 'fr-FR' : 'en-AU'
+  const dateLocale =
+    locale === "zh"
+      ? "zh-CN"
+      : locale === "es"
+        ? "es-ES"
+        : locale === "fr"
+          ? "fr-FR"
+          : "en-AU";
 
   return (
     <>
@@ -25,32 +41,77 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <Link href="/stories" className="text-sm text-night-400 hover:text-night-600">{t('backToLibrary')}</Link>
+              <Link
+                href="/stories"
+                className="text-sm text-night-400 hover:text-night-600"
+              >
+                {t("backToLibrary")}
+              </Link>
               <span className="text-night-300">·</span>
               {profile && (
-                <Link href={`/profiles/${profile.id}` as string} className="text-sm text-star-500 hover:text-star-600">
+                <Link
+                  href={`/profiles/${profile.id}` as string}
+                  className="text-sm text-star-500 hover:text-star-600"
+                >
                   {story.profileName}
                 </Link>
               )}
             </div>
-            <h1 className="font-display text-3xl font-bold text-night-800 sm:text-4xl">{story.title}</h1>
+            <h1 className="font-display text-3xl font-bold text-night-800 sm:text-4xl">
+              {story.title}
+            </h1>
             <p className="mt-1 text-night-400">
-              {story.theme} · {t('wordsCount', { count: story.wordCount })} · {t('pagesCount', { count: story.pages.length })} ·{' '}
-              {new Date(story.createdAt).toLocaleDateString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}
+              {story.theme} · {t("wordsCount", { count: story.wordCount })} ·{" "}
+              {t("pagesCount", { count: story.pages.length })} ·{" "}
+              {new Date(story.createdAt).toLocaleDateString(dateLocale, {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
             </p>
           </div>
           <div className="flex flex-shrink-0 flex-wrap gap-2">
             <ShareButton storyId={id} />
-            <a href={`/stories/${id}/print`} target="_blank" rel="noopener noreferrer" className="rounded-full border border-night-200 px-4 py-2 text-sm font-bold text-night-600 transition hover:bg-night-50">
-              {t('printButton')}
-            </a>
-            <Link href={`/stories/new?profileId=${story.profileId}` as string} className="rounded-full bg-night-700 px-4 py-2 text-sm font-bold text-moon-200 transition hover:bg-night-600">
-              {t('newStoryButton')}
+            <DownloadLink
+              href={`/stories/${id}/print`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="storycot-btn storycot-btn-secondary"
+              pendingLabel={t("downloadStarting")}
+            >
+              {t("printButton")}
+            </DownloadLink>
+            <DownloadLink
+              href={`/api/stories/${id}/epub`}
+              className="storycot-btn storycot-btn-secondary"
+              pendingLabel={t("downloadStarting")}
+            >
+              {t("textEpubButton")}
+            </DownloadLink>
+            {existingBook ? (
+              <Link
+                href={`/books/${existingBook.id}` as string}
+                className="storycot-btn storycot-btn-secondary"
+              >
+                {t("viewBookButton")}
+              </Link>
+            ) : (
+              <CreatePrintBookButton storyId={id} />
+            )}
+            <Link
+              href={`/stories/new?profileId=${story.profileId}` as string}
+              className="storycot-btn storycot-btn-primary"
+            >
+              {t("newStoryButton")}
             </Link>
+            <DeleteStoryButton storyId={id} redirectTo="/stories" />
+            <p className="basis-full text-xs leading-5 text-night-400 sm:max-w-md">
+              {t("epubHelp")}
+            </p>
           </div>
         </div>
         <StoryReader story={story} />
       </main>
     </>
-  )
+  );
 }

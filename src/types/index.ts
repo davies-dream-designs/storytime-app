@@ -1,9 +1,12 @@
+import type { ChildAppearance } from './profileAppearance'
+
 export interface ChildProfile {
   id: string
   userId: string
   name: string
   age: number        // kept for backward compat; prefer computing from dateOfBirth
   dateOfBirth?: string // YYYY-MM-DD
+  appearance?: ChildAppearance
   favouriteCharacters: string[]
   favouriteActivities: string[]
   favouriteAnimals: string[]
@@ -100,3 +103,5 @@ export const LESSON_OPTIONS = [
 ] as const
 
 export type Lesson = (typeof LESSON_OPTIONS)[number]
+
+export * from './profileAppearance'

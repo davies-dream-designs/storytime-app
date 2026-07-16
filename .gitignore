@@ -9,6 +9,8 @@ out/
 dist/
 build/
 .vercel/
+!src/app/api/**/build/
+!src/app/api/**/build/**
 
 # Environment files — never commit secrets
 .env

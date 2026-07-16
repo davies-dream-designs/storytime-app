@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
 import type { ChildProfile } from '@/types'
+import { sanitizeChildAppearance } from '@/types'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
@@ -26,7 +27,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   const body = (await req.json()) as Partial<ChildProfile>
-  const updated = await db.profiles.update(id, body)
+  const updated = await db.profiles.update(id, {
+    ...body,
+    ...(body.appearance !== undefined ? { appearance: sanitizeChildAppearance(body.appearance) } : {}),
+  })
   return NextResponse.json(updated)
 }
 

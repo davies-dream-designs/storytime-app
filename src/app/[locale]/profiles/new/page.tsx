@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import Nav from '@/components/Nav'
-import { LESSON_OPTIONS } from '@/types'
+import AppearanceFields from '@/components/profiles/AppearanceFields'
+import { createEmptyChildAppearance, LESSON_OPTIONS, type ChildAppearance } from '@/types'
 
 type TagsFieldProps = {
   label: string
@@ -73,11 +74,24 @@ export default function NewProfilePage() {
   const [favouriteAnimals, setFavouriteAnimals] = useState<string[]>([])
   const [favouritePlaces, setFavouritePlaces] = useState<string[]>([])
   const [lessons, setLessons] = useState<string[]>([])
+  const [appearance, setAppearance] = useState<ChildAppearance>(createEmptyChildAppearance())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   const MONTH_KEYS = ['months.1','months.2','months.3','months.4','months.5','months.6','months.7','months.8','months.9','months.10','months.11','months.12'] as const
   const MONTHS = MONTH_KEYS.map((key, i) => ({ value: i + 1, label: t(key) }))
+
+  async function getErrorMessage(res: Response, fallback: string): Promise<string> {
+    const contentType = res.headers.get('content-type') ?? ''
+    if (contentType.includes('application/json')) {
+      const data = (await res.json().catch(() => null)) as { error?: string } | null
+      return data?.error ?? fallback
+    }
+
+    const text = await res.text().catch(() => '')
+    if (text.includes('<')) return fallback
+    return text || fallback
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -102,9 +116,9 @@ export default function NewProfilePage() {
       const res = await fetch('/api/profiles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), age, dateOfBirth, favouriteCharacters, favouriteActivities, favouriteAnimals, favouritePlaces, lessons }),
+        body: JSON.stringify({ name: name.trim(), age, dateOfBirth, appearance, favouriteCharacters, favouriteActivities, favouriteAnimals, favouritePlaces, lessons }),
       })
-      if (!res.ok) throw new Error((await res.json()).error)
+      if (!res.ok) throw new Error(await getErrorMessage(res, 'Could not create profile'))
       const profile = await res.json()
       router.push(`/profiles/${profile.id}` as string)
     } catch (err) {
@@ -161,6 +175,8 @@ export default function NewProfilePage() {
           <TagsField label={t('activitiesLabel')} values={favouriteActivities} onChange={setFavouriteActivities} placeholder={t('activitiesPlaceholder')} />
           <TagsField label={t('animalsLabel')} values={favouriteAnimals} onChange={setFavouriteAnimals} placeholder={t('animalsPlaceholder')} />
           <TagsField label={t('placesLabel')} values={favouritePlaces} onChange={setFavouritePlaces} placeholder={t('placesPlaceholder')} />
+
+          <AppearanceFields appearance={appearance} onChange={setAppearance} />
 
           <div>
             <p className="mb-2 text-sm font-bold text-night-700">{t('lessonsLabel')}</p>

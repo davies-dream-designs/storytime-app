@@ -1,22 +1,52 @@
-'use client'
+"use client";
 
-import Image from 'next/image'
-import { useState } from 'react'
-import { useAuth, SignInButton, UserButton } from '@clerk/nextjs'
-import { useTranslations } from 'next-intl'
-import { Link } from '@/i18n/navigation'
-import LanguageSwitcher from '@/components/LanguageSwitcher'
+import Image from "next/image";
+import { useState } from "react";
+import { useAuth, SignInButton, UserButton } from "@clerk/nextjs";
+import { useTranslations } from "next-intl";
+import { Link, usePathname } from "@/i18n/navigation";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function Nav() {
-  const { isSignedIn } = useAuth()
-  const [open, setOpen] = useState(false)
-  const t = useTranslations('nav')
+  const { isSignedIn } = useAuth();
+  const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+  const t = useTranslations("nav");
+  const isActive = (href: string) => {
+    if (href === "/") return pathname === "/";
+    if (href === "/stories" && pathname.startsWith("/stories/new"))
+      return false;
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+  const navLinkClass = (href: string) =>
+    `rounded-full px-4 py-2 text-sm font-bold transition ${
+      isActive(href)
+        ? "bg-night-700 text-moon-200 shadow-sm shadow-night-700/20"
+        : "text-night-600 hover:bg-night-100"
+    }`;
+  const mobileLinkClass = (href: string) =>
+    `rounded-xl px-4 py-3 text-sm font-bold transition ${
+      isActive(href)
+        ? "bg-night-700 text-moon-200 shadow-sm shadow-night-700/20"
+        : "text-night-700 hover:bg-night-50"
+    }`;
 
   return (
     <header className="sticky top-0 z-30 border-b border-night-100 bg-parchment/90 backdrop-blur">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 pr-6">
-        <Link href="/" className="flex items-center gap-2 font-display text-xl font-bold text-night-700" onClick={() => setOpen(false)}>
-          <Image src="/icon-light.svg" alt="" width={32} height={32} className="rounded-lg" aria-hidden />
+        <Link
+          href="/"
+          className="flex items-center gap-2 font-display text-xl font-bold text-night-700"
+          onClick={() => setOpen(false)}
+        >
+          <Image
+            src="/icon-light.svg"
+            alt=""
+            width={32}
+            height={32}
+            className="rounded-lg"
+            aria-hidden
+          />
           Storycot
         </Link>
 
@@ -24,12 +54,40 @@ export default function Nav() {
         <div className="hidden sm:flex items-center gap-1">
           {isSignedIn ? (
             <>
-              <Link href="/profiles" className="rounded-full px-4 py-2 text-sm font-bold text-night-600 transition hover:bg-night-100">{t('profiles')}</Link>
-              <Link href="/stories" className="rounded-full px-4 py-2 text-sm font-bold text-night-600 transition hover:bg-night-100">{t('stories')}</Link>
-              <Link href="/stories/new" className="whitespace-nowrap rounded-full bg-night-700 px-4 py-2 text-sm font-bold text-moon-200 transition hover:bg-night-600">
-                {t('newStory')}
+              <Link
+                href="/profiles"
+                aria-current={isActive("/profiles") ? "page" : undefined}
+                className={navLinkClass("/profiles")}
+              >
+                {t("profiles")}
               </Link>
-              <Link href="/account" className="rounded-full px-3 py-2 text-sm font-bold text-night-500 transition hover:bg-night-100" title={t('accountCredits')}>
+              <Link
+                href="/stories"
+                aria-current={isActive("/stories") ? "page" : undefined}
+                className={navLinkClass("/stories")}
+              >
+                {t("stories")}
+              </Link>
+              <Link
+                href="/books"
+                aria-current={isActive("/books") ? "page" : undefined}
+                className={navLinkClass("/books")}
+              >
+                {t("books")}
+              </Link>
+              <Link
+                href="/stories/new"
+                aria-current={isActive("/stories/new") ? "page" : undefined}
+                className={`whitespace-nowrap ${navLinkClass("/stories/new")}`}
+              >
+                {t("newStory")}
+              </Link>
+              <Link
+                href="/account"
+                aria-current={isActive("/account") ? "page" : undefined}
+                className={`rounded-full px-3 py-2 text-sm font-bold transition ${isActive("/account") ? "bg-night-700 text-moon-200 shadow-sm shadow-night-700/20" : "text-night-500 hover:bg-night-100"}`}
+                title={t("accountCredits")}
+              >
                 ✨
               </Link>
               <LanguageSwitcher />
@@ -40,7 +98,7 @@ export default function Nav() {
               <LanguageSwitcher />
               <SignInButton mode="modal">
                 <button className="rounded-full bg-night-700 px-4 py-2 text-sm font-bold text-moon-200 transition hover:bg-night-600">
-                  {t('signIn')}
+                  {t("signIn")}
                 </button>
               </SignInButton>
             </>
@@ -56,15 +114,34 @@ export default function Nav() {
               <button
                 onClick={() => setOpen((o) => !o)}
                 className="rounded-lg p-2 text-night-600 transition hover:bg-night-100"
-                aria-label={open ? t('closeMenu') : t('openMenu')}
+                aria-label={open ? t("closeMenu") : t("openMenu")}
               >
                 {open ? (
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
                 ) : (
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  >
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
                   </svg>
                 )}
               </button>
@@ -72,7 +149,7 @@ export default function Nav() {
           ) : (
             <SignInButton mode="modal">
               <button className="rounded-full bg-night-700 px-4 py-2 text-sm font-bold text-moon-200">
-                {t('signIn')}
+                {t("signIn")}
               </button>
             </SignInButton>
           )}
@@ -82,27 +159,55 @@ export default function Nav() {
       {/* Mobile drawer */}
       {open && isSignedIn && (
         <div className="sm:hidden border-t border-night-100 bg-parchment/95 backdrop-blur px-4 py-3 flex flex-col gap-1">
-          <Link href="/dashboard" onClick={() => setOpen(false)} className="rounded-xl px-4 py-3 text-sm font-bold text-night-700 hover:bg-night-50 transition">
-            {t('dashboard')}
+          <Link
+            href="/dashboard"
+            aria-current={isActive("/dashboard") ? "page" : undefined}
+            onClick={() => setOpen(false)}
+            className={mobileLinkClass("/dashboard")}
+          >
+            {t("dashboard")}
           </Link>
-          <Link href="/profiles" onClick={() => setOpen(false)} className="rounded-xl px-4 py-3 text-sm font-bold text-night-700 hover:bg-night-50 transition">
-            {t('profilesMobile')}
+          <Link
+            href="/profiles"
+            aria-current={isActive("/profiles") ? "page" : undefined}
+            onClick={() => setOpen(false)}
+            className={mobileLinkClass("/profiles")}
+          >
+            {t("profilesMobile")}
           </Link>
-          <Link href="/stories" onClick={() => setOpen(false)} className="rounded-xl px-4 py-3 text-sm font-bold text-night-700 hover:bg-night-50 transition">
-            {t('storiesMobile')}
+          <Link
+            href="/stories"
+            aria-current={isActive("/stories") ? "page" : undefined}
+            onClick={() => setOpen(false)}
+            className={mobileLinkClass("/stories")}
+          >
+            {t("storiesMobile")}
           </Link>
-          <Link href="/account" onClick={() => setOpen(false)} className="rounded-xl px-4 py-3 text-sm font-bold text-night-700 hover:bg-night-50 transition">
-            {t('accountMobile')}
+          <Link
+            href="/books"
+            aria-current={isActive("/books") ? "page" : undefined}
+            onClick={() => setOpen(false)}
+            className={mobileLinkClass("/books")}
+          >
+            {t("booksMobile")}
+          </Link>
+          <Link
+            href="/account"
+            aria-current={isActive("/account") ? "page" : undefined}
+            onClick={() => setOpen(false)}
+            className={mobileLinkClass("/account")}
+          >
+            {t("accountMobile")}
           </Link>
           <Link
             href="/stories/new"
             onClick={() => setOpen(false)}
             className="mt-2 rounded-full bg-night-700 px-4 py-3 text-center text-sm font-bold text-moon-200 transition hover:bg-night-600"
           >
-            {t('newStory')}
+            {t("newStory")}
           </Link>
         </div>
       )}
     </header>
-  )
+  );
 }

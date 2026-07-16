@@ -79,12 +79,16 @@ function drawWrappedText(input: {
   font: Awaited<ReturnType<PDFDocument['embedFont']>>
   size: number
   color?: ReturnType<typeof rgb>
+  align?: 'left' | 'center'
 }) {
-  const { page, text, x, topY, maxWidth, lineHeight, font, size, color = rgb(0.15, 0.18, 0.24) } = input
+  const { page, text, x, topY, maxWidth, lineHeight, font, size, color = rgb(0.15, 0.18, 0.24), align = 'left' } = input
   const lines = wrapTextToWidth({ text, font, size, maxWidth })
   lines.forEach((line, index) => {
+    const lineX = align === 'center'
+      ? x + (maxWidth - font.widthOfTextAtSize(line, size)) / 2
+      : x
     page.drawText(line, {
-      x,
+      x: lineX,
       y: topY - index * lineHeight,
       font,
       size,
@@ -522,7 +526,7 @@ async function drawTitlePage(input: {
     pdfDoc,
     page,
     variant: 'light',
-    x: pageWidth * 0.12,
+    x: pageWidth * 0.14,
     y: pageHeight * 0.78 + 52,
     iconSize: 36,
     font: sans,
@@ -654,7 +658,7 @@ async function drawBookPage(input: {
     pdfDoc,
     page,
     spread,
-    side,
+    side: 'cover',
     rect: artRect,
     story,
     variantSeed: spread.sequence * 2 + (side === 'end' ? 1 : 0),
@@ -679,26 +683,19 @@ async function drawBookPage(input: {
       font: serif,
       size: 14,
       color: theme.ink,
+      align: 'center',
     })
   }
 
   if (pageNumber > 4) {
     page.drawText(`${pageNumber}`, {
-      x: pageWidth - 40,
+      x: side === 'start' ? 28 : pageWidth - 40,
       y: 20,
       font: sans,
       size: 10,
       color: rgb(0.45, 0.46, 0.52),
     })
   }
-
-  page.drawText('Storycot', {
-    x: side === 'start' ? 26 : pageWidth - 76,
-    y: 20,
-    font: sans,
-    size: 9,
-    color: BRAND_LILAC,
-  })
 
 }
 
@@ -739,7 +736,6 @@ async function buildPrintPdf(input: {
         pageWidth: PRINT_PAGE_WIDTH,
         pageHeight: PRINT_PAGE_HEIGHT,
         sans,
-        branded: true,
       })
       continue
     }

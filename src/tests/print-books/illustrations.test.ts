@@ -104,6 +104,11 @@ describe('generateCoverIllustration', () => {
     mockStoreBookAsset.mockResolvedValue('data:image/svg+xml;base64,cover')
   })
 
+  it('reports final-art generation as unavailable without OpenAI plus blob storage', async () => {
+    const { isGeneratedIllustrationConfigured } = await import('@/lib/print-books/illustrations')
+    expect(isGeneratedIllustrationConfigured()).toBe(false)
+  })
+
   it('creates a placeholder cover asset when provider credentials are missing', async () => {
     const { generateCoverIllustration } = await import('@/lib/print-books/illustrations')
     const result = await generateCoverIllustration({

@@ -10,7 +10,7 @@ export type BookProjectStatus =
   | 'ready'
   | 'failed'
 
-export type BookBuildMode = 'full' | 'exports' | 'finalize'
+export type BookBuildMode = 'full' | 'art' | 'exports' | 'finalize'
 
 export type BookArtMode = 'placeholder' | 'generated' | 'mixed'
 

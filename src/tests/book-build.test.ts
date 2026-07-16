@@ -8,6 +8,7 @@ const mockGenerateCharacterBible = vi.fn()
 const mockGenerateCoverIllustration = vi.fn()
 const mockGenerateSpreadIllustration = vi.fn()
 const mockGenerateBookPdfs = vi.fn()
+const mockIsGeneratedIllustrationConfigured = vi.fn()
 
 const mockDb = {
   stories: {
@@ -47,6 +48,7 @@ vi.mock('@/lib/print-books/characterBible', async () => {
 vi.mock('@/lib/print-books/illustrations', () => ({
   generateCoverIllustration: mockGenerateCoverIllustration,
   generateSpreadIllustration: mockGenerateSpreadIllustration,
+  isGeneratedIllustrationConfigured: mockIsGeneratedIllustrationConfigured,
   applySpreadIllustration: (spreads: BookProject['spreads'], nextSpread: BookProject['spreads'][number]) =>
     spreads.map((spread) => (spread.id === nextSpread.id ? nextSpread : spread)),
 }))
@@ -139,6 +141,7 @@ describe('POST /api/books/[id]/build', () => {
       ...updates,
     }))
     mockGenerateCharacterBible.mockResolvedValue(createCharacterBible())
+    mockIsGeneratedIllustrationConfigured.mockReturnValue(true)
     mockGenerateCoverIllustration.mockImplementation(async ({ project }: { project: BookProject }) => ({
       coverImageUrl: 'https://example.com/books/book-1/cover.svg',
       spreads: project.spreads.map((spread, index) =>
@@ -327,6 +330,85 @@ describe('POST /api/books/[id]/build', () => {
     const body = await res.json()
     expect(body.assets?.exportVersion).toBe(4)
     expect(body.assets?.lastBuildMode).toBe('exports')
+  })
+
+  it('can regenerate final art without rerunning planning', async () => {
+    const readyProject = {
+      ...createBookProject(),
+      status: 'ready' as const,
+      completedSpreads: 16,
+      beats: [{ id: 'beat-1', sequence: 1, purpose: 'setup' as const, summary: 'Summary', textDraft: 'Draft', visualIntent: 'Visual', mood: 'calm' as const, isQuietBeat: false }],
+      characterBible: createCharacterBible(),
+      spreads: Array.from({ length: 16 }, (_, index) => ({
+        id: `spread-${index + 1}`,
+        bookProjectId: 'book-1',
+        sequence: index + 1,
+        pageStart: index * 2 + 1,
+        pageEnd: index * 2 + 2,
+        layoutType: index < 2 ? 'front_matter' : index > 13 ? 'end_matter' : 'text_art',
+        title: index === 0 ? 'Cover' : index === 1 ? 'Title' : index === 15 ? 'Back Cover' : undefined,
+        leftPageText: 'Left text',
+        rightPageText: 'Right text',
+        sceneBrief: 'Scene brief',
+        illustrationPrompt: 'Illustration prompt',
+        imageUrl: `https://example.com/${index + 1}.svg`,
+      })),
+      assets: {
+        proofVersion: 3,
+        exportVersion: 3,
+        artMode: 'placeholder' as const,
+        coverImageUrl: 'https://example.com/books/book-1/cover.svg',
+        previewPdfUrl: 'https://example.com/books/book-1/preview.pdf',
+        printPdfUrl: 'https://example.com/books/book-1/print.pdf',
+      },
+    }
+    mockDb.bookProjects.getById.mockResolvedValue(readyProject)
+    mockDb.bookProjects.update.mockImplementation(async (_id: string, updates: Partial<BookProject>) => ({
+      ...readyProject,
+      ...updates,
+      assets: {
+        ...readyProject.assets,
+        ...(updates.assets ?? {}),
+      },
+    }))
+    mockGenerateCoverIllustration.mockImplementation(async ({ project }: { project: BookProject }) => ({
+      coverImageUrl: 'https://example.com/books/book-1/cover.png',
+      spreads: project.spreads.map((spread) =>
+        spread.sequence === 1
+          ? { ...spread, imageUrl: 'https://example.com/books/book-1/cover.png', thumbnailUrl: 'https://example.com/books/book-1/cover.png' }
+          : spread
+      ),
+      provider: 'openai',
+    }))
+    mockGenerateSpreadIllustration.mockImplementation(async ({ spread }: { spread: BookProject['spreads'][number] }) => ({
+      spread: {
+        ...spread,
+        imageUrl: `https://example.com/books/book-1/spreads/${spread.sequence}.png`,
+        thumbnailUrl: `https://example.com/books/book-1/spreads/${spread.sequence}.png`,
+      },
+      provider: 'openai',
+    }))
+
+    const { POST } = await import('@/app/api/books/[id]/build/route')
+    const res = await POST(
+      new NextRequest('http://localhost/api/books/book-1/build', {
+        method: 'POST',
+        body: JSON.stringify({ mode: 'art' }),
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      { params: Promise.resolve({ id: 'book-1' }) },
+    )
+
+    expect(res.status).toBe(200)
+    expect(mockGenerateCharacterBible).not.toHaveBeenCalled()
+    expect(mockGenerateCoverIllustration).toHaveBeenCalledTimes(1)
+    expect(mockGenerateSpreadIllustration).toHaveBeenCalledTimes(15)
+    expect(mockGenerateBookPdfs).toHaveBeenCalledTimes(1)
+
+    const body = await res.json()
+    expect(body.assets?.artMode).toBe('generated')
+    expect(body.assets?.lastBuildMode).toBe('art')
+    expect(body.assets?.exportVersion).toBe(4)
   })
 
   it('can finalize a generated book into an order-ready package', async () => {

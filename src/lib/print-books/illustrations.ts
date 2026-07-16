@@ -3,6 +3,10 @@ import type { BookProject, BookSpread, CharacterBible } from '@/types/printBook'
 import { buildIllustrationDirection } from '@/lib/print-books/characterBible'
 import { isBookAssetStorageConfigured, storeBookAsset } from '@/lib/print-books/storage'
 
+export function isGeneratedIllustrationConfigured(): boolean {
+  return Boolean(process.env.OPENAI_API_KEY) && isBookAssetStorageConfigured()
+}
+
 function escapeXml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -389,7 +393,7 @@ export async function generateCoverIllustration(input: {
   const coverSpread = getCoverSpread(input.project.spreads)
   const prompt = buildCoverIllustrationPrompt({ ...input, coverSpread })
 
-  if (process.env.OPENAI_API_KEY && isBookAssetStorageConfigured()) {
+  if (isGeneratedIllustrationConfigured()) {
     const png = await generateOpenAICoverPng(prompt)
     const coverImageUrl = await storeBookAsset({
       pathname: `books/${input.project.id}/cover.png`,
@@ -427,7 +431,7 @@ export async function generateSpreadIllustration(input: {
 }): Promise<{ spread: BookSpread; provider: 'openai' | 'placeholder' }> {
   const prompt = buildSpreadIllustrationPrompt(input)
 
-  if (process.env.OPENAI_API_KEY && isBookAssetStorageConfigured()) {
+  if (isGeneratedIllustrationConfigured()) {
     const png = await generateOpenAIInteriorPng(prompt)
     const imageUrl = await storeBookAsset({
       pathname: `books/${input.project.id}/spreads/${input.spread.sequence}.png`,

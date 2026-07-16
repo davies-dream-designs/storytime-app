@@ -21,6 +21,7 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
   const [project, setProject] = useState(initialProject)
   const [retrying, setRetrying] = useState(false)
   const [rebuilding, setRebuilding] = useState(false)
+  const [generatingArt, setGeneratingArt] = useState(false)
   const [refreshingExports, setRefreshingExports] = useState(false)
   const [finalizing, setFinalizing] = useState(false)
   const [startingBuild, setStartingBuild] = useState(false)
@@ -103,6 +104,21 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
       router.refresh()
     }
     setRefreshingExports(false)
+  }
+
+  async function handleGenerateFinalArt() {
+    setGeneratingArt(true)
+    const res = await fetch(`/api/books/${project.id}/build`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'art' }),
+    })
+    if (res.ok) {
+      const next = (await res.json()) as BookProject
+      setProject(next)
+      router.refresh()
+    }
+    setGeneratingArt(false)
   }
 
   async function handleFinalizeForOrder() {
@@ -245,8 +261,19 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <button
+              onClick={handleGenerateFinalArt}
+              disabled={generatingArt || finalizing || rebuilding || refreshingExports}
+              className="rounded-full border border-night-300 px-4 py-2 text-sm font-bold text-night-700 transition hover:bg-night-50 disabled:opacity-60"
+            >
+              {generatingArt
+                ? t('generatingArtButton')
+                : project.assets.artMode === 'generated'
+                  ? t('refreshArtButton')
+                  : t('generateArtButton')}
+            </button>
+            <button
               onClick={handleRefreshExports}
-              disabled={refreshingExports || rebuilding || finalizing}
+              disabled={refreshingExports || rebuilding || finalizing || generatingArt}
               className={`rounded-full px-4 py-2 text-sm font-bold transition disabled:opacity-60 ${
                 readinessState === 'order_ready'
                   ? 'border border-green-300 text-green-700 hover:bg-green-100'
@@ -259,7 +286,7 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
             </button>
             <button
               onClick={handleRebuild}
-              disabled={rebuilding || refreshingExports || finalizing}
+              disabled={rebuilding || refreshingExports || finalizing || generatingArt}
               className={`rounded-full px-4 py-2 text-sm font-bold transition disabled:opacity-60 ${
                 readinessState === 'order_ready'
                   ? 'bg-green-700 text-white hover:bg-green-600'
@@ -272,7 +299,7 @@ export default function BookStatusPanel({ initialProject }: { initialProject: Bo
             </button>
             <button
               onClick={handleFinalizeForOrder}
-              disabled={finalizing || rebuilding || refreshingExports || readinessState === 'draft_ready'}
+              disabled={finalizing || rebuilding || refreshingExports || generatingArt || readinessState === 'draft_ready'}
               className="rounded-full bg-night-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-night-700 disabled:opacity-60"
             >
               {finalizing ? t('finalizingButton') : readinessState === 'order_ready' ? t('refreshFinalButton') : t('finalizeButton')}

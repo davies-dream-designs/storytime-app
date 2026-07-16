@@ -1,3 +1,4 @@
+import { after } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { db } from '@/lib/db'
 import type { ChildProfile, Story } from '@/types'
@@ -437,18 +438,28 @@ async function advanceExportBuild(project: BookProject, context: Awaited<ReturnT
   })
 }
 
-export async function dispatchBookBuildJob(job: BookBuildJob) {
-  const response = await fetch(`${job.baseUrl}/api/book-jobs/${job.id}/run`, {
-    method: 'POST',
-    headers: {
-      'x-book-job-token': job.token,
-    },
-    cache: 'no-store',
+function scheduleBookBuildJobContinuation(jobId: string) {
+  after(async () => {
+    try {
+      await continueBookBuildJob(jobId)
+    } catch (error) {
+      console.error('Book build continuation failed', { jobId, error })
+    }
   })
+}
 
-  if (!response.ok) {
-    throw new Error(`Job dispatch failed with ${response.status}`)
+export async function continueBookBuildJob(jobId: string) {
+  const result = await processBookBuildJob(jobId)
+
+  if (result.shouldContinue) {
+    scheduleBookBuildJobContinuation(jobId)
   }
+
+  return result
+}
+
+export async function dispatchBookBuildJob(job: BookBuildJob) {
+  return continueBookBuildJob(job.id)
 }
 
 export async function enqueueBookBuildJob(input: {

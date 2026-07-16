@@ -115,11 +115,10 @@ describe('generateBookPdfs', () => {
     delete process.env.LULU_COVER_SPINE_WIDTH_IN
     mockStoreBookAsset
       .mockResolvedValueOnce('data:application/pdf;base64,cover')
-      .mockResolvedValueOnce('data:application/pdf;base64,preview')
       .mockResolvedValueOnce('data:application/pdf;base64,print')
   })
 
-  it('stores cover, preview, and print pdf artifacts and returns preview images', async () => {
+  it('stores cover and print pdf artifacts and returns preview images', async () => {
     const { generateBookPdfs } = await import('@/lib/print-books/pdf')
     const result = await generateBookPdfs({
       project: createProject(),
@@ -134,9 +133,6 @@ describe('generateBookPdfs', () => {
     expect(result.coverPdfPageWidthIn).toBe(17.75)
     expect(result.coverPdfPageHeightIn).toBe(8.75)
     expect(result.coverSpineTextIncluded).toBe(false)
-    expect(result.previewPdfUrl).toBe('data:application/pdf;base64,preview')
-    expect(result.previewPdfPageWidthIn).toBe(8.5)
-    expect(result.previewPdfPageHeightIn).toBe(8.5)
     expect(result.printPdfUrl).toBe('data:application/pdf;base64,print')
     expect(result.printPdfPageWidthIn).toBe(8.75)
     expect(result.printPdfPageHeightIn).toBe(8.75)
@@ -152,13 +148,6 @@ describe('generateBookPdfs', () => {
     expect(mockStoreBookAsset).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
-        pathname: 'books/book-1/preview.pdf',
-        contentType: 'application/pdf',
-      })
-    )
-    expect(mockStoreBookAsset).toHaveBeenNthCalledWith(
-      3,
-      expect.objectContaining({
         pathname: 'books/book-1/print.pdf',
         contentType: 'application/pdf',
       })
@@ -170,7 +159,6 @@ describe('generateBookPdfs', () => {
     mockStoreBookAsset.mockReset()
     mockStoreBookAsset
       .mockResolvedValueOnce('data:application/pdf;base64,cover')
-      .mockResolvedValueOnce('data:application/pdf;base64,preview')
       .mockResolvedValueOnce('data:application/pdf;base64,print')
 
     const { generateBookPdfs } = await import('@/lib/print-books/pdf')

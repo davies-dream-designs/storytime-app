@@ -9,7 +9,7 @@ export function hasBlockingProofingIssue(project: Pick<BookProject, 'assets'>): 
 
 export function hasDownloadableBookExport(project: Pick<BookProject, 'assets'>): boolean {
   return (
-    isDownloadableBookAssetUrl(project.assets.previewPdfUrl) ||
+    isDownloadableBookAssetUrl(project.assets.coverPdfUrl) ||
     isDownloadableBookAssetUrl(project.assets.printPdfUrl)
   )
 }

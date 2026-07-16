@@ -37,9 +37,8 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
   const readinessState = getBookReadinessState(project)
   const hasProofingErrors = Boolean(project.assets.proofingErrors && project.assets.proofingErrors.length > 0)
   const coverPdfUrl = isDownloadableBookAssetUrl(project.assets.coverPdfUrl) ? project.assets.coverPdfUrl : undefined
-  const previewPdfUrl = isDownloadableBookAssetUrl(project.assets.previewPdfUrl) ? project.assets.previewPdfUrl : undefined
   const printPdfUrl = isDownloadableBookAssetUrl(project.assets.printPdfUrl) ? project.assets.printPdfUrl : undefined
-  const hasInlineFallbackExports = isInlineBookAssetUrl(project.assets.previewPdfUrl) || isInlineBookAssetUrl(project.assets.printPdfUrl)
+  const hasInlineFallbackExports = isInlineBookAssetUrl(project.assets.printPdfUrl)
 
   return (
     <>
@@ -87,10 +86,10 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
           </section>
         ) : null}
 
-        {coverPdfUrl || previewPdfUrl || printPdfUrl || hasInlineFallbackExports ? (
+        {coverPdfUrl || printPdfUrl || hasInlineFallbackExports ? (
           <section className="mt-8 rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
             <h2 className="font-display text-2xl font-bold text-night-800">{t('downloadsTitle')}</h2>
-            {coverPdfUrl || previewPdfUrl || printPdfUrl ? (
+            {coverPdfUrl || printPdfUrl ? (
               <div className="mt-4 flex flex-wrap gap-3">
                 {coverPdfUrl ? (
                   <a
@@ -102,22 +101,12 @@ export default async function BookProjectPage({ params }: { params: Promise<{ id
                     {t('coverPdfButton')}
                   </a>
                 ) : null}
-                {previewPdfUrl ? (
-                  <a
-                    href={previewPdfUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-full bg-night-700 px-5 py-3 text-sm font-bold text-moon-200 transition hover:bg-night-600"
-                  >
-                    {t('previewPdfButton')}
-                  </a>
-                ) : null}
                 {printPdfUrl ? (
                   <a
                     href={printPdfUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="rounded-full border border-night-200 px-5 py-3 text-sm font-bold text-night-700 transition hover:bg-night-50"
+                    className="rounded-full bg-night-700 px-5 py-3 text-sm font-bold text-moon-200 transition hover:bg-night-600"
                   >
                     {t('printPdfButton')}
                   </a>

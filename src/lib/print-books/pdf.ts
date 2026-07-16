@@ -6,8 +6,6 @@ import { storeBookAsset } from '@/lib/print-books/storage'
 import { LULU_SQUARE_HARDCOVER_SPEC } from '@/lib/print-books/proofing'
 
 const POINTS_PER_INCH = 72
-const PREVIEW_PAGE_WIDTH = LULU_SQUARE_HARDCOVER_SPEC.trimWidthIn * POINTS_PER_INCH
-const PREVIEW_PAGE_HEIGHT = LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn * POINTS_PER_INCH
 const PRINT_PAGE_WIDTH = (LULU_SQUARE_HARDCOVER_SPEC.trimWidthIn + LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2) * POINTS_PER_INCH
 const PRINT_PAGE_HEIGHT = (LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn + LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2) * POINTS_PER_INCH
 const BLEED = LULU_SQUARE_HARDCOVER_SPEC.bleedIn * POINTS_PER_INCH
@@ -191,17 +189,6 @@ function getPageText(spread: BookSpread, side: 'start' | 'end'): string {
   return side === 'start' ? spread.leftPageText : spread.rightPageText
 }
 
-function getPageFallbackText(pageNumber: number): string {
-  switch (pageNumber) {
-    case 2:
-      return 'Intentionally left quiet for printer-safe front matter.'
-    case 31:
-      return 'Intentionally left quiet for printer-safe back matter.'
-    default:
-      return ''
-  }
-}
-
 function getPlaceholderVariant(seed: number): PlaceholderVariant {
   return (Math.abs(seed) % 3) as PlaceholderVariant
 }
@@ -341,7 +328,7 @@ async function drawSpreadArtIntoRect(input: {
     }
 
     const spreadWidth = rect.width * 2
-    const scale = Math.max(spreadWidth / image.width, rect.height / image.height)
+    const scale = Math.min(spreadWidth / image.width, rect.height / image.height)
     const drawWidth = image.width * scale
     const drawHeight = image.height * scale
     const spreadX = rect.x + (spreadWidth - drawWidth) / 2
@@ -399,31 +386,29 @@ function drawHalfTitlePage(input: {
     size: 24,
     color: theme.ink,
   })
-  page.drawText(`A Storycot story for ${profile.name}`, {
-    x: pageWidth * 0.12,
-    y: pageHeight * 0.56,
-    font: serif,
-    size: 14,
-    color: rgb(0.34, 0.35, 0.4),
-  })
+  if (profile.name) {
+    page.drawText(`For ${profile.name}`, {
+      x: pageWidth * 0.12,
+      y: pageHeight * 0.56,
+      font: serif,
+      size: 14,
+      color: rgb(0.34, 0.35, 0.4),
+    })
+  }
 }
 
-async function drawPreviewCoverPage(input: {
+async function drawFrontispiecePage(input: {
   pdfDoc: PDFDocument
   page: ReturnType<PDFDocument['addPage']>
   spread: BookSpread
   story: Story
-  profile: ChildProfile
   pageWidth: number
   pageHeight: number
-  serifBold: Awaited<ReturnType<PDFDocument['embedFont']>>
-  serif: Awaited<ReturnType<PDFDocument['embedFont']>>
-  sans: Awaited<ReturnType<PDFDocument['embedFont']>>
 }) {
-  const { pdfDoc, page, spread, story, profile, pageWidth, pageHeight, serifBold, serif, sans } = input
+  const { pdfDoc, page, spread, story, pageWidth, pageHeight } = input
   const theme = pickPlaceholderTheme(story)
   drawPageBackground(page, pageWidth, pageHeight, theme.paper)
-  const artRect = { x: 0, y: pageHeight * 0.26, width: pageWidth, height: pageHeight * 0.74 }
+  const artRect = { x: 0, y: 0, width: pageWidth, height: pageHeight }
   await drawSpreadArtIntoRect({
     pdfDoc,
     page,
@@ -433,63 +418,6 @@ async function drawPreviewCoverPage(input: {
     story,
     variantSeed: spread.sequence + 20,
   })
-  page.drawText('Storycot personalised bedtime story', {
-    x: 28,
-    y: pageHeight - 28,
-    font: sans,
-    size: 10,
-    color: rgb(0.95, 0.93, 0.87),
-  })
-  page.drawText(story.title, {
-    x: pageWidth * 0.12,
-    y: pageHeight * 0.17,
-    font: serifBold,
-    size: 28,
-    color: theme.ink,
-  })
-  page.drawText(`Created for ${profile.name}`, {
-    x: pageWidth * 0.12,
-    y: pageHeight * 0.11,
-    font: serif,
-    size: 16,
-    color: rgb(0.34, 0.35, 0.4),
-  })
-}
-
-function drawQuietPage(input: {
-  page: ReturnType<PDFDocument['addPage']>
-  pageWidth: number
-  pageHeight: number
-  theme: PlaceholderTheme
-  label?: string
-  note?: string
-  serifBold: Awaited<ReturnType<PDFDocument['embedFont']>>
-  serif: Awaited<ReturnType<PDFDocument['embedFont']>>
-}) {
-  const { page, pageWidth, pageHeight, theme, label, note, serifBold, serif } = input
-  drawPageBackground(page, pageWidth, pageHeight, theme.paper)
-  if (label) {
-    page.drawText(label, {
-      x: pageWidth * 0.14,
-      y: pageHeight * 0.68,
-      font: serifBold,
-      size: 18,
-      color: theme.ink,
-    })
-  }
-  if (note) {
-    drawWrappedText({
-      page,
-      text: note,
-      x: pageWidth * 0.14,
-      topY: pageHeight * 0.6,
-      maxWidth: pageWidth * 0.68,
-      lineHeight: 18,
-      font: serif,
-      size: 12,
-      color: rgb(0.28, 0.29, 0.34),
-    })
-  }
 }
 
 function drawTitlePage(input: {
@@ -533,52 +461,37 @@ function drawCopyrightPage(input: {
   pageWidth: number
   pageHeight: number
   project: BookProject
-  profile: ChildProfile
   serifBold: Awaited<ReturnType<PDFDocument['embedFont']>>
   serif: Awaited<ReturnType<PDFDocument['embedFont']>>
   sans: Awaited<ReturnType<PDFDocument['embedFont']>>
   sansBold: Awaited<ReturnType<PDFDocument['embedFont']>>
 }) {
-  const { page, pageWidth, pageHeight, project, profile, serifBold, serif, sans, sansBold } = input
+  const { page, pageWidth, pageHeight, project, sans, sansBold } = input
   drawPageBackground(page, pageWidth, pageHeight)
-  page.drawText('Created especially for', {
-    x: pageWidth * 0.12,
-    y: pageHeight * 0.72,
-    font: serif,
-    size: 16,
-    color: rgb(0.34, 0.35, 0.4),
-  })
-  page.drawText(profile.name, {
-    x: pageWidth * 0.12,
-    y: pageHeight * 0.66,
-    font: serifBold,
-    size: 22,
-    color: rgb(0.16, 0.17, 0.22),
-  })
   page.drawText(`Copyright © ${new Date(project.createdAt).getUTCFullYear()} Storycot`, {
     x: pageWidth * 0.12,
-    y: pageHeight * 0.24,
+    y: pageHeight * 0.22,
     font: sansBold,
     size: 11,
     color: rgb(0.16, 0.17, 0.22),
   })
   page.drawText('ISBN pending', {
     x: pageWidth * 0.12,
-    y: pageHeight * 0.2,
+    y: pageHeight * 0.18,
     font: sans,
     size: 10,
     color: rgb(0.42, 0.29, 0.21),
   })
   page.drawText(LULU_SQUARE_HARDCOVER_SPEC.trimLabel, {
     x: pageWidth * 0.12,
-    y: pageHeight * 0.17,
+    y: pageHeight * 0.15,
     font: sans,
     size: 10,
     color: rgb(0.34, 0.35, 0.4),
   })
 }
 
-function drawColophonPage(input: {
+function drawClosingBrandPage(input: {
   page: ReturnType<PDFDocument['addPage']>
   pageWidth: number
   pageHeight: number
@@ -588,16 +501,16 @@ function drawColophonPage(input: {
 }) {
   const { page, pageWidth, pageHeight, theme, sansBold, serif } = input
   drawPageBackground(page, pageWidth, pageHeight, theme.paper)
-  page.drawText('A Storycot story', {
+  page.drawText('Storycot', {
     x: pageWidth * 0.12,
-    y: pageHeight * 0.62,
+    y: pageHeight * 0.7,
     font: sansBold,
-    size: 14,
+    size: 16,
     color: theme.skyAccent,
   })
   page.drawText('Sweet dreams.', {
     x: pageWidth * 0.12,
-    y: pageHeight * 0.54,
+    y: pageHeight * 0.6,
     font: serif,
     size: 18,
     color: theme.ink,
@@ -616,14 +529,13 @@ async function drawBookPage(input: {
   artRect: { x: number; y: number; width: number; height: number }
   textRect: { x: number; y: number; width: number; height: number }
   serif: Awaited<ReturnType<PDFDocument['embedFont']>>
-  serifBold: Awaited<ReturnType<PDFDocument['embedFont']>>
   sans: Awaited<ReturnType<PDFDocument['embedFont']>>
 }) {
-  const { pdfDoc, page, story, spread, pageNumber, side, pageWidth, pageHeight, artRect, textRect, serif, serifBold, sans } = input
+  const { pdfDoc, page, story, spread, pageNumber, side, pageWidth, pageHeight, artRect, textRect, serif, sans } = input
   const theme = pickPlaceholderTheme(story)
   drawPageBackground(page, pageWidth, pageHeight, theme.paper)
 
-  const text = getPageText(spread, side) || getPageFallbackText(pageNumber)
+  const text = getPageText(spread, side)
 
   await drawSpreadArtIntoRect({
     pdfDoc,
@@ -635,16 +547,15 @@ async function drawBookPage(input: {
     variantSeed: spread.sequence * 2 + (side === 'end' ? 1 : 0),
   })
 
-  page.drawRectangle({
-    x: textRect.x,
-    y: textRect.y,
-    width: textRect.width,
-    height: textRect.height,
-    color: rgb(1, 1, 1),
-    opacity: 0.9,
-  })
-
   if (text) {
+    page.drawRectangle({
+      x: textRect.x,
+      y: textRect.y,
+      width: textRect.width,
+      height: textRect.height,
+      color: rgb(1, 1, 1),
+      opacity: 0.72,
+    })
     drawWrappedText({
       page,
       text,
@@ -655,14 +566,6 @@ async function drawBookPage(input: {
       font: serif,
       size: 14,
       color: theme.ink,
-    })
-  } else {
-    page.drawText('A quiet page for the artwork.', {
-      x: textRect.x + 18,
-      y: textRect.y + textRect.height - 34,
-      font: sans,
-      size: 11,
-      color: rgb(0.46, 0.47, 0.52),
     })
   }
 
@@ -676,135 +579,6 @@ async function drawBookPage(input: {
     })
   }
 
-  if (spread.title && spread.title !== 'Cover' && spread.title !== 'Back Cover' && spread.title !== 'Title') {
-    page.drawText(spread.title, {
-      x: artRect.x + 18,
-      y: artRect.y + artRect.height - 26,
-      font: serifBold,
-      size: 12,
-      color: rgb(0.95, 0.93, 0.87),
-    })
-  }
-}
-
-async function buildPreviewPdf(input: {
-  project: BookProject
-  story: Story
-  profile: ChildProfile
-}): Promise<Uint8Array> {
-  const pdfDoc = await PDFDocument.create()
-  const serif = await pdfDoc.embedFont(StandardFonts.TimesRoman)
-  const serifBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold)
-  const sans = await pdfDoc.embedFont(StandardFonts.Helvetica)
-  const sansBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-  const theme = pickPlaceholderTheme(input.story)
-
-  for (const spread of input.project.spreads) {
-    if (spread.title === 'Cover') {
-      const coverPage = pdfDoc.addPage([PREVIEW_PAGE_WIDTH, PREVIEW_PAGE_HEIGHT])
-      await drawPreviewCoverPage({
-        pdfDoc,
-        page: coverPage,
-        spread,
-        story: input.story,
-        profile: input.profile,
-        pageWidth: PREVIEW_PAGE_WIDTH,
-        pageHeight: PREVIEW_PAGE_HEIGHT,
-        serifBold,
-        serif,
-        sans,
-      })
-
-      const quietPage = pdfDoc.addPage([PREVIEW_PAGE_WIDTH, PREVIEW_PAGE_HEIGHT])
-      drawQuietPage({
-        page: quietPage,
-        pageWidth: PREVIEW_PAGE_WIDTH,
-        pageHeight: PREVIEW_PAGE_HEIGHT,
-        theme,
-        serifBold,
-        serif,
-      })
-      continue
-    }
-
-    if (spread.title === 'Title') {
-      const titlePage = pdfDoc.addPage([PREVIEW_PAGE_WIDTH, PREVIEW_PAGE_HEIGHT])
-      drawTitlePage({
-        page: titlePage,
-        pageWidth: PREVIEW_PAGE_WIDTH,
-        pageHeight: PREVIEW_PAGE_HEIGHT,
-        story: input.story,
-        profile: input.profile,
-        theme,
-        serifBold,
-        serif,
-        sansBold,
-      })
-
-      const copyrightPage = pdfDoc.addPage([PREVIEW_PAGE_WIDTH, PREVIEW_PAGE_HEIGHT])
-      drawCopyrightPage({
-        page: copyrightPage,
-        pageWidth: PREVIEW_PAGE_WIDTH,
-        pageHeight: PREVIEW_PAGE_HEIGHT,
-        project: input.project,
-        profile: input.profile,
-        serifBold,
-        serif,
-        sans,
-        sansBold,
-      })
-      continue
-    }
-
-    if (spread.title === 'Back Cover') {
-      const closingPage = pdfDoc.addPage([PREVIEW_PAGE_WIDTH, PREVIEW_PAGE_HEIGHT])
-      drawColophonPage({
-        page: closingPage,
-        pageWidth: PREVIEW_PAGE_WIDTH,
-        pageHeight: PREVIEW_PAGE_HEIGHT,
-        theme,
-        sansBold,
-        serif,
-      })
-      continue
-    }
-
-    const startPage = pdfDoc.addPage([PREVIEW_PAGE_WIDTH, PREVIEW_PAGE_HEIGHT])
-    await drawBookPage({
-      pdfDoc,
-      page: startPage,
-      story: input.story,
-      spread,
-      pageNumber: spread.pageStart,
-      side: 'start',
-      pageWidth: PREVIEW_PAGE_WIDTH,
-      pageHeight: PREVIEW_PAGE_HEIGHT,
-      artRect: { x: 0, y: PREVIEW_PAGE_HEIGHT * 0.32, width: PREVIEW_PAGE_WIDTH, height: PREVIEW_PAGE_HEIGHT * 0.68 },
-      textRect: { x: 36, y: 34, width: PREVIEW_PAGE_WIDTH - 72, height: PREVIEW_PAGE_HEIGHT * 0.24 },
-      serif,
-      serifBold,
-      sans,
-    })
-
-    const endPage = pdfDoc.addPage([PREVIEW_PAGE_WIDTH, PREVIEW_PAGE_HEIGHT])
-    await drawBookPage({
-      pdfDoc,
-      page: endPage,
-      story: input.story,
-      spread,
-      pageNumber: spread.pageEnd,
-      side: 'end',
-      pageWidth: PREVIEW_PAGE_WIDTH,
-      pageHeight: PREVIEW_PAGE_HEIGHT,
-      artRect: { x: 0, y: PREVIEW_PAGE_HEIGHT * 0.32, width: PREVIEW_PAGE_WIDTH, height: PREVIEW_PAGE_HEIGHT * 0.68 },
-      textRect: { x: 36, y: 34, width: PREVIEW_PAGE_WIDTH - 72, height: PREVIEW_PAGE_HEIGHT * 0.24 },
-      serif,
-      serifBold,
-      sans,
-    })
-  }
-
-  return pdfDoc.save({ useObjectStreams: false })
 }
 
 async function buildPrintPdf(input: {
@@ -834,14 +608,14 @@ async function buildPrintPdf(input: {
         sansBold,
       })
 
-      const blankFrontMatter = pdfDoc.addPage([PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT])
-      drawQuietPage({
-        page: blankFrontMatter,
+      const frontispiecePage = pdfDoc.addPage([PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT])
+      await drawFrontispiecePage({
+        pdfDoc,
+        page: frontispiecePage,
+        spread,
+        story: input.story,
         pageWidth: PRINT_PAGE_WIDTH,
         pageHeight: PRINT_PAGE_HEIGHT,
-        theme,
-        serifBold,
-        serif,
       })
       continue
     }
@@ -866,7 +640,6 @@ async function buildPrintPdf(input: {
         pageWidth: PRINT_PAGE_WIDTH,
         pageHeight: PRINT_PAGE_HEIGHT,
         project: input.project,
-        profile: input.profile,
         serifBold,
         serif,
         sans,
@@ -876,26 +649,24 @@ async function buildPrintPdf(input: {
     }
 
     if (spread.title === 'Back Cover') {
-      const endMatter = pdfDoc.addPage([PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT])
-      drawQuietPage({
-        page: endMatter,
-        pageWidth: PRINT_PAGE_WIDTH,
-        pageHeight: PRINT_PAGE_HEIGHT,
-        theme,
-        label: 'The End',
-        note: 'Sweet dreams.',
-        serifBold,
-        serif,
-      })
-
-      const colophon = pdfDoc.addPage([PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT])
-      drawColophonPage({
-        page: colophon,
+      const closingBrandPage = pdfDoc.addPage([PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT])
+      drawClosingBrandPage({
+        page: closingBrandPage,
         pageWidth: PRINT_PAGE_WIDTH,
         pageHeight: PRINT_PAGE_HEIGHT,
         theme,
         sansBold,
         serif,
+      })
+
+      const backMatterPage = pdfDoc.addPage([PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT])
+      await drawFrontispiecePage({
+        pdfDoc,
+        page: backMatterPage,
+        spread,
+        story: input.story,
+        pageWidth: PRINT_PAGE_WIDTH,
+        pageHeight: PRINT_PAGE_HEIGHT,
       })
       continue
     }
@@ -911,19 +682,18 @@ async function buildPrintPdf(input: {
       pageWidth: PRINT_PAGE_WIDTH,
       pageHeight: PRINT_PAGE_HEIGHT,
       artRect: {
-        x: BLEED,
-        y: PRINT_PAGE_HEIGHT * 0.35,
-        width: PRINT_PAGE_WIDTH - BLEED * 2,
-        height: PRINT_PAGE_HEIGHT * 0.65 - BLEED,
+        x: 0,
+        y: 0,
+        width: PRINT_PAGE_WIDTH,
+        height: PRINT_PAGE_HEIGHT,
       },
       textRect: {
         x: FULL_BLEED_TEXT_SAFE_MARGIN,
         y: FULL_BLEED_TEXT_SAFE_MARGIN,
         width: PRINT_PAGE_WIDTH - FULL_BLEED_TEXT_SAFE_MARGIN * 2,
-        height: PRINT_PAGE_HEIGHT * 0.24,
+        height: 120,
       },
       serif,
-      serifBold,
       sans,
     })
 
@@ -938,19 +708,18 @@ async function buildPrintPdf(input: {
       pageWidth: PRINT_PAGE_WIDTH,
       pageHeight: PRINT_PAGE_HEIGHT,
       artRect: {
-        x: BLEED,
-        y: PRINT_PAGE_HEIGHT * 0.35,
-        width: PRINT_PAGE_WIDTH - BLEED * 2,
-        height: PRINT_PAGE_HEIGHT * 0.65 - BLEED,
+        x: 0,
+        y: 0,
+        width: PRINT_PAGE_WIDTH,
+        height: PRINT_PAGE_HEIGHT,
       },
       textRect: {
         x: FULL_BLEED_TEXT_SAFE_MARGIN,
         y: FULL_BLEED_TEXT_SAFE_MARGIN,
         width: PRINT_PAGE_WIDTH - FULL_BLEED_TEXT_SAFE_MARGIN * 2,
-        height: PRINT_PAGE_HEIGHT * 0.24,
+        height: 120,
       },
       serif,
-      serifBold,
       sans,
     })
   }
@@ -1134,9 +903,6 @@ export async function generateBookPdfs(input: {
   coverPdfPageWidthIn: number
   coverPdfPageHeightIn: number
   coverSpineTextIncluded: boolean
-  previewPdfUrl: string
-  previewPdfPageWidthIn: number
-  previewPdfPageHeightIn: number
   printPdfUrl: string
   printPdfPageWidthIn: number
   printPdfPageHeightIn: number
@@ -1145,17 +911,11 @@ export async function generateBookPdfs(input: {
 }> {
   const coverSpine = getLuluCoverSpineWidth(input.project.pageCount)
   const coverBytes = await buildCoverPdf(input)
-  const previewBytes = await buildPreviewPdf(input)
   const printBytes = await buildPrintPdf(input)
 
   const coverPdfUrl = await storeBookAsset({
     pathname: `books/${input.project.id}/cover.pdf`,
     body: Buffer.from(coverBytes),
-    contentType: 'application/pdf',
-  })
-  const previewPdfUrl = await storeBookAsset({
-    pathname: `books/${input.project.id}/preview.pdf`,
-    body: Buffer.from(previewBytes),
     contentType: 'application/pdf',
   })
   const printPdfUrl = await storeBookAsset({
@@ -1172,9 +932,6 @@ export async function generateBookPdfs(input: {
     coverPdfPageWidthIn: Number(((LULU_SQUARE_HARDCOVER_SPEC.trimWidthIn + LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2) * 2 + coverSpine.widthIn).toFixed(3)),
     coverPdfPageHeightIn: Number((LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn + LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2).toFixed(3)),
     coverSpineTextIncluded: input.project.pageCount >= LULU_SQUARE_HARDCOVER_SPEC.spineTextMinPageCount,
-    previewPdfUrl,
-    previewPdfPageWidthIn: LULU_SQUARE_HARDCOVER_SPEC.trimWidthIn,
-    previewPdfPageHeightIn: LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn,
     printPdfUrl,
     printPdfPageWidthIn: Number((LULU_SQUARE_HARDCOVER_SPEC.trimWidthIn + LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2).toFixed(3)),
     printPdfPageHeightIn: Number((LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn + LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2).toFixed(3)),

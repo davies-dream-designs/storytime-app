@@ -31,6 +31,7 @@ const mockDb = {
   bookProjects: {
     getById: vi.fn(),
     getByUserId: vi.fn(),
+    getByStoryId: vi.fn(),
     create: vi.fn(),
   },
 }
@@ -122,6 +123,7 @@ describe('/api/books', () => {
     mockIsBookBuildJobStale.mockReset()
     mockIsBookBuildJobStale.mockReturnValue(false)
     mockDb.bookProjects.getByUserId.mockResolvedValue([])
+    mockDb.bookProjects.getByStoryId.mockResolvedValue([])
     mockDb.bookProjects.create.mockResolvedValue(undefined)
   })
 
@@ -139,6 +141,23 @@ describe('/api/books', () => {
     expect(body.sourceStoryId).toBe('story-1')
     expect(body.status).toBe('queued')
     expect(mockDb.bookProjects.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns the existing book project for the same story instead of creating another', async () => {
+    const existingProject = createBookProject()
+    mockDb.bookProjects.getByStoryId = vi.fn().mockResolvedValue([existingProject])
+
+    const { POST } = await import('@/app/api/books/route')
+    const req = new NextRequest('http://localhost/api/books', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceStoryId: 'story-1' }),
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ id: 'book-1' })
+    expect(mockDb.bookProjects.create).not.toHaveBeenCalled()
   })
 
   it('lists book projects for the current user', async () => {
@@ -163,6 +182,7 @@ describe('/api/books/[id] and /status', () => {
     mockIsBookBuildJobStale.mockReset()
     mockIsBookBuildJobStale.mockReturnValue(false)
     mockDb.bookProjects.getById.mockResolvedValue(createBookProject())
+    mockDb.bookProjects.getByStoryId.mockResolvedValue([])
   })
 
   it('returns a full book project payload', async () => {

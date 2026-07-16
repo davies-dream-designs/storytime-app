@@ -22,7 +22,7 @@ function createProject(overrides: Partial<BookProject> = {}): BookProject {
       proofVersion: 1,
       exportVersion: 1,
       orderabilityState: 'export_ready',
-      previewPdfUrl: 'https://example.com/preview.pdf',
+      coverPdfUrl: 'https://example.com/cover.pdf',
       printPdfUrl: 'https://example.com/print.pdf',
       proofingPassed: true,
       proofingWarnings: [],
@@ -56,7 +56,7 @@ describe('getBookReadinessState', () => {
         createProject({
           assets: {
             ...createProject().assets,
-            previewPdfUrl: 'data:application/pdf;base64,preview',
+            coverPdfUrl: 'data:application/pdf;base64,cover',
             printPdfUrl: 'data:application/pdf;base64,print',
           },
         })

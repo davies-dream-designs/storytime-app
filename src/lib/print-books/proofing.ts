@@ -192,35 +192,6 @@ export function runLuluProofing(project: BookProject, options?: { strictForOrder
     })
   }
 
-  if (!project.assets.previewPdfUrl) {
-    addCheck({
-      key: 'preview_pdf',
-      label: 'Preview PDF export',
-      status: 'fail',
-      detail: 'Preview PDF is missing.',
-    })
-  } else {
-    addCheck({
-      key: 'preview_pdf',
-      label: 'Preview PDF export',
-      status: 'pass',
-      detail: 'Preview PDF is present.',
-    })
-  }
-
-  if (project.assets.previewPdfPageWidthIn && project.assets.previewPdfPageHeightIn) {
-    const widthMatches = Math.abs(project.assets.previewPdfPageWidthIn - LULU_SQUARE_HARDCOVER_SPEC.trimWidthIn) < 0.001
-    const heightMatches = Math.abs(project.assets.previewPdfPageHeightIn - LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn) < 0.001
-    addCheck({
-      key: 'preview_geometry',
-      label: 'Preview PDF geometry',
-      status: widthMatches && heightMatches ? 'pass' : 'fail',
-      detail: widthMatches && heightMatches
-        ? `Preview PDF pages match the trim size at ${LULU_SQUARE_HARDCOVER_SPEC.trimWidthIn}" x ${LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn}".`
-        : `Preview PDF must match the trim size at ${LULU_SQUARE_HARDCOVER_SPEC.trimWidthIn}" x ${LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn}", found ${project.assets.previewPdfPageWidthIn}" x ${project.assets.previewPdfPageHeightIn}".`,
-    })
-  }
-
   if (!project.assets.printPdfUrl) {
     addCheck({
       key: 'print_pdf',
@@ -329,7 +300,7 @@ export function runLuluProofing(project: BookProject, options?: { strictForOrder
     })
   }
 
-  const hasDownloadableExports = Boolean(project.assets.previewPdfUrl && project.assets.printPdfUrl && project.assets.coverPdfUrl)
+  const hasDownloadableExports = Boolean(project.assets.printPdfUrl && project.assets.coverPdfUrl)
   const passed = errors.length === 0
   const orderabilityState: BookOrderabilityState = !hasDownloadableExports
     ? 'draft_only'

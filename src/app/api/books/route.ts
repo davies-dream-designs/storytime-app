@@ -33,6 +33,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
   }
 
+  const existingProjects = (await db.bookProjects.getByStoryId(story.id))
+    .filter((project) => project.userId === userId)
+    .sort((a, b) => (a.updatedAt > b.updatedAt ? -1 : 1))
+
+  const existingProject =
+    existingProjects.find((project) => project.status !== 'failed') ?? existingProjects[0]
+
+  if (existingProject) {
+    return NextResponse.json(existingProject, { status: 200 })
+  }
+
   const project = createEmptyBookProject({
     id: randomUUID(),
     userId,

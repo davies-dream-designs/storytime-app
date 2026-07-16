@@ -206,23 +206,28 @@ async function getBrandLogoBytes(variant: 'light' | 'dark') {
   return darkLogoBytes
 }
 
-async function drawBrandLogo(input: {
+async function drawBrandWordmark(input: {
   pdfDoc: PDFDocument
   page: ReturnType<PDFDocument['addPage']>
   variant: 'light' | 'dark'
   x: number
   y: number
-  width: number
+  iconSize: number
+  font: Awaited<ReturnType<PDFDocument['embedFont']>>
 }) {
-  const { pdfDoc, page, variant, x, y, width } = input
+  const { pdfDoc, page, variant, x, y, iconSize, font } = input
   const bytes = await getBrandLogoBytes(variant)
   const image = await pdfDoc.embedPng(bytes)
-  const height = width * (image.height / image.width)
-  page.drawImage(image, {
-    x,
-    y,
-    width,
-    height,
+  const iconHeight = iconSize * (image.height / image.width)
+  page.drawImage(image, { x, y, width: iconSize, height: iconHeight })
+  const fontSize = Math.round(iconSize * 0.56)
+  const textColor = variant === 'light' ? rgb(0.99, 0.96, 0.88) : BRAND_PURPLE
+  page.drawText('Storycot', {
+    x: x + iconSize + 8,
+    y: y + (iconHeight - fontSize * 0.72) / 2,
+    font,
+    size: fontSize,
+    color: textColor,
   })
 }
 
@@ -410,16 +415,18 @@ async function drawHalfTitlePage(input: {
   theme: PlaceholderTheme
   serifBold: Awaited<ReturnType<PDFDocument['embedFont']>>
   serif: Awaited<ReturnType<PDFDocument['embedFont']>>
+  sans: Awaited<ReturnType<PDFDocument['embedFont']>>
 }) {
-  const { pdfDoc, page, pageWidth, pageHeight, story, profile, theme, serifBold, serif } = input
+  const { pdfDoc, page, pageWidth, pageHeight, story, profile, theme, serifBold, serif, sans } = input
   drawPageBackground(page, pageWidth, pageHeight, theme.paper)
-  await drawBrandLogo({
+  await drawBrandWordmark({
     pdfDoc,
     page,
     variant: 'dark',
-    x: pageWidth / 2 - 58,
-    y: pageHeight - 128,
-    width: 116,
+    x: pageWidth / 2 - 76,
+    y: pageHeight - 84,
+    iconSize: 40,
+    font: sans,
   })
   page.drawText(story.title, {
     x: pageWidth * 0.16,
@@ -453,9 +460,10 @@ async function drawFrontispiecePage(input: {
   story: Story
   pageWidth: number
   pageHeight: number
+  sans: Awaited<ReturnType<PDFDocument['embedFont']>>
   branded?: boolean
 }) {
-  const { pdfDoc, page, spread, story, pageWidth, pageHeight, branded = false } = input
+  const { pdfDoc, page, spread, story, pageWidth, pageHeight, sans, branded = false } = input
   const theme = pickPlaceholderTheme(story)
   drawPageBackground(page, pageWidth, pageHeight, theme.paper)
   const artRect = { x: 0, y: 0, width: pageWidth, height: pageHeight }
@@ -477,13 +485,14 @@ async function drawFrontispiecePage(input: {
       color: BRAND_PURPLE,
       opacity: 0.94,
     })
-    await drawBrandLogo({
+    await drawBrandWordmark({
       pdfDoc,
       page,
       variant: 'light',
-      x: 24,
-      y: 10,
-      width: 112,
+      x: 20,
+      y: 14,
+      iconSize: 32,
+      font: sans,
     })
   }
 }
@@ -498,8 +507,9 @@ async function drawTitlePage(input: {
   theme: PlaceholderTheme
   serifBold: Awaited<ReturnType<PDFDocument['embedFont']>>
   serif: Awaited<ReturnType<PDFDocument['embedFont']>>
+  sans: Awaited<ReturnType<PDFDocument['embedFont']>>
 }) {
-  const { pdfDoc, page, pageWidth, pageHeight, story, profile, theme, serifBold, serif } = input
+  const { pdfDoc, page, pageWidth, pageHeight, story, profile, theme, serifBold, serif, sans } = input
   drawPageBackground(page, pageWidth, pageHeight, theme.paper)
   page.drawRectangle({
     x: 0,
@@ -508,13 +518,14 @@ async function drawTitlePage(input: {
     height: pageHeight * 0.22,
     color: BRAND_PURPLE,
   })
-  await drawBrandLogo({
+  await drawBrandWordmark({
     pdfDoc,
     page,
     variant: 'light',
     x: pageWidth * 0.12,
-    y: pageHeight * 0.83,
-    width: 124,
+    y: pageHeight * 0.78 + 52,
+    iconSize: 36,
+    font: sans,
   })
   page.drawText(story.title, {
     x: pageWidth * 0.14,
@@ -552,13 +563,14 @@ async function drawCopyrightPage(input: {
 }) {
   const { pdfDoc, page, pageWidth, pageHeight, project, sans, sansBold } = input
   drawPageBackground(page, pageWidth, pageHeight, rgb(0.99, 0.98, 0.95))
-  await drawBrandLogo({
+  await drawBrandWordmark({
     pdfDoc,
     page,
     variant: 'dark',
     x: pageWidth * 0.12,
-    y: pageHeight - 112,
-    width: 104,
+    y: pageHeight - 72,
+    iconSize: 36,
+    font: sansBold,
   })
   page.drawText(`Copyright © ${new Date(project.createdAt).getUTCFullYear()} Storycot`, {
     x: pageWidth * 0.12,
@@ -589,16 +601,18 @@ async function drawClosingBrandPage(input: {
   pageWidth: number
   pageHeight: number
   serif: Awaited<ReturnType<PDFDocument['embedFont']>>
+  sans: Awaited<ReturnType<PDFDocument['embedFont']>>
 }) {
-  const { pdfDoc, page, pageWidth, pageHeight, serif } = input
+  const { pdfDoc, page, pageWidth, pageHeight, serif, sans } = input
   drawPageBackground(page, pageWidth, pageHeight, BRAND_PURPLE)
-  await drawBrandLogo({
+  await drawBrandWordmark({
     pdfDoc,
     page,
     variant: 'light',
-    x: pageWidth / 2 - 64,
-    y: pageHeight * 0.68,
-    width: 128,
+    x: pageWidth / 2 - 98,
+    y: pageHeight * 0.64,
+    iconSize: 52,
+    font: sans,
   })
   page.drawText('Sweet dreams.', {
     x: pageWidth * 0.28,
@@ -713,6 +727,7 @@ async function buildPrintPdf(input: {
         theme,
         serifBold,
         serif,
+        sans,
       })
 
       const frontispiecePage = pdfDoc.addPage([PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT])
@@ -723,6 +738,7 @@ async function buildPrintPdf(input: {
         story: input.story,
         pageWidth: PRINT_PAGE_WIDTH,
         pageHeight: PRINT_PAGE_HEIGHT,
+        sans,
         branded: true,
       })
       continue
@@ -740,6 +756,7 @@ async function buildPrintPdf(input: {
         theme,
         serifBold,
         serif,
+        sans,
       })
 
       const copyrightPage = pdfDoc.addPage([PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT])
@@ -765,6 +782,7 @@ async function buildPrintPdf(input: {
         pageWidth: PRINT_PAGE_WIDTH,
         pageHeight: PRINT_PAGE_HEIGHT,
         serif,
+        sans,
       })
 
       const backMatterPage = pdfDoc.addPage([PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT])
@@ -775,6 +793,7 @@ async function buildPrintPdf(input: {
         story: input.story,
         pageWidth: PRINT_PAGE_WIDTH,
         pageHeight: PRINT_PAGE_HEIGHT,
+        sans,
         branded: true,
       })
       continue
@@ -905,13 +924,14 @@ async function buildCoverPdf(input: {
     })
   }
 
-  await drawBrandLogo({
+  await drawBrandWordmark({
     pdfDoc,
     page,
     variant: 'light',
     x: frontCoverX + BLEED + 30,
-    y: PRINT_PAGE_HEIGHT - 88,
-    width: 120,
+    y: PRINT_PAGE_HEIGHT - 62,
+    iconSize: 36,
+    font: sansBold,
   })
   page.drawRectangle({
     x: frontCoverX + BLEED + 24,

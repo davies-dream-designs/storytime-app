@@ -366,8 +366,9 @@ function buildPageIllustrationPrompt(input: {
   characterBible: CharacterBible
   spread: BookSpread
   side: 'left' | 'right'
+  omitPageText?: boolean
 }): string {
-  const { project, story, profile, characterBible, spread, side } = input
+  const { project, story, profile, characterBible, spread, side, omitPageText = false } = input
   const pageText = side === 'left' ? spread.leftPageText : spread.rightPageText
 
   return [
@@ -378,8 +379,8 @@ function buildPageIllustrationPrompt(input: {
     `Spread sequence: ${spread.sequence}, ${side} page.`,
     `Scene brief: ${spread.sceneBrief}.`,
     `Illustration direction: ${spread.illustrationPrompt}.`,
-    `Page text: ${pageText || 'None'}.`,
-    'Create a warm square children\'s book page illustration for full-bleed printing. No visible text or page numbers inside the art.',
+    ...(omitPageText ? [] : [`Page text: ${pageText || 'None'}.`]),
+    "Create a warm square children's book page illustration for full-bleed printing. No visible text or page numbers inside the art.",
   ].join(' ')
 }
 
@@ -481,26 +482,24 @@ export async function generateSpreadIllustration(input: {
 
   if (isGeneratedIllustrationConfigured()) {
     // Generate sequentially to avoid hitting the OpenAI image rate limit (5/min)
-    const generatePage = async (side: 'left' | 'right'): Promise<{ url: string; ext: 'png' | 'svg' }> => {
+    const generatePage = async (side: 'left' | 'right'): Promise<string> => {
       try {
         const png = await generateOpenAISquarePng(buildPageIllustrationPrompt({ ...input, side }))
-        const url = await storeBookAsset({ pathname: `${base}-${side}.png`, body: png, contentType: 'image/png' })
-        return { url, ext: 'png' }
+        return storeBookAsset({ pathname: `${base}-${side}.png`, body: png, contentType: 'image/png' })
       } catch (err) {
         if (!(err instanceof ModerationBlockedError)) throw err
-        const svg = createPlaceholderPageSvg({ ...input, side })
-        const url = await storeBookAsset({ pathname: `${base}-${side}.svg`, body: svg, contentType: 'image/svg+xml' })
-        return { url, ext: 'svg' }
+        // Retry with a safe minimal prompt (drop page text which most often triggers moderation)
+        const png = await generateOpenAISquarePng(buildPageIllustrationPrompt({ ...input, side, omitPageText: true }))
+        return storeBookAsset({ pathname: `${base}-${side}.png`, body: png, contentType: 'image/png' })
       }
     }
 
-    const left = await generatePage('left')
-    const right = await generatePage('right')
-    const anyPlaceholder = left.ext === 'svg' || right.ext === 'svg'
+    const leftPageImageUrl = await generatePage('left')
+    const rightPageImageUrl = await generatePage('right')
 
     return {
-      spread: { ...spread, leftPageImageUrl: left.url, rightPageImageUrl: right.url, thumbnailUrl: left.url },
-      provider: anyPlaceholder ? 'placeholder' : 'openai',
+      spread: { ...spread, leftPageImageUrl, rightPageImageUrl, thumbnailUrl: leftPageImageUrl },
+      provider: 'openai',
     }
   }
 

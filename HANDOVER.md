@@ -2,7 +2,7 @@
 
 > Auto-maintained by the `update-handover` skill. Run `/update-handover` after any significant changes.
 
-**Last updated:** 2026-07-16  
+**Last updated:** 2026-07-16 (evening)  
 **Branch:** main  
 **Live URL:** https://storycot.com  
 **Active feature branch:** `feat/print-book-preview` — print book MVP (not yet merged to main)
@@ -76,7 +76,22 @@ NEXT_PUBLIC_APP_URL=https://storycot.com
 E2E_CLERK_USER_ID=
 E2E_BASE_URL=
 VERCEL_AUTOMATION_BYPASS_SECRET=
+
+# Print book — Inngest job queue (opt-in via BOOK_PIPELINE_DRIVER=inngest)
+INNGEST_EVENT_KEY=
+INNGEST_SIGNING_KEY=
+BOOK_PIPELINE_DRIVER=       # set to "inngest" to use durable queue; omit to keep after() default
 ```
+
+### Pulling env vars locally
+
+OpenHands has `VERCEL_PAT_TOKEN` in secrets (not `VERCEL_TOKEN`). Use:
+
+```bash
+VERCEL_TOKEN=$VERCEL_PAT_TOKEN vercel env pull .env.local --yes
+```
+
+Run this at the start of each session in the active worktree. Both workspaces are already linked to `davies-dream-designs/storytime-app`.
 
 ---
 
@@ -205,7 +220,7 @@ messages/
 4. **Stripe live/restricted key** — `STRIPE_SECRET_KEY` must be `rk_live_*` (restricted), never `sk_live_*`.
 5. **KV → Postgres migration** — Issue #6. Currently all data is in Vercel KV (Redis). No SQL, no relational queries. Long-term plan to move to Postgres for better querying.
 6. **Existing stories are English** — Stories generated before multilingual was deployed are stored in English. No migration path — generate new ones in the desired language.
-7. **OpenAI image rate limits** — `feat/print-book-preview` currently hits OpenAI's 5 images/min limit under multi-user load. Retry logic exists but the architectural fix (Inngest + OpenAI Batch API) is the agreed next step — not yet built.
+7. **OpenAI image rate limits** — Inngest `concurrency: 1` fix is built and opt-in on `feat/print-book-preview`. Activate via `BOOK_PIPELINE_DRIVER=inngest` in Vercel. OpenAI Batch API (50% cheaper, async) is the optional next layer — not yet built.
 
 ---
 
@@ -222,6 +237,9 @@ messages/
 - 429 retry with wait time parsed from OpenAI error body; sequential (not parallel) image gen per spread
 - Moderation-blocked images retry without page text before failing
 - Story page shows "View print book" button once a book exists (translation key fixed)
+- **Final pages fixed:** page 31 = centred "The End" leaf on BRAND_PURPLE; page 32 = centred "Sweet dreams." colophon (was misaligned + placeholder)
+- **Back cover art fixed:** generated "Back Cover" spread image now renders full-bleed on the physical back cover panel with a paper scrim for blurb legibility
+- **Inngest pipeline (opt-in):** durable `build-book` function with `concurrency: 1` registered at `/api/inngest`; build route sends event when `BOOK_PIPELINE_DRIVER=inngest`, otherwise keeps existing `after()` — nothing changes in prod until the env var is set
 
 ### Key files
 | File | Purpose |
@@ -229,21 +247,32 @@ messages/
 | `src/lib/print-books/pdf.ts` | PDF renderer — cover, interior, frontispiece, page layout |
 | `src/lib/print-books/illustrations.ts` | OpenAI image gen, placeholder SVGs, rate limit handling |
 | `src/lib/print-books/jobs.ts` | Book build job pipeline (`processBookBuildJob`, `enqueueBookBuildJob`) |
-| `src/app/api/books/[id]/build/route.ts` | Build trigger API route |
+| `src/app/api/books/[id]/build/route.ts` | Build trigger — sends Inngest event or falls back to `after()` |
 | `src/app/api/book-jobs/[jobId]/run/route.ts` | Job step runner |
+| `src/lib/inngest/client.ts` | Inngest client + `INNGEST_EVENTS` constants |
+| `src/lib/inngest/functions.ts` | `buildBook` function — `concurrency: 1`, advances job state machine |
+| `src/app/api/inngest/route.ts` | Inngest sync/execute endpoint (GET/POST/PUT) |
 | `src/types/printBook.ts` | `BookSpread`, `BookProject`, `BookBuildJob` types |
 
-### Agreed next step — Inngest + OpenAI Batch API
-Replace `after()` chains with **Inngest** (proper job queue, rate limiting, concurrency control) and replace per-image OpenAI calls with **OpenAI Batch API** (`/v1/images/generations` is supported, 50% discount, no per-minute limits).
+### Inngest integration — status
 
-**Flow:** Build triggers → Inngest job → planning/bible/spreads compose → submit ALL images as one OpenAI batch → Inngest polls for batch completion → images stored → PDFs generated → book ready.
+Steps 1–3 are **done**:
+- ✅ `inngest` installed (v4.13.0, `--legacy-peer-deps` required due to optional `@sveltejs/kit` peer)
+- ✅ Client at `src/lib/inngest/client.ts`, serve handler at `src/app/api/inngest/route.ts`
+- ✅ `buildBook` function: `concurrency: { limit: 1 }` — serialises builds account-wide, naturally throttles OpenAI image calls without Batch API
+- ✅ Build route wired: sends `storycot/book.build.requested` event when `BOOK_PIPELINE_DRIVER=inngest`
 
-**Start here in new session:**
-1. Install `inngest` + `@inngest/next`
-2. Create Inngest client and Next.js serve handler at `src/app/api/inngest/route.ts`
-3. Migrate `regenerateProjectArt` into an Inngest function with concurrency limits
-4. Replace per-image OpenAI calls with a batch submission function
-5. Add Inngest polling loop for batch completion
+**Still to do (steps 4–5):**
+
+Option (a) — throttle only (recommended, no UX change): add `step.sleep` inside the advance loop to pace image generation, stay synchronous.
+
+Option (b) — full Batch API (50% cheaper, books take up to 24h): replace per-image calls in `illustrations.ts` with a batch submit + Inngest polling loop for `GET /v1/batches/{id}`.
+
+Jake hasn't chosen yet. Default to option (a) unless told otherwise.
+
+**To activate in prod:** set `BOOK_PIPELINE_DRIVER=inngest`, `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` in Vercel env vars and point Inngest Cloud at `https://storycot.com/api/inngest`.
+
+**Install note:** always use `--legacy-peer-deps` for this repo — inngest has an optional peer on `@sveltejs/kit` that npm can't resolve otherwise. Also ensure `@testing-library/dom` stays in devDependencies or tests break.
 
 ---
 

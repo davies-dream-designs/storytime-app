@@ -254,6 +254,13 @@ function shouldTryNextImageModel(status: number, bodyText: string): boolean {
   )
 }
 
+class ModerationBlockedError extends Error {
+  constructor(model: string) {
+    super(`OpenAI moderation blocked image for ${model}`)
+    this.name = 'ModerationBlockedError'
+  }
+}
+
 function parseRetryAfterMs(bodyText: string, headers: Headers): number {
   const retryHeader = headers.get('Retry-After')
   if (retryHeader) {
@@ -305,6 +312,10 @@ async function generateOpenAIImage(input: {
           const waitMs = parseRetryAfterMs(errorBody, response.headers)
           await new Promise((resolve) => setTimeout(resolve, waitMs))
           continue
+        }
+
+        if (response.status === 400 && errorBody.includes('moderation_blocked')) {
+          throw new ModerationBlockedError(model)
         }
 
         const canFallback = index < models.length - 1 && shouldTryNextImageModel(response.status, errorBody)
@@ -470,17 +481,26 @@ export async function generateSpreadIllustration(input: {
 
   if (isGeneratedIllustrationConfigured()) {
     // Generate sequentially to avoid hitting the OpenAI image rate limit (5/min)
-    const leftPng = await generateOpenAISquarePng(buildPageIllustrationPrompt({ ...input, side: 'left' }))
-    const rightPng = await generateOpenAISquarePng(buildPageIllustrationPrompt({ ...input, side: 'right' }))
+    const generatePage = async (side: 'left' | 'right'): Promise<{ url: string; ext: 'png' | 'svg' }> => {
+      try {
+        const png = await generateOpenAISquarePng(buildPageIllustrationPrompt({ ...input, side }))
+        const url = await storeBookAsset({ pathname: `${base}-${side}.png`, body: png, contentType: 'image/png' })
+        return { url, ext: 'png' }
+      } catch (err) {
+        if (!(err instanceof ModerationBlockedError)) throw err
+        const svg = createPlaceholderPageSvg({ ...input, side })
+        const url = await storeBookAsset({ pathname: `${base}-${side}.svg`, body: svg, contentType: 'image/svg+xml' })
+        return { url, ext: 'svg' }
+      }
+    }
 
-    const [leftPageImageUrl, rightPageImageUrl] = await Promise.all([
-      storeBookAsset({ pathname: `${base}-left.png`, body: leftPng, contentType: 'image/png' }),
-      storeBookAsset({ pathname: `${base}-right.png`, body: rightPng, contentType: 'image/png' }),
-    ])
+    const left = await generatePage('left')
+    const right = await generatePage('right')
+    const anyPlaceholder = left.ext === 'svg' || right.ext === 'svg'
 
     return {
-      spread: { ...spread, leftPageImageUrl, rightPageImageUrl, thumbnailUrl: leftPageImageUrl },
-      provider: 'openai',
+      spread: { ...spread, leftPageImageUrl: left.url, rightPageImageUrl: right.url, thumbnailUrl: left.url },
+      provider: anyPlaceholder ? 'placeholder' : 'openai',
     }
   }
 

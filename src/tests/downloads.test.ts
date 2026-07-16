@@ -8,6 +8,7 @@ const { mockAuth } = vi.hoisted(() => ({
 const mockDb = {
   bookProjects: {
     getById: vi.fn(),
+    getByStoryId: vi.fn(),
   },
   stories: {
     getById: vi.fn(),
@@ -71,6 +72,7 @@ describe("download routes", () => {
       userId: "user-1",
       name: "Mila",
     });
+    mockDb.bookProjects.getByStoryId.mockResolvedValue([]);
 
     const { GET } = await import("@/app/api/stories/[id]/epub/route");
     const res = await GET(
@@ -82,6 +84,7 @@ describe("download routes", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("application/epub+zip");
+    expect(mockDb.bookProjects.getByStoryId).toHaveBeenCalledWith("story-1");
     expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(100);
   });
 });

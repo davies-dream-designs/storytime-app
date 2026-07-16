@@ -13,6 +13,12 @@ function filenameFromTitle(title: string): string {
   return `${slug || "storycot-story"}.epub`;
 }
 
+function isGeneratedCoverUrl(url?: string): url is string {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return !lower.includes(".svg") && !lower.startsWith("data:image/svg");
+}
+
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -28,9 +34,19 @@ export async function GET(
   }
 
   const profile = await db.profiles.getById(story.profileId);
+  const books = await db.bookProjects.getByStoryId(story.id);
+  const coverImageUrl = books
+    .filter((book) => book.userId === userId)
+    .sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    )
+    .find((book) => isGeneratedCoverUrl(book.assets.coverImageUrl))
+    ?.assets.coverImageUrl;
   const epub = await buildStoryTextEpub({
     story,
     profile: profile?.userId === userId ? profile : undefined,
+    coverImageUrl,
   });
 
   return new NextResponse(new Uint8Array(epub), {

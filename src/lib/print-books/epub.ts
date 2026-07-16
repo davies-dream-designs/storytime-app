@@ -13,6 +13,8 @@ type EpubImageAsset = {
 
 const EPUB_IMAGE_MAX_WIDTH = 1400;
 const EPUB_IMAGE_QUALITY = 72;
+const EPUB_COVER_WIDTH = 1200;
+const EPUB_COVER_HEIGHT = 1600;
 
 function escapeXml(value: string): string {
   return value
@@ -72,41 +74,112 @@ async function toCompactJpeg(bytes: Buffer): Promise<Buffer> {
     .toBuffer();
 }
 
-function createTextCoverSvg(input: { story: Story; profile?: ChildProfile }) {
-  const title = escapeXml(input.story.title || "Storycot story");
-  const childName = escapeXml(
-    input.profile?.name ?? input.story.profileName ?? ""
+function createTextCoverArtSvg(input: { story: Story }) {
+  const source =
+    `${input.story.title} ${input.story.theme || ""} ${input.story.pages
+      .map((page) => `${page.text} ${page.illustrationPrompt || ""}`)
+      .join(" ")}`.toLowerCase();
+  const isOcean = /(wave|ocean|sea|beach|shore|sand|pebble|shell|tide)/.test(
+    source
   );
-  const subtitle = childName
-    ? `A Storycot story for ${childName}`
-    : "A Storycot story";
+  const isGarden =
+    /(garden|flower|forest|tree|leaf|meadow|field|fox|rabbit|bunny|frog)/.test(
+      source
+    );
+  const isNight = /(moon|star|night|sleep|dream|sky|cloud)/.test(source);
+  const palette = isOcean
+    ? {
+        skyTop: "#22315e",
+        skyMid: "#5f6fa8",
+        skyBottom: "#f4d49d",
+        hillBack: "#2b4b77",
+        hillFront: "#1d3158",
+        accent: "#ffd66e",
+        motif: "ocean",
+      }
+    : isGarden
+      ? {
+          skyTop: "#25454f",
+          skyMid: "#6b8a73",
+          skyBottom: "#f7d9a2",
+          hillBack: "#335f45",
+          hillFront: "#233f31",
+          accent: "#ffd36a",
+          motif: "garden",
+        }
+      : isNight
+        ? {
+            skyTop: "#211f4a",
+            skyMid: "#675bb2",
+            skyBottom: "#d9b1dc",
+            hillBack: "#263968",
+            hillFront: "#19274e",
+            accent: "#fff1b8",
+            motif: "night",
+          }
+        : {
+            skyTop: "#26324f",
+            skyMid: "#6b6db0",
+            skyBottom: "#f3c58e",
+            hillBack: "#34456d",
+            hillFront: "#212b4d",
+            accent: "#ffd36a",
+            motif: "adventure",
+          };
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600">
   <defs>
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#252748"/>
-      <stop offset="62%" stop-color="#6f62bb"/>
-      <stop offset="100%" stop-color="#f7d897"/>
+      <stop offset="0%" stop-color="${palette.skyTop}"/>
+      <stop offset="58%" stop-color="${palette.skyMid}"/>
+      <stop offset="100%" stop-color="${palette.skyBottom}"/>
     </linearGradient>
   </defs>
   <rect width="1200" height="1600" fill="url(#sky)"/>
-  <circle cx="930" cy="220" r="115" fill="#fff1b8" opacity="0.95"/>
-  <circle cx="930" cy="220" r="165" fill="#fff1b8" opacity="0.12"/>
-  <path d="M0 1130 C170 1060 350 1030 510 1064 C690 1102 812 1180 980 1150 C1070 1135 1142 1094 1200 1060 L1200 1600 L0 1600 Z" fill="#26355f"/>
-  <path d="M0 1240 C180 1190 360 1180 520 1214 C710 1255 830 1340 1015 1304 C1095 1288 1160 1255 1200 1230 L1200 1600 L0 1600 Z" fill="#182547" opacity="0.92"/>
-  <rect x="120" y="120" width="960" height="1360" rx="52" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="5"/>
-  <text x="160" y="260" fill="#fff6d7" font-size="34" font-family="Arial, sans-serif" font-weight="700" letter-spacing="4">STORYCOT</text>
-  <text x="160" y="470" fill="#fffdf8" font-size="82" font-family="Georgia, serif" font-weight="700">${title}</text>
-  <text x="160" y="590" fill="#fff0c5" font-size="42" font-family="Georgia, serif">${escapeXml(subtitle)}</text>
-  <text x="160" y="1390" fill="#fff8dd" font-size="30" font-family="Arial, sans-serif">Personalised bedtime story</text>
+  <circle cx="930" cy="220" r="115" fill="${palette.accent}" opacity="0.95"/>
+  <circle cx="930" cy="220" r="170" fill="${palette.accent}" opacity="0.14"/>
+  <circle cx="220" cy="210" r="5" fill="#fff6de" opacity="0.8"/>
+  <circle cx="280" cy="286" r="4" fill="#fff6de" opacity="0.6"/>
+  <circle cx="1045" cy="390" r="5" fill="#fff6de" opacity="0.7"/>
+  <path d="M0 1128 C170 1058 350 1026 510 1062 C690 1102 812 1180 980 1150 C1070 1135 1142 1094 1200 1060 L1200 1600 L0 1600 Z" fill="${palette.hillBack}"/>
+  <path d="M0 1242 C180 1192 360 1180 520 1214 C710 1256 830 1340 1015 1304 C1095 1288 1160 1255 1200 1230 L1200 1600 L0 1600 Z" fill="${palette.hillFront}" opacity="0.94"/>
+  <rect x="116" y="116" width="968" height="1368" rx="56" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="6"/>
+  ${
+    palette.motif === "ocean"
+      ? `<path d="M245 1030 C380 998 478 990 596 1012 C700 1032 778 1066 884 1054 C972 1044 1040 1000 1125 962" fill="none" stroke="#fff4cd" stroke-width="10" stroke-linecap="round" opacity="0.7"/>
+         <circle cx="560" cy="970" r="22" fill="${palette.accent}" opacity="0.85"/>
+         <circle cx="615" cy="948" r="15" fill="#fff8dc" opacity="0.78"/>`
+      : palette.motif === "garden"
+        ? `<path d="M570 980 C552 918 570 860 615 820" fill="none" stroke="#fff4cd" stroke-width="10" stroke-linecap="round"/>
+           <path d="M660 980 C685 922 676 860 628 820" fill="none" stroke="#fff4cd" stroke-width="10" stroke-linecap="round"/>
+           <circle cx="616" cy="805" r="34" fill="${palette.accent}" opacity="0.9"/>
+           <circle cx="660" cy="812" r="30" fill="#fff4cd" opacity="0.75"/>
+           <circle cx="635" cy="760" r="26" fill="${palette.accent}" opacity="0.82"/>`
+        : `<circle cx="568" cy="948" r="28" fill="${palette.accent}" opacity="0.86"/>
+           <circle cx="622" cy="918" r="19" fill="#fff8dc" opacity="0.8"/>
+           <circle cx="668" cy="956" r="14" fill="${palette.accent}" opacity="0.72"/>
+           <path d="M590 1084 L615 1028 L640 1084" fill="none" stroke="#fff4cd" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity="0.78"/>`
+  }
 </svg>`;
 }
 
 async function createTextCoverAsset(input: {
   story: Story;
   profile?: ChildProfile;
+  coverImageUrl?: string;
 }): Promise<EpubImageAsset> {
-  const cover = await toCompactJpeg(Buffer.from(createTextCoverSvg(input)));
+  if (input.coverImageUrl) {
+    const cover = await loadImageAsset({
+      id: "cover",
+      url: input.coverImageUrl,
+    });
+    if (cover) return cover;
+  }
+
+  const cover = await sharp(Buffer.from(createTextCoverArtSvg(input)))
+    .resize(EPUB_COVER_WIDTH, EPUB_COVER_HEIGHT, { fit: "cover" })
+    .jpeg({ quality: EPUB_IMAGE_QUALITY, mozjpeg: true })
+    .toBuffer();
   return {
     id: "cover",
     href: "images/cover.jpg",
@@ -155,12 +228,21 @@ function renderParagraphs(text: string): string {
 
 function renderPageXhtml(input: {
   title: string;
-  heading: string;
+  heading?: string;
   imageHref?: string;
   body: string;
   pageLabel?: string;
+  variant?: "cover" | "story";
 }): string {
-  const { title, heading, imageHref, body, pageLabel } = input;
+  const {
+    title,
+    heading,
+    imageHref,
+    body,
+    pageLabel,
+    variant = "story",
+  } = input;
+  const isCover = variant === "cover";
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
@@ -170,10 +252,11 @@ function renderPageXhtml(input: {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   </head>
   <body>
-    <section class="page">
+    <section class="${isCover ? "cover-page" : "page"}">
+      ${isCover ? `<p class="brand">Storycot</p>` : ""}
       ${pageLabel ? `<p class="page-label">${escapeXml(pageLabel)}</p>` : ""}
-      <h1>${escapeXml(heading)}</h1>
-      ${imageHref ? `<img class="illustration" src="${escapeXml(imageHref)}" alt="" />` : ""}
+      ${heading ? `<h1>${escapeXml(heading)}</h1>` : ""}
+      ${imageHref ? `<img class="${isCover ? "cover-art" : "illustration"}" src="${escapeXml(imageHref)}" alt="" />` : ""}
       <div class="story-text">
         ${renderParagraphs(body)}
       </div>
@@ -183,39 +266,63 @@ function renderPageXhtml(input: {
 }
 
 function getStylesheet(): string {
-  return `html, body {
+  return `@page {
+  margin: 8%;
+}
+
+html, body {
   margin: 0;
   padding: 0;
 }
 
 body {
-  background: #fffaf0;
-  color: #252748;
   font-family: Georgia, "Times New Roman", serif;
 }
 
 .page {
   box-sizing: border-box;
-  min-height: 100vh;
-  padding: 2rem;
+  padding: 0;
+}
+
+.cover-page {
+  box-sizing: border-box;
+  page-break-after: always;
+  text-align: center;
+}
+
+.brand {
+  color: #2b1b5d;
+  font: 700 0.9rem Arial, sans-serif;
+  letter-spacing: 0.08em;
+  margin: 0 0 1rem;
+  text-transform: uppercase;
 }
 
 .page-label {
-  color: #6f6b85;
+  color: #777;
   font: 700 0.75rem Arial, sans-serif;
   letter-spacing: 0.08em;
+  margin: 0 0 1.25rem;
   text-transform: uppercase;
 }
 
 h1 {
-  color: #252748;
-  font-size: 1.8rem;
+  color: #2b1b5d;
+  font-size: 2rem;
   line-height: 1.15;
-  margin: 0.25rem 0 1.25rem;
+  margin: 0 0 1rem;
+  text-align: center;
+}
+
+.cover-art {
+  display: block;
+  height: auto;
+  margin: 1rem auto;
+  max-height: 72vh;
+  max-width: 100%;
 }
 
 .illustration {
-  border-radius: 0.75rem;
   display: block;
   height: auto;
   margin: 0 auto 1.5rem;
@@ -223,12 +330,13 @@ h1 {
 }
 
 .story-text {
-  font-size: 1.15rem;
-  line-height: 1.65;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  text-align: left;
 }
 
 .story-text p {
-  margin: 0 0 1rem;
+  margin: 0 0 1.1rem;
 }`;
 }
 
@@ -281,6 +389,7 @@ export async function buildBookEpub(input: {
       heading: title,
       imageHref: coverImageHref,
       body: `A Storycot story for ${profile.name}.`,
+      variant: "cover",
     }),
   });
 
@@ -396,6 +505,7 @@ export async function buildBookEpub(input: {
 export async function buildStoryTextEpub(input: {
   story: Story;
   profile?: ChildProfile;
+  coverImageUrl?: string;
 }): Promise<Buffer> {
   const { story, profile } = input;
   const zip = new JSZip();
@@ -404,7 +514,11 @@ export async function buildStoryTextEpub(input: {
   const modified = new Date(story.createdAt)
     .toISOString()
     .replace(/\.\d{3}Z$/, "Z");
-  const coverAsset = await createTextCoverAsset({ story, profile });
+  const coverAsset = await createTextCoverAsset({
+    story,
+    profile,
+    coverImageUrl: input.coverImageUrl,
+  });
 
   zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
   zip.file(
@@ -429,6 +543,7 @@ export async function buildStoryTextEpub(input: {
         body: profile
           ? `A Storycot story for ${profile.name}.`
           : "A Storycot story.",
+        variant: "cover",
       }),
     },
     ...story.pages.map((page) => ({
@@ -437,7 +552,7 @@ export async function buildStoryTextEpub(input: {
       title: `${title} - Page ${page.pageNumber}`,
       content: renderPageXhtml({
         title,
-        heading: title,
+        heading: undefined,
         body: page.text,
         pageLabel: `Page ${page.pageNumber}`,
       }),

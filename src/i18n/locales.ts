@@ -76,6 +76,13 @@ export const localeConfigs = [
     stripeLocale: "id",
     dateLocale: "id-ID",
   },
+  {
+    code: "tr",
+    label: "Türkçe",
+    shortLabel: "TR",
+    stripeLocale: "tr",
+    dateLocale: "tr-TR",
+  },
 ] as const;
 
 export const locales = localeConfigs.map((locale) => locale.code);

@@ -1,4 +1,4 @@
-import { deDE, enUS, esES, frFR, itIT, zhCN } from "@clerk/localizations";
+import { deDE, enUS, esES, frFR, itIT, ptBR, zhCN } from "@clerk/localizations";
 import type { Locale } from "@/i18n/locales";
 
 const clerkLocalizations = {
@@ -8,6 +8,7 @@ const clerkLocalizations = {
   zh: zhCN,
   de: deDE,
   it: itIT,
+  pt: ptBR,
 } satisfies Record<Locale, typeof enUS>;
 
 export function getClerkLocalization(locale: Locale) {

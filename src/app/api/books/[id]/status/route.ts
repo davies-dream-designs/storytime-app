@@ -46,6 +46,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       artMode: project.assets.artMode,
       artGenerationCursor: project.assets.artGenerationCursor,
       artGenerationTotal: project.assets.artGenerationTotal,
+      openAIImageBatch: project.assets.openAIImageBatch,
       orderabilityState: project.assets.orderabilityState,
       exportVersion: project.assets.exportVersion,
       finalExportVersion: project.assets.finalExportVersion,

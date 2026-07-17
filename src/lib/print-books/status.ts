@@ -90,13 +90,19 @@ export function getBookProjectProgress(project: BookProjectStatusView): number {
   const batchProgress = project.assets.openAIImageBatch
     ? BATCH_STATUS_PROGRESS[project.assets.openAIImageBatch.status]
     : 0;
+  const waitingForBatchProgress = project.currentStageLabel.startsWith(
+    "Waiting for final art batch"
+  )
+    ? BATCH_STATUS_PROGRESS.in_progress
+    : 0;
 
   return clampProgress(
     Math.max(
       STATUS_PROGRESS.illustrating,
       spreadProgress,
       cursorProgress,
-      batchProgress
+      batchProgress,
+      waitingForBatchProgress
     )
   );
 }

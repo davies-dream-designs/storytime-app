@@ -72,6 +72,23 @@ describe("getBookProjectProgress", () => {
     ).toBe(58);
   });
 
+  it("keeps final art batch progress stable when polling omits provider details", () => {
+    expect(
+      getBookProjectProgress(
+        project({
+          status: "illustrating",
+          currentStageLabel: "Waiting for final art batch...",
+          totalSpreads: 14,
+          assets: {
+            proofVersion: 1,
+            artGenerationCursor: 0,
+            artGenerationTotal: 14,
+          },
+        })
+      )
+    ).toBe(58);
+  });
+
   it("reports ready projects as complete", () => {
     expect(getBookProjectProgress(project({ status: "ready" }))).toBe(100);
   });

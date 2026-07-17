@@ -8,13 +8,13 @@ function toSafeFilename(title: string): string {
 }
 
 export default function EpubShareButton({
-  bookId,
+  href,
   title,
   label,
   pendingLabel,
   className,
 }: {
-  bookId: string;
+  href: string;
   title: string;
   label: string;
   pendingLabel: string;
@@ -25,7 +25,7 @@ export default function EpubShareButton({
   async function handleClick() {
     setPending(true);
     try {
-      const res = await fetch(`/api/books/${bookId}/download?asset=epub`);
+      const res = await fetch(href);
       if (!res.ok) return;
       const blob = await res.blob();
       const filename = toSafeFilename(title);

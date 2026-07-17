@@ -77,7 +77,7 @@ export default async function BookProjectPage({
             ) : null}
             {hasEpub ? (
               <EpubShareButton
-                bookId={project.id}
+                href={`/api/books/${project.id}/download?asset=epub`}
                 title={story.title}
                 label={t("epubButton")}
                 pendingLabel={t("downloadStarting")}

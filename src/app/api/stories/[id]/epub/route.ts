@@ -4,13 +4,8 @@ import { db } from "@/lib/db";
 import { buildStoryTextEpub } from "@/lib/print-books/epub";
 
 function filenameFromTitle(title: string): string {
-  const slug = title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
-
-  return `${slug || "storycot-story"}.epub`;
+  const safe = title.replace(/[/\\?%*:|"<>]/g, "").trim().slice(0, 120);
+  return `${safe || "Storycot Story"}.epub`;
 }
 
 function isGeneratedCoverUrl(url?: string): url is string {

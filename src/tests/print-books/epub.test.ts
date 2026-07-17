@@ -148,7 +148,7 @@ describe("buildBookEpub", () => {
     expect(stored.epubUrl).toBe("https://example.com/storycot.epub");
     expect(mockStoreBookAsset).toHaveBeenCalledWith(
       expect.objectContaining({
-        pathname: "books/book-1/storycot.epub",
+        pathname: "books/book-1/Moonlight Garden.epub",
         contentType: "application/epub+zip",
       })
     );

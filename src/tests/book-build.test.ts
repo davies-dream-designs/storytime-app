@@ -5,14 +5,12 @@ import type { BookBuildJob, BookProject } from "@/types/printBook";
 const {
   mockAfter,
   mockAuth,
-  mockDispatchBookBuildJob,
   mockEnqueueBookBuildJob,
 } = vi.hoisted(() => ({
   mockAfter: vi.fn(async (callback: () => Promise<void> | void) => {
     await callback();
   }),
   mockAuth: vi.fn(async () => ({ userId: "user-1" })),
-  mockDispatchBookBuildJob: vi.fn(),
   mockEnqueueBookBuildJob: vi.fn(),
 }));
 
@@ -40,8 +38,12 @@ vi.mock("@/lib/db", () => ({
 }));
 
 vi.mock("@/lib/print-books/jobs", () => ({
-  dispatchBookBuildJob: mockDispatchBookBuildJob,
   enqueueBookBuildJob: mockEnqueueBookBuildJob,
+}));
+
+vi.mock("@/lib/inngest/client", () => ({
+  inngest: { send: vi.fn().mockResolvedValue(undefined) },
+  INNGEST_EVENTS: { bookBuildRequested: "storycot/book.build.requested" },
 }));
 
 function createBookProject(): BookProject {
@@ -120,10 +122,6 @@ describe("POST /api/books/[id]/build", () => {
       mode: "full",
       baseUrl: "http://localhost",
     });
-    expect(mockDispatchBookBuildJob).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "job-1" })
-    );
-
     const body = await res.json();
     expect(body.assets?.activeJobId).toBe("job-1");
   });
@@ -178,7 +176,6 @@ describe("POST /api/books/[id]/build", () => {
     );
 
     expect(res.status).toBe(409);
-    expect(mockDispatchBookBuildJob).not.toHaveBeenCalled();
     expect(await res.json()).toEqual({
       error: "A full build is already running for this book.",
     });

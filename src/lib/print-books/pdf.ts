@@ -96,6 +96,7 @@ function drawWrappedText(input: {
   color?: ReturnType<typeof rgb>;
   align?: "left" | "center";
   shadow?: boolean;
+  maxLines?: number;
 }) {
   const {
     page,
@@ -109,8 +110,10 @@ function drawWrappedText(input: {
     color = rgb(0.15, 0.18, 0.24),
     align = "left",
     shadow = false,
+    maxLines,
   } = input;
-  const lines = wrapTextToWidth({ text, font, size, maxWidth });
+  const allLines = wrapTextToWidth({ text, font, size, maxWidth });
+  const lines = maxLines != null ? allLines.slice(0, maxLines) : allLines;
   lines.forEach((line, index) => {
     const lineX =
       align === "center"
@@ -859,47 +862,6 @@ async function drawEndLeafPage(input: {
   });
 }
 
-// Final interior page: centred Storycot colophon with a gentle call to action.
-async function drawClosingBrandPage(input: {
-  pdfDoc: PDFDocument;
-  page: ReturnType<PDFDocument["addPage"]>;
-  pageWidth: number;
-  pageHeight: number;
-  serif: Awaited<ReturnType<PDFDocument["embedFont"]>>;
-  sans: Awaited<ReturnType<PDFDocument["embedFont"]>>;
-}) {
-  const { pdfDoc, page, pageWidth, pageHeight, serif, sans } = input;
-  const centerX = pageWidth / 2;
-  drawPageBackground(page, pageWidth, pageHeight, BRAND_PURPLE);
-  const iconSize = 52;
-  await drawBrandWordmark({
-    pdfDoc,
-    page,
-    variant: "light",
-    x: centerX - getWordmarkWidth(sans, iconSize) / 2,
-    y: pageHeight * 0.6,
-    iconSize,
-    font: sans,
-  });
-  drawCenteredText({
-    page,
-    text: "Sweet dreams.",
-    centerX,
-    y: pageHeight * 0.44,
-    font: serif,
-    size: 24,
-    color: rgb(0.99, 0.96, 0.88),
-  });
-  drawCenteredText({
-    page,
-    text: "Create your own personalised bedtime story at storycot.com",
-    centerX,
-    y: pageHeight * 0.16,
-    font: serif,
-    size: 12,
-    color: rgb(0.95, 0.93, 0.87),
-  });
-}
 
 async function drawBookPage(input: {
   pdfDoc: PDFDocument;
@@ -966,6 +928,7 @@ async function drawBookPage(input: {
       size: 17,
       color: theme.ink,
       align: "center",
+      maxLines: Math.floor((textRect.height - 54) / 22) + 1,
     });
   }
 
@@ -1094,18 +1057,6 @@ async function buildPrintPdf(input: {
         sans,
       });
 
-      const closingBrandPage = pdfDoc.addPage([
-        PRINT_PAGE_WIDTH,
-        PRINT_PAGE_HEIGHT,
-      ]);
-      await drawClosingBrandPage({
-        pdfDoc,
-        page: closingBrandPage,
-        pageWidth: PRINT_PAGE_WIDTH,
-        pageHeight: PRINT_PAGE_HEIGHT,
-        serif,
-        sans,
-      });
       continue;
     }
 

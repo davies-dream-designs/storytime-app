@@ -5,6 +5,7 @@ import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
 import DownloadLink from "@/components/DownloadLink";
 import DeleteBookButton from "@/components/DeleteBookButton";
+import EpubShareButton from "@/components/EpubShareButton";
 import PrintProductOptions from "@/components/PrintProductOptions";
 import { db } from "@/lib/db";
 import BookStatusPanel from "./BookStatusPanel";
@@ -58,12 +59,37 @@ export default async function BookProjectPage({
               ? t("illustratedPdfReadyPageSub", { title: story.title })
               : t("illustratedPdfPageSub", { title: story.title })}
           </p>
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap items-center gap-3">
             <DeleteBookButton
               bookId={project.id}
               redirectTo={`/stories/${story.id}`}
             />
+            {hasPrintPdf ? (
+              <DownloadLink
+                href={`/api/books/${project.id}/download?asset=printPdf`}
+                target="_blank"
+                rel="noreferrer"
+                className="storycot-btn storycot-btn-primary"
+                pendingLabel={t("downloadStarting")}
+              >
+                {t("illustratedPdfButton")}
+              </DownloadLink>
+            ) : null}
+            {hasEpub ? (
+              <EpubShareButton
+                bookId={project.id}
+                title={story.title}
+                label={t("epubButton")}
+                pendingLabel={t("downloadStarting")}
+                className="storycot-btn storycot-btn-secondary"
+              />
+            ) : null}
           </div>
+          {hasEpub ? (
+            <p className="mt-3 text-sm leading-6 text-night-500">
+              {t("epubHelp")}
+            </p>
+          ) : null}
         </div>
 
         {query.print_success ? (
@@ -127,79 +153,6 @@ export default async function BookProjectPage({
         ) : null}
 
         <BookStatusPanel initialProject={project} />
-
-        <section className="mt-8 rounded-3xl border border-star-100 bg-star-50 p-8 shadow-sm">
-          <p className="text-sm font-bold uppercase tracking-wide text-star-700">
-            {t("journeyLabel")}
-          </p>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <div className="rounded-2xl bg-white p-4">
-              <p className="font-bold text-night-800">
-                {t("journeyStoryTitle")}
-              </p>
-              <p className="mt-1 text-sm text-night-500">
-                {t("journeyStoryDone")}
-              </p>
-            </div>
-            <div className="rounded-2xl bg-white p-4">
-              <p className="font-bold text-night-800">
-                {t("journeyIllustrationsTitle")}
-              </p>
-              <p className="mt-1 text-sm text-night-500">
-                {project.status === "ready"
-                  ? t("journeyIllustrationsDone")
-                  : t("journeyIllustrationsWorking")}
-              </p>
-            </div>
-            <div className="rounded-2xl bg-white p-4">
-              <p className="font-bold text-night-800">
-                {t("journeyPrintTitle")}
-              </p>
-              <p className="mt-1 text-sm text-night-500">
-                {project.status === "ready"
-                  ? t("journeyPrintReady")
-                  : t("journeyPrintWaiting")}
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {hasPrintPdf || hasEpub ? (
-          <section className="mt-8 rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
-            <h2 className="font-display text-2xl font-bold text-night-800">
-              {t("illustratedPdfDownloadTitle")}
-            </h2>
-            <div className="mt-4 flex flex-wrap gap-3">
-              {hasPrintPdf ? (
-                <DownloadLink
-                  href={`/api/books/${project.id}/download?asset=printPdf`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="storycot-btn storycot-btn-primary"
-                  pendingLabel={t("downloadStarting")}
-                >
-                  {t("illustratedPdfButton")}
-                </DownloadLink>
-              ) : null}
-              {hasEpub ? (
-                <DownloadLink
-                  href={`/api/books/${project.id}/download?asset=epub`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="storycot-btn storycot-btn-secondary"
-                  pendingLabel={t("downloadStarting")}
-                >
-                  {t("epubButton")}
-                </DownloadLink>
-              ) : null}
-            </div>
-            {hasEpub ? (
-              <p className="mt-3 text-sm leading-6 text-night-500">
-                {t("epubHelp")}
-              </p>
-            ) : null}
-          </section>
-        ) : null}
 
         {project.status === "ready" ? (
           <section className="mt-8 rounded-3xl border border-night-100 bg-white p-8 shadow-sm">

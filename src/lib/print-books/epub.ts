@@ -259,7 +259,7 @@ function renderPageXhtml(input: {
   imageHref?: string;
   body: string;
   pageLabel?: string;
-  variant?: "cover" | "story";
+  variant?: "cover" | "story" | "closing";
 }): string {
   const {
     title,
@@ -270,6 +270,8 @@ function renderPageXhtml(input: {
     variant = "story",
   } = input;
   const isCover = variant === "cover";
+  const isClosing = variant === "closing";
+  const sectionClass = isCover ? "cover-page" : isClosing ? "closing-page" : "page";
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
@@ -279,8 +281,8 @@ function renderPageXhtml(input: {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   </head>
   <body>
-    <section class="${isCover ? "cover-page" : "page"}">
-      ${isCover ? `<p class="brand">Storycot</p>` : ""}
+    <section class="${sectionClass}">
+      ${isCover || isClosing ? `<p class="brand">Storycot</p>` : ""}
       ${pageLabel ? `<p class="page-label">${escapeXml(pageLabel)}</p>` : ""}
       ${heading ? `<h1>${escapeXml(heading)}</h1>` : ""}
       ${imageHref ? `<img class="${isCover ? "cover-art" : "illustration"}" src="${escapeXml(imageHref)}" alt="" />` : ""}
@@ -292,12 +294,38 @@ function renderPageXhtml(input: {
 </html>`;
 }
 
-function getStylesheet(): string {
-  return `@page {
-  margin: 8%;
+function buildNcxXml(input: {
+  identifier: string;
+  title: string;
+  pages: Array<{ id: string; href: string; title: string }>;
+}): string {
+  const { identifier, title, pages } = input;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="${escapeXml(identifier)}" />
+    <meta name="dtb:depth" content="1" />
+    <meta name="dtb:totalPageCount" content="0" />
+    <meta name="dtb:maxPageNumber" content="0" />
+  </head>
+  <docTitle><text>${escapeXml(title)}</text></docTitle>
+  <navMap>
+    ${pages.map((page, i) => `<navPoint id="np-${i + 1}" playOrder="${i + 1}">
+      <navLabel><text>${escapeXml(page.title)}</text></navLabel>
+      <content src="${escapeXml(page.href)}" />
+    </navPoint>`).join("\n    ")}
+  </navMap>
+</ncx>`;
 }
 
-html, body {
+function toEpubFilename(title: string): string {
+  const safe = title.replace(/[/\\?%*:|"<>]/g, "").trim();
+  return `${safe || "Storycot Story"}.epub`;
+}
+
+function getStylesheet(): string {
+  return `html, body {
   margin: 0;
   padding: 0;
 }
@@ -312,13 +340,25 @@ body {
 }
 
 .cover-page {
+  background-color: #2b1b5d;
   box-sizing: border-box;
+  color: #fff8e7;
+  padding: 3rem 2rem;
   page-break-after: always;
   text-align: center;
 }
 
+.closing-page {
+  background-color: #2b1b5d;
+  box-sizing: border-box;
+  color: #fff8e7;
+  padding: 4rem 2rem;
+  page-break-before: always;
+  text-align: center;
+}
+
 .brand {
-  color: #2b1b5d;
+  color: #ffd66e;
   font: 700 0.9rem Arial, sans-serif;
   letter-spacing: 0.08em;
   margin: 0 0 1rem;
@@ -339,6 +379,11 @@ h1 {
   line-height: 1.15;
   margin: 0 0 1rem;
   text-align: center;
+}
+
+.cover-page h1,
+.closing-page h1 {
+  color: #fff8e7;
 }
 
 .cover-art {
@@ -480,6 +525,13 @@ export async function buildBookEpub(input: {
     }
   }
 
+  pages.push({
+    id: "the-end",
+    href: "the-end.xhtml",
+    title: `${title} — The End`,
+    content: renderPageXhtml({ title, heading: "The End", body: "", variant: "closing" }),
+  });
+
   for (const page of pages) {
     zip.file(`OEBPS/${page.href}`, page.content);
   }
@@ -508,8 +560,11 @@ export async function buildBookEpub(input: {
 </html>`
   );
 
+  zip.file("OEBPS/toc.ncx", buildNcxXml({ identifier, title, pages }));
+
   const manifestItems = [
     '<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav" />',
+    '<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml" />',
     '<item id="css" href="styles/storycot.css" media-type="text/css" />',
     ...pages.map(
       (page) =>
@@ -533,12 +588,13 @@ export async function buildBookEpub(input: {
     <dc:language>en</dc:language>
     <dc:publisher>Storycot</dc:publisher>
     <meta property="dcterms:modified">${modified}</meta>
+    <meta name="cover" content="cover" />
   </metadata>
   <manifest>
-    ${manifestItems.join("\n")}
+    ${manifestItems.join("\n    ")}
   </manifest>
-  <spine>
-    ${pages.map((page) => `<itemref idref="${escapeXml(page.id)}" />`).join("\n")}
+  <spine toc="ncx">
+    ${pages.map((page) => `<itemref idref="${escapeXml(page.id)}" />`).join("\n    ")}
   </spine>
 </package>`
   );
@@ -642,6 +698,8 @@ export async function buildStoryTextEpub(input: {
 </html>`
   );
 
+  zip.file("OEBPS/toc.ncx", buildNcxXml({ identifier, title, pages }));
+
   zip.file(
     "OEBPS/content.opf",
     `<?xml version="1.0" encoding="UTF-8"?>
@@ -653,15 +711,17 @@ export async function buildStoryTextEpub(input: {
     <dc:language>en</dc:language>
     <dc:publisher>Storycot</dc:publisher>
     <meta property="dcterms:modified">${modified}</meta>
+    <meta name="cover" content="cover" />
   </metadata>
   <manifest>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav" />
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml" />
     <item id="css" href="styles/storycot.css" media-type="text/css" />
     <item id="cover" href="${coverAsset.href}" media-type="${coverAsset.mediaType}" properties="cover-image" />
-    ${pages.map((page) => `<item id="${escapeXml(page.id)}" href="${escapeXml(page.href)}" media-type="application/xhtml+xml" />`).join("\n")}
+    ${pages.map((page) => `<item id="${escapeXml(page.id)}" href="${escapeXml(page.href)}" media-type="application/xhtml+xml" />`).join("\n    ")}
   </manifest>
-  <spine>
-    ${pages.map((page) => `<itemref idref="${escapeXml(page.id)}" />`).join("\n")}
+  <spine toc="ncx">
+    ${pages.map((page) => `<itemref idref="${escapeXml(page.id)}" />`).join("\n    ")}
   </spine>
 </package>`
   );
@@ -676,7 +736,7 @@ export async function generateBookEpub(input: {
 }): Promise<{ epubUrl: string }> {
   const epub = await buildBookEpub(input);
   const epubUrl = await storeBookAsset({
-    pathname: `books/${input.project.id}/storycot.epub`,
+    pathname: `books/${input.project.id}/${toEpubFilename(input.story.title)}`,
     body: epub,
     contentType: "application/epub+zip",
   });

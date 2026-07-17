@@ -1,6 +1,7 @@
 export const LULU_CASEWRAP_CHILDRENS_PROFILE = {
-  key: 'lulu-square-casewrap-premium-color-80-white',
-  trimLabel: 'Lulu Square 8.5x8.5 Hardcover Casewrap / Premium Color / 80# White',
+  key: "lulu-square-casewrap-premium-color-80-white",
+  trimLabel:
+    "Lulu Square 8.5x8.5 Hardcover Casewrap / Premium Color / 80# White",
   trimWidthIn: 8.5,
   trimHeightIn: 8.5,
   bleedIn: 0.125,
@@ -11,14 +12,14 @@ export const LULU_CASEWRAP_CHILDRENS_PROFILE = {
   maxImagePpi: 600,
   minPageCount: 24,
   maxPageCount: 800,
-  targetPageCount: 32,
-  targetSpreadCount: 16,
-  binding: 'hardcover-casewrap',
-  paper: '80# white',
-  color: 'premium-color',
-  coverFinish: 'gloss-laminated',
+  targetPageCount: 24,
+  targetSpreadCount: 12,
+  binding: "hardcover-casewrap",
+  paper: "80# white",
+  color: "premium-color",
+  coverFinish: "gloss-laminated",
   spineTextMinPageCount: 100,
-} as const
+} as const;
 
 const HARD_COVER_SPINE_WIDTH_TABLE = [
   { min: 24, max: 84, widthIn: 0.25 },
@@ -48,41 +49,45 @@ const HARD_COVER_SPINE_WIDTH_TABLE = [
   { min: 751, max: 778, widthIn: 2 },
   { min: 779, max: 799, widthIn: 2.063 },
   { min: 800, max: 800, widthIn: 2.125 },
-] as const
+] as const;
 
 function parsePositiveNumber(value?: string): number | undefined {
-  if (!value) return undefined
-  const parsed = Number(value)
-  if (!Number.isFinite(parsed) || parsed <= 0) return undefined
-  return parsed
+  if (!value) return undefined;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+  return parsed;
 }
 
 export function getConfiguredLuluCoverSpineWidthIn(): number | undefined {
-  return parsePositiveNumber(process.env.LULU_COVER_SPINE_WIDTH_IN)
+  return parsePositiveNumber(process.env.LULU_COVER_SPINE_WIDTH_IN);
 }
 
-export function getLuluHardcoverCasewrapSpineWidthFromTable(pageCount: number): number {
-  const match = HARD_COVER_SPINE_WIDTH_TABLE.find((entry) => pageCount >= entry.min && pageCount <= entry.max)
+export function getLuluHardcoverCasewrapSpineWidthFromTable(
+  pageCount: number
+): number {
+  const match = HARD_COVER_SPINE_WIDTH_TABLE.find(
+    (entry) => pageCount >= entry.min && pageCount <= entry.max
+  );
   if (!match) {
     throw new Error(
       `Page count ${pageCount} is outside Lulu hardcover casewrap limits (${LULU_CASEWRAP_CHILDRENS_PROFILE.minPageCount}-${LULU_CASEWRAP_CHILDRENS_PROFILE.maxPageCount}).`
-    )
+    );
   }
 
-  return match.widthIn
+  return match.widthIn;
 }
 
 export function getLuluCoverSpineWidth(pageCount: number): {
-  widthIn: number
-  source: 'configured' | 'lulu_table'
+  widthIn: number;
+  source: "configured" | "lulu_table";
 } {
-  const configured = getConfiguredLuluCoverSpineWidthIn()
+  const configured = getConfiguredLuluCoverSpineWidthIn();
   if (configured) {
-    return { widthIn: configured, source: 'configured' }
+    return { widthIn: configured, source: "configured" };
   }
 
   return {
     widthIn: getLuluHardcoverCasewrapSpineWidthFromTable(pageCount),
-    source: 'lulu_table',
-  }
+    source: "lulu_table",
+  };
 }

@@ -64,7 +64,7 @@ function getDataUrlAsset(
   };
 }
 
-async function toCompactWebp(
+async function toCompactJpeg(
   bytes: Buffer,
   options: {
     maxWidth?: number;
@@ -73,19 +73,8 @@ async function toCompactWebp(
   } = {}
 ): Promise<Buffer> {
   const maxBytes = options.maxBytes ?? EPUB_IMAGE_MAX_BYTES;
-  const widths = [
-    options.maxWidth ?? EPUB_IMAGE_MAX_WIDTH,
-    820,
-    700,
-    560,
-  ];
-  const qualities = [
-    options.quality ?? EPUB_IMAGE_QUALITY,
-    56,
-    48,
-    40,
-    34,
-  ];
+  const widths = [options.maxWidth ?? EPUB_IMAGE_MAX_WIDTH, 820, 700, 560];
+  const qualities = [options.quality ?? EPUB_IMAGE_QUALITY, 56, 48, 40, 34];
 
   let smallest: Buffer | undefined;
 
@@ -93,13 +82,14 @@ async function toCompactWebp(
     for (const quality of qualities) {
       const output = await sharp(bytes)
         .rotate()
+        .flatten({ background: "#ffffff" })
         .resize({
           width,
           height: width,
           fit: "inside",
           withoutEnlargement: true,
         })
-        .webp({ quality, effort: 6 })
+        .jpeg({ quality, mozjpeg: true })
         .toBuffer();
 
       if (!smallest || output.length < smallest.length) smallest = output;
@@ -214,12 +204,13 @@ async function createTextCoverAsset(input: {
 
   const cover = await sharp(Buffer.from(createTextCoverArtSvg(input)))
     .resize(EPUB_COVER_WIDTH, EPUB_COVER_HEIGHT, { fit: "cover" })
-    .webp({ quality: EPUB_IMAGE_QUALITY, effort: 6 })
+    .flatten({ background: "#ffffff" })
+    .jpeg({ quality: EPUB_IMAGE_QUALITY, mozjpeg: true })
     .toBuffer();
   return {
     id: "cover",
-    href: "images/cover.webp",
-    mediaType: "image/webp",
+    href: "images/cover.jpg",
+    mediaType: "image/jpeg",
     bytes: cover,
   };
 }
@@ -232,24 +223,24 @@ async function loadImageAsset(input: {
 
   const dataAsset = getDataUrlAsset(input.url);
   if (dataAsset) {
-    const compact = await toCompactWebp(dataAsset.bytes);
+    const compact = await toCompactJpeg(dataAsset.bytes);
     return {
       id: input.id,
-      href: `images/${input.id}.webp`,
-      mediaType: "image/webp",
+      href: `images/${input.id}.jpg`,
+      mediaType: "image/jpeg",
       bytes: compact,
     };
   }
 
   const response = await fetch(input.url);
   if (!response.ok) return undefined;
-  const compact = await toCompactWebp(
+  const compact = await toCompactJpeg(
     Buffer.from(await response.arrayBuffer())
   );
   return {
     id: input.id,
-    href: `images/${input.id}.webp`,
-    mediaType: "image/webp",
+    href: `images/${input.id}.jpg`,
+    mediaType: "image/jpeg",
     bytes: compact,
   };
 }
@@ -403,18 +394,27 @@ export async function buildBookEpub(input: {
   );
 
   const imageAssets: EpubImageAsset[] = [];
+  const imageAssetCache = new Map<string, Promise<string | undefined>>();
   const addImage = async (id: string, url?: string) => {
-    const asset = await loadImageAsset({ id, url });
-    if (!asset) return undefined;
-    if (input.compact) {
-      asset.bytes = await toCompactWebp(asset.bytes, {
-        maxWidth: 700,
-        maxBytes: 520 * 1024,
-        quality: 48,
-      });
-    }
-    imageAssets.push(asset);
-    return asset.href;
+    if (!url) return undefined;
+    const cached = imageAssetCache.get(url);
+    if (cached) return cached;
+
+    const promise = (async () => {
+      const asset = await loadImageAsset({ id, url });
+      if (!asset) return undefined;
+      if (input.compact) {
+        asset.bytes = await toCompactJpeg(asset.bytes, {
+          maxWidth: 700,
+          maxBytes: 520 * 1024,
+          quality: 48,
+        });
+      }
+      imageAssets.push(asset);
+      return asset.href;
+    })();
+    imageAssetCache.set(url, promise);
+    return promise;
   };
 
   const coverImageHref = await addImage("cover", project.assets.coverImageUrl);

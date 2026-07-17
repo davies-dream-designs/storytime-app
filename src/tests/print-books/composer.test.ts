@@ -88,7 +88,7 @@ function createCharacterBible(): CharacterBible {
 }
 
 describe('createEmptyBookProject', () => {
-  it('creates a queued 32-page hardcover project shell', () => {
+  it('creates a queued 24-page hardcover project shell', () => {
     const project = createEmptyBookProject({
       id: 'book-1',
       userId: 'user-1',
@@ -98,13 +98,13 @@ describe('createEmptyBookProject', () => {
     })
 
     expect(project.status).toBe('queued')
-    expect(project.pageCount).toBe(32)
-    expect(project.spreadCount).toBe(16)
+    expect(project.pageCount).toBe(24)
+    expect(project.spreadCount).toBe(12)
   })
 })
 
 describe('composeHardcoverSpreads', () => {
-  it('always composes to 16 spreads covering 32 pages', () => {
+  it('always composes to 12 spreads covering 24 pages', () => {
     const story = createStory(10)
     const spreads = composeHardcoverSpreads({
       bookProjectId: 'book-1',
@@ -114,9 +114,9 @@ describe('composeHardcoverSpreads', () => {
       beats: deriveBeatsFromStory(story),
     })
 
-    expect(spreads).toHaveLength(16)
+    expect(spreads).toHaveLength(12)
     expect(spreads[0]?.pageStart).toBe(1)
-    expect(spreads[15]?.pageEnd).toBe(32)
+    expect(spreads[11]?.pageEnd).toBe(24)
   })
 
   it('creates more quiet pacing for the youngest age band', () => {
@@ -147,8 +147,8 @@ describe('composeHardcoverSpreads', () => {
 
     expect(spreads[0]?.layoutType).toBe('front_matter')
     expect(spreads[1]?.layoutType).toBe('front_matter')
-    expect(spreads[14]?.layoutType).toBe('end_matter')
-    expect(spreads[15]?.layoutType).toBe('end_matter')
+    expect(spreads[10]?.layoutType).toBe('end_matter')
+    expect(spreads[11]?.layoutType).toBe('end_matter')
   })
 
   it('derives extra interior spreads from the story instead of using only generic filler', () => {
@@ -161,7 +161,7 @@ describe('composeHardcoverSpreads', () => {
       beats: deriveBeatsFromStory(story),
     })
 
-    const interiorSpreads = spreads.slice(2, 14)
+    const interiorSpreads = spreads.slice(2, 10)
     expect(interiorSpreads.some((spread) => spread.leftPageText.includes('Story page 1'))).toBe(true)
     expect(
       interiorSpreads.some((spread) => spread.illustrationPrompt.includes('toddler board-book style'))

@@ -7,6 +7,7 @@ import {
   jaJP,
   nlNL,
   ptBR,
+  ruRU,
   zhCN,
 } from "@clerk/localizations";
 import type { Locale } from "@/i18n/locales";
@@ -21,6 +22,7 @@ const clerkLocalizations = {
   pt: ptBR,
   nl: nlNL,
   ja: jaJP,
+  ru: ruRU,
 } satisfies Record<Locale, typeof enUS>;
 
 export function getClerkLocalization(locale: Locale) {

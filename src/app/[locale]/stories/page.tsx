@@ -7,11 +7,14 @@ import { db } from "@/lib/db";
 
 export default async function StoriesPage() {
   const { userId } = await auth();
-  const t = await getTranslations("stories");
-  const stories = (await db.stories.getByUserId(userId!)).sort((a, b) =>
+  const [t, storiesRaw, profiles] = await Promise.all([
+    getTranslations("stories"),
+    db.stories.getByUserId(userId!),
+    db.profiles.getByUserId(userId!),
+  ]);
+  const stories = storiesRaw.sort((a, b) =>
     a.createdAt > b.createdAt ? -1 : 1
   );
-  const profiles = await db.profiles.getByUserId(userId!);
 
   return (
     <>

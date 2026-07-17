@@ -4,24 +4,28 @@ export const localeConfigs = [
     label: "English",
     shortLabel: "EN",
     stripeLocale: "en",
+    dateLocale: "en-AU",
   },
   {
     code: "es",
     label: "Español",
     shortLabel: "ES",
     stripeLocale: "es",
+    dateLocale: "es-ES",
   },
   {
     code: "fr",
     label: "Français",
     shortLabel: "FR",
     stripeLocale: "fr",
+    dateLocale: "fr-FR",
   },
   {
     code: "zh",
     label: "中文",
     shortLabel: "中文",
     stripeLocale: "zh",
+    dateLocale: "zh-CN",
   },
 ] as const;
 
@@ -40,4 +44,8 @@ export function getLocaleConfig(locale: string | undefined) {
 
 export function getStripeLocale(locale: string | undefined) {
   return getLocaleConfig(locale)?.stripeLocale ?? "auto";
+}
+
+export function getDateLocale(locale: string | undefined) {
+  return getLocaleConfig(locale)?.dateLocale ?? "en-AU";
 }

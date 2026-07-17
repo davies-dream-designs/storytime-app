@@ -10,11 +10,14 @@ export default async function BooksPage() {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
 
-  const t = await getTranslations("books");
-  const projects = (await db.bookProjects.getByUserId(userId)).sort((a, b) =>
+  const [t, projectsRaw, stories] = await Promise.all([
+    getTranslations("books"),
+    db.bookProjects.getByUserId(userId),
+    db.stories.getByUserId(userId),
+  ]);
+  const projects = projectsRaw.sort((a, b) =>
     a.createdAt > b.createdAt ? -1 : 1
   );
-  const stories = await db.stories.getByUserId(userId);
 
   return (
     <>

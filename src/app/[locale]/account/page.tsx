@@ -13,10 +13,11 @@ export default async function AccountPage({
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
 
-  const { success, canceled } = await searchParams;
-  const t = await getTranslations("account");
-
-  const client = await clerkClient();
+  const [{ success, canceled }, t, client] = await Promise.all([
+    searchParams,
+    getTranslations("account"),
+    clerkClient(),
+  ]);
   const user = await client.users.getUser(userId);
   const isAdmin = user.privateMetadata.isAdmin === true;
   const credits = (user.privateMetadata.credits as number | undefined) ?? 3;

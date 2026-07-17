@@ -7,8 +7,18 @@ import { db } from "@/lib/db";
 
 export default async function ProfilesPage() {
   const { userId } = await auth();
-  const t = await getTranslations("profiles");
-  const profiles = await db.profiles.getByUserId(userId!);
+  const [t, profiles, stories] = await Promise.all([
+    getTranslations("profiles"),
+    db.profiles.getByUserId(userId!),
+    db.stories.getByUserId(userId!),
+  ]);
+  const storyCounts = stories.reduce<Record<string, number>>(
+    (counts, story) => {
+      counts[story.profileId] = (counts[story.profileId] ?? 0) + 1;
+      return counts;
+    },
+    {}
+  );
 
   return (
     <>
@@ -47,54 +57,50 @@ export default async function ProfilesPage() {
           </div>
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {await Promise.all(
-              profiles.map(async (profile) => {
-                const storyCount = (
-                  await db.stories.getByProfileId(profile.id)
-                ).filter((s) => s.userId === userId).length;
-                return (
-                  <div key={profile.id} className="relative">
-                    <Link
-                      href={`/profiles/${profile.id}` as string}
-                      className="group block rounded-2xl border border-night-100 bg-white p-6 pb-16 shadow-sm transition hover:shadow-md"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-star-300 to-moon-300 font-display text-2xl font-bold text-night-800">
-                          {profile.name[0].toUpperCase()}
-                        </div>
-                        <span className="rounded-full bg-night-50 px-3 py-1 text-sm font-bold text-night-500">
-                          {t("ageLabel", { age: profile.age })}
-                        </span>
+            {profiles.map((profile) => {
+              const storyCount = storyCounts[profile.id] ?? 0;
+              return (
+                <div key={profile.id} className="relative">
+                  <Link
+                    href={`/profiles/${profile.id}` as string}
+                    className="group block rounded-2xl border border-night-100 bg-white p-6 pb-16 shadow-sm transition hover:shadow-md"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-star-300 to-moon-300 font-display text-2xl font-bold text-night-800">
+                        {profile.name[0].toUpperCase()}
                       </div>
-                      <h3 className="mt-4 font-display text-xl font-bold text-night-800 group-hover:text-night-600">
-                        {profile.name}
-                      </h3>
-                      {profile.favouriteCharacters.length > 0 && (
-                        <p className="mt-1 text-sm text-night-400 line-clamp-1">
-                          {t("lovesLabel", {
-                            items: profile.favouriteCharacters.join(", "),
-                          })}
-                        </p>
-                      )}
-                      <p className="mt-4 text-sm text-night-400">
-                        {storyCount === 1
-                          ? t("storyCount", { count: storyCount })
-                          : t("storiesCount", { count: storyCount })}
+                      <span className="rounded-full bg-night-50 px-3 py-1 text-sm font-bold text-night-500">
+                        {t("ageLabel", { age: profile.age })}
+                      </span>
+                    </div>
+                    <h3 className="mt-4 font-display text-xl font-bold text-night-800 group-hover:text-night-600">
+                      {profile.name}
+                    </h3>
+                    {profile.favouriteCharacters.length > 0 && (
+                      <p className="mt-1 text-sm text-night-400 line-clamp-1">
+                        {t("lovesLabel", {
+                          items: profile.favouriteCharacters.join(", "),
+                        })}
                       </p>
-                    </Link>
-                    <Link
-                      href={`/stories/new?profileId=${profile.id}` as string}
-                      className={buttonClassName({
-                        size: "compact",
-                        className: "absolute bottom-5 right-5 z-10 text-xs",
-                      })}
-                    >
-                      {t("generate")}
-                    </Link>
-                  </div>
-                );
-              })
-            )}
+                    )}
+                    <p className="mt-4 text-sm text-night-400">
+                      {storyCount === 1
+                        ? t("storyCount", { count: storyCount })
+                        : t("storiesCount", { count: storyCount })}
+                    </p>
+                  </Link>
+                  <Link
+                    href={`/stories/new?profileId=${profile.id}` as string}
+                    className={buttonClassName({
+                      size: "compact",
+                      className: "absolute bottom-5 right-5 z-10 text-xs",
+                    })}
+                  >
+                    {t("generate")}
+                  </Link>
+                </div>
+              );
+            })}
             <Link
               href="/profiles/new"
               className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-night-200 p-6 text-night-400 transition hover:border-night-400 hover:text-night-600"

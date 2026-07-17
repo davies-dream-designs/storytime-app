@@ -5,6 +5,7 @@ import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
 import DownloadLink from "@/components/DownloadLink";
 import DeleteStoryButton from "@/components/DeleteStoryButton";
+import { getDateLocale } from "@/i18n/locales";
 import { db } from "@/lib/db";
 import StoryReader from "./StoryReader";
 import ShareButton from "./ShareButton";
@@ -16,23 +17,17 @@ export default async function StoryPage({
   params: Promise<{ id: string; locale: string }>;
 }) {
   const { userId } = await auth();
-  const t = await getTranslations("stories");
   const { id, locale } = await params;
+  const t = await getTranslations("stories");
   const story = await db.stories.getById(id);
   if (!story || story.userId !== userId) notFound();
 
-  const profile = await db.profiles.getById(story.profileId);
-  const bookProjects = await db.bookProjects.getByStoryId(id);
+  const [profile, bookProjects] = await Promise.all([
+    db.profiles.getById(story.profileId),
+    db.bookProjects.getByStoryId(id),
+  ]);
   const existingBook = bookProjects.find((p) => p.status !== "failed") ?? null;
-
-  const dateLocale =
-    locale === "zh"
-      ? "zh-CN"
-      : locale === "es"
-        ? "es-ES"
-        : locale === "fr"
-          ? "fr-FR"
-          : "en-AU";
+  const dateLocale = getDateLocale(locale);
 
   return (
     <>

@@ -12,11 +12,14 @@ import { getStoryThemeName } from "@/lib/storyTheme";
 
 export default async function Dashboard() {
   const { userId } = await auth();
-  const t = await getTranslations("dashboard");
-  const tHome = await getTranslations("home");
+  const [t, tHome, profiles, storiesRaw] = await Promise.all([
+    getTranslations("dashboard"),
+    getTranslations("home"),
+    db.profiles.getByUserId(userId!),
+    db.stories.getByUserId(userId!),
+  ]);
   const themeNames = tHome.raw("themes") as Record<string, string>;
-  const profiles = await db.profiles.getByUserId(userId!);
-  const stories = (await db.stories.getByUserId(userId!)).sort((a, b) =>
+  const stories = storiesRaw.sort((a, b) =>
     a.createdAt > b.createdAt ? -1 : 1
   );
   const recentStories = stories.slice(0, 3);

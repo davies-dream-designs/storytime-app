@@ -13,12 +13,13 @@ export default async function BookProjectPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { userId } = await auth();
+  const [{ userId }, { id }] = await Promise.all([auth(), params]);
   if (!userId) redirect("/sign-in");
 
-  const { id } = await params;
-  const t = await getTranslations("books");
-  const project = await db.bookProjects.getById(id);
+  const [t, project] = await Promise.all([
+    getTranslations("books"),
+    db.bookProjects.getById(id),
+  ]);
   if (!project || project.userId !== userId) notFound();
 
   const story = await db.stories.getById(project.sourceStoryId);

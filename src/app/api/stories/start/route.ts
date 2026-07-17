@@ -1,10 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
+import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
-import { kv } from "@vercel/kv";
 import { db } from "@/lib/db";
 import { STORY_CREDIT_COST } from "@/lib/pricing";
-import { generateStory } from "@/lib/storyGenerator";
 import type { Story } from "@/types";
 
 export async function POST(req: NextRequest) {
@@ -50,62 +48,27 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const [characters, recentStories] = await Promise.all([
-    db.characters.getByProfileId(profileId),
-    db.stories.getByProfileId(profileId),
-  ]);
-
-  const recentTitles = recentStories
-    .filter((s) => s.userId === userId)
-    .sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1))
-    .slice(0, 5)
-    .map((s) => s.title);
-
-  const generated = await generateStory({
-    profile,
-    characters: characters.filter((c) => c.userId === userId),
-    theme: theme ?? "a gentle adventure",
-    premise,
-    notes: notes ?? "",
-    recentTitles,
-    locale,
-  });
-
-  const wordCount = generated.pages.reduce(
-    (acc, p) => acc + p.text.split(/\s+/).length,
-    0
-  );
-
   const story: Story = {
     id: randomUUID(),
     userId,
-    title: generated.title,
+    title: "Weaving your story...",
     profileId,
     profileName: profile.name,
-    pages: generated.pages,
-    wordCount,
+    pages: [],
+    wordCount: 0,
     theme: theme ?? "a gentle adventure",
     premise,
     notes: notes ?? "",
     createdAt: new Date().toISOString(),
-    status: "ready",
+    status: "generating",
   };
 
-  await Promise.all([
-    db.stories.create(story),
-    kv.del(`suggestions:${profileId}`),
-  ]);
-
-  if (!isAdmin) {
-    await client.users.updateUserMetadata(userId, {
-      privateMetadata: { credits: credits - STORY_CREDIT_COST },
-    });
-  }
+  await db.stories.create(story);
 
   return NextResponse.json(
     {
-      ...story,
-      creditsRemaining: isAdmin ? Infinity : credits - STORY_CREDIT_COST,
+      id: story.id,
+      locale,
     },
     { status: 201 }
   );

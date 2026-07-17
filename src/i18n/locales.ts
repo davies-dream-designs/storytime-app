@@ -55,6 +55,41 @@ export const localeConfigs = [
     stripeLocale: "nl",
     dateLocale: "nl-NL",
   },
+  {
+    code: "ja",
+    label: "日本語",
+    shortLabel: "日本語",
+    stripeLocale: "ja",
+    dateLocale: "ja-JP",
+  },
+  {
+    code: "ru",
+    label: "Русский",
+    shortLabel: "RU",
+    stripeLocale: "ru",
+    dateLocale: "ru-RU",
+  },
+  {
+    code: "id",
+    label: "Bahasa Indonesia",
+    shortLabel: "ID",
+    stripeLocale: "id",
+    dateLocale: "id-ID",
+  },
+  {
+    code: "tr",
+    label: "Türkçe",
+    shortLabel: "TR",
+    stripeLocale: "tr",
+    dateLocale: "tr-TR",
+  },
+  {
+    code: "pl",
+    label: "Polski",
+    shortLabel: "PL",
+    stripeLocale: "pl",
+    dateLocale: "pl-PL",
+  },
 ] as const;
 
 export const locales = localeConfigs.map((locale) => locale.code);

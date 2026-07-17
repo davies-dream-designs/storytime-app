@@ -4,6 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import Button from "@/components/ui/Button";
+import {
+  getBookProjectDisplayStageLabel,
+  getBookProjectProgress,
+} from "@/lib/print-books/status";
 import type { BookProject } from "@/types/printBook";
 
 type BookStatusPayload = Pick<
@@ -109,10 +113,8 @@ export default function BookStatusPanel({
     setRepairingArt(false);
   }
 
-  const progress =
-    project.totalSpreads > 0
-      ? Math.round((project.completedSpreads / project.totalSpreads) * 100)
-      : 0;
+  const progress = getBookProjectProgress(project);
+  const stageLabel = getBookProjectDisplayStageLabel(project);
   const isActiveBuild =
     (project.status !== "ready" && project.status !== "failed") ||
     Boolean(activeJobStatus);
@@ -135,7 +137,7 @@ export default function BookStatusPanel({
             {t("statusLabel")}
           </p>
           <h2 className="mt-2 font-display text-3xl font-bold text-night-800">
-            {project.currentStageLabel}
+            {stageLabel}
           </h2>
           <p className="mt-2 text-night-500">
             {project.status === "ready"

@@ -3,6 +3,7 @@ import {
   enUS,
   esES,
   frFR,
+  idID,
   itIT,
   jaJP,
   nlNL,
@@ -23,6 +24,7 @@ const clerkLocalizations = {
   nl: nlNL,
   ja: jaJP,
   ru: ruRU,
+  id: idID,
 } satisfies Record<Locale, typeof enUS>;
 
 export function getClerkLocalization(locale: Locale) {

@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import Button from "@/components/ui/Button";
 import type { Story } from "@/types";
 
 export default function StoryReader({ story }: { story: Story }) {
+  const router = useRouter();
   const [liveStory, setLiveStory] = useState(story);
   const [page, setPage] = useState(0);
   const [streaming, setStreaming] = useState(story.status === "generating");
@@ -71,6 +73,7 @@ export default function StoryReader({ story }: { story: Story }) {
             setLiveStory(data as Story);
             setPage(0);
             setStreaming(false);
+            router.refresh();
           }
 
           if (event === "error") {
@@ -83,7 +86,7 @@ export default function StoryReader({ story }: { story: Story }) {
       setLiveStory((current) => ({ ...current, status: "failed" }));
       setError(err instanceof Error ? err.message : "Story generation failed");
     }
-  }, [liveStory.id, locale]);
+  }, [liveStory.id, locale, router]);
 
   useEffect(() => {
     if (story.status !== "generating" || startedRef.current) return;

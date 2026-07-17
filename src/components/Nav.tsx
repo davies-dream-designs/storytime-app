@@ -13,6 +13,7 @@ export default function Nav() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const t = useTranslations("nav");
+  const logoHref = isSignedIn ? "/dashboard" : "/";
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
     if (href === "/stories" && pathname.startsWith("/stories/new"))
@@ -36,7 +37,7 @@ export default function Nav() {
     <header className="sticky top-0 z-30 border-b border-night-100 bg-parchment/90 backdrop-blur">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 pr-6">
         <Link
-          href="/"
+          href={logoHref}
           className="flex items-center gap-2 font-display text-xl font-bold text-night-700"
           onClick={() => setOpen(false)}
         >

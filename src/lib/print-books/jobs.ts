@@ -187,7 +187,7 @@ async function regenerateProjectArt(input: {
     if (batch.status !== "completed") {
       return db.bookProjects.update(input.id, {
         status: "illustrating",
-        currentStageLabel: `Waiting for final art batch (${batch.status})...`,
+        currentStageLabel: "Waiting for final art batch...",
         characterBible: input.characterBible,
         completedSpreads: 0,
         totalSpreads: totalArtSteps,

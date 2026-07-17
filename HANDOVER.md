@@ -1,123 +1,107 @@
-# Storycot — Handover Document
+# Storycot - Handover Document
 
-> Auto-maintained by the `update-handover` skill. Run `/update-handover` after any significant changes.
-
-**Last updated:** 2026-07-16  
-**Branch:** main  
+**Last updated:** 2026-07-17  
+**Branch:** `main`  
 **Live URL:** https://storycot.com  
-**Preview:** https://dev.storycot.com  
-**Latest deployed commit:** `3a6474c fix: return checkout to current origin`
+**Preview URL:** https://dev.storycot.com  
+**Latest production merge:** `c1f56bc Merge pull request #27 from davies-dream-designs/feat/ui-consistency-pass`
 
 ---
 
-## Current Branch Handoff — 2026-07-16
+## Current Handoff - 2026-07-17
 
-The active work is on `feat/print-book-preview`, pushed to GitHub and deployed to the Vercel preview alias `https://dev.storycot.com`.
+Local checkout is synced to `origin/main` at `c1f56bc`. The working tree was clean after sync.
 
-### What Changed Recently
+PR #27 merged the accumulated print book, UI consistency, credit enforcement, localization, EPUB compression, and production readiness work into `main`. Vercel production deployed successfully and is aliased to `https://storycot.com` and `https://www.storycot.com`.
 
-- Simplified illustrated book flow: users now work from the story/book pages instead of a heavy review/export flow.
-- Added illustrated book PDF and EPUB exports, plus text-only EPUB export for stories.
-- Improved Kindle usability:
-  - Text EPUBs include cleaner metadata/title handling.
-  - Text EPUB cover output was polished away from placeholder-style artwork.
-  - EPUB download copy now makes it clearer the downloaded file should be shared/opened in Kindle.
-- Hardened illustrated build failures:
-  - Incomplete/placeholder art batches now fail instead of shipping broken placeholder pages.
-  - Book status supports repair/retry states.
-- Added story/book deletion:
-  - Story deletion cascades to related book projects.
-  - Book deletion removes related Vercel Blob assets before deleting KV records.
-  - Delete controls exist on story/book detail pages and list pages.
-- Added global interaction polish:
-  - Buttons/links have press/hover/focus feedback.
-  - Account credit pack buttons show disabled state when AU confirmation is not ticked.
-  - Active nav item is visually indicated.
-  - Global pending overlay appears for navigation, checkout, deletion, downloads, etc.
-  - Pending overlay now uses the bouncing Storycot icon from the home page and shows only the current action label.
-- Fixed Stripe Checkout return URLs:
-  - Checkout success/cancel now derive from the current request origin and locale.
-  - This prevents backing out of payment on `dev.storycot.com` returning to production.
+### What Shipped
 
-### Latest Commits On Branch
+- Print/illustrated book pipeline improvements:
+  - Illustrated PDF and EPUB exports.
+  - Text-only EPUB export for stories.
+  - Kindle-friendly illustrated EPUB compression, with tests covering file-size budget.
+  - Incomplete/placeholder art batches now fail cleanly instead of shipping broken output.
+  - Book status supports useful failure and retry/repair states.
+- Inngest pipeline:
+  - Inngest remains opt-in via `BOOK_PIPELINE_DRIVER=inngest`.
+  - Preview and production Vercel envs have Inngest keys configured.
+  - User confirmed both Inngest apps are now synced.
+- Credit/pricing enforcement:
+  - Plain story cost is `1` credit.
+  - Illustrated book cost is `8` credits.
+  - Illustrated generation reserves/captures/refunds credits server-side so failed output does not permanently burn paid value.
+- Stripe:
+  - Checkout success/cancel URLs derive from the current request origin and locale.
+  - Stripe Checkout locale is localized from the active app locale where supported.
+  - Dev checkout should stay on `dev.storycot.com`; prod should stay on `storycot.com`.
+- UI consistency:
+  - Added reusable button/form styling primitives.
+  - Profile and new-story forms were brought onto shared styling.
+  - Story and dashboard cards now share `StoryCard`.
+  - Story/book library filters use shared collection filter components.
+  - Share/read/delete actions are visually aligned.
+  - Friendly app error/not-found pages replaced raw framework error surfaces.
+- Localization:
+  - Locale metadata is centralized.
+  - Clerk localization is centralized.
+  - Added German, Italian, Portuguese, and Dutch.
+  - Middleware now derives public locale routes from centralized locale config.
+- Cleanup:
+  - Legacy broken book-project records were removed via a temporary protected admin route.
+  - The temporary cleanup route was deleted before merge.
 
-```
-3a6474c fix: return checkout to current origin
-51e7e74 fix: use animated logo for pending overlay
-3922f36 fix: simplify pending overlay text
-54e9aa8 fix: improve list delete controls and buttons
-816a5c1 fix: center global pending overlay
-8f29219 fix: delete book blobs with book records
-a86d0c3 feat: add story and book deletion
-8e63576 feat: add global pending loader
-8d7b400 fix: improve app interaction feedback
-e3e8ef9 fix: polish text epub covers
-b027998 fix: fail incomplete book art batches
-fe50fdc improve epub kindle usability
-1196692 clarify credit usage on account page
-2b96f3d add text epub and resilient book downloads
-7c2f75f add epub export for illustrated books
-ff22958 simplify illustrated pdf flow
-```
+### Validation Before Production Merge
 
-### Verified Before Handoff
-
-Latest full verification after checkout fix:
+Run locally before merging PR #27:
 
 ```
 npm run typecheck
 npm test
-npm run lint
+npm run build
 ```
 
-All passed. Vercel preview deployment for `3a6474c` is Ready and aliased to `https://dev.storycot.com`.
+All passed. Vercel production deployment for `c1f56bc` reached `Ready`.
 
 ### Important Files Added/Changed
 
-- `src/app/api/stripe/checkout/route.ts`
-  - Builds Stripe success/cancel URLs from current request origin and locale instead of blindly trusting `NEXT_PUBLIC_APP_URL`.
-- `src/tests/stripe-checkout.test.ts`
-  - Regression test proving dev checkout returns to `https://dev.storycot.com/en/account`.
-- `src/components/GlobalPending.tsx`
-  - Global pending overlay provider and animated icon loader.
-- `src/app/globals.css`
-  - Global interaction animation and shared `.storycot-btn` button system.
-- `src/components/DeleteStoryButton.tsx`
-  - Shared story delete client component.
-- `src/components/DeleteBookButton.tsx`
-  - Shared book delete client component.
-- `src/components/StoryLibrary.tsx`
-  - Story cards are now articles with explicit Read/Delete actions.
-- `src/app/[locale]/books/page.tsx`
-  - Book cards now have explicit View/Delete actions.
-- `src/lib/db.ts`
-  - Story delete cascades to related book projects.
-- `src/lib/print-books/storage.ts`
-  - Book asset collection/deletion helpers for Vercel Blob cleanup.
+- `src/lib/credits.ts` - credit reservation/capture/refund helpers.
+- `src/lib/pricing.ts` - central credit costs.
+- `src/app/api/books/[id]/build/route.ts` - illustrated build charging.
+- `src/lib/print-books/jobs.ts` - refund-safe book job behavior.
+- `src/lib/print-books/epub.ts` - EPUB image compression.
+- `src/components/ui/Button.tsx`
+- `src/components/ui/buttonStyles.ts`
+- `src/components/ui/formStyles.ts`
+- `src/components/StoryCard.tsx`
+- `src/components/BooksLibrary.tsx`
+- `src/components/library/CollectionFilters.tsx`
+- `src/components/profiles/ProfileFormControls.tsx`
+- `src/components/ErrorState.tsx`
+- `src/app/[locale]/error.tsx`
+- `src/app/global-error.tsx`
+- `src/i18n/locales.ts`
+- `src/i18n/clerk.ts`
+- `src/middleware.ts`
 
-### Product Direction Captured In Conversation
+### Runtime QA Still Worth Doing
 
-- Credit model should move away from “1 story = 1 credit” once illustrated books are paid:
-  - Plain text story: low credit cost.
-  - Illustrated PDF/EPUB: higher credit cost because image generation has real cost.
-  - Hardcover should likely stay product-priced rather than credit-priced because print/shipping/margins vary.
-- Main desired customer flow:
-  - Generate/read plain story.
-  - Download plain PDF/EPUB.
-  - Generate illustrated PDF/EPUB.
-  - If they love it, create/order hardcover from the illustrated output.
-- Avoid overbuilding review/regenerate/export pages for now. Keep the UX simple and resilient.
-- Queues/builds should handle errors gracefully. Payment should not consume paid value permanently if build output fails.
+- Generate one illustrated book on `dev.storycot.com` and confirm the event lands in the preview/staging Inngest app.
+- Generate one illustrated book on `storycot.com` and confirm the event lands in the production Inngest app.
+- Confirm successful illustrated output charges `8` credits and failed output refunds or avoids capture.
+- Download finished illustrated EPUB/PDF on phone/Kindle and confirm file size, cover/title, and open/share behavior.
+- Run one real Stripe success and cancel flow on dev and prod, confirming neither environment bounces to the other.
+- If Inngest sync/invocation fails:
+  - No event appears: check `INNGEST_EVENT_KEY` for that Vercel environment.
+  - Event appears but endpoint fails: check `INNGEST_SIGNING_KEY` and endpoint sync URL.
+  - Preview endpoint behind Vercel protection should include the automation bypass query param when synced manually.
 
-### Known Follow-Ups / Risks
+### Current Operational Notes
 
-- Pricing enforcement is not fully implemented yet. Account copy explains credit usage, but the backend still needs final charging rules for illustrated generation.
-- If illustrated generation takes payment/credits, implement an idempotent reservation/refund or “charge on successful artifact” model. Do not permanently burn credits on failed queues.
-- Validate a real Stripe Checkout cancel in dev after the `3a6474c` deployment.
-- The shared `.storycot-btn` system has been applied to the main current surfaces, but older profile/new-story buttons still use one-off Tailwind classes and may need a broader pass.
-- Book deletion deletes Vercel Blob URLs it can collect from book project assets. If future assets are added, update `collectBookAssetUrls`.
-- Preexisting stories/books may still have inline fallback export data or old assets. The UI hides customer-facing downloads when stored PDFs are unavailable.
-- Inngest/OpenAI batch ingest env vars were synced earlier, but if builds degrade again, check Vercel env and the ingest provider status first.
+- Production branch is protected; merge to `main` requires a PR.
+- `main` auto-deploys production through Vercel.
+- `feat/ui-consistency-pass` remains on origin but has been merged.
+- OpenAI billing needs topping up before heavy real illustrated QA.
+- Hardcover/print fulfillment cost modeling is intentionally not included in credit pricing yet.
 
 ---
 

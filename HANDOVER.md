@@ -2,16 +2,128 @@
 
 > Auto-maintained by the `update-handover` skill. Run `/update-handover` after any significant changes.
 
-**Last updated:** 2026-07-15  
+**Last updated:** 2026-07-16  
 **Branch:** main  
 **Live URL:** https://storycot.com  
-**Preview:** https://storytime-app-git-feat-multilingual-davies-dream-designs.vercel.app (stale — main now deployed)
+**Preview:** https://dev.storycot.com  
+**Latest deployed commit:** `3a6474c fix: return checkout to current origin`
+
+---
+
+## Current Branch Handoff — 2026-07-16
+
+The active work is on `feat/print-book-preview`, pushed to GitHub and deployed to the Vercel preview alias `https://dev.storycot.com`.
+
+### What Changed Recently
+
+- Simplified illustrated book flow: users now work from the story/book pages instead of a heavy review/export flow.
+- Added illustrated book PDF and EPUB exports, plus text-only EPUB export for stories.
+- Improved Kindle usability:
+  - Text EPUBs include cleaner metadata/title handling.
+  - Text EPUB cover output was polished away from placeholder-style artwork.
+  - EPUB download copy now makes it clearer the downloaded file should be shared/opened in Kindle.
+- Hardened illustrated build failures:
+  - Incomplete/placeholder art batches now fail instead of shipping broken placeholder pages.
+  - Book status supports repair/retry states.
+- Added story/book deletion:
+  - Story deletion cascades to related book projects.
+  - Book deletion removes related Vercel Blob assets before deleting KV records.
+  - Delete controls exist on story/book detail pages and list pages.
+- Added global interaction polish:
+  - Buttons/links have press/hover/focus feedback.
+  - Account credit pack buttons show disabled state when AU confirmation is not ticked.
+  - Active nav item is visually indicated.
+  - Global pending overlay appears for navigation, checkout, deletion, downloads, etc.
+  - Pending overlay now uses the bouncing Storycot icon from the home page and shows only the current action label.
+- Fixed Stripe Checkout return URLs:
+  - Checkout success/cancel now derive from the current request origin and locale.
+  - This prevents backing out of payment on `dev.storycot.com` returning to production.
+
+### Latest Commits On Branch
+
+```
+3a6474c fix: return checkout to current origin
+51e7e74 fix: use animated logo for pending overlay
+3922f36 fix: simplify pending overlay text
+54e9aa8 fix: improve list delete controls and buttons
+816a5c1 fix: center global pending overlay
+8f29219 fix: delete book blobs with book records
+a86d0c3 feat: add story and book deletion
+8e63576 feat: add global pending loader
+8d7b400 fix: improve app interaction feedback
+e3e8ef9 fix: polish text epub covers
+b027998 fix: fail incomplete book art batches
+fe50fdc improve epub kindle usability
+1196692 clarify credit usage on account page
+2b96f3d add text epub and resilient book downloads
+7c2f75f add epub export for illustrated books
+ff22958 simplify illustrated pdf flow
+```
+
+### Verified Before Handoff
+
+Latest full verification after checkout fix:
+
+```
+npm run typecheck
+npm test
+npm run lint
+```
+
+All passed. Vercel preview deployment for `3a6474c` is Ready and aliased to `https://dev.storycot.com`.
+
+### Important Files Added/Changed
+
+- `src/app/api/stripe/checkout/route.ts`
+  - Builds Stripe success/cancel URLs from current request origin and locale instead of blindly trusting `NEXT_PUBLIC_APP_URL`.
+- `src/tests/stripe-checkout.test.ts`
+  - Regression test proving dev checkout returns to `https://dev.storycot.com/en/account`.
+- `src/components/GlobalPending.tsx`
+  - Global pending overlay provider and animated icon loader.
+- `src/app/globals.css`
+  - Global interaction animation and shared `.storycot-btn` button system.
+- `src/components/DeleteStoryButton.tsx`
+  - Shared story delete client component.
+- `src/components/DeleteBookButton.tsx`
+  - Shared book delete client component.
+- `src/components/StoryLibrary.tsx`
+  - Story cards are now articles with explicit Read/Delete actions.
+- `src/app/[locale]/books/page.tsx`
+  - Book cards now have explicit View/Delete actions.
+- `src/lib/db.ts`
+  - Story delete cascades to related book projects.
+- `src/lib/print-books/storage.ts`
+  - Book asset collection/deletion helpers for Vercel Blob cleanup.
+
+### Product Direction Captured In Conversation
+
+- Credit model should move away from “1 story = 1 credit” once illustrated books are paid:
+  - Plain text story: low credit cost.
+  - Illustrated PDF/EPUB: higher credit cost because image generation has real cost.
+  - Hardcover should likely stay product-priced rather than credit-priced because print/shipping/margins vary.
+- Main desired customer flow:
+  - Generate/read plain story.
+  - Download plain PDF/EPUB.
+  - Generate illustrated PDF/EPUB.
+  - If they love it, create/order hardcover from the illustrated output.
+- Avoid overbuilding review/regenerate/export pages for now. Keep the UX simple and resilient.
+- Queues/builds should handle errors gracefully. Payment should not consume paid value permanently if build output fails.
+
+### Known Follow-Ups / Risks
+
+- Pricing enforcement is not fully implemented yet. Account copy explains credit usage, but the backend still needs final charging rules for illustrated generation.
+- If illustrated generation takes payment/credits, implement an idempotent reservation/refund or “charge on successful artifact” model. Do not permanently burn credits on failed queues.
+- Validate a real Stripe Checkout cancel in dev after the `3a6474c` deployment.
+- The shared `.storycot-btn` system has been applied to the main current surfaces, but older profile/new-story buttons still use one-off Tailwind classes and may need a broader pass.
+- Book deletion deletes Vercel Blob URLs it can collect from book project assets. If future assets are added, update `collectBookAssetUrls`.
+- Preexisting stories/books may still have inline fallback export data or old assets. The UI hides customer-facing downloads when stored PDFs are unavailable.
+- Inngest/OpenAI batch ingest env vars were synced earlier, but if builds degrade again, check Vercel env and the ingest provider status first.
 
 ---
 
 ## Project Overview
 
-Storycot is an AI-powered personalised bedtime story generator. Parents/grandparents create child profiles, pick a theme, and Claude generates a unique 700–900 word story in seconds. Stories are saved, readable, printable, and shareable.
+Storycot is an AI-powered personalised bedtime story generator. Parents/grandparents create child profiles, pick a theme, and Claude generates a unique 700–900 word story in seconds. Stories are saved, readable, printable, shareable, and can now be turned into illustrated book exports.
 
 **Target audience:** Parents and grandparents of young children (0–8 years), globally.
 
@@ -205,6 +317,45 @@ messages/
 4. **Stripe live/restricted key** — `STRIPE_SECRET_KEY` must be `rk_live_*` (restricted), never `sk_live_*`.
 5. **KV → Postgres migration** — Issue #6. Currently all data is in Vercel KV (Redis). No SQL, no relational queries. Long-term plan to move to Postgres for better querying.
 6. **Existing stories are English** — Stories generated before multilingual was deployed are stored in English. No migration path — generate new ones in the desired language.
+7. **OpenAI image rate limits** — `feat/print-book-preview` currently hits OpenAI's 5 images/min limit under multi-user load. Retry logic exists but the architectural fix (Inngest + OpenAI Batch API) is the agreed next step — not yet built.
+
+---
+
+## Print Book Feature (`feat/print-book-preview`)
+
+**Worktree:** `/home/openhands/workspaces/storycot-printbook-preview`  
+**Status:** All committed and pushed. Not yet merged to main.
+
+### What's built
+- Lulu 8.5"×8.5" square hardcover spec PDF generation (cover + interior, 630×630pt pages)
+- Per-page 1024×1024 square illustrations (`leftPageImageUrl` + `rightPageImageUrl` per spread, replaces shared landscape)
+- 8-direction black text outline on story text + page numbers for readability over illustrations
+- Step-by-step build pipeline: `BookBuildJob` with `artGenerationCursor`, chained via Next.js `after()`
+- 429 retry with wait time parsed from OpenAI error body; sequential (not parallel) image gen per spread
+- Moderation-blocked images retry without page text before failing
+- Story page shows "View print book" button once a book exists (translation key fixed)
+
+### Key files
+| File | Purpose |
+|---|---|
+| `src/lib/print-books/pdf.ts` | PDF renderer — cover, interior, frontispiece, page layout |
+| `src/lib/print-books/illustrations.ts` | OpenAI image gen, placeholder SVGs, rate limit handling |
+| `src/lib/print-books/jobs.ts` | Book build job pipeline (`processBookBuildJob`, `enqueueBookBuildJob`) |
+| `src/app/api/books/[id]/build/route.ts` | Build trigger API route |
+| `src/app/api/book-jobs/[jobId]/run/route.ts` | Job step runner |
+| `src/types/printBook.ts` | `BookSpread`, `BookProject`, `BookBuildJob` types |
+
+### Agreed next step — Inngest + OpenAI Batch API
+Replace `after()` chains with **Inngest** (proper job queue, rate limiting, concurrency control) and replace per-image OpenAI calls with **OpenAI Batch API** (`/v1/images/generations` is supported, 50% discount, no per-minute limits).
+
+**Flow:** Build triggers → Inngest job → planning/bible/spreads compose → submit ALL images as one OpenAI batch → Inngest polls for batch completion → images stored → PDFs generated → book ready.
+
+**Start here in new session:**
+1. Install `inngest` + `@inngest/next`
+2. Create Inngest client and Next.js serve handler at `src/app/api/inngest/route.ts`
+3. Migrate `regenerateProjectArt` into an Inngest function with concurrency limits
+4. Replace per-image OpenAI calls with a batch submission function
+5. Add Inngest polling loop for batch completion
 
 ---
 
@@ -213,11 +364,14 @@ messages/
 | # | Title | Priority |
 |---|---|---|
 | #13 | Stripe test/live key separation | High |
+| #25 | Print book: age-based layout variations | Future |
+| #24 | Print book: per-page square illustrations — **done on `feat/print-book-preview`**, not merged | Done/pending merge |
+| #11 | Phase 5: Multilingual support — full UI + story localisation | Future |
 | #9 | storycot.com.au domain redirect | Medium |
 | #6 | Migrate KV → Postgres | Low (future) |
-| #4 | Print-on-demand physical books | Future |
-| #3 | AI illustrations per page | Future |
-| #2 | Voice narration | Future |
+| #4 | Print-on-demand physical books (Lulu integration) | Future |
+| #3 | Phase 4: AI illustration generation per story page | Future |
+| #2 | Phase 3: Voice narration / audio playback | Future |
 
 ---
 

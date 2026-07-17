@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const remoteUrl = process.env.PLAYWRIGHT_BASE_URL
 const isRemote = remoteUrl?.startsWith('http')
+const vercelBypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET
 
 export default defineConfig({
   testDir: "./e2e",
@@ -14,6 +15,12 @@ export default defineConfig({
   use: {
     baseURL: remoteUrl ?? "http://localhost:3333",
     trace: "on-first-retry",
+    ...(isRemote && vercelBypassSecret ? {
+      extraHTTPHeaders: {
+        'x-vercel-protection-bypass': vercelBypassSecret,
+        'x-vercel-set-bypass-cookie': 'true',
+      },
+    } : {}),
   },
   projects: [
     {

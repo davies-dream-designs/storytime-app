@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { ChildProfile, Character, StoryPage, StorySuggestion } from '@/types'
-import { getAge } from '@/types'
+import { buildChildAppearanceDoNotChange, buildChildAppearanceSummary, getAge } from '@/types'
 
 const client = new Anthropic()
 
@@ -63,6 +63,9 @@ ${recentTitles.map((t) => `- ${t}`).join('\n')}`
   return `You are a magical storyteller creating a personalised bedtime story for a child.
 
 Child: ${profile.name}, age ${getAge(profile)}
+Visual identity:
+- Appearance: ${buildChildAppearanceSummary(profile.appearance) || 'No structured appearance details provided.'}
+- Do not change: ${buildChildAppearanceDoNotChange(profile.appearance).join(', ') || 'none'}
 Selected favourites for THIS story (others exist but vary each time):
 - Characters/toys: ${chars.join(', ') || 'none'}
 - Activities: ${activities.join(', ') || 'none'}
@@ -132,6 +135,7 @@ export async function generateSuggestions(
 
 Child profile:
 - Name: ${profile.name}, age ${getAge(profile)}
+- Appearance: ${buildChildAppearanceSummary(profile.appearance) || 'No structured appearance details provided.'}
 - Favourite characters/toys: ${profile.favouriteCharacters.join(', ') || 'none'}
 - Favourite activities: ${profile.favouriteActivities.join(', ') || 'none'}
 - Favourite animals: ${profile.favouriteAnimals.join(', ') || 'none'}

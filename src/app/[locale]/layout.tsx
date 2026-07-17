@@ -4,7 +4,8 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { routing } from "@/i18n/routing";
+import { getClerkLocalization } from "@/i18n/clerk";
+import { isLocale } from "@/i18n/locales";
 import { GlobalPendingProvider } from "@/components/GlobalPending";
 import { storycotTheme } from "@/lib/theme";
 import "../globals.css";
@@ -63,14 +64,16 @@ export default async function LocaleLayout({
 }) {
   const { locale } = await params;
 
-  if (!routing.locales.includes(locale as (typeof routing.locales)[number])) {
+  if (!isLocale(locale)) {
     notFound();
   }
 
   const messages = await getMessages();
+  const clerkLocalization = getClerkLocalization(locale);
 
   return (
     <ClerkProvider
+      localization={clerkLocalization}
       appearance={{
         variables: storycotTheme.clerk,
       }}

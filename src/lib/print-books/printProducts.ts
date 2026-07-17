@@ -105,6 +105,13 @@ export function getStorycotPageCountForAgeBand(ageBand: AgeBand): number {
   }
 }
 
+export function isPrintProductKey(value: unknown): value is PrintProductKey {
+  return (
+    typeof value === "string" &&
+    Object.prototype.hasOwnProperty.call(PRINT_PRODUCTS, value)
+  );
+}
+
 export function getStorycotSpineWidth(pageCount: number): {
   widthIn: number;
   source: CoverSpineSource;

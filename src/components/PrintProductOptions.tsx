@@ -1,5 +1,6 @@
 import { getPrintProductQuotes } from "@/lib/print-books/printProducts";
 import type { BookProject } from "@/types/printBook";
+import PrintCheckoutButton from "@/components/PrintCheckoutButton";
 
 function formatAud(value: number) {
   return new Intl.NumberFormat("en-AU", {
@@ -11,7 +12,7 @@ function formatAud(value: number) {
 export default function PrintProductOptions({
   project,
 }: {
-  project: Pick<BookProject, "pageCount">;
+  project: Pick<BookProject, "id" | "pageCount">;
 }) {
   const quotes = getPrintProductQuotes(project);
 
@@ -65,13 +66,11 @@ export default function PrintProductOptions({
               <dd className="text-right font-medium">{quote.productionDays}</dd>
             </div>
           </dl>
-          <button
-            type="button"
-            disabled
-            className="storycot-btn storycot-btn-secondary mt-5 w-full"
-          >
-            Print ordering coming soon
-          </button>
+          <PrintCheckoutButton
+            projectId={project.id}
+            productKey={quote.key}
+            disabled={!quote.isWithinSpecs}
+          />
         </article>
       ))}
     </div>

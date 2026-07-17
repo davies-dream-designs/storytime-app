@@ -11,10 +11,16 @@ import BookStatusPanel from "./BookStatusPanel";
 
 export default async function BookProjectPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<BookProjectSearchParams>;
 }) {
-  const [{ userId }, { id }] = await Promise.all([auth(), params]);
+  const [{ userId }, { id }, query] = await Promise.all([
+    auth(),
+    params,
+    searchParams ?? Promise.resolve({} as BookProjectSearchParams),
+  ]);
   if (!userId) redirect("/sign-in");
 
   const [t, project] = await Promise.all([
@@ -59,6 +65,53 @@ export default async function BookProjectPage({
             />
           </div>
         </div>
+
+        {query.print_success ? (
+          <div className="mb-8 rounded-3xl border border-green-200 bg-green-50 p-6 text-green-900 shadow-sm">
+            <p className="font-display text-2xl font-bold">
+              Your printed book order is paid
+            </p>
+            <p className="mt-2 leading-7">
+              We’ve received the print checkout. Next, we’ll review the files
+              and prepare the finished book for Australian fulfilment.
+            </p>
+          </div>
+        ) : null}
+
+        {query.print_canceled ? (
+          <div className="mb-8 rounded-3xl border border-star-200 bg-star-50 p-6 text-night-700 shadow-sm">
+            <p className="font-display text-2xl font-bold text-night-800">
+              Print checkout was cancelled
+            </p>
+            <p className="mt-2 leading-7">
+              No payment was taken. Your illustrated book is still ready here
+              whenever you want to choose a print format.
+            </p>
+          </div>
+        ) : null}
+
+        {project.printOrder?.status === "paid" ? (
+          <section className="mb-8 rounded-3xl border border-moon-200 bg-moon-50 p-8 shadow-sm">
+            <p className="text-sm font-bold uppercase tracking-wide text-star-700">
+              Print order
+            </p>
+            <h2 className="mt-2 font-display text-3xl font-bold text-night-800">
+              {project.printOrder.productLabel} selected
+            </h2>
+            <p className="mt-2 text-night-600">
+              {project.printOrder.format} ·{" "}
+              {project.printOrder.amountAud.toLocaleString("en-AU", {
+                style: "currency",
+                currency: "AUD",
+              })}{" "}
+              paid
+            </p>
+            <p className="mt-4 leading-7 text-night-600">
+              The story, illustrations, cover, and print files are together now.
+              This is the moment it becomes a real book.
+            </p>
+          </section>
+        ) : null}
 
         <BookStatusPanel initialProject={project} />
 
@@ -150,3 +203,8 @@ export default async function BookProjectPage({
     </>
   );
 }
+
+type BookProjectSearchParams = {
+  print_success?: string;
+  print_canceled?: string;
+};

@@ -150,6 +150,22 @@ export interface BookBilling {
   refundedAt?: string;
 }
 
+export interface PrintBookOrder {
+  productKey: "softcover" | "hardcover" | "layflat";
+  productLabel: string;
+  provider: string;
+  format: string;
+  status: "checkout_started" | "paid" | "refunded";
+  amountAud: number;
+  pageCount: number;
+  checkoutSessionId?: string;
+  paymentIntentId?: string;
+  billingCountry?: string;
+  checkoutStartedAt?: string;
+  paidAt?: string;
+  refundedAt?: string;
+}
+
 export interface BookProject {
   id: string;
   userId: string;
@@ -168,6 +184,7 @@ export interface BookProject {
   spreads: BookSpread[];
   assets: BookAsset;
   billing?: BookBilling;
+  printOrder?: PrintBookOrder;
   errorCode?: string;
   errorMessage?: string;
   retryCount: number;

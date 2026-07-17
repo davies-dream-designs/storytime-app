@@ -137,7 +137,7 @@ describe("buildBookEpub", () => {
     ).resolves.toContain("Moonlight Garden");
     expect(zip.file("OEBPS/cover.xhtml")).toBeTruthy();
     expect(zip.file("OEBPS/spread-2-left.xhtml")).toBeTruthy();
-    expect(zip.file("OEBPS/images/spread-2-left.webp")).toBeTruthy();
+    expect(zip.file("OEBPS/images/spread-2-left.jpg")).toBeTruthy();
 
     const stored = await generateBookEpub({
       project: createProject(),
@@ -175,8 +175,8 @@ describe("buildBookEpub", () => {
     await expect(
       zip.file("OEBPS/page-1.xhtml")?.async("string")
     ).resolves.toContain("Mila stepped into the moonlight garden.");
-    expect(zip.file("OEBPS/images/cover.webp")).toBeTruthy();
-    expect(zip.file("OEBPS/images/spread-2-left.webp")).toBeNull();
+    expect(zip.file("OEBPS/images/cover.jpg")).toBeTruthy();
+    expect(zip.file("OEBPS/images/spread-2-left.jpg")).toBeNull();
   });
 
   it("keeps illustrated EPUB image assets under a Kindle-friendly budget", async () => {

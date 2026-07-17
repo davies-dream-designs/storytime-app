@@ -1,4 +1,4 @@
-import type { ChildProfile, Story } from '@/types'
+import type { ChildProfile, Story } from "@/types";
 import type {
   AgeBand,
   Beat,
@@ -6,110 +6,136 @@ import type {
   BookSpread,
   BookSpreadLayoutType,
   CharacterBible,
-} from '@/types/printBook'
-import { buildIllustrationDirection } from '@/lib/print-books/characterBible'
+} from "@/types/printBook";
+import { buildIllustrationDirection } from "@/lib/print-books/characterBible";
 
-const HARDCOVER_PAGE_COUNT = 32
-const INTERIOR_START_PAGE = 5
-const INTERIOR_END_PAGE = 28
-const MAX_INTERIOR_STORY_SPREADS = (INTERIOR_END_PAGE - INTERIOR_START_PAGE + 1) / 2
+const HARDCOVER_PAGE_COUNT = 24;
+const INTERIOR_START_PAGE = 5;
+const INTERIOR_END_PAGE = 20;
+const MAX_INTERIOR_STORY_SPREADS =
+  (INTERIOR_END_PAGE - INTERIOR_START_PAGE + 1) / 2;
 
 function getTargetStorySpreadCount(ageBand: AgeBand): number {
   switch (ageBand) {
-    case '0-2':
-      return 6
-    case '3-5':
-      return 10
-    case '6-8':
-      return 12
+    case "0-2":
+      return 5;
+    case "3-5":
+      return 7;
+    case "6-8":
+      return 8;
   }
 }
 
 function getHeroSpreadSequences(ageBand: AgeBand, total: number): Set<number> {
-  if (total <= 0) return new Set()
+  if (total <= 0) return new Set();
 
-  if (ageBand === '0-2') return new Set([Math.min(2, total), Math.max(total - 1, 1)])
-  if (ageBand === '3-5') return new Set([Math.min(3, total), Math.max(total - 2, 1)])
-  return new Set([Math.min(3, total), Math.ceil(total / 2), Math.max(total - 1, 1)])
+  if (ageBand === "0-2")
+    return new Set([Math.min(2, total), Math.max(total - 1, 1)]);
+  if (ageBand === "3-5")
+    return new Set([Math.min(3, total), Math.max(total - 2, 1)]);
+  return new Set([
+    Math.min(3, total),
+    Math.ceil(total / 2),
+    Math.max(total - 1, 1),
+  ]);
 }
 
 function buildSceneBrief(beat: Beat): string {
-  return beat.summary
+  return beat.summary;
 }
 
 function getFirstSentence(text: string): string {
-  const clean = text.replace(/\s+/g, ' ').trim()
-  const match = clean.match(/^.*?[.!?](?:\s|$)/)
-  return (match?.[0] ?? clean).trim()
+  const clean = text.replace(/\s+/g, " ").trim();
+  const match = clean.match(/^.*?[.!?](?:\s|$)/);
+  return (match?.[0] ?? clean).trim();
 }
 
 function clampText(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text
-  return `${text.slice(0, maxLength - 3).trimEnd()}...`
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
 function splitIntoSentences(text: string): string[] {
-  const clean = text.replace(/\s+/g, ' ').trim()
-  if (!clean) return []
+  const clean = text.replace(/\s+/g, " ").trim();
+  if (!clean) return [];
 
-  const matches = clean.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g)
-  return (matches ?? [clean]).map((sentence) => sentence.trim()).filter(Boolean)
+  const matches = clean.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g);
+  return (matches ?? [clean])
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
 }
 
-function splitLongSentence(text: string): { leftPageText: string; rightPageText: string } {
-  const clauses = text.split(/(?<=,|;|:)\s+/).map((clause) => clause.trim()).filter(Boolean)
-  if (clauses.length < 2) return { leftPageText: text, rightPageText: '' }
+function splitLongSentence(text: string): {
+  leftPageText: string;
+  rightPageText: string;
+} {
+  const clauses = text
+    .split(/(?<=,|;|:)\s+/)
+    .map((clause) => clause.trim())
+    .filter(Boolean);
+  if (clauses.length < 2) return { leftPageText: text, rightPageText: "" };
 
-  const targetLength = text.length / 2
-  let left = ''
+  const targetLength = text.length / 2;
+  let left = "";
 
   for (const clause of clauses) {
-    const candidate = left ? `${left} ${clause}` : clause
+    const candidate = left ? `${left} ${clause}` : clause;
     if (candidate.length <= targetLength || !left) {
-      left = candidate
-      continue
+      left = candidate;
+      continue;
     }
-    break
+    break;
   }
 
-  const right = text.slice(left.length).trim()
-  return right ? { leftPageText: left.trim(), rightPageText: right } : { leftPageText: text, rightPageText: '' }
+  const right = text.slice(left.length).trim();
+  return right
+    ? { leftPageText: left.trim(), rightPageText: right }
+    : { leftPageText: text, rightPageText: "" };
 }
 
-function splitTextForSpread(text: string, isQuietBeat: boolean): { leftPageText: string; rightPageText: string } {
-  const clean = text.replace(/\s+/g, ' ').trim()
+function splitTextForSpread(
+  text: string,
+  isQuietBeat: boolean
+): { leftPageText: string; rightPageText: string } {
+  const clean = text.replace(/\s+/g, " ").trim();
   if (isQuietBeat) {
-    return { leftPageText: clean, rightPageText: '' }
+    return { leftPageText: clean, rightPageText: "" };
   }
 
-  const sentences = splitIntoSentences(clean)
+  const sentences = splitIntoSentences(clean);
   if (sentences.length <= 1) {
-    return splitLongSentence(clean)
+    return splitLongSentence(clean);
   }
 
-  const totalLength = sentences.reduce((sum, sentence) => sum + sentence.length, 0)
-  const targetLength = totalLength / 2
-  const leftSentences: string[] = []
-  let leftLength = 0
+  const totalLength = sentences.reduce(
+    (sum, sentence) => sum + sentence.length,
+    0
+  );
+  const targetLength = totalLength / 2;
+  const leftSentences: string[] = [];
+  let leftLength = 0;
 
   for (const sentence of sentences) {
-    if (leftSentences.length === 0 || leftLength + sentence.length <= targetLength) {
-      leftSentences.push(sentence)
-      leftLength += sentence.length
-      continue
+    if (
+      leftSentences.length === 0 ||
+      leftLength + sentence.length <= targetLength
+    ) {
+      leftSentences.push(sentence);
+      leftLength += sentence.length;
+      continue;
     }
-    break
+    break;
   }
 
   if (leftSentences.length === sentences.length) {
-    return { leftPageText: clean, rightPageText: '' }
+    return { leftPageText: clean, rightPageText: "" };
   }
 
-  const rightSentences = sentences.slice(leftSentences.length)
+  const rightSentences = sentences.slice(leftSentences.length);
   return {
-    leftPageText: leftSentences.join(' ').trim(),
-    rightPageText: rightSentences.join(' ').trim(),
-  }
+    leftPageText: leftSentences.join(" ").trim(),
+    rightPageText: rightSentences.join(" ").trim(),
+  };
 }
 
 function createSpread(
@@ -135,12 +161,15 @@ function createSpread(
     rightPageText,
     sceneBrief,
     illustrationPrompt,
-  }
+  };
 }
 
-function withCharacterBiblePrompt(prompt: string, characterBible?: CharacterBible): string {
-  if (!characterBible) return prompt
-  return `${buildIllustrationDirection(characterBible)} Scene direction: ${prompt}`.trim()
+function withCharacterBiblePrompt(
+  prompt: string,
+  characterBible?: CharacterBible
+): string {
+  if (!characterBible) return prompt;
+  return `${buildIllustrationDirection(characterBible)} Scene direction: ${prompt}`.trim();
 }
 
 function createFrontMatterSpreads(
@@ -154,28 +183,31 @@ function createFrontMatterSpreads(
       bookProjectId,
       1,
       1,
-      'front_matter',
+      "front_matter",
       story.title,
-      '',
+      "",
       `Front cover for ${story.title}`,
       withCharacterBiblePrompt(
         `A magical hardcover picture-book cover for "${story.title}" starring ${profile.name}.`,
         characterBible
       ),
-      'Cover'
+      "Cover"
     ),
     createSpread(
       bookProjectId,
       2,
       3,
-      'front_matter',
+      "front_matter",
       story.title,
       `Created especially for ${profile.name}.`,
       `Title and dedication pages for ${story.title}`,
-      withCharacterBiblePrompt(`A gentle title-page illustration motif for "${story.title}".`, characterBible),
-      'Title'
+      withCharacterBiblePrompt(
+        `A gentle title-page illustration motif for "${story.title}".`,
+        characterBible
+      ),
+      "Title"
     ),
-  ]
+  ];
 }
 
 function createEndMatterSpreads(
@@ -187,101 +219,112 @@ function createEndMatterSpreads(
   return [
     createSpread(
       bookProjectId,
-      15,
-      29,
-      'end_matter',
+      11,
+      21,
+      "end_matter",
       `The End.\n\nSweet dreams, ${profile.name}.`,
-      'A Storycot story',
+      "A Storycot story",
       `Closing pages for ${story.title}`,
       withCharacterBiblePrompt(
         `A peaceful closing image for ${profile.name} settling into sleep.`,
         characterBible
       ),
-      'The End'
+      "The End"
     ),
     createSpread(
       bookProjectId,
-      16,
-      31,
-      'end_matter',
-      '',
-      'Storycot',
+      12,
+      23,
+      "end_matter",
+      "",
+      "Storycot",
       `Back cover for ${story.title}`,
       withCharacterBiblePrompt(
         `A simple back cover design for a Storycot hardcover children's book.`,
         characterBible
       ),
-      'Back Cover'
+      "Back Cover"
     ),
-  ]
+  ];
 }
 
 function combineBeatGroup(beats: Beat[], sequence: number): Beat {
-  const firstBeat = beats[0]
-  const lastBeat = beats[beats.length - 1]
+  const firstBeat = beats[0];
+  const lastBeat = beats[beats.length - 1];
   if (!firstBeat || !lastBeat) {
-    throw new Error('Cannot compose an empty beat group')
+    throw new Error("Cannot compose an empty beat group");
   }
 
   if (beats.length === 1) {
-    return firstBeat
+    return firstBeat;
   }
 
   const summary = clampText(
-    `${firstBeat.summary} ${lastBeat.summary === firstBeat.summary ? '' : lastBeat.summary}`.replace(/\s+/g, ' ').trim(),
+    `${firstBeat.summary} ${lastBeat.summary === firstBeat.summary ? "" : lastBeat.summary}`
+      .replace(/\s+/g, " ")
+      .trim(),
     180
-  )
+  );
   const visualIntent = beats
     .map((beat) => beat.visualIntent)
     .filter(Boolean)
-    .join(' Then, ')
+    .join(" Then, ");
 
   return {
     id: `${firstBeat.id}:group:${sequence}`,
     sequence,
     purpose: firstBeat.purpose,
     summary,
-    textDraft: beats.map((beat) => beat.textDraft).join('\n\n'),
+    textDraft: beats.map((beat) => beat.textDraft).join("\n\n"),
     visualIntent,
     mood: lastBeat.mood,
     isQuietBeat: beats.every((beat) => beat.isQuietBeat),
-  }
+  };
 }
 
 function groupStoryBeatsForSpreads(beats: Beat[]): Beat[] {
-  if (beats.length <= MAX_INTERIOR_STORY_SPREADS) return beats
+  if (beats.length <= MAX_INTERIOR_STORY_SPREADS) return beats;
 
-  const groups: Beat[] = []
-  let cursor = 0
+  const groups: Beat[] = [];
+  let cursor = 0;
 
   for (let i = 0; i < MAX_INTERIOR_STORY_SPREADS; i += 1) {
-    const remainingBeats = beats.length - cursor
-    const remainingGroups = MAX_INTERIOR_STORY_SPREADS - i
-    const groupSize = Math.ceil(remainingBeats / remainingGroups)
-    const group = beats.slice(cursor, cursor + groupSize)
-    groups.push(combineBeatGroup(group, i + 1))
-    cursor += groupSize
+    const remainingBeats = beats.length - cursor;
+    const remainingGroups = MAX_INTERIOR_STORY_SPREADS - i;
+    const groupSize = Math.ceil(remainingBeats / remainingGroups);
+    const group = beats.slice(cursor, cursor + groupSize);
+    groups.push(combineBeatGroup(group, i + 1));
+    cursor += groupSize;
   }
 
-  return groups
+  return groups;
 }
 
 function createStoryExpansionSpread(input: {
-  bookProjectId: string
-  profile: ChildProfile
-  sequence: number
-  pageStart: number
-  ageBand: AgeBand
-  sourceBeat: Beat
-  variantIndex: number
-  characterBible?: CharacterBible
+  bookProjectId: string;
+  profile: ChildProfile;
+  sequence: number;
+  pageStart: number;
+  ageBand: AgeBand;
+  sourceBeat: Beat;
+  variantIndex: number;
+  characterBible?: CharacterBible;
 }): BookSpread {
-  const { bookProjectId, profile, sequence, pageStart, ageBand, sourceBeat, variantIndex, characterBible } = input
-  const anchorLine = clampText(getFirstSentence(sourceBeat.textDraft), 120)
-  const summary = clampText(sourceBeat.summary, 110)
-  const roleIndex = variantIndex % 4
+  const {
+    bookProjectId,
+    profile,
+    sequence,
+    pageStart,
+    ageBand,
+    sourceBeat,
+    variantIndex,
+    characterBible,
+  } = input;
+  const anchorLine = clampText(getFirstSentence(sourceBeat.textDraft), 120);
+  const summary = clampText(sourceBeat.summary, 110);
+  const roleIndex = variantIndex % 4;
 
-  if (ageBand === '0-2') {
+  if (ageBand === "0-2") {
     const toddlerRoles = [
       {
         sceneBrief: `A sensory close-up inspired by ${sourceBeat.summary}`,
@@ -303,54 +346,54 @@ function createStoryExpansionSpread(input: {
         leftPageText: `Everything felt slower now.\n\n${profile.name} was ready for the story to grow gentle again.`,
         illustrationPrompt: `A soft settling spread for a very young child, derived from ${sourceBeat.visualIntent}. Quiet atmosphere, clear focal point, and bedtime calm.`,
       },
-    ] as const
+    ] as const;
 
-    const role = toddlerRoles[roleIndex]
+    const role = toddlerRoles[roleIndex];
     return createSpread(
       bookProjectId,
       sequence,
       pageStart,
-      'quiet',
+      "quiet",
       role.leftPageText,
-      '',
+      "",
       role.sceneBrief,
       withCharacterBiblePrompt(role.illustrationPrompt, characterBible)
-    )
+    );
   }
 
-  if (ageBand === '3-5') {
+  if (ageBand === "3-5") {
     const earlyReaderRoles = [
       {
-        layoutType: 'hero' as const,
+        layoutType: "hero" as const,
         leftPageText: summary,
-        rightPageText: '',
+        rightPageText: "",
         sceneBrief: `A scene-setting spread that lets ${sourceBeat.summary} land clearly`,
         illustrationPrompt: `A warm storybook spread that opens up the world around ${sourceBeat.visualIntent} with inviting atmosphere and clear focal storytelling.`,
       },
       {
-        layoutType: 'quiet' as const,
+        layoutType: "quiet" as const,
         leftPageText: `${profile.name} took a little longer to notice every lovely detail.`,
         rightPageText: anchorLine,
         sceneBrief: `A notice-and-linger spread inspired by ${sourceBeat.summary}`,
         illustrationPrompt: `A gentle children’s-book spread based on ${sourceBeat.visualIntent}, giving the moment room to breathe with soft detail and bedtime calm.`,
       },
       {
-        layoutType: 'text_art' as const,
+        layoutType: "text_art" as const,
         leftPageText: `${anchorLine}\n\nIt felt like the adventure was opening one little piece at a time.`,
-        rightPageText: '',
+        rightPageText: "",
         sceneBrief: `A turn-the-page spread extending ${sourceBeat.summary}`,
         illustrationPrompt: `A storybook transition spread inspired by ${sourceBeat.visualIntent}, designed to create anticipation without adding noise.`,
       },
       {
-        layoutType: 'quiet' as const,
+        layoutType: "quiet" as const,
         leftPageText: `Soon, the excitement softened into comfort.`,
         rightPageText: `${profile.name} was ready to carry the feeling with them.`,
         sceneBrief: `A gentle settling spread that eases out of ${sourceBeat.summary}`,
         illustrationPrompt: `A cozy winding-down spread that grows out of ${sourceBeat.visualIntent}, with warm light and an emotionally calm finish.`,
       },
-    ] as const
+    ] as const;
 
-    const role = earlyReaderRoles[roleIndex]
+    const role = earlyReaderRoles[roleIndex];
     return createSpread(
       bookProjectId,
       sequence,
@@ -360,40 +403,42 @@ function createStoryExpansionSpread(input: {
       role.rightPageText,
       role.sceneBrief,
       withCharacterBiblePrompt(role.illustrationPrompt, characterBible)
-    )
+    );
   }
 
   const olderReaderRoles = [
     {
-      layoutType: 'hero' as const,
+      layoutType: "hero" as const,
       leftPageText: summary,
-      rightPageText: '',
+      rightPageText: "",
       sceneBrief: `A wider scene-setting spread built from ${sourceBeat.summary}`,
       illustrationPrompt: `A cinematic illustrated spread expanding ${sourceBeat.visualIntent} into a fuller environment with strong story focus.`,
     },
     {
-      layoutType: 'text_art' as const,
+      layoutType: "text_art" as const,
       leftPageText: anchorLine,
-      rightPageText: 'The moment felt bigger when there was time to really look at it.',
+      rightPageText:
+        "The moment felt bigger when there was time to really look at it.",
       sceneBrief: `A reflective pause that holds on ${sourceBeat.summary}`,
       illustrationPrompt: `A reflective story spread based on ${sourceBeat.visualIntent}, giving visual space to mood, scale, and continuity.`,
     },
     {
-      layoutType: 'hero' as const,
-      leftPageText: 'Some parts of the adventure deserved a full spread all to themselves.',
-      rightPageText: '',
+      layoutType: "hero" as const,
+      leftPageText:
+        "Some parts of the adventure deserved a full spread all to themselves.",
+      rightPageText: "",
       sceneBrief: `A hero-image emphasis spread inspired by ${sourceBeat.summary}`,
       illustrationPrompt: `A full, cinematic hero spread revisiting ${sourceBeat.visualIntent} with depth, atmosphere, and emotional clarity.`,
     },
     {
-      layoutType: 'quiet' as const,
+      layoutType: "quiet" as const,
       leftPageText: `By now, ${profile.name} could feel the story turning toward rest.`,
       rightPageText: clampText(summary, 90),
       sceneBrief: `A quiet transition that lowers the tempo after ${sourceBeat.summary}`,
       illustrationPrompt: `A calm transition spread derived from ${sourceBeat.visualIntent}, easing the book toward a bedtime finish.`,
     },
-  ] as const
-  const role = olderReaderRoles[roleIndex]
+  ] as const;
+  const role = olderReaderRoles[roleIndex];
   return createSpread(
     bookProjectId,
     sequence,
@@ -403,7 +448,7 @@ function createStoryExpansionSpread(input: {
     role.rightPageText,
     role.sceneBrief,
     withCharacterBiblePrompt(role.illustrationPrompt, characterBible)
-  )
+  );
 }
 
 function createStorySpreads(
@@ -413,21 +458,28 @@ function createStorySpreads(
   beats: Beat[],
   characterBible?: CharacterBible
 ): BookSpread[] {
-  const targetCount = getTargetStorySpreadCount(ageBand)
-  const storyBeats = beats.length <= targetCount ? beats : groupStoryBeatsForSpreads(beats)
-  const heroSpreadSequences = getHeroSpreadSequences(ageBand, storyBeats.length)
-  const spreads: BookSpread[] = []
-  let pageStart = INTERIOR_START_PAGE
-  let sequence = 3
+  const targetCount = getTargetStorySpreadCount(ageBand);
+  const storyBeats =
+    beats.length <= targetCount ? beats : groupStoryBeatsForSpreads(beats);
+  const heroSpreadSequences = getHeroSpreadSequences(
+    ageBand,
+    storyBeats.length
+  );
+  const spreads: BookSpread[] = [];
+  let pageStart = INTERIOR_START_PAGE;
+  let sequence = 3;
 
   for (let i = 0; i < storyBeats.length; i += 1) {
-    const beat = storyBeats[i]
+    const beat = storyBeats[i];
     const layoutType: BookSpreadLayoutType = beat.isQuietBeat
-      ? 'quiet'
+      ? "quiet"
       : heroSpreadSequences.has(i + 1)
-        ? 'hero'
-        : 'text_art'
-    const { leftPageText, rightPageText } = splitTextForSpread(beat.textDraft, beat.isQuietBeat)
+        ? "hero"
+        : "text_art";
+    const { leftPageText, rightPageText } = splitTextForSpread(
+      beat.textDraft,
+      beat.isQuietBeat
+    );
 
     spreads.push(
       createSpread(
@@ -440,17 +492,17 @@ function createStorySpreads(
         buildSceneBrief(beat),
         withCharacterBiblePrompt(beat.visualIntent, characterBible)
       )
-    )
+    );
 
-    pageStart += 2
-    sequence += 1
+    pageStart += 2;
+    sequence += 1;
   }
 
-  const expansionSeed = storyBeats.length > 0 ? storyBeats : beats
-  let variantIndex = 0
+  const expansionSeed = storyBeats.length > 0 ? storyBeats : beats;
+  let variantIndex = 0;
   while (pageStart <= INTERIOR_END_PAGE) {
-    const isFinalQuiet = pageStart >= INTERIOR_END_PAGE - 1
-    const sourceBeat = expansionSeed[variantIndex % expansionSeed.length]
+    const isFinalQuiet = pageStart >= INTERIOR_END_PAGE - 1;
+    const sourceBeat = expansionSeed[variantIndex % expansionSeed.length];
 
     if (sourceBeat && !isFinalQuiet) {
       spreads.push(
@@ -464,11 +516,11 @@ function createStorySpreads(
           variantIndex,
           characterBible,
         })
-      )
-      pageStart += 2
-      sequence += 1
-      variantIndex += 1
-      continue
+      );
+      pageStart += 2;
+      sequence += 1;
+      variantIndex += 1;
+      continue;
     }
 
     spreads.push(
@@ -476,48 +528,55 @@ function createStorySpreads(
         bookProjectId,
         sequence,
         pageStart,
-        'quiet',
-        isFinalQuiet ? 'A final calm breath before bedtime.' : '',
-        '',
-        'A quiet visual pause that gives the story room to breathe.',
+        "quiet",
+        isFinalQuiet ? "A final calm breath before bedtime." : "",
+        "",
+        "A quiet visual pause that gives the story room to breathe.",
         withCharacterBiblePrompt(
-          'A peaceful children’s-book spread with soft night-time atmosphere and room for reflection.',
+          "A peaceful children’s-book spread with soft night-time atmosphere and room for reflection.",
           characterBible
         )
       )
-    )
-    pageStart += 2
-    sequence += 1
+    );
+    pageStart += 2;
+    sequence += 1;
   }
 
-  return spreads
+  return spreads;
 }
 
 export function composeHardcoverSpreads(input: {
-  bookProjectId: string
-  story: Story
-  profile: ChildProfile
-  ageBand: AgeBand
-  beats: Beat[]
-  characterBible?: CharacterBible
+  bookProjectId: string;
+  story: Story;
+  profile: ChildProfile;
+  ageBand: AgeBand;
+  beats: Beat[];
+  characterBible?: CharacterBible;
 }): BookSpread[] {
-  const { bookProjectId, story, profile, ageBand, beats, characterBible } = input
+  const { bookProjectId, story, profile, ageBand, beats, characterBible } =
+    input;
 
   return [
     ...createFrontMatterSpreads(bookProjectId, story, profile, characterBible),
-    ...createStorySpreads(bookProjectId, profile, ageBand, beats, characterBible),
+    ...createStorySpreads(
+      bookProjectId,
+      profile,
+      ageBand,
+      beats,
+      characterBible
+    ),
     ...createEndMatterSpreads(bookProjectId, story, profile, characterBible),
-  ]
+  ];
 }
 
 export function createEmptyBookProject(input: {
-  id: string
-  userId: string
-  sourceStoryId: string
-  profileId: string
-  ageBand: AgeBand
+  id: string;
+  userId: string;
+  sourceStoryId: string;
+  profileId: string;
+  ageBand: AgeBand;
 }): BookProject {
-  const now = new Date().toISOString()
+  const now = new Date().toISOString();
 
   return {
     id: input.id,
@@ -525,13 +584,13 @@ export function createEmptyBookProject(input: {
     sourceStoryId: input.sourceStoryId,
     profileId: input.profileId,
     ageBand: input.ageBand,
-    status: 'queued',
-    trimSize: 'lulu-hardcover-32',
+    status: "queued",
+    trimSize: "lulu-hardcover-24",
     pageCount: HARDCOVER_PAGE_COUNT,
     spreadCount: HARDCOVER_PAGE_COUNT / 2,
     completedSpreads: 0,
     totalSpreads: HARDCOVER_PAGE_COUNT / 2,
-    currentStageLabel: 'Dreaming up the adventure...',
+    currentStageLabel: "Dreaming up the adventure...",
     beats: [],
     spreads: [],
     assets: {
@@ -540,5 +599,5 @@ export function createEmptyBookProject(input: {
     retryCount: 0,
     createdAt: now,
     updatedAt: now,
-  }
+  };
 }

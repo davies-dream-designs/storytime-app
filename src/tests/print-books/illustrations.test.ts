@@ -195,8 +195,7 @@ describe("generateCoverIllustration", () => {
 
     expect(requests.map((request) => request.customId)).toEqual([
       "cover",
-      "spread:book-1:spread:2:left",
-      "spread:book-1:spread:2:right",
+      "spread:book-1:spread:2:spread",
     ]);
     expect(requests[0]?.size).toBe("1024x1536");
     expect(requests[1]?.size).toBe("1024x1024");

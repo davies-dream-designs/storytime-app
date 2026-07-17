@@ -463,11 +463,11 @@ function buildPageIllustrationPrompt(input: {
     `Book title: ${story.title}.`,
     `Main child: ${profile.name}.`,
     `Age band: ${project.ageBand}.`,
-    `Spread sequence: ${spread.sequence}, ${side} page.`,
+    `Spread sequence: ${spread.sequence}, ${side} side of the same two-page spread.`,
     `Scene brief: ${spread.sceneBrief}.`,
     `Illustration direction: ${spread.illustrationPrompt}.`,
     ...(omitPageText ? [] : [`Page text: ${pageText || "None"}.`]),
-    "Create a warm square children's book page illustration for full-bleed printing. No visible text or page numbers inside the art.",
+    "Create one warm square children's book spread illustration that can be reused behind both pages of this spread. Keep the child's face, hair, outfit, proportions, and recurring props exactly consistent with the character bible. No visible text, lettering, captions, or page numbers inside the art.",
   ].join(" ");
 }
 
@@ -536,26 +536,13 @@ export function buildBookImageBatchRequests(input: {
   for (const spread of input.project.spreads) {
     if (spread.sequence === 1 || spread.title === "Cover") continue;
     const base = `books/${input.project.id}/spreads/${spread.sequence}`;
-    requests.push(
-      {
-        customId: `spread:${spread.id}:left`,
-        prompt: buildPageIllustrationPrompt({ ...input, spread, side: "left" }),
-        pathname: `${base}-left.png`,
-        size: "1024x1024",
-        contentType: "image/png",
-      },
-      {
-        customId: `spread:${spread.id}:right`,
-        prompt: buildPageIllustrationPrompt({
-          ...input,
-          spread,
-          side: "right",
-        }),
-        pathname: `${base}-right.png`,
-        size: "1024x1024",
-        contentType: "image/png",
-      }
-    );
+    requests.push({
+      customId: `spread:${spread.id}:spread`,
+      prompt: buildPageIllustrationPrompt({ ...input, spread, side: "left" }),
+      pathname: `${base}.png`,
+      size: "1024x1024",
+      contentType: "image/png",
+    });
   }
 
   return requests;
@@ -750,21 +737,18 @@ export async function applyBookImageBatchOutput(input: {
   for (const spread of input.project.spreads) {
     if (spread.sequence === 1 || spread.title === "Cover") continue;
 
-    const leftRequest = requests.find(
-      (request) => request.customId === `spread:${spread.id}:left`
+    const spreadRequest = requests.find(
+      (request) => request.customId === `spread:${spread.id}:spread`
     );
-    const rightRequest = requests.find(
-      (request) => request.customId === `spread:${spread.id}:right`
-    );
-    if (!leftRequest || !rightRequest) continue;
+    if (!spreadRequest) continue;
 
-    const leftPageImageUrl = await storeGenerated(leftRequest);
-    const rightPageImageUrl = await storeGenerated(rightRequest);
+    const spreadImageUrl = await storeGenerated(spreadRequest);
     spreads = replaceSpreadImage(spreads, {
       ...spread,
-      leftPageImageUrl,
-      rightPageImageUrl,
-      thumbnailUrl: leftPageImageUrl,
+      imageUrl: spreadImageUrl,
+      leftPageImageUrl: spreadImageUrl,
+      rightPageImageUrl: spreadImageUrl,
+      thumbnailUrl: spreadImageUrl,
     });
   }
 
@@ -875,14 +859,13 @@ export async function generateSpreadIllustration(input: {
   const base = `books/${project.id}/spreads/${spread.sequence}`;
 
   if (isGeneratedIllustrationConfigured()) {
-    // Generate sequentially to avoid hitting the OpenAI image rate limit (5/min)
-    const generatePage = async (side: "left" | "right"): Promise<string> => {
+    const generateSpread = async (): Promise<string> => {
       try {
         const png = await generateOpenAISquarePng(
-          buildPageIllustrationPrompt({ ...input, side })
+          buildPageIllustrationPrompt({ ...input, side: "left" })
         );
         return storeBookAsset({
-          pathname: `${base}-${side}.png`,
+          pathname: `${base}.png`,
           body: png,
           contentType: "image/png",
         });
@@ -890,25 +873,29 @@ export async function generateSpreadIllustration(input: {
         if (!(err instanceof ModerationBlockedError)) throw err;
         // Retry with a safe minimal prompt (drop page text which most often triggers moderation)
         const png = await generateOpenAISquarePng(
-          buildPageIllustrationPrompt({ ...input, side, omitPageText: true })
+          buildPageIllustrationPrompt({
+            ...input,
+            side: "left",
+            omitPageText: true,
+          })
         );
         return storeBookAsset({
-          pathname: `${base}-${side}.png`,
+          pathname: `${base}.png`,
           body: png,
           contentType: "image/png",
         });
       }
     };
 
-    const leftPageImageUrl = await generatePage("left");
-    const rightPageImageUrl = await generatePage("right");
+    const spreadImageUrl = await generateSpread();
 
     return {
       spread: {
         ...spread,
-        leftPageImageUrl,
-        rightPageImageUrl,
-        thumbnailUrl: leftPageImageUrl,
+        imageUrl: spreadImageUrl,
+        leftPageImageUrl: spreadImageUrl,
+        rightPageImageUrl: spreadImageUrl,
+        thumbnailUrl: spreadImageUrl,
       },
       provider: "openai",
     };

@@ -161,9 +161,38 @@ export interface PrintBookOrder {
   checkoutSessionId?: string;
   paymentIntentId?: string;
   billingCountry?: string;
+  shipping?: PrintShippingAddress;
+  fulfillment?: PrintFulfillment;
   checkoutStartedAt?: string;
   paidAt?: string;
   refundedAt?: string;
+}
+
+export interface PrintShippingAddress {
+  name?: string;
+  email?: string;
+  phone?: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  state?: string;
+  postalCode: string;
+  countryCode: "AU";
+}
+
+export interface PrintFulfillment {
+  provider: "prodigi" | "peecho";
+  status:
+    | "not_configured"
+    | "ready_for_manual_review"
+    | "submitted"
+    | "failed";
+  preparedAt?: string;
+  submittedAt?: string;
+  externalOrderId?: string;
+  externalStatus?: string;
+  message?: string;
+  payload?: unknown;
 }
 
 export interface BookProject {

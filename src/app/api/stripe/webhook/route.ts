@@ -2,7 +2,40 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { clerkClient } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
+import { preparePrintFulfillment } from '@/lib/print-books/fulfillment'
 import { isPrintProductKey, quotePrintProduct } from '@/lib/print-books/printProducts'
+import type { PrintBookOrder, PrintShippingAddress } from '@/types/printBook'
+
+function getPrintShippingAddress(session: Stripe.Checkout.Session): PrintShippingAddress | undefined {
+  const sessionWithShipping = session as Stripe.Checkout.Session & {
+    shipping_details?: {
+      name?: string | null
+      address?: Stripe.Address | null
+    } | null
+  }
+  const address = sessionWithShipping.shipping_details?.address
+  if (
+    !address ||
+    address.country !== 'AU' ||
+    !address.line1 ||
+    !address.city ||
+    !address.postal_code
+  ) {
+    return undefined
+  }
+
+  return {
+    name: sessionWithShipping.shipping_details?.name ?? session.customer_details?.name ?? undefined,
+    email: session.customer_details?.email ?? undefined,
+    phone: session.customer_details?.phone ?? undefined,
+    line1: address.line1,
+    line2: address.line2 ?? undefined,
+    city: address.city,
+    state: address.state ?? undefined,
+    postalCode: address.postal_code,
+    countryCode: 'AU',
+  }
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.text()
@@ -81,20 +114,29 @@ export async function POST(req: NextRequest) {
         const project = await db.bookProjects.getById(projectId)
         if (project && project.userId === userId) {
           const quote = quotePrintProduct(project, productKey)
+          const printOrder: PrintBookOrder = {
+            productKey: quote.key,
+            productLabel: quote.label,
+            provider: quote.provider,
+            format: quote.format,
+            status: 'paid',
+            amountAud: quote.priceAud,
+            pageCount: quote.pageCount,
+            checkoutSessionId: session.id,
+            paymentIntentId:
+              typeof session.payment_intent === 'string' ? session.payment_intent : undefined,
+            billingCountry,
+            shipping: getPrintShippingAddress(session),
+            paidAt: new Date().toISOString(),
+          }
+          const fulfillment = preparePrintFulfillment({
+            project,
+            order: printOrder,
+          })
           await db.bookProjects.update(project.id, {
             printOrder: {
-              productKey: quote.key,
-              productLabel: quote.label,
-              provider: quote.provider,
-              format: quote.format,
-              status: 'paid',
-              amountAud: quote.priceAud,
-              pageCount: quote.pageCount,
-              checkoutSessionId: session.id,
-              paymentIntentId:
-                typeof session.payment_intent === 'string' ? session.payment_intent : undefined,
-              billingCountry,
-              paidAt: new Date().toISOString(),
+              ...printOrder,
+              fulfillment,
             },
           })
         }

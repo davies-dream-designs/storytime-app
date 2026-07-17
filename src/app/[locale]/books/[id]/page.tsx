@@ -110,6 +110,19 @@ export default async function BookProjectPage({
               The story, illustrations, cover, and print files are together now.
               This is the moment it becomes a real book.
             </p>
+            {project.printOrder.fulfillment ? (
+              <div className="mt-5 rounded-2xl bg-white/80 p-4 text-sm text-night-600">
+                <p className="font-bold text-night-800">
+                  Fulfilment:{" "}
+                  {project.printOrder.fulfillment.status.replaceAll("_", " ")}
+                </p>
+                {project.printOrder.fulfillment.message ? (
+                  <p className="mt-1 leading-6">
+                    {project.printOrder.fulfillment.message}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </section>
         ) : null}
 

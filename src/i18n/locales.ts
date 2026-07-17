@@ -27,6 +27,13 @@ export const localeConfigs = [
     stripeLocale: "zh",
     dateLocale: "zh-CN",
   },
+  {
+    code: "de",
+    label: "Deutsch",
+    shortLabel: "DE",
+    stripeLocale: "de",
+    dateLocale: "de-DE",
+  },
 ] as const;
 
 export const locales = localeConfigs.map((locale) => locale.code);

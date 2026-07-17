@@ -62,6 +62,17 @@ export const db = {
       all.push(story);
       await kv.set("stories", all);
     },
+    async update(
+      id: string,
+      updates: Partial<Story>
+    ): Promise<Story | undefined> {
+      const all = await this.getAll();
+      const idx = all.findIndex((s) => s.id === id);
+      if (idx === -1) return undefined;
+      all[idx] = { ...all[idx], ...updates };
+      await kv.set("stories", all);
+      return all[idx];
+    },
     async setShareToken(id: string, token: string): Promise<void> {
       const all = await this.getAll();
       const idx = all.findIndex((s) => s.id === id);

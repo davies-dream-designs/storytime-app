@@ -1,54 +1,171 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { useTranslations } from 'next-intl'
-import type { Story } from '@/types'
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import Button from "@/components/ui/Button";
+import type { Story } from "@/types";
 
 export default function StoryReader({ story }: { story: Story }) {
-  const [page, setPage] = useState(0)
-  const t = useTranslations('stories')
-  const currentPage = story.pages[page]
-  const total = story.pages.length
+  const [liveStory, setLiveStory] = useState(story);
+  const [page, setPage] = useState(0);
+  const [streaming, setStreaming] = useState(story.status === "generating");
+  const [error, setError] = useState(story.generationError ?? "");
+  const startedRef = useRef(false);
+  const t = useTranslations("stories");
+  const locale = useLocale();
+  const currentPage = liveStory.pages[page];
+  const total = liveStory.pages.length;
+
+  const startStreaming = useCallback(async () => {
+    setStreaming(true);
+    setError("");
+
+    try {
+      const res = await fetch(
+        `/api/stories/${liveStory.id}/stream?locale=${locale}`,
+        {
+          method: "POST",
+        }
+      );
+      if (!res.ok || !res.body) {
+        throw new Error(await res.text());
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split("\n\n");
+        buffer = events.pop() ?? "";
+
+        for (const rawEvent of events) {
+          const event =
+            rawEvent
+              .split("\n")
+              .find((line) => line.startsWith("event: "))
+              ?.slice(7) ?? "message";
+          const dataLine = rawEvent
+            .split("\n")
+            .find((line) => line.startsWith("data: "));
+          if (!dataLine) continue;
+
+          const data = JSON.parse(dataLine.slice(6)) as Partial<Story> & {
+            error?: string;
+          };
+
+          if (event === "snapshot" && data.pages) {
+            setLiveStory((current) => ({
+              ...current,
+              pages: data.pages ?? current.pages,
+              status: "generating",
+            }));
+            setPage(Math.max(0, data.pages.length - 1));
+          }
+
+          if (event === "complete" && data.id) {
+            setLiveStory(data as Story);
+            setPage(0);
+            setStreaming(false);
+          }
+
+          if (event === "error") {
+            throw new Error(data.error ?? "Story generation failed");
+          }
+        }
+      }
+    } catch (err) {
+      setStreaming(false);
+      setLiveStory((current) => ({ ...current, status: "failed" }));
+      setError(err instanceof Error ? err.message : "Story generation failed");
+    }
+  }, [liveStory.id, locale]);
+
+  useEffect(() => {
+    if (story.status !== "generating" || startedRef.current) return;
+    startedRef.current = true;
+    void startStreaming();
+  }, [startStreaming, story.status]);
 
   return (
     <div className="select-none">
-      <div className="relative rounded-3xl border border-night-100 bg-white shadow-xl overflow-hidden">
+      <div className="relative overflow-hidden rounded-3xl border border-night-100 bg-white shadow-xl">
         <div className="border-b border-night-50 px-8 py-4 text-center">
           <p className="text-xs font-bold uppercase tracking-widest text-night-300">
-            {story.title}
+            {streaming ? t("streamingEyebrow") : liveStory.title}
           </p>
         </div>
 
-        <div className="px-8 pb-10 pt-8">
-          <p className="font-display text-xl font-medium leading-relaxed text-night-800 sm:text-2xl">
-            {currentPage?.text}
-          </p>
+        <div className="min-h-60 px-8 pb-10 pt-8">
+          {currentPage ? (
+            <p className="font-display text-xl font-medium leading-relaxed text-night-800 sm:text-2xl">
+              {currentPage.text}
+              {streaming && page === total - 1 && (
+                <span className="ml-1 inline-block animate-pulse text-star-500">
+                  |
+                </span>
+              )}
+            </p>
+          ) : (
+            <div className="flex min-h-44 flex-col items-center justify-center text-center">
+              <span className="text-4xl animate-pulse" aria-hidden="true">
+                ✨
+              </span>
+              <p className="mt-4 font-display text-2xl font-bold text-night-800">
+                {t("streamingTitle")}
+              </p>
+              <p className="mt-2 text-night-400">{t("generatingSub")}</p>
+            </div>
+          )}
         </div>
 
         <div className="border-t border-night-50 px-8 py-4 text-center">
           <p className="text-sm text-night-300">
-            {t('pageOf', { page: page + 1, total })}
+            {total > 0
+              ? t("pageOf", { page: page + 1, total })
+              : t("streamingPagesPending")}
           </p>
         </div>
       </div>
 
+      {streaming && total > 0 && (
+        <p className="mt-4 text-center text-sm font-bold text-star-600">
+          {t("streamingPageCount", { count: total })}
+        </p>
+      )}
+
+      {error && (
+        <div className="mt-6 rounded-2xl border border-blush-200 bg-blush-50 p-5 text-center">
+          <p className="font-bold text-blush-700">{error}</p>
+          <Button onClick={startStreaming} className="mt-4">
+            {t("tryAgainButton")}
+          </Button>
+        </div>
+      )}
+
       <div className="mt-6 flex items-center justify-between">
         <button
           onClick={() => setPage((p) => Math.max(0, p - 1))}
-          disabled={page === 0}
-          className="flex items-center gap-2 rounded-full border border-night-200 px-6 py-3 font-bold text-night-600 transition hover:bg-night-50 disabled:opacity-30 disabled:cursor-not-allowed"
+          disabled={page === 0 || total === 0}
+          className="flex items-center gap-2 rounded-full border border-night-200 px-6 py-3 font-bold text-night-600 transition hover:bg-night-50 disabled:cursor-not-allowed disabled:opacity-30"
         >
-          {t('prevButton')}
+          {t("prevButton")}
         </button>
 
-        <div className="flex gap-1.5">
-          {story.pages.map((_, i) => (
+        <div className="flex max-w-[42%] flex-wrap justify-center gap-1.5">
+          {liveStory.pages.map((_, i) => (
             <button
               key={i}
               onClick={() => setPage(i)}
-              aria-label={t('goToPage', { page: i + 1 })}
+              aria-label={t("goToPage", { page: i + 1 })}
               className={`h-2 rounded-full transition-all ${
-                i === page ? 'w-6 bg-night-700' : 'w-2 bg-night-200 hover:bg-night-400'
+                i === page
+                  ? "w-6 bg-night-700"
+                  : "w-2 bg-night-200 hover:bg-night-400"
               }`}
             />
           ))}
@@ -56,25 +173,27 @@ export default function StoryReader({ story }: { story: Story }) {
 
         <button
           onClick={() => setPage((p) => Math.min(total - 1, p + 1))}
-          disabled={page === total - 1}
-          className="flex items-center gap-2 rounded-full border border-night-200 px-6 py-3 font-bold text-night-600 transition hover:bg-night-50 disabled:opacity-30 disabled:cursor-not-allowed"
+          disabled={total === 0 || page === total - 1}
+          className="flex items-center gap-2 rounded-full border border-night-200 px-6 py-3 font-bold text-night-600 transition hover:bg-night-50 disabled:cursor-not-allowed disabled:opacity-30"
         >
-          {t('nextButton')}
+          {t("nextButton")}
         </button>
       </div>
 
-      <details className="mt-8 rounded-2xl border border-night-100 bg-white">
-        <summary className="cursor-pointer px-6 py-4 font-bold text-night-600 hover:text-night-800">
-          {t('readFullText')}
-        </summary>
-        <div className="border-t border-night-50 px-6 pb-6 pt-4">
-          <div className="space-y-4 font-display text-lg leading-relaxed text-night-800">
-            {story.pages.map((p, i) => (
-              <p key={i}>{p.text}</p>
-            ))}
+      {total > 0 && (
+        <details className="mt-8 rounded-2xl border border-night-100 bg-white">
+          <summary className="cursor-pointer px-6 py-4 font-bold text-night-600 hover:text-night-800">
+            {t("readFullText")}
+          </summary>
+          <div className="border-t border-night-50 px-6 pb-6 pt-4">
+            <div className="space-y-4 font-display text-lg leading-relaxed text-night-800">
+              {liveStory.pages.map((p, i) => (
+                <p key={i}>{p.text}</p>
+              ))}
+            </div>
           </div>
-        </div>
-      </details>
+        </details>
+      )}
     </div>
-  )
+  );
 }

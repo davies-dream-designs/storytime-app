@@ -124,13 +124,15 @@ function GenerateForm() {
             locale,
           };
 
-      const res = await fetch("/api/stories/generate", {
+      const res = await fetch("/api/stories/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Generation failed");
+      const data = (await res.json()) as { id?: string; error?: string };
+      if (!res.ok || !data.id) {
+        throw new Error(data.error ?? "Could not start the story");
+      }
       router.push(`/stories/${data.id}` as string);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

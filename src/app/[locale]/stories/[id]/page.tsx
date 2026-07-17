@@ -28,6 +28,8 @@ export default async function StoryPage({
   ]);
   const existingBook = bookProjects.find((p) => p.status !== "failed") ?? null;
   const dateLocale = getDateLocale(locale);
+  const isFailed = story.status === "failed";
+  const isReady = !story.status || story.status === "ready";
 
   return (
     <>
@@ -53,11 +55,18 @@ export default async function StoryPage({
               )}
             </div>
             <h1 className="font-display text-3xl font-bold text-night-800 sm:text-4xl">
-              {story.title}
+              {isReady ? story.title : t("streamingTitle")}
             </h1>
             <p className="mt-1 text-night-400">
-              {story.theme} · {t("wordsCount", { count: story.wordCount })} ·{" "}
-              {t("pagesCount", { count: story.pages.length })} ·{" "}
+              {story.theme} ·{" "}
+              {isReady
+                ? `${t("wordsCount", { count: story.wordCount })} · ${t(
+                    "pagesCount",
+                    { count: story.pages.length }
+                  )} · `
+                : isFailed
+                  ? `${t("streamingFailed")} · `
+                  : `${t("streamingInProgress")} · `}
               {new Date(story.createdAt).toLocaleDateString(dateLocale, {
                 day: "numeric",
                 month: "long",
@@ -66,32 +75,36 @@ export default async function StoryPage({
             </p>
           </div>
           <div className="flex flex-shrink-0 flex-wrap gap-2">
-            <ShareButton storyId={id} />
-            <DownloadLink
-              href={`/stories/${id}/print`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="storycot-btn storycot-btn-secondary"
-              pendingLabel={t("downloadStarting")}
-            >
-              {t("printButton")}
-            </DownloadLink>
-            <DownloadLink
-              href={`/api/stories/${id}/epub`}
-              className="storycot-btn storycot-btn-secondary"
-              pendingLabel={t("downloadStarting")}
-            >
-              {t("textEpubButton")}
-            </DownloadLink>
-            {existingBook ? (
-              <Link
-                href={`/books/${existingBook.id}` as string}
-                className="storycot-btn storycot-btn-secondary"
-              >
-                {t("viewBookButton")}
-              </Link>
-            ) : (
-              <CreatePrintBookButton storyId={id} />
+            {isReady && (
+              <>
+                <ShareButton storyId={id} />
+                <DownloadLink
+                  href={`/stories/${id}/print`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="storycot-btn storycot-btn-secondary"
+                  pendingLabel={t("downloadStarting")}
+                >
+                  {t("printButton")}
+                </DownloadLink>
+                <DownloadLink
+                  href={`/api/stories/${id}/epub`}
+                  className="storycot-btn storycot-btn-secondary"
+                  pendingLabel={t("downloadStarting")}
+                >
+                  {t("textEpubButton")}
+                </DownloadLink>
+                {existingBook ? (
+                  <Link
+                    href={`/books/${existingBook.id}` as string}
+                    className="storycot-btn storycot-btn-secondary"
+                  >
+                    {t("viewBookButton")}
+                  </Link>
+                ) : (
+                  <CreatePrintBookButton storyId={id} />
+                )}
+              </>
             )}
             <Link
               href={`/stories/new?profileId=${story.profileId}` as string}
@@ -99,10 +112,14 @@ export default async function StoryPage({
             >
               {t("newStoryButton")}
             </Link>
-            <DeleteStoryButton storyId={id} redirectTo="/stories" />
-            <p className="basis-full text-xs leading-5 text-night-400 sm:max-w-md">
-              {t("epubHelp")}
-            </p>
+            {isReady && (
+              <DeleteStoryButton storyId={id} redirectTo="/stories" />
+            )}
+            {isReady && (
+              <p className="basis-full text-xs leading-5 text-night-400 sm:max-w-md">
+                {t("epubHelp")}
+              </p>
+            )}
           </div>
         </div>
         <StoryReader story={story} />

@@ -75,6 +75,8 @@ export interface Story {
   premise?: string
   notes: string
   createdAt: string
+  status?: 'generating' | 'ready' | 'failed'
+  generationError?: string
   shareToken?: string
 }
 

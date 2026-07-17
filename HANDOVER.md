@@ -8,6 +8,57 @@
 
 ---
 
+## Current Handoff - 2026-07-17 - Story Streaming + Locale Expansion
+
+Local `dev` has been pushed through `origin/dev` at `ca5109f`.
+
+### What Changed
+
+- Story generation UX:
+  - New story submission now creates a `generating` story shell via `POST /api/stories/start`.
+  - The user is navigated directly to `/[locale]/stories/[id]`.
+  - The story page calls `POST /api/stories/[id]/stream` and renders page text as model output streams.
+  - Final structured story pages are saved back to the same story record and normal share/print/book actions unlock when `status` becomes `ready`.
+  - Legacy provider-specific waiting copy was replaced with provider-neutral “weaving” copy.
+- Locale expansion:
+  - Added Japanese (`ja`), Russian (`ru`), Indonesian (`id`), Turkish (`tr`), and Polish (`pl`).
+  - Each new locale includes `messages/*.json`, centralized locale metadata, Stripe Checkout locale mapping, Clerk localization mapping, date locale, and story-generation language mapping.
+  - Korean was not included because Stripe Checkout locale types in this repo do not list `ko`; the selected five are supported by both Clerk localizations and Stripe Checkout.
+
+### Dev Pushes
+
+- `c421127` - streamed story generation baseline.
+- `f8254a2` - Japanese.
+- `92ffd27` - Russian.
+- `42f7620` - Indonesian.
+- `5013d5b` - Turkish.
+- `ca5109f` - Polish.
+
+Each locale commit was pushed to `origin/dev` only after:
+
+```
+npm test -- --run src/tests/i18n.test.ts src/tests/page.test.tsx
+npm run build
+```
+
+### Files To Know
+
+- `src/app/api/stories/start/route.ts` - creates the generating story shell.
+- `src/app/api/stories/[id]/stream/route.ts` - streams model text snapshots to the reader and persists the final story.
+- `src/app/[locale]/stories/[id]/StoryReader.tsx` - progressive reader UI during generation.
+- `src/i18n/locales.ts` - app locale list, Stripe Checkout locale, date locale.
+- `src/i18n/clerk.ts` - Clerk localization map.
+- `src/lib/storyGenerator.ts` - synchronous and streamed story generation, locale-to-language map.
+
+### QA Still Worth Doing
+
+- In a signed-in browser on dev, create a story and confirm the app navigates immediately to the story page and pages appear progressively.
+- Confirm completed stories still allow share, print/PDF, EPUB, illustrated PDF generation, and delete.
+- Spot-check the new locale switcher entries and Clerk sign-in UI for `ja`, `ru`, `id`, `tr`, and `pl`.
+- Run one Stripe Checkout from a new locale and confirm Checkout receives the expected locale and returns to the localized account page.
+
+---
+
 ## Current Handoff - 2026-07-17
 
 Local checkout is synced to `origin/main` at `c1f56bc`. The working tree was clean after sync.

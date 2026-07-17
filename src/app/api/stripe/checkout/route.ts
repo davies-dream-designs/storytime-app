@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { auth } from "@clerk/nextjs/server";
+import { getStripeLocale, isLocale, type Locale } from "@/i18n/locales";
 
 const PACKS = {
   starter: { credits: 10, amount: 499, label: "Storycot Starter — 10 stories" },
@@ -11,8 +12,6 @@ const PACKS = {
     label: "Storycot Bedtime Pro — 100 stories",
   },
 } as const;
-
-const LOCALES = new Set(["en", "es", "fr", "zh"]);
 
 function getRequestOrigin(req: NextRequest) {
   const origin = req.headers.get("origin");
@@ -32,17 +31,21 @@ function getRequestOrigin(req: NextRequest) {
   );
 }
 
-function getAccountReturnPath(req: NextRequest) {
+function getRequestLocale(req: NextRequest): Locale | undefined {
   const referer = req.headers.get("referer");
-  if (!referer) return "/account";
+  if (!referer) return undefined;
 
   try {
     const pathname = new URL(referer).pathname;
     const locale = pathname.split("/").filter(Boolean)[0];
-    return locale && LOCALES.has(locale) ? `/${locale}/account` : "/account";
+    return isLocale(locale) ? locale : undefined;
   } catch {
-    return "/account";
+    return undefined;
   }
+}
+
+function getAccountReturnPath(locale: Locale | undefined) {
+  return locale ? `/${locale}/account` : "/account";
 }
 
 export async function POST(req: NextRequest) {
@@ -65,9 +68,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid pack" }, { status: 400 });
 
   const appUrl = getRequestOrigin(req);
-  const accountPath = getAccountReturnPath(req);
+  const locale = getRequestLocale(req);
+  const accountPath = getAccountReturnPath(locale);
 
   const session = await stripe.checkout.sessions.create({
+    locale: getStripeLocale(locale),
     payment_method_types: ["card"],
     mode: "payment",
     billing_address_collection: "required",

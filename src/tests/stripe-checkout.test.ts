@@ -54,8 +54,57 @@ describe("stripe checkout", () => {
     });
     expect(mockCreateSession).toHaveBeenCalledWith(
       expect.objectContaining({
+        locale: "en",
         success_url: "https://dev.storycot.com/en/account?success=1",
         cancel_url: "https://dev.storycot.com/en/account?canceled=1",
+      })
+    );
+  });
+
+  it("passes the current app locale to Stripe Checkout when supported", async () => {
+    const { POST } = await import("@/app/api/stripe/checkout/route");
+
+    await POST(
+      new NextRequest("https://dev.storycot.com/api/stripe/checkout", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://dev.storycot.com",
+          referer: "https://dev.storycot.com/fr/account",
+        },
+        body: JSON.stringify({ pack: "family" }),
+      })
+    );
+
+    expect(mockCreateSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        locale: "fr",
+        success_url: "https://dev.storycot.com/fr/account?success=1",
+        cancel_url: "https://dev.storycot.com/fr/account?canceled=1",
+      })
+    );
+  });
+
+  it("lets Stripe auto-detect the locale when the current app locale is missing", async () => {
+    const { POST } = await import("@/app/api/stripe/checkout/route");
+
+    await POST(
+      new NextRequest("https://dev.storycot.com/api/stripe/checkout", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://dev.storycot.com",
+          referer: "https://dev.storycot.com/account",
+        },
+        body: JSON.stringify({ pack: "pro" }),
+      })
+    );
+
+    expect(mockCreateSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        locale: "auto",
+        success_url: "https://dev.storycot.com/account?success=1",
+        cancel_url: "https://dev.storycot.com/account?canceled=1",
       })
     );
   });

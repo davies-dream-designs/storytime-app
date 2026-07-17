@@ -22,10 +22,8 @@ import {
   refundIllustratedBookCredits,
   reserveIllustratedBookCredits,
 } from "@/lib/credits";
-import {
-  STORYCOT_REVIEW_PRINT_SPEC,
-  runStorycotPrintProofing,
-} from "@/lib/print-books/proofing";
+import { runStorycotPrintProofing } from "@/lib/print-books/proofing";
+import { BOOK_SPEC } from "@/lib/print-books/bookConfig";
 import { getBookProjectStageLabel } from "@/lib/print-books/status";
 import type {
   BookArtMode,
@@ -306,14 +304,17 @@ async function regenerateProjectArt(input: {
   const nextCursor = currentCursor + 1;
   const spreadProviders = illustratedSpreads
     .filter(
-      (currentSpread) => currentSpread.sequence > 1 && currentSpread.imageUrl
+      (currentSpread) =>
+        currentSpread.sequence > 1 &&
+        (currentSpread.leftPageImageUrl ?? currentSpread.imageUrl)
     )
-    .map((currentSpread) =>
-      currentSpread.imageUrl?.includes("/spreads/") &&
-      currentSpread.imageUrl?.endsWith(".png")
+    .map((currentSpread) => {
+      const url =
+        currentSpread.leftPageImageUrl ?? currentSpread.imageUrl ?? "";
+      return url.includes("/spreads/") && url.endsWith(".png")
         ? "openai"
-        : "placeholder"
-    ) as Array<"openai" | "placeholder">;
+        : "placeholder";
+    }) as Array<"openai" | "placeholder">;
 
   if (nextCursor >= totalArtSteps) {
     return db.bookProjects.update(input.id, {
@@ -432,7 +433,7 @@ async function finalizeProjectExports(input: {
       lastBuildMode: input.buildMode,
       orderabilityState: proofingReport.orderabilityState,
       finalizedAt,
-      exportProfile: STORYCOT_REVIEW_PRINT_SPEC.trimLabel,
+      exportProfile: BOOK_SPEC.trimLabel,
       proofVersion: nextProofVersion,
       proofingPassed: proofingReport.passed,
       proofingChecks: proofingReport.checks,

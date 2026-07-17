@@ -3,11 +3,11 @@ import type {
   BookProject,
   ProofingCheck,
 } from "@/types/printBook";
-import { STORYCOT_PRINT_REVIEW_SPEC } from "@/lib/print-books/printProducts";
-
-export const STORYCOT_REVIEW_PRINT_SPEC = {
-  ...STORYCOT_PRINT_REVIEW_SPEC,
-} as const;
+import {
+  BOOK_SPEC,
+  BOOK_PDF_PAGE_WIDTH_IN,
+  BOOK_PDF_PAGE_HEIGHT_IN,
+} from "@/lib/print-books/bookConfig";
 
 export interface ProofingReport {
   passed: boolean;
@@ -33,15 +33,15 @@ export function runStorycotPrintProofing(
   };
 
   const pageCountValid =
-    project.pageCount >= STORYCOT_REVIEW_PRINT_SPEC.minPageCount &&
-    project.pageCount <= STORYCOT_REVIEW_PRINT_SPEC.maxPageCount &&
+    project.pageCount >= BOOK_SPEC.minPageCount &&
+    project.pageCount <= BOOK_SPEC.maxPageCount &&
     project.pageCount % 2 === 0;
   if (!pageCountValid) {
     addCheck({
       key: "page_count",
       label: "Interior page count",
       status: "fail",
-      detail: `Expected an even page count between ${STORYCOT_REVIEW_PRINT_SPEC.minPageCount} and ${STORYCOT_REVIEW_PRINT_SPEC.maxPageCount}, found ${project.pageCount}.`,
+      detail: `Expected an even page count between ${BOOK_SPEC.minPageCount} and ${BOOK_SPEC.maxPageCount}, found ${project.pageCount}.`,
     });
   } else {
     addCheck({
@@ -69,19 +69,19 @@ export function runStorycotPrintProofing(
     });
   }
 
-  if (project.trimSize !== "storycot-dynamic-square") {
+  if (project.trimSize !== BOOK_SPEC.trimKey) {
     addCheck({
       key: "product_profile",
       label: "Selected print review profile",
       status: "fail",
-      detail: `Book project trim profile must remain storycot-dynamic-square for ${STORYCOT_REVIEW_PRINT_SPEC.trimLabel}.`,
+      detail: `Book project trim profile must remain ${BOOK_SPEC.trimKey} for ${BOOK_SPEC.trimLabel}.`,
     });
   } else {
     addCheck({
       key: "product_profile",
       label: "Selected print review profile",
       status: "pass",
-      detail: `Project is targeting ${STORYCOT_REVIEW_PRINT_SPEC.trimLabel}.`,
+      detail: `Project is targeting ${BOOK_SPEC.trimLabel}.`,
     });
   }
 
@@ -158,24 +158,13 @@ export function runStorycotPrintProofing(
     project.assets.coverPdfSpineWidthIn
   ) {
     const expectedCoverWidth = Number(
-      (
-        (STORYCOT_REVIEW_PRINT_SPEC.trimWidthIn +
-          STORYCOT_REVIEW_PRINT_SPEC.bleedIn * 2) *
-          2 +
-        project.assets.coverPdfSpineWidthIn
-      ).toFixed(3)
+      (BOOK_PDF_PAGE_WIDTH_IN * 2 + project.assets.coverPdfSpineWidthIn).toFixed(3)
     );
-    const expectedCoverHeight = Number(
-      (
-        STORYCOT_REVIEW_PRINT_SPEC.trimHeightIn +
-        STORYCOT_REVIEW_PRINT_SPEC.bleedIn * 2
-      ).toFixed(3)
-    );
+    const expectedCoverHeight = BOOK_PDF_PAGE_HEIGHT_IN;
     const widthMatches =
       Math.abs(project.assets.coverPdfPageWidthIn - expectedCoverWidth) < 0.001;
     const heightMatches =
-      Math.abs(project.assets.coverPdfPageHeightIn - expectedCoverHeight) <
-      0.001;
+      Math.abs(project.assets.coverPdfPageHeightIn - expectedCoverHeight) < 0.001;
     addCheck({
       key: "cover_geometry",
       label: "Cover PDF geometry",
@@ -187,8 +176,14 @@ export function runStorycotPrintProofing(
     });
   }
 
+  // A spread has art if any of its image fields are populated (supports both per-page and legacy shared).
   const spreadsMissingImages = project.spreads
-    .filter((spread) => !spread.imageUrl)
+    .filter(
+      (spread) =>
+        !spread.leftPageImageUrl &&
+        !spread.rightPageImageUrl &&
+        !spread.imageUrl
+    )
     .map((spread) => spread.sequence);
   if (spreadsMissingImages.length > 0) {
     addCheck({
@@ -242,22 +237,11 @@ export function runStorycotPrintProofing(
     project.assets.printPdfPageWidthIn &&
     project.assets.printPdfPageHeightIn
   ) {
-    const expectedPrintWidth = Number(
-      (
-        STORYCOT_REVIEW_PRINT_SPEC.trimWidthIn +
-        STORYCOT_REVIEW_PRINT_SPEC.bleedIn * 2
-      ).toFixed(3)
-    );
-    const expectedPrintHeight = Number(
-      (
-        STORYCOT_REVIEW_PRINT_SPEC.trimHeightIn +
-        STORYCOT_REVIEW_PRINT_SPEC.bleedIn * 2
-      ).toFixed(3)
-    );
     const widthMatches =
-      Math.abs(project.assets.printPdfPageWidthIn - expectedPrintWidth) < 0.001;
+      Math.abs(project.assets.printPdfPageWidthIn - BOOK_PDF_PAGE_WIDTH_IN) <
+      0.001;
     const heightMatches =
-      Math.abs(project.assets.printPdfPageHeightIn - expectedPrintHeight) <
+      Math.abs(project.assets.printPdfPageHeightIn - BOOK_PDF_PAGE_HEIGHT_IN) <
       0.001;
     addCheck({
       key: "print_geometry",
@@ -265,22 +249,22 @@ export function runStorycotPrintProofing(
       status: widthMatches && heightMatches ? "pass" : "fail",
       detail:
         widthMatches && heightMatches
-          ? `Interior print pages match Storycot full-bleed geometry at ${expectedPrintWidth}" x ${expectedPrintHeight}".`
-          : `Interior print pages must be ${expectedPrintWidth}" x ${expectedPrintHeight}", found ${project.assets.printPdfPageWidthIn}" x ${project.assets.printPdfPageHeightIn}".`,
+          ? `Interior print pages match Storycot full-bleed geometry at ${BOOK_PDF_PAGE_WIDTH_IN}" x ${BOOK_PDF_PAGE_HEIGHT_IN}".`
+          : `Interior print pages must be ${BOOK_PDF_PAGE_WIDTH_IN}" x ${BOOK_PDF_PAGE_HEIGHT_IN}", found ${project.assets.printPdfPageWidthIn}" x ${project.assets.printPdfPageHeightIn}".`,
     });
   }
 
   if (project.assets.interiorTextSafeMarginIn) {
     const textMarginPass =
       project.assets.interiorTextSafeMarginIn >=
-      STORYCOT_REVIEW_PRINT_SPEC.fullBleedTextSafeMarginIn;
+      BOOK_SPEC.fullBleedTextSafeMarginIn;
     addCheck({
       key: "text_safe_margin",
       label: "Interior text safe margin",
       status: textMarginPass ? "pass" : "fail",
       detail: textMarginPass
-        ? `Interior text stays within the ${STORYCOT_REVIEW_PRINT_SPEC.fullBleedTextSafeMarginIn}" full-bleed safe margin.`
-        : `Interior text safe margin must be at least ${STORYCOT_REVIEW_PRINT_SPEC.fullBleedTextSafeMarginIn}" from the page edge, found ${project.assets.interiorTextSafeMarginIn}".`,
+        ? `Interior text stays within the ${BOOK_SPEC.fullBleedTextSafeMarginIn}" full-bleed safe margin.`
+        : `Interior text safe margin must be at least ${BOOK_SPEC.fullBleedTextSafeMarginIn}" from the page edge, found ${project.assets.interiorTextSafeMarginIn}".`,
     });
   }
 
@@ -307,7 +291,7 @@ export function runStorycotPrintProofing(
   }
 
   warnings.push(
-    `Renderer targets ${STORYCOT_REVIEW_PRINT_SPEC.trimLabel} with ${STORYCOT_REVIEW_PRINT_SPEC.bleedIn}" bleed, ${STORYCOT_REVIEW_PRINT_SPEC.safetyMarginIn}" trim safety, and ${STORYCOT_REVIEW_PRINT_SPEC.fullBleedTextSafeMarginIn}" full-bleed text safety.`
+    `Renderer targets ${BOOK_SPEC.trimLabel} with ${BOOK_SPEC.bleedIn}" bleed, ${BOOK_SPEC.safetyMarginIn}" trim safety, and ${BOOK_SPEC.fullBleedTextSafeMarginIn}" full-bleed text safety.`
   );
 
   warnings.push(
@@ -345,7 +329,7 @@ export function runStorycotPrintProofing(
 
   if (typeof project.assets.coverSpineTextIncluded === "boolean") {
     const shouldHaveSpineText =
-      project.pageCount >= STORYCOT_REVIEW_PRINT_SPEC.spineTextMinPageCount;
+      project.pageCount >= BOOK_SPEC.spineTextMinPageCount;
     const isValid =
       shouldHaveSpineText || !project.assets.coverSpineTextIncluded;
     addCheck({
@@ -355,8 +339,8 @@ export function runStorycotPrintProofing(
       detail: isValid
         ? shouldHaveSpineText
           ? "Spine text is allowed for this page count."
-          : `Spine text is correctly omitted under ${STORYCOT_REVIEW_PRINT_SPEC.spineTextMinPageCount} pages.`
-        : `Spine text must be omitted under ${STORYCOT_REVIEW_PRINT_SPEC.spineTextMinPageCount} pages.`,
+          : `Spine text is correctly omitted under ${BOOK_SPEC.spineTextMinPageCount} pages.`
+        : `Spine text must be omitted under ${BOOK_SPEC.spineTextMinPageCount} pages.`,
     });
   }
 

@@ -13,22 +13,20 @@ import {
 } from "pdf-lib";
 import type { ChildProfile, Story } from "@/types";
 import type { BookProject, BookSpread } from "@/types/printBook";
-import { getStorycotSpineWidth } from "@/lib/print-books/cover";
+import {
+  BOOK_SPEC,
+  BOOK_PDF_PAGE_WIDTH_IN,
+  BOOK_PDF_PAGE_HEIGHT_IN,
+  getBookSpineWidthIn,
+} from "@/lib/print-books/bookConfig";
 import { storeBookAsset } from "@/lib/print-books/storage";
-import { STORYCOT_REVIEW_PRINT_SPEC } from "@/lib/print-books/proofing";
 
 const POINTS_PER_INCH = 72;
-const PRINT_PAGE_WIDTH =
-  (STORYCOT_REVIEW_PRINT_SPEC.trimWidthIn +
-    STORYCOT_REVIEW_PRINT_SPEC.bleedIn * 2) *
-  POINTS_PER_INCH;
-const PRINT_PAGE_HEIGHT =
-  (STORYCOT_REVIEW_PRINT_SPEC.trimHeightIn +
-    STORYCOT_REVIEW_PRINT_SPEC.bleedIn * 2) *
-  POINTS_PER_INCH;
-const BLEED = STORYCOT_REVIEW_PRINT_SPEC.bleedIn * POINTS_PER_INCH;
+const PRINT_PAGE_WIDTH = BOOK_PDF_PAGE_WIDTH_IN * POINTS_PER_INCH;
+const PRINT_PAGE_HEIGHT = BOOK_PDF_PAGE_HEIGHT_IN * POINTS_PER_INCH;
+const BLEED = BOOK_SPEC.bleedIn * POINTS_PER_INCH;
 const FULL_BLEED_TEXT_SAFE_MARGIN =
-  STORYCOT_REVIEW_PRINT_SPEC.fullBleedTextSafeMarginIn * POINTS_PER_INCH;
+  BOOK_SPEC.fullBleedTextSafeMarginIn * POINTS_PER_INCH;
 const BRAND_PURPLE = rgb(0.17, 0.13, 0.39);
 const BRAND_LILAC = rgb(0.53, 0.46, 0.9);
 
@@ -811,7 +809,7 @@ async function drawCopyrightPage(input: {
       color: BRAND_PURPLE,
     }
   );
-  page.drawText(STORYCOT_REVIEW_PRINT_SPEC.trimLabel, {
+  page.drawText(BOOK_SPEC.trimLabel, {
     x: pageWidth * 0.12,
     y: pageHeight * 0.24,
     font: sans,
@@ -1178,7 +1176,7 @@ async function buildCoverPdf(input: {
   const sans = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const sansBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const theme = pickPlaceholderTheme(input.story);
-  const spine = getStorycotSpineWidth(input.project.pageCount);
+  const spine = getBookSpineWidthIn(input.project.pageCount);
   const coverSpineWidth = spine.widthIn * POINTS_PER_INCH;
   const coverTotalWidth = PRINT_PAGE_WIDTH * 2 + coverSpineWidth;
   const page = pdfDoc.addPage([coverTotalWidth, PRINT_PAGE_HEIGHT]);
@@ -1356,7 +1354,7 @@ async function buildCoverPdf(input: {
     size: 11,
     color: theme.skyAccent,
   });
-  page.drawText(STORYCOT_REVIEW_PRINT_SPEC.trimLabel, {
+  page.drawText(BOOK_SPEC.trimLabel, {
     x: backCoverX + BLEED + 58,
     y: 118,
     font: sans,
@@ -1372,7 +1370,7 @@ async function buildCoverPdf(input: {
   });
 
   if (
-    input.project.pageCount >= STORYCOT_REVIEW_PRINT_SPEC.spineTextMinPageCount
+    input.project.pageCount >= BOOK_SPEC.spineTextMinPageCount
   ) {
     page.drawText("Storycot", {
       x: spineX + coverSpineWidth / 2 - 20,
@@ -1414,7 +1412,7 @@ export async function generateBookPdfs(input: {
   interiorTextSafeMarginIn: number;
   previewImages: string[];
 }> {
-  const coverSpine = getStorycotSpineWidth(input.project.pageCount);
+  const coverSpine = getBookSpineWidthIn(input.project.pageCount);
   const coverBytes = await buildCoverPdf(input);
   const printBytes = await buildPrintPdf(input);
 
@@ -1435,37 +1433,15 @@ export async function generateBookPdfs(input: {
     coverPdfSpineWidthIn: coverSpine.widthIn,
     coverPdfSpineSource: coverSpine.source,
     coverPdfPageWidthIn: Number(
-      (
-        (STORYCOT_REVIEW_PRINT_SPEC.trimWidthIn +
-          STORYCOT_REVIEW_PRINT_SPEC.bleedIn * 2) *
-          2 +
-        coverSpine.widthIn
-      ).toFixed(3)
+      (BOOK_PDF_PAGE_WIDTH_IN * 2 + coverSpine.widthIn).toFixed(3)
     ),
-    coverPdfPageHeightIn: Number(
-      (
-        STORYCOT_REVIEW_PRINT_SPEC.trimHeightIn +
-        STORYCOT_REVIEW_PRINT_SPEC.bleedIn * 2
-      ).toFixed(3)
-    ),
+    coverPdfPageHeightIn: BOOK_PDF_PAGE_HEIGHT_IN,
     coverSpineTextIncluded:
-      input.project.pageCount >=
-      STORYCOT_REVIEW_PRINT_SPEC.spineTextMinPageCount,
+      input.project.pageCount >= BOOK_SPEC.spineTextMinPageCount,
     printPdfUrl,
-    printPdfPageWidthIn: Number(
-      (
-        STORYCOT_REVIEW_PRINT_SPEC.trimWidthIn +
-        STORYCOT_REVIEW_PRINT_SPEC.bleedIn * 2
-      ).toFixed(3)
-    ),
-    printPdfPageHeightIn: Number(
-      (
-        STORYCOT_REVIEW_PRINT_SPEC.trimHeightIn +
-        STORYCOT_REVIEW_PRINT_SPEC.bleedIn * 2
-      ).toFixed(3)
-    ),
-    interiorTextSafeMarginIn:
-      STORYCOT_REVIEW_PRINT_SPEC.fullBleedTextSafeMarginIn,
+    printPdfPageWidthIn: BOOK_PDF_PAGE_WIDTH_IN,
+    printPdfPageHeightIn: BOOK_PDF_PAGE_HEIGHT_IN,
+    interiorTextSafeMarginIn: BOOK_SPEC.fullBleedTextSafeMarginIn,
     previewImages: input.project.spreads
       .map((spread) => spread.leftPageImageUrl ?? spread.imageUrl)
       .filter(

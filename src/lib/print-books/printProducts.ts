@@ -3,21 +3,6 @@ import type { AgeBand, BookProject } from "@/types/printBook";
 export type PrintProductKey = "softcover" | "hardcover" | "layflat";
 export type CoverSpineSource = "configured" | "storycot_estimate";
 
-export const STORYCOT_PRINT_REVIEW_SPEC = {
-  key: "storycot-dynamic-square-book",
-  trimLabel: "Storycot 21x21cm square illustrated book review package",
-  trimWidthIn: 8.3,
-  trimHeightIn: 8.3,
-  bleedIn: 0.125,
-  safetyMarginIn: 0.5,
-  fullBleedTextSafeMarginIn: 0.625,
-  minImagePpi: 300,
-  maxImagePpi: 600,
-  minPageCount: 20,
-  maxPageCount: 122,
-  spineTextMinPageCount: 40,
-} as const;
-
 export const PRINT_PRODUCTS = {
   softcover: {
     key: "softcover",
@@ -112,20 +97,7 @@ export function isPrintProductKey(value: unknown): value is PrintProductKey {
   );
 }
 
-export function getStorycotSpineWidth(pageCount: number): {
-  widthIn: number;
-  source: CoverSpineSource;
-} {
-  const configured = Number(process.env.STORYCOT_COVER_SPINE_WIDTH_IN);
-  if (Number.isFinite(configured) && configured > 0) {
-    return { widthIn: configured, source: "configured" };
-  }
-
-  return {
-    widthIn: Number(Math.max(0.18, pageCount * 0.0032).toFixed(3)),
-    source: "storycot_estimate",
-  };
-}
+export { getBookSpineWidthIn as getStorycotSpineWidth } from "@/lib/print-books/bookConfig";
 
 export function getAdjustedPageCountForProduct(
   pageCount: number,

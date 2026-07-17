@@ -48,6 +48,13 @@ export const localeConfigs = [
     stripeLocale: "pt-BR",
     dateLocale: "pt-BR",
   },
+  {
+    code: "nl",
+    label: "Nederlands",
+    shortLabel: "NL",
+    stripeLocale: "nl",
+    dateLocale: "nl-NL",
+  },
 ] as const;
 
 export const locales = localeConfigs.map((locale) => locale.code);

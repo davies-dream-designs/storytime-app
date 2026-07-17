@@ -27,6 +27,7 @@ const LOCALE_LANGUAGE: Record<string, string> = {
   ru: "Russian",
   id: "Indonesian",
   tr: "Turkish",
+  pl: "Polish",
 };
 
 interface GenerateStoryInput {

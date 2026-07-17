@@ -7,6 +7,7 @@ import {
   itIT,
   jaJP,
   nlNL,
+  plPL,
   ptBR,
   ruRU,
   trTR,
@@ -27,6 +28,7 @@ const clerkLocalizations = {
   ru: ruRU,
   id: idID,
   tr: trTR,
+  pl: plPL,
 } satisfies Record<Locale, typeof enUS>;
 
 export function getClerkLocalization(locale: Locale) {

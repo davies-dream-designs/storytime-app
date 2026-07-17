@@ -1,5 +1,34 @@
+import type { AgeBand } from "@/types/printBook";
+
 export const STORY_CREDIT_COST = 1;
 export const ILLUSTRATED_BOOK_CREDIT_COST = 8;
+
+export function estimateIllustratedBookCredits(input: {
+  ageBand: AgeBand;
+  pageCount?: number;
+  illustrationCount?: number;
+}) {
+  const illustrationCount =
+    input.illustrationCount ??
+    (input.ageBand === "0-2" ? 10 : input.ageBand === "3-5" ? 12 : 16);
+  const baseCredits = input.ageBand === "6-8" ? 3 : 2;
+  const illustrationCredits = Math.ceil(illustrationCount * 0.5);
+  const complexityCredits =
+    input.pageCount && input.pageCount > 24
+      ? Math.ceil((input.pageCount - 24) / 8)
+      : 0;
+
+  return {
+    credits: Math.max(
+      ILLUSTRATED_BOOK_CREDIT_COST,
+      baseCredits + illustrationCredits + complexityCredits
+    ),
+    illustrationCount,
+    baseCredits,
+    illustrationCredits,
+    complexityCredits,
+  };
+}
 
 export type CostEstimateInput = {
   storyInputTokens?: number;

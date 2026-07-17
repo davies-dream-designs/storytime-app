@@ -107,7 +107,7 @@ export interface BookAsset {
   coverPdfUrl?: string;
   coverPdfReadyForOrdering?: boolean;
   coverPdfSpineWidthIn?: number;
-  coverPdfSpineSource?: "configured" | "lulu_table";
+  coverPdfSpineSource?: "configured" | "storycot_estimate";
   coverPdfPageWidthIn?: number;
   coverPdfPageHeightIn?: number;
   coverSpineTextIncluded?: boolean;

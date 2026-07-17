@@ -59,12 +59,12 @@ function createProject(): BookProject {
     profileId: "profile-1",
     ageBand: "3-5",
     status: "composing",
-    trimSize: "lulu-hardcover-32",
+    trimSize: "storycot-dynamic-square",
     pageCount: 32,
     spreadCount: 16,
     completedSpreads: 16,
     totalSpreads: 16,
-    currentStageLabel: "Preparing your illustrated PDF...",
+    currentStageLabel: "Preparing your book PDF...",
     beats: [],
     spreads: [
       {

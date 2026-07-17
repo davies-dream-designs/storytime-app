@@ -10,7 +10,7 @@ function createProject(overrides: Partial<BookProject> = {}): BookProject {
     profileId: 'profile-1',
     ageBand: '3-5',
     status: 'ready',
-    trimSize: 'lulu-hardcover-32',
+    trimSize: 'storycot-dynamic-square',
     pageCount: 32,
     spreadCount: 16,
     completedSpreads: 16,
@@ -43,7 +43,7 @@ describe('getBookReadinessState', () => {
           assets: {
             ...createProject().assets,
             orderabilityState: 'export_ready',
-            proofingErrors: ['Separate Lulu cover PDF is missing.'],
+            proofingErrors: ['Separate cover PDF is missing.'],
           },
         })
       )

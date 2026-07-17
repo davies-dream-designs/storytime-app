@@ -7,8 +7,14 @@ import Button from "@/components/ui/Button";
 
 export default function CreatePrintBookButton({
   storyId,
+  credits,
+  pageCount,
+  illustrationCount,
 }: {
   storyId: string;
+  credits: number;
+  pageCount: number;
+  illustrationCount: number;
 }) {
   const t = useTranslations("books");
   const router = useRouter();
@@ -58,6 +64,16 @@ export default function CreatePrintBookButton({
 
   return (
     <div className={error ? "basis-full sm:basis-auto" : ""}>
+      <div className="mb-3 max-w-md rounded-2xl border border-star-200 bg-star-50 px-4 py-3 text-sm text-night-600">
+        <p className="font-bold text-night-800">{t("estimateTitle")}</p>
+        <p className="mt-1">
+          {t("estimateBody", {
+            credits,
+            pages: pageCount,
+            illustrations: illustrationCount,
+          })}
+        </p>
+      </div>
       <Button
         variant="secondary"
         size="compact"

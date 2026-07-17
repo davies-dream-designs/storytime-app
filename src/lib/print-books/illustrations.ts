@@ -161,7 +161,7 @@ export function buildCoverIllustrationPrompt(input: {
     `Age band: ${input.project.ageBand}.`,
     `Theme: ${story.theme || "gentle bedtime adventure"}.`,
     `Cover scene: ${sceneDirection}`,
-    "Create a portrait-oriented children's hardcover front cover with space for title treatment and a warm bedtime-book feeling.",
+    "Create a portrait-oriented children's picture-book front cover with space for title treatment and a warm bedtime-book feeling.",
     "Do not render any visible publisher logo or extra text into the art itself.",
   ].join(" ");
 }

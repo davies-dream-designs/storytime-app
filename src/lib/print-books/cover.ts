@@ -1,5 +1,4 @@
 export {
-  getConfiguredLuluCoverSpineWidthIn,
-  getLuluCoverSpineWidth,
-  getLuluHardcoverCasewrapSpineWidthFromTable,
-} from '@/lib/print-books/lulu'
+  getStorycotSpineWidth,
+  STORYCOT_PRINT_REVIEW_SPEC,
+} from "@/lib/print-books/printProducts";

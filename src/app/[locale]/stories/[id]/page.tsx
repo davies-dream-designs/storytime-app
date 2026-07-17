@@ -7,6 +7,9 @@ import DownloadLink from "@/components/DownloadLink";
 import DeleteStoryButton from "@/components/DeleteStoryButton";
 import { getDateLocale } from "@/i18n/locales";
 import { db } from "@/lib/db";
+import { inferAgeBand } from "@/lib/print-books/ageBand";
+import { getStorycotPageCountForAgeBand } from "@/lib/print-books/printProducts";
+import { estimateIllustratedBookCredits } from "@/lib/pricing";
 import StoryReader from "./StoryReader";
 import ShareButton from "./ShareButton";
 import CreatePrintBookButton from "./CreatePrintBookButton";
@@ -27,6 +30,14 @@ export default async function StoryPage({
     db.bookProjects.getByStoryId(id),
   ]);
   const existingBook = bookProjects.find((p) => p.status !== "failed") ?? null;
+  const ageBand = profile ? inferAgeBand(profile) : "3-5";
+  const estimatedPageCount = getStorycotPageCountForAgeBand(ageBand);
+  const estimatedIllustrationCount = estimatedPageCount / 2;
+  const illustrationEstimate = estimateIllustratedBookCredits({
+    ageBand,
+    pageCount: estimatedPageCount,
+    illustrationCount: estimatedIllustrationCount,
+  });
   const dateLocale = getDateLocale(locale);
   const isFailed = story.status === "failed";
   const isReady = !story.status || story.status === "ready";
@@ -102,7 +113,12 @@ export default async function StoryPage({
                     {t("viewBookButton")}
                   </Link>
                 ) : (
-                  <CreatePrintBookButton storyId={id} />
+                  <CreatePrintBookButton
+                    storyId={id}
+                    credits={illustrationEstimate.credits}
+                    pageCount={estimatedPageCount}
+                    illustrationCount={estimatedIllustrationCount}
+                  />
                 )}
               </>
             )}

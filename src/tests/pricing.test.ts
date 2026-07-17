@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   estimateCreditValueAud,
   estimateDigitalGenerationCostAud,
+  estimateIllustratedBookCredits,
   ILLUSTRATED_BOOK_CREDIT_COST,
   STORY_CREDIT_COST,
 } from "@/lib/pricing";
@@ -30,5 +31,22 @@ describe("pricing policy", () => {
 
   it("derives credit value from pack pricing", () => {
     expect(estimateCreditValueAud(11.99, 30)).toBeCloseTo(0.3997);
+  });
+
+  it("estimates illustrated book credits by age and complexity", () => {
+    expect(
+      estimateIllustratedBookCredits({
+        ageBand: "0-2",
+        pageCount: 20,
+        illustrationCount: 10,
+      }).credits
+    ).toBe(8);
+    expect(
+      estimateIllustratedBookCredits({
+        ageBand: "6-8",
+        pageCount: 32,
+        illustrationCount: 16,
+      }).credits
+    ).toBe(12);
   });
 });

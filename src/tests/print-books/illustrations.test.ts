@@ -40,7 +40,7 @@ function createStory(): Story {
         pageNumber: 1,
         text: "Mila stepped into the moonlight garden.",
         illustrationPrompt:
-          "A magical hardcover picture-book cover moment in a moonlight garden.",
+          "A magical print-ready picture-book cover moment in a moonlight garden.",
       },
     ],
   };
@@ -67,7 +67,7 @@ function createProject(): BookProject {
     profileId: "profile-1",
     ageBand: "3-5",
     status: "illustrating",
-    trimSize: "lulu-hardcover-32",
+    trimSize: "storycot-dynamic-square",
     pageCount: 32,
     spreadCount: 16,
     completedSpreads: 0,
@@ -88,7 +88,7 @@ function createProject(): BookProject {
         rightPageText: "",
         sceneBrief: "Front cover for Moonlight Garden",
         illustrationPrompt:
-          'A magical hardcover picture-book cover for "Moonlight Garden" starring Mila.',
+          'A magical print-ready picture-book cover for "Moonlight Garden" starring Mila.',
       },
     ],
     assets: { proofVersion: 0 },

@@ -5,6 +5,7 @@ import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
 import DownloadLink from "@/components/DownloadLink";
 import DeleteBookButton from "@/components/DeleteBookButton";
+import PrintProductOptions from "@/components/PrintProductOptions";
 import { db } from "@/lib/db";
 import BookStatusPanel from "./BookStatusPanel";
 
@@ -61,6 +62,42 @@ export default async function BookProjectPage({
 
         <BookStatusPanel initialProject={project} />
 
+        <section className="mt-8 rounded-3xl border border-star-100 bg-star-50 p-8 shadow-sm">
+          <p className="text-sm font-bold uppercase tracking-wide text-star-700">
+            {t("journeyLabel")}
+          </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl bg-white p-4">
+              <p className="font-bold text-night-800">
+                {t("journeyStoryTitle")}
+              </p>
+              <p className="mt-1 text-sm text-night-500">
+                {t("journeyStoryDone")}
+              </p>
+            </div>
+            <div className="rounded-2xl bg-white p-4">
+              <p className="font-bold text-night-800">
+                {t("journeyIllustrationsTitle")}
+              </p>
+              <p className="mt-1 text-sm text-night-500">
+                {project.status === "ready"
+                  ? t("journeyIllustrationsDone")
+                  : t("journeyIllustrationsWorking")}
+              </p>
+            </div>
+            <div className="rounded-2xl bg-white p-4">
+              <p className="font-bold text-night-800">
+                {t("journeyPrintTitle")}
+              </p>
+              <p className="mt-1 text-sm text-night-500">
+                {project.status === "ready"
+                  ? t("journeyPrintReady")
+                  : t("journeyPrintWaiting")}
+              </p>
+            </div>
+          </div>
+        </section>
+
         {hasPrintPdf || hasEpub ? (
           <section className="mt-8 rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
             <h2 className="font-display text-2xl font-bold text-night-800">
@@ -98,19 +135,15 @@ export default async function BookProjectPage({
           </section>
         ) : null}
 
-        {hasPrintPdf ? (
+        {project.status === "ready" ? (
           <section className="mt-8 rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
             <h2 className="font-display text-2xl font-bold text-night-800">
-              {t("hardcoverTitle")}
+              {t("printOptionsTitle")}
             </h2>
-            <p className="mt-2 text-night-600">{t("hardcoverSub")}</p>
-            <button
-              type="button"
-              disabled
-              className="storycot-btn storycot-btn-secondary mt-4"
-            >
-              {t("hardcoverButton")}
-            </button>
+            <p className="mt-2 text-night-600">{t("printOptionsSub")}</p>
+            <div className="mt-6">
+              <PrintProductOptions project={project} />
+            </div>
           </section>
         ) : null}
       </main>

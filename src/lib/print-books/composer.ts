@@ -8,21 +8,30 @@ import type {
   CharacterBible,
 } from "@/types/printBook";
 import { buildIllustrationDirection } from "@/lib/print-books/characterBible";
+import { getStorycotPageCountForAgeBand } from "@/lib/print-books/printProducts";
 
-const HARDCOVER_PAGE_COUNT = 24;
 const INTERIOR_START_PAGE = 5;
-const INTERIOR_END_PAGE = 20;
-const MAX_INTERIOR_STORY_SPREADS =
-  (INTERIOR_END_PAGE - INTERIOR_START_PAGE + 1) / 2;
 
-function getTargetStorySpreadCount(ageBand: AgeBand): number {
+function getInteriorEndPage(pageCount: number): number {
+  return pageCount - 4;
+}
+
+function getMaxInteriorStorySpreads(pageCount: number): number {
+  return (getInteriorEndPage(pageCount) - INTERIOR_START_PAGE + 1) / 2;
+}
+
+function getTargetStorySpreadCount(
+  ageBand: AgeBand,
+  pageCount: number
+): number {
+  const maxInteriorSpreads = getMaxInteriorStorySpreads(pageCount);
   switch (ageBand) {
     case "0-2":
-      return 5;
+      return Math.min(6, maxInteriorSpreads);
     case "3-5":
-      return 7;
+      return Math.min(8, maxInteriorSpreads);
     case "6-8":
-      return 8;
+      return Math.min(12, maxInteriorSpreads);
   }
 }
 
@@ -188,7 +197,7 @@ function createFrontMatterSpreads(
       "",
       `Front cover for ${story.title}`,
       withCharacterBiblePrompt(
-        `A magical hardcover picture-book cover for "${story.title}" starring ${profile.name}.`,
+        `A magical print-ready picture-book cover for "${story.title}" starring ${profile.name}.`,
         characterBible
       ),
       "Cover"
@@ -214,13 +223,16 @@ function createEndMatterSpreads(
   bookProjectId: string,
   story: Story,
   profile: ChildProfile,
+  pageCount: number,
   characterBible?: CharacterBible
 ): BookSpread[] {
+  const endSequence = pageCount / 2 - 1;
+  const backCoverSequence = pageCount / 2;
   return [
     createSpread(
       bookProjectId,
-      11,
-      21,
+      endSequence,
+      pageCount - 3,
       "end_matter",
       `The End.\n\nSweet dreams, ${profile.name}.`,
       "A Storycot story",
@@ -233,14 +245,14 @@ function createEndMatterSpreads(
     ),
     createSpread(
       bookProjectId,
-      12,
-      23,
+      backCoverSequence,
+      pageCount - 1,
       "end_matter",
       "",
       "Storycot",
       `Back cover for ${story.title}`,
       withCharacterBiblePrompt(
-        `A simple back cover design for a Storycot hardcover children's book.`,
+        `A simple back cover design for a Storycot children's book.`,
         characterBible
       ),
       "Back Cover"
@@ -282,15 +294,16 @@ function combineBeatGroup(beats: Beat[], sequence: number): Beat {
   };
 }
 
-function groupStoryBeatsForSpreads(beats: Beat[]): Beat[] {
-  if (beats.length <= MAX_INTERIOR_STORY_SPREADS) return beats;
+function groupStoryBeatsForSpreads(beats: Beat[], pageCount: number): Beat[] {
+  const maxInteriorSpreads = getMaxInteriorStorySpreads(pageCount);
+  if (beats.length <= maxInteriorSpreads) return beats;
 
   const groups: Beat[] = [];
   let cursor = 0;
 
-  for (let i = 0; i < MAX_INTERIOR_STORY_SPREADS; i += 1) {
+  for (let i = 0; i < maxInteriorSpreads; i += 1) {
     const remainingBeats = beats.length - cursor;
-    const remainingGroups = MAX_INTERIOR_STORY_SPREADS - i;
+    const remainingGroups = maxInteriorSpreads - i;
     const groupSize = Math.ceil(remainingBeats / remainingGroups);
     const group = beats.slice(cursor, cursor + groupSize);
     groups.push(combineBeatGroup(group, i + 1));
@@ -455,12 +468,15 @@ function createStorySpreads(
   bookProjectId: string,
   profile: ChildProfile,
   ageBand: AgeBand,
+  pageCount: number,
   beats: Beat[],
   characterBible?: CharacterBible
 ): BookSpread[] {
-  const targetCount = getTargetStorySpreadCount(ageBand);
+  const targetCount = getTargetStorySpreadCount(ageBand, pageCount);
   const storyBeats =
-    beats.length <= targetCount ? beats : groupStoryBeatsForSpreads(beats);
+    beats.length <= targetCount
+      ? beats
+      : groupStoryBeatsForSpreads(beats, pageCount);
   const heroSpreadSequences = getHeroSpreadSequences(
     ageBand,
     storyBeats.length
@@ -468,17 +484,18 @@ function createStorySpreads(
   const spreads: BookSpread[] = [];
   let pageStart = INTERIOR_START_PAGE;
   let sequence = 3;
+  const interiorEndPage = getInteriorEndPage(pageCount);
 
   for (let i = 0; i < storyBeats.length; i += 1) {
     const beat = storyBeats[i];
-    const layoutType: BookSpreadLayoutType = beat.isQuietBeat
+    const layoutType: BookSpreadLayoutType = ageBand === "0-2" || beat.isQuietBeat
       ? "quiet"
       : heroSpreadSequences.has(i + 1)
         ? "hero"
         : "text_art";
     const { leftPageText, rightPageText } = splitTextForSpread(
       beat.textDraft,
-      beat.isQuietBeat
+      ageBand === "0-2" || beat.isQuietBeat
     );
 
     spreads.push(
@@ -500,8 +517,8 @@ function createStorySpreads(
 
   const expansionSeed = storyBeats.length > 0 ? storyBeats : beats;
   let variantIndex = 0;
-  while (pageStart <= INTERIOR_END_PAGE) {
-    const isFinalQuiet = pageStart >= INTERIOR_END_PAGE - 1;
+  while (pageStart <= interiorEndPage) {
+    const isFinalQuiet = pageStart >= interiorEndPage - 1;
     const sourceBeat = expansionSeed[variantIndex % expansionSeed.length];
 
     if (sourceBeat && !isFinalQuiet) {
@@ -545,7 +562,7 @@ function createStorySpreads(
   return spreads;
 }
 
-export function composeHardcoverSpreads(input: {
+export function composePrintBookSpreads(input: {
   bookProjectId: string;
   story: Story;
   profile: ChildProfile;
@@ -555,6 +572,7 @@ export function composeHardcoverSpreads(input: {
 }): BookSpread[] {
   const { bookProjectId, story, profile, ageBand, beats, characterBible } =
     input;
+  const pageCount = getStorycotPageCountForAgeBand(ageBand);
 
   return [
     ...createFrontMatterSpreads(bookProjectId, story, profile, characterBible),
@@ -562,10 +580,17 @@ export function composeHardcoverSpreads(input: {
       bookProjectId,
       profile,
       ageBand,
+      pageCount,
       beats,
       characterBible
     ),
-    ...createEndMatterSpreads(bookProjectId, story, profile, characterBible),
+    ...createEndMatterSpreads(
+      bookProjectId,
+      story,
+      profile,
+      pageCount,
+      characterBible
+    ),
   ];
 }
 
@@ -577,6 +602,7 @@ export function createEmptyBookProject(input: {
   ageBand: AgeBand;
 }): BookProject {
   const now = new Date().toISOString();
+  const pageCount = getStorycotPageCountForAgeBand(input.ageBand);
 
   return {
     id: input.id,
@@ -585,11 +611,11 @@ export function createEmptyBookProject(input: {
     profileId: input.profileId,
     ageBand: input.ageBand,
     status: "queued",
-    trimSize: "lulu-hardcover-24",
-    pageCount: HARDCOVER_PAGE_COUNT,
-    spreadCount: HARDCOVER_PAGE_COUNT / 2,
+    trimSize: "storycot-dynamic-square",
+    pageCount,
+    spreadCount: pageCount / 2,
     completedSpreads: 0,
-    totalSpreads: HARDCOVER_PAGE_COUNT / 2,
+    totalSpreads: pageCount / 2,
     currentStageLabel: "Dreaming up the adventure...",
     beats: [],
     spreads: [],

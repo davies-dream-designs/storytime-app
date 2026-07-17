@@ -43,7 +43,7 @@ function buildCharacterBiblePrompt(input: {
 }): string {
   const { profile, story, characters } = input
 
-  return `You are preparing a character bible for a children's hardcover picture book.
+  return `You are preparing a character bible for a children's print-ready picture book.
 
 Your job is to create one stable visual identity package that can be reused across cover art and all interior spreads.
 

@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import type { ChildProfile, Story } from "@/types";
 import { deriveBeatsFromStory } from "@/lib/print-books/beats";
 import { generateCharacterBible } from "@/lib/print-books/characterBible";
-import { composeHardcoverSpreads } from "@/lib/print-books/composer";
+import { composePrintBookSpreads } from "@/lib/print-books/composer";
 import {
   applySpreadIllustration,
   applyBookImageBatchOutput,
@@ -23,8 +23,8 @@ import {
   reserveIllustratedBookCredits,
 } from "@/lib/credits";
 import {
-  LULU_SQUARE_HARDCOVER_SPEC,
-  runLuluProofing,
+  STORYCOT_REVIEW_PRINT_SPEC,
+  runStorycotPrintProofing,
 } from "@/lib/print-books/proofing";
 import { getBookProjectStageLabel } from "@/lib/print-books/status";
 import type {
@@ -403,7 +403,7 @@ async function finalizeProjectExports(input: {
     previewImages: pdfAssets.previewImages,
   };
 
-  const proofingReport = runLuluProofing(
+  const proofingReport = runStorycotPrintProofing(
     {
       ...input.project,
       assets: proofingAssets,
@@ -432,7 +432,7 @@ async function finalizeProjectExports(input: {
       lastBuildMode: input.buildMode,
       orderabilityState: proofingReport.orderabilityState,
       finalizedAt,
-      exportProfile: LULU_SQUARE_HARDCOVER_SPEC.trimLabel,
+      exportProfile: STORYCOT_REVIEW_PRINT_SPEC.trimLabel,
       proofVersion: nextProofVersion,
       proofingPassed: proofingReport.passed,
       proofingChecks: proofingReport.checks,
@@ -486,7 +486,7 @@ async function advanceFullBuild(
       characters: context.characters,
     });
 
-    const spreads = composeHardcoverSpreads({
+    const spreads = composePrintBookSpreads({
       bookProjectId: project.id,
       story: context.story,
       profile: context.profile,

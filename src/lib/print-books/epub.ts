@@ -3,6 +3,7 @@ import sharp from "sharp";
 import type { ChildProfile, Story } from "@/types";
 import type { BookProject, BookSpread } from "@/types/printBook";
 import { storeBookAsset } from "@/lib/print-books/storage";
+import { toEpubFilename } from "@/lib/print-books/filename";
 
 type EpubImageAsset = {
   id: string;
@@ -319,10 +320,6 @@ function buildNcxXml(input: {
 </ncx>`;
 }
 
-function toEpubFilename(title: string): string {
-  const safe = title.replace(/[/\\?%*:|"<>]/g, "").trim();
-  return `${safe || "Storycot Story"}.epub`;
-}
 
 function getStylesheet(): string {
   return `html, body {

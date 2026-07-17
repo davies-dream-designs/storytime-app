@@ -2,11 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { buildStoryTextEpub } from "@/lib/print-books/epub";
-
-function filenameFromTitle(title: string): string {
-  const safe = title.replace(/[/\\?%*:|"<>]/g, "").trim().slice(0, 120);
-  return `${safe || "Storycot Story"}.epub`;
-}
+import { toEpubFilename } from "@/lib/print-books/filename";
 
 function isGeneratedCoverUrl(url?: string): url is string {
   if (!url) return false;
@@ -47,7 +43,7 @@ export async function GET(
   return new NextResponse(new Uint8Array(epub), {
     headers: {
       "Content-Type": "application/epub+zip",
-      "Content-Disposition": `attachment; filename="${filenameFromTitle(story.title)}"`,
+      "Content-Disposition": `attachment; filename="${toEpubFilename(story.title)}"`,
       "Cache-Control": "private, no-store",
     },
   });

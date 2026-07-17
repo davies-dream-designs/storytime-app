@@ -1,11 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
-function toSafeFilename(title: string): string {
-  const safe = title.replace(/[/\\?%*:|"<>]/g, "").trim();
-  return `${safe || "Storycot Story"}.epub`;
-}
+import { toEpubFilename } from "@/lib/print-books/filename";
 
 export default function EpubShareButton({
   href,
@@ -28,7 +24,7 @@ export default function EpubShareButton({
       const res = await fetch(href);
       if (!res.ok) return;
       const blob = await res.blob();
-      const filename = toSafeFilename(title);
+      const filename = toEpubFilename(title);
       const file = new File([blob], filename, { type: "application/epub+zip" });
 
       if (

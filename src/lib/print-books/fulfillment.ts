@@ -205,8 +205,6 @@ export function preparePrintFulfillment(input: {
       provider,
       status: "ready_for_manual_review",
       preparedAt: new Date().toISOString(),
-      message:
-        "Supplier order payload is prepared. Manual review is required before manufacturing submission.",
       payload,
     };
   } catch (error) {
@@ -218,6 +216,70 @@ export function preparePrintFulfillment(input: {
         error instanceof Error
           ? error.message
           : "Print fulfilment is not configured.",
+    };
+  }
+}
+
+async function submitProdigiOrder(
+  payload: unknown
+): Promise<{ orderId: string; externalStatus: string }> {
+  const apiKey = process.env.STORYCOT_PRODIGI_API_KEY;
+  if (!apiKey) throw new Error("STORYCOT_PRODIGI_API_KEY is not configured.");
+
+  const response = await fetch("https://api.prodigi.com/v4.0/orders", {
+    method: "POST",
+    headers: {
+      "X-API-Key": apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(
+      `Prodigi order submission failed (${response.status}): ${text}`
+    );
+  }
+
+  const data = (await response.json()) as {
+    order?: { id?: string; status?: { stage?: string } };
+  };
+  const orderId = data.order?.id;
+  if (!orderId) throw new Error("Prodigi did not return an order ID.");
+
+  return { orderId, externalStatus: data.order?.status?.stage ?? "received" };
+}
+
+export async function submitPrintFulfillment(input: {
+  project: BookProject;
+  order: PrintBookOrder;
+}): Promise<PrintFulfillment> {
+  const fulfillment = preparePrintFulfillment(input);
+
+  if (fulfillment.status !== "ready_for_manual_review" || !fulfillment.payload) {
+    return fulfillment;
+  }
+
+  try {
+    const { orderId, externalStatus } = await submitProdigiOrder(
+      fulfillment.payload
+    );
+    return {
+      ...fulfillment,
+      status: "submitted",
+      submittedAt: new Date().toISOString(),
+      externalOrderId: orderId,
+      externalStatus,
+      message: `Order ${orderId} submitted to Prodigi.`,
+      payload: undefined,
+    };
+  } catch (error) {
+    return {
+      ...fulfillment,
+      status: "failed",
+      message:
+        error instanceof Error ? error.message : "Prodigi submission failed.",
     };
   }
 }

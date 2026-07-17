@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { clerkClient } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
-import { preparePrintFulfillment } from '@/lib/print-books/fulfillment'
+import { submitPrintFulfillment } from '@/lib/print-books/fulfillment'
 import { isPrintProductKey, quotePrintProduct } from '@/lib/print-books/printProducts'
 import type { PrintBookOrder, PrintShippingAddress } from '@/types/printBook'
 
@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
             shipping: getPrintShippingAddress(session),
             paidAt: new Date().toISOString(),
           }
-          const fulfillment = preparePrintFulfillment({
+          const fulfillment = await submitPrintFulfillment({
             project,
             order: printOrder,
           })

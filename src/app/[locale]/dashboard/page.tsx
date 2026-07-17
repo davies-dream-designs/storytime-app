@@ -4,12 +4,17 @@ import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
 import DashboardGreeting from "@/components/DashboardGreeting";
 import ReferralRedeemer from "@/components/ReferralRedeemer";
+import StoryCard from "@/components/StoryCard";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 import { db } from "@/lib/db";
+import { formatLocalShortDate } from "@/lib/dates";
+import { getStoryThemeName } from "@/lib/storyTheme";
 
 export default async function Dashboard() {
   const { userId } = await auth();
   const t = await getTranslations("dashboard");
+  const tHome = await getTranslations("home");
+  const themeNames = tHome.raw("themes") as Record<string, string>;
   const profiles = await db.profiles.getByUserId(userId!);
   const stories = (await db.stories.getByUserId(userId!)).sort((a, b) =>
     a.createdAt > b.createdAt ? -1 : 1
@@ -43,10 +48,7 @@ export default async function Dashboard() {
             {
               label: t("statLastStory"),
               value: recentStories[0]
-                ? new Date(recentStories[0].createdAt).toLocaleDateString(
-                    undefined,
-                    { day: "numeric", month: "short" }
-                  )
+                ? formatLocalShortDate(recentStories[0].createdAt)
                 : "—",
               icon: "✨",
               href: recentStories[0]
@@ -118,34 +120,18 @@ export default async function Dashboard() {
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               {recentStories.map((story) => (
-                <Link
+                <StoryCard
                   key={story.id}
-                  href={`/stories/${story.id}`}
-                  className="group rounded-2xl border border-night-100 bg-white p-5 shadow-sm transition hover:shadow-md"
-                >
-                  <div className="mb-3 flex items-center gap-2">
-                    <span className="text-xl" aria-hidden>
-                      📖
-                    </span>
-                    <span className="rounded-full bg-star-100 px-3 py-0.5 text-xs font-bold text-star-600">
-                      {story.theme}
-                    </span>
-                  </div>
-                  <h3 className="font-display text-lg font-bold text-night-800 group-hover:text-night-600 line-clamp-2">
-                    {story.title}
-                  </h3>
-                  <p className="mt-1 text-sm text-night-400">
-                    {t("storyFor", { name: story.profileName })} ·{" "}
-                    {new Date(story.createdAt).toLocaleDateString(undefined, {
-                      day: "numeric",
-                      month: "short",
-                    })}
-                  </p>
-                  <p className="mt-1 text-xs text-night-300">
-                    {t("wordCount", { count: story.wordCount })} ·{" "}
-                    {t("pageCount", { count: story.pages.length })}
-                  </p>
-                </Link>
+                  story={story}
+                  themeName={getStoryThemeName(story.theme, themeNames)}
+                  labels={{
+                    forProfile: t("storyFor", { name: story.profileName }),
+                    read: t("readButton"),
+                    words: t("wordCount", { count: story.wordCount }),
+                    pages: t("pageCount", { count: story.pages.length }),
+                  }}
+                  compact
+                />
               ))}
             </div>
           </section>

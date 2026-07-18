@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth, SignInButton, UserButton } from "@clerk/nextjs";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -16,13 +16,22 @@ export default function Nav() {
     isAdmin: boolean;
   } | null>(null);
 
-  useEffect(() => {
-    if (!isSignedIn) return;
+  const refreshCredits = useCallback(() => {
     fetch("/api/user/credits")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (d) setCreditInfo(d as { credits: number; isAdmin: boolean }); })
       .catch(() => {});
-  }, [isSignedIn]);
+  }, []);
+
+  useEffect(() => {
+    if (!isSignedIn) return;
+    refreshCredits();
+  }, [isSignedIn, refreshCredits]);
+
+  useEffect(() => {
+    window.addEventListener("storycot:credits-updated", refreshCredits);
+    return () => window.removeEventListener("storycot:credits-updated", refreshCredits);
+  }, [refreshCredits]);
   const pathname = usePathname();
   const t = useTranslations("nav");
   const logoHref = isSignedIn ? "/dashboard" : "/";

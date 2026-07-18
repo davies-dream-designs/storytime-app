@@ -144,6 +144,19 @@ export default function Nav() {
           <LanguageSwitcher />
           {isSignedIn ? (
             <>
+              {creditInfo && !creditInfo.isAdmin ? (
+                <Link
+                  href="/account"
+                  className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold transition ${
+                    creditInfo.credits === 0
+                      ? "bg-red-100 text-red-600"
+                      : "bg-night-100 text-night-600"
+                  }`}
+                  title={t("accountCredits")}
+                >
+                  ✨ {creditInfo.credits}
+                </Link>
+              ) : null}
               <UserButton />
               <button
                 onClick={() => setOpen((o) => !o)}

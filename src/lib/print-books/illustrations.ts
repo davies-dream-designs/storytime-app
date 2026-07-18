@@ -552,6 +552,21 @@ function buildPageIllustrationPrompt(input: {
   } = input;
   const pageText = side === "left" ? spread.leftPageText : spread.rightPageText;
 
+  const compositionVariants = [
+    "wide establishing shot showing the full environment",
+    "medium shot at the character's eye level",
+    "close-up on face and hands capturing expression and action",
+    "low-angle looking up at the character",
+    "bird's-eye overview of the scene",
+    "three-quarter angle, mid-distance",
+    "over-the-shoulder perspective",
+    "silhouette against a lit background",
+  ];
+  const compositionIdx =
+    (spread.sequence * 2 + (side === "right" ? 1 : 0)) %
+    compositionVariants.length;
+  const compositionHint = compositionVariants[compositionIdx];
+
   return [
     buildIllustrationDirection(characterBible),
     `Book title: ${story.title}.`,
@@ -561,7 +576,8 @@ function buildPageIllustrationPrompt(input: {
     `Scene brief: ${spread.sceneBrief}.`,
     `Illustration direction: ${spread.illustrationPrompt}.`,
     ...(omitPageText ? [] : [`Page text: ${pageText || "None"}.`]),
-    "Create one warm square children's book page illustration. Keep the child's face, hair, outfit, proportions, and recurring props exactly consistent with the character bible. No visible text, lettering, captions, or page numbers inside the art.",
+    `Composition: ${compositionHint}.`,
+    "Create one warm square children's book page illustration. The scene, composition, camera angle, character pose, and action must be unique to this spread — actively vary these from other pages in the book. Keep only the child's face shape, hair colour, skin tone, and core outfit exactly consistent with the character bible. No visible text, lettering, captions, or page numbers inside the art.",
   ].join(" ");
 }
 

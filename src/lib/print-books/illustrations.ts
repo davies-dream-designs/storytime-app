@@ -649,6 +649,10 @@ export function buildBookImageBatchRequests(input: {
           ...input,
           spread,
           side: "left",
+          // Raw story prose in an image prompt is a common moderation trigger and
+          // shouldn't be rendered into the art anyway — the scene brief and
+          // illustration direction already carry the visual intent.
+          omitPageText: true,
         }),
         pathname: `${base}-left.png`,
         size: BOOK_SPEC.interiorIllustrationOpenAISize,
@@ -660,6 +664,7 @@ export function buildBookImageBatchRequests(input: {
           ...input,
           spread,
           side: "right",
+          omitPageText: true,
         }),
         pathname: `${base}-right.png`,
         size: BOOK_SPEC.interiorIllustrationOpenAISize,
@@ -808,6 +813,12 @@ function parseOpenAIImageBatchOutput(outputText: string): Map<string, Buffer> {
   return images;
 }
 
+// Rasterise a placeholder SVG to a print-sized PNG. Used as the last-resort
+// fallback so a single moderation-blocked image can never sink the whole book.
+async function renderPlaceholderPng(svg: string): Promise<Buffer> {
+  return upscaleImageBuffer(Buffer.from(svg));
+}
+
 export async function applyBookImageBatchOutput(input: {
   project: BookProject;
   story: Story;
@@ -817,34 +828,69 @@ export async function applyBookImageBatchOutput(input: {
 }): Promise<{
   coverImageUrl: string;
   spreads: BookSpread[];
-  provider: "openai";
+  provider: "openai" | "mixed";
 }> {
   const requests = buildBookImageBatchRequests(input);
   const images = parseOpenAIImageBatchOutput(input.outputText);
-  const missingRequests = requests.filter(
-    (request) => !images.has(request.customId)
+  const spreadById = new Map(
+    input.project.spreads.map((spread) => [spread.id, spread] as const)
   );
 
-  if (missingRequests.length > 0) {
-    throw new Error(
-      `OpenAI image batch completed without ${missingRequests.length} generated image result${missingRequests.length === 1 ? "" : "s"}: ${missingRequests
-        .map((request) => request.customId)
-        .join(", ")}`
-    );
-  }
+  // The batch API silently drops individual images that hit moderation or a
+  // transient error. Rather than fail the entire 19-image build (and refund),
+  // recover each missing image on its own: regenerate synchronously, and only
+  // if that is persistently blocked fall back to a rasterised placeholder so
+  // the book still completes. Track recoveries to report art mode honestly.
+  let recoveredCount = 0;
 
-  const storeGenerated = async (request: OpenAIImageBatchRequest) => {
-    const generated = images.get(request.customId);
-    if (!generated) {
-      throw new Error(
-        `OpenAI image batch missing generated image ${request.customId}`
+  const placeholderPngFor = async (
+    request: OpenAIImageBatchRequest
+  ): Promise<Buffer> => {
+    if (request.customId === "cover") {
+      return renderPlaceholderPng(createPlaceholderCoverSvg(input));
+    }
+    const match = request.customId.match(/^spread:(.+):(left|right)$/);
+    const spread = match ? spreadById.get(match[1]!) : undefined;
+    if (spread && match) {
+      return renderPlaceholderPng(
+        createPlaceholderPageSvg({
+          story: input.story,
+          profile: input.profile,
+          characterBible: input.characterBible,
+          spread,
+          side: match[2] as "left" | "right",
+        })
       );
     }
-    const upscaled = await upscaleImageBuffer(generated);
+    return renderPlaceholderPng(createPlaceholderCoverSvg(input));
+  };
+
+  const resolveImageBuffer = async (
+    request: OpenAIImageBatchRequest
+  ): Promise<Buffer> => {
+    const generated = images.get(request.customId);
+    if (generated) return upscaleImageBuffer(generated);
+
+    // Missing from the batch — try one synchronous regeneration.
+    try {
+      return await generateAndUpscale(request.prompt);
+    } catch (err) {
+      console.warn(
+        `Batch image ${request.customId} unrecoverable (${
+          err instanceof Error ? err.message : "unknown error"
+        }) — using placeholder so the book can complete.`
+      );
+      recoveredCount += 1;
+      return placeholderPngFor(request);
+    }
+  };
+
+  const storeResolved = async (request: OpenAIImageBatchRequest) => {
+    const buffer = await resolveImageBuffer(request);
     return storeBookAsset({
       pathname: request.pathname,
-      body: upscaled,
-      contentType: request.contentType,
+      body: buffer,
+      contentType: "image/png",
     });
   };
 
@@ -853,7 +899,7 @@ export async function applyBookImageBatchOutput(input: {
     throw new Error("OpenAI image batch had no cover request");
   }
 
-  const coverImageUrl = await storeGenerated(coverRequest);
+  const coverImageUrl = await storeResolved(coverRequest);
   let spreads = replaceCoverSpreadImage(input.project.spreads, coverImageUrl);
 
   for (const spread of input.project.spreads) {
@@ -867,8 +913,8 @@ export async function applyBookImageBatchOutput(input: {
     );
     if (!leftRequest || !rightRequest) continue;
 
-    const leftUrl = await storeGenerated(leftRequest);
-    const rightUrl = await storeGenerated(rightRequest);
+    const leftUrl = await storeResolved(leftRequest);
+    const rightUrl = await storeResolved(rightRequest);
 
     spreads = replaceSpreadImage(spreads, {
       ...spread,
@@ -878,7 +924,11 @@ export async function applyBookImageBatchOutput(input: {
     });
   }
 
-  return { coverImageUrl, spreads, provider: "openai" };
+  return {
+    coverImageUrl,
+    spreads,
+    provider: recoveredCount > 0 ? "mixed" : "openai",
+  };
 }
 
 // ---------------------------------------------------------------------------

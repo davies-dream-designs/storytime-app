@@ -101,92 +101,56 @@ async function toCompactJpeg(
   return smallest ?? bytes;
 }
 
-function createTextCoverArtSvg(input: { story: Story }) {
-  const source =
-    `${input.story.title} ${input.story.theme || ""} ${input.story.pages
-      .map((page) => `${page.text} ${page.illustrationPrompt || ""}`)
-      .join(" ")}`.toLowerCase();
-  const isOcean = /(wave|ocean|sea|beach|shore|sand|pebble|shell|tide)/.test(
-    source
-  );
-  const isGarden =
-    /(garden|flower|forest|tree|leaf|meadow|field|fox|rabbit|bunny|frog)/.test(
-      source
-    );
-  const isNight = /(moon|star|night|sleep|dream|sky|cloud)/.test(source);
-  const palette = isOcean
-    ? {
-        skyTop: "#22315e",
-        skyMid: "#5f6fa8",
-        skyBottom: "#f4d49d",
-        hillBack: "#2b4b77",
-        hillFront: "#1d3158",
-        accent: "#ffd66e",
-        motif: "ocean",
-      }
-    : isGarden
-      ? {
-          skyTop: "#25454f",
-          skyMid: "#6b8a73",
-          skyBottom: "#f7d9a2",
-          hillBack: "#335f45",
-          hillFront: "#233f31",
-          accent: "#ffd36a",
-          motif: "garden",
-        }
-      : isNight
-        ? {
-            skyTop: "#211f4a",
-            skyMid: "#675bb2",
-            skyBottom: "#d9b1dc",
-            hillBack: "#263968",
-            hillFront: "#19274e",
-            accent: "#fff1b8",
-            motif: "night",
-          }
-        : {
-            skyTop: "#26324f",
-            skyMid: "#6b6db0",
-            skyBottom: "#f3c58e",
-            hillBack: "#34456d",
-            hillFront: "#212b4d",
-            accent: "#ffd36a",
-            motif: "adventure",
-          };
+function createBrandedCoverSvg(input: {
+  story: Story;
+  profile?: ChildProfile;
+}): string {
+  const title = input.story.title || "Storycot Story";
+  const forLine = input.profile
+    ? `A story for ${input.profile.name}.`
+    : "A Storycot story.";
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600">
-  <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="${palette.skyTop}"/>
-      <stop offset="58%" stop-color="${palette.skyMid}"/>
-      <stop offset="100%" stop-color="${palette.skyBottom}"/>
-    </linearGradient>
-  </defs>
-  <rect width="1200" height="1600" fill="url(#sky)"/>
-  <circle cx="930" cy="220" r="115" fill="${palette.accent}" opacity="0.95"/>
-  <circle cx="930" cy="220" r="170" fill="${palette.accent}" opacity="0.14"/>
-  <circle cx="220" cy="210" r="5" fill="#fff6de" opacity="0.8"/>
-  <circle cx="280" cy="286" r="4" fill="#fff6de" opacity="0.6"/>
-  <circle cx="1045" cy="390" r="5" fill="#fff6de" opacity="0.7"/>
-  <path d="M0 1128 C170 1058 350 1026 510 1062 C690 1102 812 1180 980 1150 C1070 1135 1142 1094 1200 1060 L1200 1600 L0 1600 Z" fill="${palette.hillBack}"/>
-  <path d="M0 1242 C180 1192 360 1180 520 1214 C710 1256 830 1340 1015 1304 C1095 1288 1160 1255 1200 1230 L1200 1600 L0 1600 Z" fill="${palette.hillFront}" opacity="0.94"/>
-  <rect x="116" y="116" width="968" height="1368" rx="56" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="6"/>
-  ${
-    palette.motif === "ocean"
-      ? `<path d="M245 1030 C380 998 478 990 596 1012 C700 1032 778 1066 884 1054 C972 1044 1040 1000 1125 962" fill="none" stroke="#fff4cd" stroke-width="10" stroke-linecap="round" opacity="0.7"/>
-         <circle cx="560" cy="970" r="22" fill="${palette.accent}" opacity="0.85"/>
-         <circle cx="615" cy="948" r="15" fill="#fff8dc" opacity="0.78"/>`
-      : palette.motif === "garden"
-        ? `<path d="M570 980 C552 918 570 860 615 820" fill="none" stroke="#fff4cd" stroke-width="10" stroke-linecap="round"/>
-           <path d="M660 980 C685 922 676 860 628 820" fill="none" stroke="#fff4cd" stroke-width="10" stroke-linecap="round"/>
-           <circle cx="616" cy="805" r="34" fill="${palette.accent}" opacity="0.9"/>
-           <circle cx="660" cy="812" r="30" fill="#fff4cd" opacity="0.75"/>
-           <circle cx="635" cy="760" r="26" fill="${palette.accent}" opacity="0.82"/>`
-        : `<circle cx="568" cy="948" r="28" fill="${palette.accent}" opacity="0.86"/>
-           <circle cx="622" cy="918" r="19" fill="#fff8dc" opacity="0.8"/>
-           <circle cx="668" cy="956" r="14" fill="${palette.accent}" opacity="0.72"/>
-           <path d="M590 1084 L615 1028 L640 1084" fill="none" stroke="#fff4cd" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity="0.78"/>`
+  const words = title.split(" ");
+  const lines: string[] = [];
+  let current = "";
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (current && candidate.length > 18) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = candidate;
+    }
   }
+  if (current) lines.push(current);
+
+  const fontSize = lines.length > 2 ? 62 : 76;
+  const lineHeight = fontSize * 1.25;
+  const totalH = lines.length * lineHeight;
+  const titleStartY = 560 - totalH / 2 + fontSize;
+
+  const titleSvg = lines
+    .map(
+      (line, i) =>
+        `<text x="450" y="${titleStartY + i * lineHeight}" font-family="serif" font-size="${fontSize}" fill="#fff8e7" text-anchor="middle" font-weight="bold">${escapeXml(line)}</text>`
+    )
+    .join("\n  ");
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200">
+  <rect width="900" height="1200" fill="#2b1b5d"/>
+  <circle cx="680" cy="200" r="90" fill="#ffd66e" opacity="0.12"/>
+  <circle cx="680" cy="200" r="58" fill="#ffd66e" opacity="0.18"/>
+  <circle cx="680" cy="200" r="36" fill="#ffd66e" opacity="0.88"/>
+  <circle cx="160" cy="160" r="3" fill="#fff8e7" opacity="0.6"/>
+  <circle cx="230" cy="110" r="2" fill="#ffd66e" opacity="0.7"/>
+  <circle cx="740" cy="90" r="2" fill="#fff8e7" opacity="0.5"/>
+  <circle cx="110" cy="280" r="1.5" fill="#fff8e7" opacity="0.4"/>
+  <circle cx="810" cy="340" r="2" fill="#fff8e7" opacity="0.5"/>
+  <text x="450" y="92" font-family="sans-serif" font-size="26" fill="#ffd66e" text-anchor="middle" letter-spacing="7" font-weight="700">STORYCOT</text>
+  <line x1="180" y1="112" x2="720" y2="112" stroke="#ffd66e" stroke-width="1" opacity="0.35"/>
+  ${titleSvg}
+  <text x="450" y="830" font-family="serif" font-size="28" fill="#c4aee8" text-anchor="middle" font-style="italic">${escapeXml(forLine)}</text>
+  <rect x="48" y="48" width="804" height="1104" rx="20" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2"/>
 </svg>`;
 }
 
@@ -196,16 +160,13 @@ async function createTextCoverAsset(input: {
   coverImageUrl?: string;
 }): Promise<EpubImageAsset> {
   if (input.coverImageUrl) {
-    const cover = await loadImageAsset({
-      id: "cover",
-      url: input.coverImageUrl,
-    });
+    const cover = await loadImageAsset({ id: "cover", url: input.coverImageUrl });
     if (cover) return cover;
   }
 
-  const cover = await sharp(Buffer.from(createTextCoverArtSvg(input)))
-    .resize(EPUB_COVER_WIDTH, EPUB_COVER_HEIGHT, { fit: "cover" })
-    .flatten({ background: "#ffffff" })
+  const cover = await sharp(Buffer.from(createBrandedCoverSvg(input)))
+    .resize(EPUB_COVER_WIDTH, EPUB_COVER_HEIGHT, { fit: "fill" })
+    .flatten({ background: "#2b1b5d" })
     .jpeg({ quality: EPUB_IMAGE_QUALITY, mozjpeg: true })
     .toBuffer();
   return {

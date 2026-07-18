@@ -280,19 +280,22 @@
     "deleteConfirm": "Bu hikaye silinsin mi? Bundan oluşturulan resimli PDF/kitap da kitaplığınızdan kaldırılacaktır.",
     "deleting": "Siliniyor…",
     "deleteError": "Bu hikayeyi silemedik.",
-    "storyLengthLabel": "Story length",
-    "storyLength": {
-      "short": {
-        "label": "Short",
-        "desc": "4–6 pages · toddlers"
+    "storyPresetLabel": "Story style",
+    "storyPreset": {
+      "tiny-tales": {
+        "label": "Tiny Tales",
+        "ageRange": "Ages 0–3",
+        "desc": "4–6 pages · big illustrations · one sentence per page"
       },
-      "standard": {
-        "label": "Standard",
-        "desc": "10–14 pages · classic"
+      "moonlit-adventures": {
+        "label": "Moonlit Adventures",
+        "ageRange": "Ages 4–6",
+        "desc": "8–10 pages · balanced illustrations and text"
       },
-      "long": {
-        "label": "Long",
-        "desc": "14–18 pages · bookworms"
+      "epic-sagas": {
+        "label": "Epic Sagas",
+        "ageRange": "Ages 7+",
+        "desc": "10–14 pages · more story · fewer illustrations"
       }
     }
   },

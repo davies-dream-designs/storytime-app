@@ -63,6 +63,16 @@ export interface StorySuggestion {
   theme: string
 }
 
+export type StoryPreset = 'tiny-tales' | 'moonlit-adventures' | 'epic-sagas'
+
+export const STORY_PRESETS = ['tiny-tales', 'moonlit-adventures', 'epic-sagas'] as const
+
+export function getDefaultPreset(ageYears: number): StoryPreset {
+  if (ageYears <= 3) return 'tiny-tales'
+  if (ageYears <= 6) return 'moonlit-adventures'
+  return 'epic-sagas'
+}
+
 export interface Story {
   id: string
   userId: string
@@ -74,7 +84,7 @@ export interface Story {
   theme: string
   premise?: string
   notes: string
-  storyLength?: 'short' | 'standard' | 'long'
+  storyPreset?: StoryPreset
   createdAt: string
   status?: 'generating' | 'ready' | 'failed'
   generationError?: string

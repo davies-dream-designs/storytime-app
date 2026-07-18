@@ -22,12 +22,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { profileId, theme, premise, notes, storyLength, locale } = (await req.json()) as {
+  const { profileId, theme, premise, notes, storyPreset, locale } = (await req.json()) as {
     profileId: string;
     theme?: string;
     premise?: string;
     notes?: string;
-    storyLength?: 'short' | 'standard' | 'long';
+    storyPreset?: 'tiny-tales' | 'moonlit-adventures' | 'epic-sagas';
     locale?: string;
   };
 
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     theme: theme ?? "a gentle adventure",
     premise,
     notes: notes ?? "",
-    storyLength: storyLength ?? "standard",
+    storyPreset: storyPreset ?? "moonlit-adventures",
     createdAt: new Date().toISOString(),
     status: "generating",
   };

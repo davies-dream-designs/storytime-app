@@ -4,15 +4,11 @@ import type {
   Character,
   StoryPage,
   StorySuggestion,
+  StoryPreset,
 } from "@/types";
-import {
-  buildChildAppearanceDoNotChange,
-  buildChildAppearanceSummary,
-  getAge,
-} from "@/types";
+import { getAge, buildChildAppearanceSummary } from "@/types";
 
 const client = new Anthropic();
-
 
 const LOCALE_LANGUAGE: Record<string, string> = {
   en: "English",
@@ -26,10 +22,10 @@ const LOCALE_LANGUAGE: Record<string, string> = {
   pl: "Polish",
 };
 
-const STORY_LENGTH_CONFIG = {
-  short:    { words: "200–350",   pages: "4–6",   sentencesPerPage: "1–2" },
-  standard: { words: "600–900",   pages: "10–14", sentencesPerPage: "2–4" },
-  long:     { words: "900–1200",  pages: "14–18", sentencesPerPage: "2–4" },
+const STORY_PRESET_CONFIG = {
+  'tiny-tales':          { words: "150–250",  pages: "4–6",   sentencesPerPage: "1" },
+  'moonlit-adventures':  { words: "350–550",  pages: "8–10",  sentencesPerPage: "2–3" },
+  'epic-sagas':          { words: "600–900",  pages: "10–14", sentencesPerPage: "3–4" },
 } as const;
 
 interface GenerateStoryInput {
@@ -38,7 +34,7 @@ interface GenerateStoryInput {
   theme: string;
   premise?: string;
   notes: string;
-  storyLength?: 'short' | 'standard' | 'long';
+  storyPreset?: StoryPreset;
   recentTitles?: string[];
   locale?: string;
 }
@@ -49,10 +45,10 @@ interface GeneratedStory {
 }
 
 function buildStoryPrompt(input: GenerateStoryInput): string {
-  const { profile, characters, theme, premise, notes, storyLength, recentTitles, locale } =
+  const { profile, characters, theme, premise, notes, storyPreset, recentTitles, locale } =
     input;
   const language = LOCALE_LANGUAGE[locale ?? "en"] ?? "English";
-  const len = STORY_LENGTH_CONFIG[storyLength ?? "standard"];
+  const len = STORY_PRESET_CONFIG[storyPreset ?? "moonlit-adventures"];
 
   const characterSection =
     characters.length > 0

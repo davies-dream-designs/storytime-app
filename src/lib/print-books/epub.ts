@@ -444,11 +444,11 @@ export async function buildBookEpub(input: {
     if (spread.sequence === 1 || spread.title === "Cover") continue;
 
     const leftImageHref = await addImage(
-      `spread-${spread.sequence}-left`,
+      `img-spread-${spread.sequence}-left`,
       getImageSource(spread, "left")
     );
     const rightImageHref = await addImage(
-      `spread-${spread.sequence}-right`,
+      `img-spread-${spread.sequence}-right`,
       getImageSource(spread, "right")
     );
 

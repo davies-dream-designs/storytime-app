@@ -203,9 +203,44 @@ describe("generateCoverIllustration", () => {
     expect(requests[2]?.size).toBe("1024x1024");
   });
 
-  it("fails batch output when generated image lines are missing", async () => {
+  it("recovers a missing batch image with a placeholder instead of failing the build", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    vi.doMock("@/lib/print-books/storage", () => ({
+      storeBookAsset: mockStoreBookAsset,
+      isBookAssetStorageConfigured: () => true,
+    }));
+
+    // Passthrough sharp so the fake test buffers (and placeholder SVG) upscale cleanly.
+    vi.doMock("sharp", () => {
+      const instance = {
+        resize: vi.fn().mockReturnThis(),
+        png: vi.fn().mockReturnThis(),
+        toBuffer: vi.fn().mockResolvedValue(Buffer.from("upscaled-png")),
+      };
+      const sharpFn = vi.fn(() => instance);
+      const sharpMock = Object.assign(sharpFn, {
+        kernel: { lanczos3: "lanczos3" },
+      });
+      return { default: sharpMock };
+    });
+
+    // Regeneration of the missing image fails (simulating a persistent moderation
+    // block), so it should fall back to a placeholder rather than throw.
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      headers: new Headers(),
+      text: async () =>
+        JSON.stringify({ error: { message: "moderation_blocked" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mockStoreBookAsset.mockResolvedValue("https://example.com/image.png");
+
+    vi.resetModules();
     const { applyBookImageBatchOutput } =
       await import("@/lib/print-books/illustrations");
+
     const project = createProject();
     const spread = {
       ...project.spreads[0]!,
@@ -217,6 +252,7 @@ describe("generateCoverIllustration", () => {
       illustrationPrompt:
         'A gentle title-page illustration motif for "Moonlight Garden".',
     };
+    // Cover + left present; the right page is missing from the batch output.
     const outputText = [
       JSON.stringify({
         custom_id: "cover",
@@ -236,18 +272,26 @@ describe("generateCoverIllustration", () => {
       }),
     ].join("\n");
 
-    await expect(
-      applyBookImageBatchOutput({
-        project: { ...project, spreads: [...project.spreads, spread] },
-        story: createStory(),
-        profile: createProfile(),
-        characterBible: createCharacterBible(),
-        outputText,
-      })
-    ).rejects.toThrow(
-      "OpenAI image batch completed without 1 generated image result"
+    const result = await applyBookImageBatchOutput({
+      project: { ...project, spreads: [...project.spreads, spread] },
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+      outputText,
+    });
+
+    // Book completes; the recovered page marks the art mode as mixed.
+    expect(result.provider).toBe("mixed");
+    expect(result.coverImageUrl).toBe("https://example.com/image.png");
+    // All three images (cover, left, recovered right) are stored as PNG.
+    expect(mockStoreBookAsset).toHaveBeenCalledTimes(3);
+    expect(mockStoreBookAsset).toHaveBeenCalledWith(
+      expect.objectContaining({ contentType: "image/png" })
     );
-    expect(mockStoreBookAsset).not.toHaveBeenCalled();
+
+    vi.unstubAllGlobals();
+    vi.doUnmock("sharp");
+    vi.doUnmock("@/lib/print-books/storage");
   });
 
   it("creates a placeholder spread asset when provider credentials are missing", async () => {

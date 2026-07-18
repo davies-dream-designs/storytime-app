@@ -94,10 +94,16 @@ Requirements:
 }
 
 function parseCharacterBible(raw: string): CharacterBible {
+  // Strip markdown code fences the model sometimes wraps JSON in.
+  const cleaned = raw
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim()
+
   try {
-    return JSON.parse(raw) as CharacterBible
+    return JSON.parse(cleaned) as CharacterBible
   } catch {
-    const match = raw.match(/\{[\s\S]*\}/)
+    const match = cleaned.match(/\{[\s\S]*\}/)
     if (!match) throw new Error('Could not parse character bible from AI response')
     return JSON.parse(match[0]) as CharacterBible
   }
@@ -147,14 +153,32 @@ export async function generateCharacterBible(input: {
   story: Story
   characters: Character[]
 }): Promise<CharacterBible> {
-  const message = await getClient().messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 1200,
-    messages: [{ role: 'user', content: buildCharacterBiblePrompt(input) }],
-  })
+  const prompt = buildCharacterBiblePrompt(input)
 
-  const content = message.content[0]
-  if (content.type !== 'text') throw new Error('Unexpected response type from AI')
+  // The bible is JSON with eight fields; 1200 tokens occasionally truncated the
+  // response mid-object, leaving no closing brace to parse. Give it headroom and
+  // retry once so a single malformed reply can't fail the whole build.
+  const attempt = async (): Promise<CharacterBible> => {
+    const message = await getClient().messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2000,
+      messages: [{ role: 'user', content: prompt }],
+    })
 
-  return normalizeCharacterBible(parseCharacterBible(content.text.trim()))
+    const content = message.content[0]
+    if (content.type !== 'text') throw new Error('Unexpected response type from AI')
+
+    return normalizeCharacterBible(parseCharacterBible(content.text.trim()))
+  }
+
+  try {
+    return await attempt()
+  } catch (err) {
+    console.warn(
+      `Character bible parse failed (${
+        err instanceof Error ? err.message : 'unknown error'
+      }) — retrying once.`
+    )
+    return attempt()
+  }
 }

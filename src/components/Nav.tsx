@@ -115,6 +115,15 @@ export default function Nav() {
                   </span>
                 ) : null}
               </Link>
+              {creditInfo?.isAdmin ? (
+                <Link
+                  href="/admin"
+                  aria-current={isActive("/admin") ? "page" : undefined}
+                  className={`rounded-full px-3 py-2 text-xs font-bold transition ${isActive("/admin") ? "bg-night-700 text-moon-200" : "text-night-400 hover:bg-night-100"}`}
+                >
+                  Admin
+                </Link>
+              ) : null}
               <LanguageSwitcher />
               <UserButton />
             </>

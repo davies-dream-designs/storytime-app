@@ -60,3 +60,6 @@ playwright-report/
 test-results/
 .vercel
 .env*
+
+# clerk configuration (can include secrets)
+/.clerk/

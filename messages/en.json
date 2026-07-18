@@ -234,6 +234,9 @@
         "desc": "10–14 pages · more story · fewer illustrations"
       }
     },
+    "storyIdeaLabel": "Story idea",
+    "storyIdeaPlaceholder": "e.g. {name} meets a friendly dragon in the garden…",
+    "getMoreIdeas": "✨ Get more ideas",
     "notesLabel": "Extra details (optional)",
     "notesPlaceholder": "e.g. Include {name}'s trip to the beach this week…",
     "errorNoProfile": "Please select a child profile",

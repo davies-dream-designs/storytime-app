@@ -25,6 +25,7 @@ import {
 import { runStorycotPrintProofing } from "@/lib/print-books/proofing";
 import { BOOK_SPEC } from "@/lib/print-books/bookConfig";
 import { getBookProjectStageLabel } from "@/lib/print-books/status";
+import { sendBookReadyEmail } from "@/lib/email";
 import type {
   BookArtMode,
   BookBuildJob,
@@ -833,6 +834,31 @@ export async function processBookBuildJob(jobId: string) {
       finalProject = await captureIllustratedBookCredits(
         finalProject ?? nextProject
       );
+
+      // Fire-and-forget — email failure must never break the build
+      after(async () => {
+        try {
+          const { clerkClient } = await import("@clerk/nextjs/server");
+          const clerk = await clerkClient();
+          const user = await clerk.users.getUser(job.userId);
+          const email = user.emailAddresses.find(
+            (e) => e.id === user.primaryEmailAddressId
+          )?.emailAddress;
+          const firstName = user.firstName ?? context.profile.name ?? "there";
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://storycot.com";
+          if (email) {
+            await sendBookReadyEmail({
+              toEmail: email,
+              toName: firstName,
+              storyTitle: context.story.title,
+              bookId: project.id,
+              appUrl,
+            });
+          }
+        } catch (err) {
+          console.error("Book ready email failed (non-fatal)", err);
+        }
+      });
     }
 
     const waitingForImageBatch =

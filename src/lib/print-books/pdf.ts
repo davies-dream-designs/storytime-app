@@ -11,7 +11,7 @@ import {
   rectangle,
   rgb,
 } from "pdf-lib";
-import type { ChildProfile, Story } from "@/types";
+import type { ChildProfile, Story, StoryPreset } from "@/types";
 import type { BookProject, BookSpread } from "@/types/printBook";
 import {
   BOOK_SPEC,
@@ -863,6 +863,15 @@ async function drawEndLeafPage(input: {
 }
 
 
+function getMaxTextBoxPt(preset?: StoryPreset): number {
+  switch (preset) {
+    case 'tiny-tales':         return 110;  // ~3 lines — image-first for toddlers
+    case 'moonlit-adventures': return 155;  // ~5 lines — balanced
+    case 'epic-sagas':         return 200;  // ~7 lines — text-forward for older kids
+    default:                   return 155;
+  }
+}
+
 async function drawBookPage(input: {
   pdfDoc: PDFDocument;
   page: ReturnType<PDFDocument["addPage"]>;
@@ -909,8 +918,8 @@ async function drawBookPage(input: {
     const lineCount = wrapTextToWidth({ text, font: serif, size: 17, maxWidth: textInnerWidth }).length;
     const lineHeight = 22;
     const boxPadding = 54;
-    const minHeight = 100;
-    const maxHeight = Math.floor(pageHeight * 0.42);
+    const minHeight = 80;
+    const maxHeight = getMaxTextBoxPt(story.storyPreset);
     const textRectHeight = Math.min(Math.max(minHeight, lineCount * lineHeight + boxPadding), maxHeight);
     const textRect = {
       x: FULL_BLEED_TEXT_SAFE_MARGIN,

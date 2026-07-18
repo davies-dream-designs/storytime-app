@@ -216,11 +216,23 @@
     "customOption": "Something else…",
     "themeLabel": "Theme or idea",
     "themePlaceholder": "e.g. bravery, space adventure, helping friends…",
-    "storyLengthLabel": "Story length",
-    "storyLength": {
-      "short": { "label": "Short", "desc": "4–6 pages · toddlers" },
-      "standard": { "label": "Standard", "desc": "10–14 pages · classic" },
-      "long": { "label": "Long", "desc": "14–18 pages · bookworms" }
+    "storyPresetLabel": "Story style",
+    "storyPreset": {
+      "tiny-tales": {
+        "label": "Tiny Tales",
+        "ageRange": "Ages 0–3",
+        "desc": "4–6 pages · big illustrations · one sentence per page"
+      },
+      "moonlit-adventures": {
+        "label": "Moonlit Adventures",
+        "ageRange": "Ages 4–6",
+        "desc": "8–10 pages · balanced illustrations and text"
+      },
+      "epic-sagas": {
+        "label": "Epic Sagas",
+        "ageRange": "Ages 7+",
+        "desc": "10–14 pages · more story · fewer illustrations"
+      }
     },
     "notesLabel": "Extra details (optional)",
     "notesPlaceholder": "e.g. Include {name}'s trip to the beach this week…",

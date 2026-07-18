@@ -9,7 +9,8 @@ import Nav from "@/components/Nav";
 import Button from "@/components/ui/Button";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 import { choiceCardClassName, formStyles } from "@/components/ui/formStyles";
-import type { ChildProfile, StorySuggestion } from "@/types";
+import type { ChildProfile, StorySuggestion, StoryPreset } from "@/types";
+import { STORY_PRESETS, getDefaultPreset, getAge } from "@/types";
 
 const THEME_EMOJIS: Record<string, string> = {
   kindness: "💛",
@@ -41,7 +42,7 @@ function GenerateForm() {
   const [customMode, setCustomMode] = useState(false);
   const [customTheme, setCustomTheme] = useState("");
   const [notes, setNotes] = useState("");
-  const [storyLength, setStoryLength] = useState<"short" | "standard" | "long">("standard");
+  const [storyPreset, setStoryPreset] = useState<StoryPreset>("moonlit-adventures");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [profilesError, setProfilesError] = useState("");
@@ -59,7 +60,11 @@ function GenerateForm() {
       })
       .then((data) => {
         setProfiles(data);
-        if (!defaultProfileId && data.length > 0) setProfileId(data[0].id);
+        const initial = defaultProfileId ? data.find(p => p.id === defaultProfileId) : data[0];
+        if (initial) {
+          setProfileId(initial.id);
+          setStoryPreset(getDefaultPreset(getAge(initial)));
+        }
       })
       .catch((err) => {
         setProfilesError(
@@ -95,6 +100,8 @@ function GenerateForm() {
     setSuggestions([]);
     setSelectedSuggestion(null);
     setCustomMode(false);
+    const profile = profiles.find(p => p.id === pid);
+    if (profile) setStoryPreset(getDefaultPreset(getAge(profile)));
   }
 
   async function handleGenerate() {
@@ -116,14 +123,14 @@ function GenerateForm() {
             theme: selectedSuggestion.theme,
             premise: selectedSuggestion.premise,
             notes,
-            storyLength,
+            storyPreset,
             locale,
           }
         : {
             profileId,
             theme: customTheme || "a gentle adventure",
             notes,
-            storyLength,
+            storyPreset,
             locale,
           };
 
@@ -218,13 +225,45 @@ function GenerateForm() {
         </div>
 
         {profileId && !showIdeas && (
-          <button
-            type="button"
-            onClick={() => fetchSuggestions(profileId)}
-            className="mt-4 w-full rounded-xl border-2 border-dashed border-night-300 py-3 text-sm font-bold text-night-600 transition hover:border-star-400 hover:text-star-600"
-          >
-            {t("getIdeas", { name: selectedProfile?.name ?? "" })}
-          </button>
+          <div className="mt-5 space-y-4">
+            <div>
+              <p className="mb-2 text-sm font-bold uppercase tracking-wide text-night-400">
+                {t("storyPresetLabel")}
+              </p>
+              <div className="space-y-2">
+                {STORY_PRESETS.map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setStoryPreset(key)}
+                    className={choiceCardClassName(storyPreset === key, "w-full p-3.5 text-left")}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-display font-bold text-night-800 text-sm">
+                          {t(`storyPreset.${key}.label`)}
+                        </p>
+                        <p className="mt-0.5 text-xs text-night-400">
+                          {t(`storyPreset.${key}.desc`)}
+                        </p>
+                      </div>
+                      <span className="flex-shrink-0 rounded-full bg-night-100 px-2.5 py-1 text-xs font-semibold text-night-500">
+                        {t(`storyPreset.${key}.ageRange`)}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => fetchSuggestions(profileId)}
+              className="w-full rounded-xl border-2 border-dashed border-night-300 py-3 text-sm font-bold text-night-600 transition hover:border-star-400 hover:text-star-600"
+            >
+              {t("getIdeas", { name: selectedProfile?.name ?? "" })}
+            </button>
+          </div>
         )}
       </div>
 
@@ -313,34 +352,6 @@ function GenerateForm() {
               )}
             </div>
           )}
-        </div>
-      )}
-
-      {readyToGenerate && (
-        <div>
-          <p className="mb-3 text-sm font-bold uppercase tracking-wide text-night-400">
-            {t("storyLengthLabel")}
-          </p>
-          <div className="grid grid-cols-3 gap-2">
-            {(["short", "standard", "long"] as const).map((len) => (
-              <button
-                key={len}
-                type="button"
-                onClick={() => setStoryLength(len)}
-                className={choiceCardClassName(
-                  storyLength === len,
-                  "flex flex-col items-center gap-1 rounded-xl p-3 text-center"
-                )}
-              >
-                <span className="font-display font-bold text-night-800 text-sm">
-                  {t(`storyLength.${len}.label`)}
-                </span>
-                <span className="text-xs text-night-400">
-                  {t(`storyLength.${len}.desc`)}
-                </span>
-              </button>
-            ))}
-          </div>
         </div>
       )}
 

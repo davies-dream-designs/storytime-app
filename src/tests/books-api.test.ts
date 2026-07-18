@@ -97,7 +97,7 @@ function createBookProject(): BookProject {
     profileId: "profile-1",
     ageBand: "3-5",
     status: "queued",
-    trimSize: "lulu-hardcover-32",
+    trimSize: "storycot-dynamic-square",
     pageCount: 32,
     spreadCount: 16,
     completedSpreads: 0,

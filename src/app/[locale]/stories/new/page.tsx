@@ -41,6 +41,7 @@ function GenerateForm() {
   const [customMode, setCustomMode] = useState(false);
   const [customTheme, setCustomTheme] = useState("");
   const [notes, setNotes] = useState("");
+  const [storyLength, setStoryLength] = useState<"short" | "standard" | "long">("standard");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [profilesError, setProfilesError] = useState("");
@@ -115,12 +116,14 @@ function GenerateForm() {
             theme: selectedSuggestion.theme,
             premise: selectedSuggestion.premise,
             notes,
+            storyLength,
             locale,
           }
         : {
             profileId,
             theme: customTheme || "a gentle adventure",
             notes,
+            storyLength,
             locale,
           };
 
@@ -310,6 +313,34 @@ function GenerateForm() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {readyToGenerate && (
+        <div>
+          <p className="mb-3 text-sm font-bold uppercase tracking-wide text-night-400">
+            {t("storyLengthLabel")}
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {(["short", "standard", "long"] as const).map((len) => (
+              <button
+                key={len}
+                type="button"
+                onClick={() => setStoryLength(len)}
+                className={choiceCardClassName(
+                  storyLength === len,
+                  "flex flex-col items-center gap-1 rounded-xl p-3 text-center"
+                )}
+              >
+                <span className="font-display font-bold text-night-800 text-sm">
+                  {t(`storyLength.${len}.label`)}
+                </span>
+                <span className="text-xs text-night-400">
+                  {t(`storyLength.${len}.desc`)}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

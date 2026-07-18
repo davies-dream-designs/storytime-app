@@ -3,6 +3,7 @@ import sharp from "sharp";
 import type { ChildProfile, Story } from "@/types";
 import type { BookProject, BookSpread } from "@/types/printBook";
 import { storeBookAsset } from "@/lib/print-books/storage";
+import { toEpubFilename } from "@/lib/print-books/filename";
 
 type EpubImageAsset = {
   id: string;
@@ -100,92 +101,56 @@ async function toCompactJpeg(
   return smallest ?? bytes;
 }
 
-function createTextCoverArtSvg(input: { story: Story }) {
-  const source =
-    `${input.story.title} ${input.story.theme || ""} ${input.story.pages
-      .map((page) => `${page.text} ${page.illustrationPrompt || ""}`)
-      .join(" ")}`.toLowerCase();
-  const isOcean = /(wave|ocean|sea|beach|shore|sand|pebble|shell|tide)/.test(
-    source
-  );
-  const isGarden =
-    /(garden|flower|forest|tree|leaf|meadow|field|fox|rabbit|bunny|frog)/.test(
-      source
-    );
-  const isNight = /(moon|star|night|sleep|dream|sky|cloud)/.test(source);
-  const palette = isOcean
-    ? {
-        skyTop: "#22315e",
-        skyMid: "#5f6fa8",
-        skyBottom: "#f4d49d",
-        hillBack: "#2b4b77",
-        hillFront: "#1d3158",
-        accent: "#ffd66e",
-        motif: "ocean",
-      }
-    : isGarden
-      ? {
-          skyTop: "#25454f",
-          skyMid: "#6b8a73",
-          skyBottom: "#f7d9a2",
-          hillBack: "#335f45",
-          hillFront: "#233f31",
-          accent: "#ffd36a",
-          motif: "garden",
-        }
-      : isNight
-        ? {
-            skyTop: "#211f4a",
-            skyMid: "#675bb2",
-            skyBottom: "#d9b1dc",
-            hillBack: "#263968",
-            hillFront: "#19274e",
-            accent: "#fff1b8",
-            motif: "night",
-          }
-        : {
-            skyTop: "#26324f",
-            skyMid: "#6b6db0",
-            skyBottom: "#f3c58e",
-            hillBack: "#34456d",
-            hillFront: "#212b4d",
-            accent: "#ffd36a",
-            motif: "adventure",
-          };
+function createBrandedCoverSvg(input: {
+  story: Story;
+  profile?: ChildProfile;
+}): string {
+  const title = input.story.title || "Storycot Story";
+  const forLine = input.profile
+    ? `A story for ${input.profile.name}.`
+    : "A Storycot story.";
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600">
-  <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="${palette.skyTop}"/>
-      <stop offset="58%" stop-color="${palette.skyMid}"/>
-      <stop offset="100%" stop-color="${palette.skyBottom}"/>
-    </linearGradient>
-  </defs>
-  <rect width="1200" height="1600" fill="url(#sky)"/>
-  <circle cx="930" cy="220" r="115" fill="${palette.accent}" opacity="0.95"/>
-  <circle cx="930" cy="220" r="170" fill="${palette.accent}" opacity="0.14"/>
-  <circle cx="220" cy="210" r="5" fill="#fff6de" opacity="0.8"/>
-  <circle cx="280" cy="286" r="4" fill="#fff6de" opacity="0.6"/>
-  <circle cx="1045" cy="390" r="5" fill="#fff6de" opacity="0.7"/>
-  <path d="M0 1128 C170 1058 350 1026 510 1062 C690 1102 812 1180 980 1150 C1070 1135 1142 1094 1200 1060 L1200 1600 L0 1600 Z" fill="${palette.hillBack}"/>
-  <path d="M0 1242 C180 1192 360 1180 520 1214 C710 1256 830 1340 1015 1304 C1095 1288 1160 1255 1200 1230 L1200 1600 L0 1600 Z" fill="${palette.hillFront}" opacity="0.94"/>
-  <rect x="116" y="116" width="968" height="1368" rx="56" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="6"/>
-  ${
-    palette.motif === "ocean"
-      ? `<path d="M245 1030 C380 998 478 990 596 1012 C700 1032 778 1066 884 1054 C972 1044 1040 1000 1125 962" fill="none" stroke="#fff4cd" stroke-width="10" stroke-linecap="round" opacity="0.7"/>
-         <circle cx="560" cy="970" r="22" fill="${palette.accent}" opacity="0.85"/>
-         <circle cx="615" cy="948" r="15" fill="#fff8dc" opacity="0.78"/>`
-      : palette.motif === "garden"
-        ? `<path d="M570 980 C552 918 570 860 615 820" fill="none" stroke="#fff4cd" stroke-width="10" stroke-linecap="round"/>
-           <path d="M660 980 C685 922 676 860 628 820" fill="none" stroke="#fff4cd" stroke-width="10" stroke-linecap="round"/>
-           <circle cx="616" cy="805" r="34" fill="${palette.accent}" opacity="0.9"/>
-           <circle cx="660" cy="812" r="30" fill="#fff4cd" opacity="0.75"/>
-           <circle cx="635" cy="760" r="26" fill="${palette.accent}" opacity="0.82"/>`
-        : `<circle cx="568" cy="948" r="28" fill="${palette.accent}" opacity="0.86"/>
-           <circle cx="622" cy="918" r="19" fill="#fff8dc" opacity="0.8"/>
-           <circle cx="668" cy="956" r="14" fill="${palette.accent}" opacity="0.72"/>
-           <path d="M590 1084 L615 1028 L640 1084" fill="none" stroke="#fff4cd" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity="0.78"/>`
+  const words = title.split(" ");
+  const lines: string[] = [];
+  let current = "";
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (current && candidate.length > 18) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = candidate;
+    }
   }
+  if (current) lines.push(current);
+
+  const fontSize = lines.length > 2 ? 62 : 76;
+  const lineHeight = fontSize * 1.25;
+  const totalH = lines.length * lineHeight;
+  const titleStartY = 560 - totalH / 2 + fontSize;
+
+  const titleSvg = lines
+    .map(
+      (line, i) =>
+        `<text x="450" y="${titleStartY + i * lineHeight}" font-family="serif" font-size="${fontSize}" fill="#fff8e7" text-anchor="middle" font-weight="bold">${escapeXml(line)}</text>`
+    )
+    .join("\n  ");
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200">
+  <rect width="900" height="1200" fill="#2b1b5d"/>
+  <circle cx="680" cy="200" r="90" fill="#ffd66e" opacity="0.12"/>
+  <circle cx="680" cy="200" r="58" fill="#ffd66e" opacity="0.18"/>
+  <circle cx="680" cy="200" r="36" fill="#ffd66e" opacity="0.88"/>
+  <circle cx="160" cy="160" r="3" fill="#fff8e7" opacity="0.6"/>
+  <circle cx="230" cy="110" r="2" fill="#ffd66e" opacity="0.7"/>
+  <circle cx="740" cy="90" r="2" fill="#fff8e7" opacity="0.5"/>
+  <circle cx="110" cy="280" r="1.5" fill="#fff8e7" opacity="0.4"/>
+  <circle cx="810" cy="340" r="2" fill="#fff8e7" opacity="0.5"/>
+  <text x="450" y="92" font-family="sans-serif" font-size="26" fill="#ffd66e" text-anchor="middle" letter-spacing="7" font-weight="700">STORYCOT</text>
+  <line x1="180" y1="112" x2="720" y2="112" stroke="#ffd66e" stroke-width="1" opacity="0.35"/>
+  ${titleSvg}
+  <text x="450" y="830" font-family="serif" font-size="28" fill="#c4aee8" text-anchor="middle" font-style="italic">${escapeXml(forLine)}</text>
+  <rect x="48" y="48" width="804" height="1104" rx="20" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2"/>
 </svg>`;
 }
 
@@ -195,16 +160,13 @@ async function createTextCoverAsset(input: {
   coverImageUrl?: string;
 }): Promise<EpubImageAsset> {
   if (input.coverImageUrl) {
-    const cover = await loadImageAsset({
-      id: "cover",
-      url: input.coverImageUrl,
-    });
+    const cover = await loadImageAsset({ id: "cover", url: input.coverImageUrl });
     if (cover) return cover;
   }
 
-  const cover = await sharp(Buffer.from(createTextCoverArtSvg(input)))
-    .resize(EPUB_COVER_WIDTH, EPUB_COVER_HEIGHT, { fit: "cover" })
-    .flatten({ background: "#ffffff" })
+  const cover = await sharp(Buffer.from(createBrandedCoverSvg(input)))
+    .resize(EPUB_COVER_WIDTH, EPUB_COVER_HEIGHT, { fit: "fill" })
+    .flatten({ background: "#2b1b5d" })
     .jpeg({ quality: EPUB_IMAGE_QUALITY, mozjpeg: true })
     .toBuffer();
   return {
@@ -259,7 +221,7 @@ function renderPageXhtml(input: {
   imageHref?: string;
   body: string;
   pageLabel?: string;
-  variant?: "cover" | "story";
+  variant?: "cover" | "story" | "closing";
 }): string {
   const {
     title,
@@ -270,6 +232,8 @@ function renderPageXhtml(input: {
     variant = "story",
   } = input;
   const isCover = variant === "cover";
+  const isClosing = variant === "closing";
+  const sectionClass = isCover ? "cover-page" : isClosing ? "closing-page" : "page";
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
@@ -279,8 +243,8 @@ function renderPageXhtml(input: {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   </head>
   <body>
-    <section class="${isCover ? "cover-page" : "page"}">
-      ${isCover ? `<p class="brand">Storycot</p>` : ""}
+    <section class="${sectionClass}">
+      ${isCover || isClosing ? `<p class="brand">Storycot</p>` : ""}
       ${pageLabel ? `<p class="page-label">${escapeXml(pageLabel)}</p>` : ""}
       ${heading ? `<h1>${escapeXml(heading)}</h1>` : ""}
       ${imageHref ? `<img class="${isCover ? "cover-art" : "illustration"}" src="${escapeXml(imageHref)}" alt="" />` : ""}
@@ -292,12 +256,34 @@ function renderPageXhtml(input: {
 </html>`;
 }
 
-function getStylesheet(): string {
-  return `@page {
-  margin: 8%;
+function buildNcxXml(input: {
+  identifier: string;
+  title: string;
+  pages: Array<{ id: string; href: string; title: string }>;
+}): string {
+  const { identifier, title, pages } = input;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="${escapeXml(identifier)}" />
+    <meta name="dtb:depth" content="1" />
+    <meta name="dtb:totalPageCount" content="0" />
+    <meta name="dtb:maxPageNumber" content="0" />
+  </head>
+  <docTitle><text>${escapeXml(title)}</text></docTitle>
+  <navMap>
+    ${pages.map((page, i) => `<navPoint id="np-${i + 1}" playOrder="${i + 1}">
+      <navLabel><text>${escapeXml(page.title)}</text></navLabel>
+      <content src="${escapeXml(page.href)}" />
+    </navPoint>`).join("\n    ")}
+  </navMap>
+</ncx>`;
 }
 
-html, body {
+
+function getStylesheet(): string {
+  return `html, body {
   margin: 0;
   padding: 0;
 }
@@ -312,13 +298,25 @@ body {
 }
 
 .cover-page {
+  background-color: #2b1b5d;
   box-sizing: border-box;
+  color: #fff8e7;
+  padding: 3rem 2rem;
   page-break-after: always;
   text-align: center;
 }
 
+.closing-page {
+  background-color: #2b1b5d;
+  box-sizing: border-box;
+  color: #fff8e7;
+  padding: 4rem 2rem;
+  page-break-before: always;
+  text-align: center;
+}
+
 .brand {
-  color: #2b1b5d;
+  color: #ffd66e;
   font: 700 0.9rem Arial, sans-serif;
   letter-spacing: 0.08em;
   margin: 0 0 1rem;
@@ -339,6 +337,11 @@ h1 {
   line-height: 1.15;
   margin: 0 0 1rem;
   text-align: center;
+}
+
+.cover-page h1,
+.closing-page h1 {
+  color: #fff8e7;
 }
 
 .cover-art {
@@ -441,11 +444,11 @@ export async function buildBookEpub(input: {
     if (spread.sequence === 1 || spread.title === "Cover") continue;
 
     const leftImageHref = await addImage(
-      `spread-${spread.sequence}-left`,
+      `img-spread-${spread.sequence}-left`,
       getImageSource(spread, "left")
     );
     const rightImageHref = await addImage(
-      `spread-${spread.sequence}-right`,
+      `img-spread-${spread.sequence}-right`,
       getImageSource(spread, "right")
     );
 
@@ -480,6 +483,13 @@ export async function buildBookEpub(input: {
     }
   }
 
+  pages.push({
+    id: "the-end",
+    href: "the-end.xhtml",
+    title: `${title} — The End`,
+    content: renderPageXhtml({ title, heading: "The End", body: "", variant: "closing" }),
+  });
+
   for (const page of pages) {
     zip.file(`OEBPS/${page.href}`, page.content);
   }
@@ -508,8 +518,11 @@ export async function buildBookEpub(input: {
 </html>`
   );
 
+  zip.file("OEBPS/toc.ncx", buildNcxXml({ identifier, title, pages }));
+
   const manifestItems = [
     '<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav" />',
+    '<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml" />',
     '<item id="css" href="styles/storycot.css" media-type="text/css" />',
     ...pages.map(
       (page) =>
@@ -533,12 +546,13 @@ export async function buildBookEpub(input: {
     <dc:language>en</dc:language>
     <dc:publisher>Storycot</dc:publisher>
     <meta property="dcterms:modified">${modified}</meta>
+    <meta name="cover" content="cover" />
   </metadata>
   <manifest>
-    ${manifestItems.join("\n")}
+    ${manifestItems.join("\n    ")}
   </manifest>
-  <spine>
-    ${pages.map((page) => `<itemref idref="${escapeXml(page.id)}" />`).join("\n")}
+  <spine toc="ncx">
+    ${pages.map((page) => `<itemref idref="${escapeXml(page.id)}" />`).join("\n    ")}
   </spine>
 </package>`
   );
@@ -642,6 +656,8 @@ export async function buildStoryTextEpub(input: {
 </html>`
   );
 
+  zip.file("OEBPS/toc.ncx", buildNcxXml({ identifier, title, pages }));
+
   zip.file(
     "OEBPS/content.opf",
     `<?xml version="1.0" encoding="UTF-8"?>
@@ -653,15 +669,17 @@ export async function buildStoryTextEpub(input: {
     <dc:language>en</dc:language>
     <dc:publisher>Storycot</dc:publisher>
     <meta property="dcterms:modified">${modified}</meta>
+    <meta name="cover" content="cover" />
   </metadata>
   <manifest>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav" />
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml" />
     <item id="css" href="styles/storycot.css" media-type="text/css" />
     <item id="cover" href="${coverAsset.href}" media-type="${coverAsset.mediaType}" properties="cover-image" />
-    ${pages.map((page) => `<item id="${escapeXml(page.id)}" href="${escapeXml(page.href)}" media-type="application/xhtml+xml" />`).join("\n")}
+    ${pages.map((page) => `<item id="${escapeXml(page.id)}" href="${escapeXml(page.href)}" media-type="application/xhtml+xml" />`).join("\n    ")}
   </manifest>
-  <spine>
-    ${pages.map((page) => `<itemref idref="${escapeXml(page.id)}" />`).join("\n")}
+  <spine toc="ncx">
+    ${pages.map((page) => `<itemref idref="${escapeXml(page.id)}" />`).join("\n    ")}
   </spine>
 </package>`
   );
@@ -676,7 +694,7 @@ export async function generateBookEpub(input: {
 }): Promise<{ epubUrl: string }> {
   const epub = await buildBookEpub(input);
   const epubUrl = await storeBookAsset({
-    pathname: `books/${input.project.id}/storycot.epub`,
+    pathname: `books/${input.project.id}/${toEpubFilename(input.story.title)}`,
     body: epub,
     contentType: "application/epub+zip",
   });

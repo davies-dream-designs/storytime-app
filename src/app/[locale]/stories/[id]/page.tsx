@@ -4,9 +4,14 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
 import DownloadLink from "@/components/DownloadLink";
+import EpubShareButton from "@/components/EpubShareButton";
 import DeleteStoryButton from "@/components/DeleteStoryButton";
 import { getDateLocale } from "@/i18n/locales";
 import { db } from "@/lib/db";
+import { inferAgeBand } from "@/lib/print-books/ageBand";
+import { getStorycotPageCountForAgeBand } from "@/lib/print-books/printProducts";
+import { estimateIllustratedBookCredits } from "@/lib/pricing";
+import { getUserCredits } from "@/lib/credits";
 import StoryReader from "./StoryReader";
 import ShareButton from "./ShareButton";
 import CreatePrintBookButton from "./CreatePrintBookButton";
@@ -22,11 +27,21 @@ export default async function StoryPage({
   const story = await db.stories.getById(id);
   if (!story || story.userId !== userId) notFound();
 
-  const [profile, bookProjects] = await Promise.all([
-    db.profiles.getById(story.profileId),
-    db.bookProjects.getByStoryId(id),
-  ]);
+  const [profile, bookProjects, { credits: userCredits, isAdmin }] =
+    await Promise.all([
+      db.profiles.getById(story.profileId),
+      db.bookProjects.getByStoryId(id),
+      userId ? getUserCredits(userId) : Promise.resolve({ credits: 0, isAdmin: false }),
+    ]);
   const existingBook = bookProjects.find((p) => p.status !== "failed") ?? null;
+  const ageBand = profile ? inferAgeBand(profile) : "3-5";
+  const estimatedPageCount = getStorycotPageCountForAgeBand(ageBand);
+  const estimatedIllustrationCount = estimatedPageCount / 2;
+  const illustrationEstimate = estimateIllustratedBookCredits({
+    ageBand,
+    pageCount: estimatedPageCount,
+    illustrationCount: estimatedIllustrationCount,
+  });
   const dateLocale = getDateLocale(locale);
   const isFailed = story.status === "failed";
   const isReady = !story.status || story.status === "ready";
@@ -87,13 +102,13 @@ export default async function StoryPage({
                 >
                   {t("printButton")}
                 </DownloadLink>
-                <DownloadLink
+                <EpubShareButton
                   href={`/api/stories/${id}/epub`}
-                  className="storycot-btn storycot-btn-secondary"
+                  title={story.title}
+                  label={t("textEpubButton")}
                   pendingLabel={t("downloadStarting")}
-                >
-                  {t("textEpubButton")}
-                </DownloadLink>
+                  className="storycot-btn storycot-btn-secondary"
+                />
                 {existingBook ? (
                   <Link
                     href={`/books/${existingBook.id}` as string}
@@ -102,7 +117,14 @@ export default async function StoryPage({
                     {t("viewBookButton")}
                   </Link>
                 ) : (
-                  <CreatePrintBookButton storyId={id} />
+                  <CreatePrintBookButton
+                    storyId={id}
+                    credits={illustrationEstimate.credits}
+                    pageCount={estimatedPageCount}
+                    illustrationCount={estimatedIllustrationCount}
+                    userCredits={userCredits}
+                    isAdmin={isAdmin}
+                  />
                 )}
               </>
             )}

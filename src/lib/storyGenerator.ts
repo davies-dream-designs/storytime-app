@@ -13,10 +13,6 @@ import {
 
 const client = new Anthropic();
 
-function pickRandom<T>(arr: T[], max: number): T[] {
-  if (arr.length <= max) return arr;
-  return [...arr].sort(() => Math.random() - 0.5).slice(0, max);
-}
 
 const LOCALE_LANGUAGE: Record<string, string> = {
   en: "English",
@@ -30,12 +26,19 @@ const LOCALE_LANGUAGE: Record<string, string> = {
   pl: "Polish",
 };
 
+const STORY_LENGTH_CONFIG = {
+  short:    { words: "200–350",   pages: "4–6",   sentencesPerPage: "1–2" },
+  standard: { words: "600–900",   pages: "10–14", sentencesPerPage: "2–4" },
+  long:     { words: "900–1200",  pages: "14–18", sentencesPerPage: "2–4" },
+} as const;
+
 interface GenerateStoryInput {
   profile: ChildProfile;
   characters: Character[];
   theme: string;
   premise?: string;
   notes: string;
+  storyLength?: 'short' | 'standard' | 'long';
   recentTitles?: string[];
   locale?: string;
 }
@@ -46,15 +49,10 @@ interface GeneratedStory {
 }
 
 function buildStoryPrompt(input: GenerateStoryInput): string {
-  const { profile, characters, theme, premise, notes, recentTitles, locale } =
+  const { profile, characters, theme, premise, notes, storyLength, recentTitles, locale } =
     input;
   const language = LOCALE_LANGUAGE[locale ?? "en"] ?? "English";
-
-  // Pick a random subset of profile elements each time for variety
-  const chars = pickRandom(profile.favouriteCharacters, 2);
-  const activities = pickRandom(profile.favouriteActivities, 2);
-  const animals = pickRandom(profile.favouriteAnimals, 1);
-  const places = pickRandom(profile.favouritePlaces, 1);
+  const len = STORY_LENGTH_CONFIG[storyLength ?? "standard"];
 
   const characterSection =
     characters.length > 0
@@ -78,14 +76,6 @@ ${recentTitles.map((t) => `- ${t}`).join("\n")}`
   return `You are a magical storyteller creating a personalised bedtime story for a child.
 
 Child: ${profile.name}, age ${getAge(profile)}
-Visual identity:
-- Appearance: ${buildChildAppearanceSummary(profile.appearance) || "No structured appearance details provided."}
-- Do not change: ${buildChildAppearanceDoNotChange(profile.appearance).join(", ") || "none"}
-Selected favourites for THIS story (others exist but vary each time):
-- Characters/toys: ${chars.join(", ") || "none"}
-- Activities: ${activities.join(", ") || "none"}
-- Animals: ${animals.join(", ") || "none"}
-- Favourite place: ${places.join(", ") || "home"}
 - Theme/lesson: ${theme || "a gentle adventure"}
 ${characterSection}${premiseSection}${notesSection}${avoidSection}
 
@@ -93,11 +83,12 @@ Write the story in ${language}. Write a warm, age-appropriate bedtime story that
 1. Features ${profile.name} as the main character
 2. Follows this 5-part structure: introduction → adventure/problem → character growth → resolution → calm bedtime ending
 3. Uses simple vocabulary appropriate for age ${getAge(profile)}
-4. Is approximately 700–900 words total
+4. Is approximately ${len.words} words total
 5. Has a positive, cosy tone ending with ${profile.name} settling down to sleep
 6. Naturally weaves in the theme: ${theme || "a gentle adventure"}
 7. Feels FRESH and DIFFERENT from typical stories — surprise us with the opening
 8. Uses some warm repetition suitable for young children
+9. Does NOT include "The End", "Sweet dreams", "Goodnight", or any closing sign-off in the story text — the last page ends naturally with the child drifting to sleep
 
 Respond ONLY with valid JSON — no markdown, no extra text:
 {
@@ -105,13 +96,13 @@ Respond ONLY with valid JSON — no markdown, no extra text:
   "pages": [
     {
       "pageNumber": 1,
-      "text": "2–4 sentences of story text",
+      "text": "${len.sentencesPerPage} sentences of story text",
       "illustrationPrompt": "Brief description for a warm watercolour children's illustration"
     }
   ]
 }
 
-Split into 10–14 pages. Each page: 2–4 sentences.`;
+Split into ${len.pages} pages. Each page: ${len.sentencesPerPage} sentences.`;
 }
 
 export async function generateStory(

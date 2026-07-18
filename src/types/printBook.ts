@@ -107,7 +107,7 @@ export interface BookAsset {
   coverPdfUrl?: string;
   coverPdfReadyForOrdering?: boolean;
   coverPdfSpineWidthIn?: number;
-  coverPdfSpineSource?: "configured" | "lulu_table";
+  coverPdfSpineSource?: "configured" | "storycot_estimate";
   coverPdfPageWidthIn?: number;
   coverPdfPageHeightIn?: number;
   coverSpineTextIncluded?: boolean;
@@ -150,6 +150,51 @@ export interface BookBilling {
   refundedAt?: string;
 }
 
+export interface PrintBookOrder {
+  productKey: "softcover" | "hardcover" | "layflat";
+  productLabel: string;
+  provider: string;
+  format: string;
+  status: "checkout_started" | "paid" | "refunded";
+  amountAud: number;
+  pageCount: number;
+  checkoutSessionId?: string;
+  paymentIntentId?: string;
+  billingCountry?: string;
+  shipping?: PrintShippingAddress;
+  fulfillment?: PrintFulfillment;
+  checkoutStartedAt?: string;
+  paidAt?: string;
+  refundedAt?: string;
+}
+
+export interface PrintShippingAddress {
+  name?: string;
+  email?: string;
+  phone?: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  state?: string;
+  postalCode: string;
+  countryCode: "AU";
+}
+
+export interface PrintFulfillment {
+  provider: "prodigi" | "peecho";
+  status:
+    | "not_configured"
+    | "ready_for_manual_review"
+    | "submitted"
+    | "failed";
+  preparedAt?: string;
+  submittedAt?: string;
+  externalOrderId?: string;
+  externalStatus?: string;
+  message?: string;
+  payload?: unknown;
+}
+
 export interface BookProject {
   id: string;
   userId: string;
@@ -168,8 +213,10 @@ export interface BookProject {
   spreads: BookSpread[];
   assets: BookAsset;
   billing?: BookBilling;
+  printOrder?: PrintBookOrder;
   errorCode?: string;
   errorMessage?: string;
+  rawError?: string;
   retryCount: number;
   createdAt: string;
   updatedAt: string;

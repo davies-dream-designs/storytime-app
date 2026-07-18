@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import type { ChildProfile, Story } from "@/types";
 import { deriveBeatsFromStory } from "@/lib/print-books/beats";
 import { generateCharacterBible } from "@/lib/print-books/characterBible";
-import { composeHardcoverSpreads } from "@/lib/print-books/composer";
+import { composePrintBookSpreads } from "@/lib/print-books/composer";
 import {
   applySpreadIllustration,
   applyBookImageBatchOutput,
@@ -22,10 +22,8 @@ import {
   refundIllustratedBookCredits,
   reserveIllustratedBookCredits,
 } from "@/lib/credits";
-import {
-  LULU_SQUARE_HARDCOVER_SPEC,
-  runLuluProofing,
-} from "@/lib/print-books/proofing";
+import { runStorycotPrintProofing } from "@/lib/print-books/proofing";
+import { BOOK_SPEC } from "@/lib/print-books/bookConfig";
 import { getBookProjectStageLabel } from "@/lib/print-books/status";
 import type {
   BookArtMode,
@@ -86,6 +84,13 @@ function getQueuedStageLabel(mode: BookBuildMode, project: BookProject) {
   }
 }
 
+function userMessageForErrorCode(errorCode: string): string {
+  if (errorCode.startsWith("planning")) return "We hit a snag planning the book. Hit retry — it usually clears up.";
+  if (errorCode.startsWith("bible")) return "The character setup didn't finish. Retry to pick up where it left off.";
+  if (errorCode.startsWith("illustrating")) return "Illustrations didn't finish generating. Retry and we'll pick up from where it stopped.";
+  return "The illustrated book didn't finish. Your credits have been refunded. Hit retry to try again.";
+}
+
 async function markJobProjectFailure(
   project: BookProject,
   jobId: string,
@@ -98,7 +103,8 @@ async function markJobProjectFailure(
     status: "failed",
     currentStageLabel: getBookProjectStageLabel("failed"),
     errorCode,
-    errorMessage: message,
+    errorMessage: userMessageForErrorCode(errorCode),
+    rawError: message,
     assets: {
       ...project.assets,
       activeJobId: undefined,
@@ -108,11 +114,14 @@ async function markJobProjectFailure(
     },
   });
 
-  await db.bookBuildJobs.update(jobId, {
-    status: "failed",
-    errorMessage: message,
-    completedAt: getNowIso(),
-  });
+  await Promise.all([
+    db.bookBuildJobs.update(jobId, {
+      status: "failed",
+      errorMessage: message,
+      completedAt: getNowIso(),
+    }),
+    db.bookProjects.addToFailedIndex(project.id),
+  ]);
 }
 
 async function loadBuildContext(project: BookProject) {
@@ -306,14 +315,17 @@ async function regenerateProjectArt(input: {
   const nextCursor = currentCursor + 1;
   const spreadProviders = illustratedSpreads
     .filter(
-      (currentSpread) => currentSpread.sequence > 1 && currentSpread.imageUrl
+      (currentSpread) =>
+        currentSpread.sequence > 1 &&
+        (currentSpread.leftPageImageUrl ?? currentSpread.imageUrl)
     )
-    .map((currentSpread) =>
-      currentSpread.imageUrl?.includes("/spreads/") &&
-      currentSpread.imageUrl?.endsWith(".png")
+    .map((currentSpread) => {
+      const url =
+        currentSpread.leftPageImageUrl ?? currentSpread.imageUrl ?? "";
+      return url.includes("/spreads/") && url.endsWith(".png")
         ? "openai"
-        : "placeholder"
-    ) as Array<"openai" | "placeholder">;
+        : "placeholder";
+    }) as Array<"openai" | "placeholder">;
 
   if (nextCursor >= totalArtSteps) {
     return db.bookProjects.update(input.id, {
@@ -403,7 +415,7 @@ async function finalizeProjectExports(input: {
     previewImages: pdfAssets.previewImages,
   };
 
-  const proofingReport = runLuluProofing(
+  const proofingReport = runStorycotPrintProofing(
     {
       ...input.project,
       assets: proofingAssets,
@@ -432,7 +444,7 @@ async function finalizeProjectExports(input: {
       lastBuildMode: input.buildMode,
       orderabilityState: proofingReport.orderabilityState,
       finalizedAt,
-      exportProfile: LULU_SQUARE_HARDCOVER_SPEC.trimLabel,
+      exportProfile: BOOK_SPEC.trimLabel,
       proofVersion: nextProofVersion,
       proofingPassed: proofingReport.passed,
       proofingChecks: proofingReport.checks,
@@ -486,7 +498,7 @@ async function advanceFullBuild(
       characters: context.characters,
     });
 
-    const spreads = composeHardcoverSpreads({
+    const spreads = composePrintBookSpreads({
       bookProjectId: project.id,
       story: context.story,
       profile: context.profile,

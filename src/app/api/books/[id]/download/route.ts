@@ -63,7 +63,23 @@ export async function GET(
   }
 
   if (!url.startsWith("data:")) {
-    return NextResponse.redirect(url);
+    // Proxy the blob through the API rather than redirecting. A redirect to a
+    // cross-origin blob URL can fail silently in EpubShareButton's fetch()
+    // pre-cache (which must stay same-origin for iOS navigator.share to work).
+    const blobRes = await fetch(url);
+    if (!blobRes.ok) {
+      return NextResponse.json(
+        { error: "Asset unavailable from storage" },
+        { status: 502 }
+      );
+    }
+    return new NextResponse(blobRes.body ?? new Uint8Array(), {
+      headers: {
+        "Content-Type": getContentType(asset),
+        "Content-Disposition": `attachment; filename="${getFilename(asset)}"`,
+        "Cache-Control": "private, no-store",
+      },
+    });
   }
 
   const parsed = parseDataUrl(url);

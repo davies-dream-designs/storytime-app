@@ -279,7 +279,22 @@
     "deleteStory": "Hikayeyi sil",
     "deleteConfirm": "Bu hikaye silinsin mi? Bundan oluşturulan resimli PDF/kitap da kitaplığınızdan kaldırılacaktır.",
     "deleting": "Siliniyor…",
-    "deleteError": "Bu hikayeyi silemedik."
+    "deleteError": "Bu hikayeyi silemedik.",
+    "storyLengthLabel": "Story length",
+    "storyLength": {
+      "short": {
+        "label": "Short",
+        "desc": "4–6 pages · toddlers"
+      },
+      "standard": {
+        "label": "Standard",
+        "desc": "10–14 pages · classic"
+      },
+      "long": {
+        "label": "Long",
+        "desc": "14–18 pages · bookworms"
+      }
+    }
   },
   "books": {
     "createButton": "Resimli PDF oluştur",
@@ -351,7 +366,7 @@
     "fallbackExportsTitle": "İndirilebilir dışa aktarmalar kullanılamıyor",
     "fallbackExportsBody": "Bu ortam, depolanan PDF dosyaları yerine satır içi geri dönüş dışa aktarma verilerini kullanıyor, böylece müşteriye yönelik indirmeler gizleniyor.",
     "proofingTitle": "Prova raporu",
-    "proofingPassed": "Engelleyici Lulu odaklı yazım denetimi sorunu bulunamadı. Sipariş vermeden önce manuel inceleme hala gereklidir.",
+    "proofingPassed": "Engelleyici Storycot baskı odaklı yazım denetimi sorunu bulunamadı. Sipariş vermeden önce manuel inceleme hala gereklidir.",
     "proofingOrderReady": "Mevcut ihracat paketi otomatik kontrollerden geçiyor ve nihai insan sipariş incelemesine hazır.",
     "proofingExportReady": "Dışa aktarma paketi indirilebilir ancak prova veya taslak çizim kontrolleri hâlâ inceleme aşamasındadır.",
     "proofingBlocked": "Bu dışa aktarma işleminde hâlâ baskı hazırlığı sorunları engelleniyor ve fiziksel sipariş için hazır değil.",
@@ -405,7 +420,8 @@
       "composing": "Beste yapmak",
       "proofing": "Prova",
       "ready": "Hazır",
-      "failed": "Başarısız"
+      "failed": "Başarısız",
+      "ordered": "Ordered"
     },
     "versionLabel": "Taslak v{value}",
     "finalVersionLabel": "Son paket v{value}",
@@ -430,7 +446,22 @@
     "deleteBook": "Resimli PDF'yi sil",
     "deleteConfirm": "Bu resimli PDF/kitap projesi silinsin mi? Orijinal hikaye kütüphanenizde kalacak.",
     "deleting": "Siliniyor…",
-    "deleteError": "Bu resimli PDF'yi silemedik."
+    "deleteError": "Bu resimli PDF'yi silemedik.",
+    "estimateTitle": "Illustration estimate",
+    "estimateBody": "{credits} credits for about {pages} pages and {illustrations} custom illustrations. Credits cover the digital illustrated book; print is chosen separately afterwards.",
+    "journeyLabel": "Your book journey",
+    "journeyStoryTitle": "Story",
+    "journeyStoryDone": "Your personalised story is written.",
+    "journeyIllustrationsTitle": "Illustrations",
+    "journeyIllustrationsWorking": "We’re turning the story into a finished illustrated book.",
+    "journeyIllustrationsDone": "The illustrations and review files are ready.",
+    "journeyPrintTitle": "Print format",
+    "journeyPrintWaiting": "Choose softcover, hardcover, or layflat after the preview is ready.",
+    "journeyPrintReady": "Choose the physical format that fits your budget and occasion.",
+    "printOptionsTitle": "Choose a print format",
+    "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
+    "readyLabel": "Your illustrated book is ready to order.",
+    "orderedLabel": "Order placed — your book is with the printer."
   },
   "account": {
     "title": "Hesabınız",

@@ -279,7 +279,22 @@
     "deleteStory": "Hapus cerita",
     "deleteConfirm": "Hapus cerita ini? PDF/buku bergambar apa pun yang dibuat darinya juga akan dihapus dari perpustakaan Anda.",
     "deleting": "Menghapus…",
-    "deleteError": "Kami tidak dapat menghapus cerita ini."
+    "deleteError": "Kami tidak dapat menghapus cerita ini.",
+    "storyLengthLabel": "Story length",
+    "storyLength": {
+      "short": {
+        "label": "Short",
+        "desc": "4–6 pages · toddlers"
+      },
+      "standard": {
+        "label": "Standard",
+        "desc": "10–14 pages · classic"
+      },
+      "long": {
+        "label": "Long",
+        "desc": "14–18 pages · bookworms"
+      }
+    }
   },
   "books": {
     "createButton": "Hasilkan PDF bergambar",
@@ -351,7 +366,7 @@
     "fallbackExportsTitle": "Ekspor yang dapat diunduh tidak tersedia",
     "fallbackExportsBody": "Lingkungan ini menggunakan data ekspor fallback inline dan bukan file PDF yang disimpan, sehingga download yang dilihat pelanggan disembunyikan.",
     "proofingTitle": "Laporan pemeriksaan",
-    "proofingPassed": "Tidak ditemukan masalah pemblokiran berorientasi Lulu. Tinjauan manual masih diperlukan sebelum memesan.",
+    "proofingPassed": "Tidak ditemukan masalah pemblokiran berorientasi cetak Storycot. Tinjauan manual masih diperlukan sebelum memesan.",
     "proofingOrderReady": "Paket ekspor saat ini lolos pemeriksaan otomatis dan siap untuk tinjauan akhir pemesanan manusia.",
     "proofingExportReady": "Paket ekspor dapat diunduh, namun pemeriksaan pemeriksaan atau pemeriksaan draf masih tetap meninjaunya.",
     "proofingBlocked": "Ekspor ini masih mengalami masalah pemblokiran persiapan pencetakan dan belum siap untuk pemesanan fisik.",
@@ -405,7 +420,8 @@
       "composing": "Menulis",
       "proofing": "Pemeriksaan",
       "ready": "Siap",
-      "failed": "Gagal"
+      "failed": "Gagal",
+      "ordered": "Ordered"
     },
     "versionLabel": "Draf v{value}",
     "finalVersionLabel": "Paket terakhir v{value}",
@@ -430,7 +446,22 @@
     "deleteBook": "Hapus PDF yang diilustrasikan",
     "deleteConfirm": "Hapus proyek PDF/buku bergambar ini? Cerita aslinya akan tetap ada di perpustakaan Anda.",
     "deleting": "Menghapus…",
-    "deleteError": "Kami tidak dapat menghapus PDF bergambar ini."
+    "deleteError": "Kami tidak dapat menghapus PDF bergambar ini.",
+    "estimateTitle": "Illustration estimate",
+    "estimateBody": "{credits} credits for about {pages} pages and {illustrations} custom illustrations. Credits cover the digital illustrated book; print is chosen separately afterwards.",
+    "journeyLabel": "Your book journey",
+    "journeyStoryTitle": "Story",
+    "journeyStoryDone": "Your personalised story is written.",
+    "journeyIllustrationsTitle": "Illustrations",
+    "journeyIllustrationsWorking": "We’re turning the story into a finished illustrated book.",
+    "journeyIllustrationsDone": "The illustrations and review files are ready.",
+    "journeyPrintTitle": "Print format",
+    "journeyPrintWaiting": "Choose softcover, hardcover, or layflat after the preview is ready.",
+    "journeyPrintReady": "Choose the physical format that fits your budget and occasion.",
+    "printOptionsTitle": "Choose a print format",
+    "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
+    "readyLabel": "Your illustrated book is ready to order.",
+    "orderedLabel": "Order placed — your book is with the printer."
   },
   "account": {
     "title": "Akun Anda",

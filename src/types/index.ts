@@ -74,6 +74,7 @@ export interface Story {
   theme: string
   premise?: string
   notes: string
+  storyLength?: 'short' | 'standard' | 'long'
   createdAt: string
   status?: 'generating' | 'ready' | 'failed'
   generationError?: string

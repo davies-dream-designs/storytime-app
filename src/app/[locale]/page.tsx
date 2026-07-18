@@ -1,11 +1,20 @@
 import Image from 'next/image'
 import { Suspense } from 'react'
+import { auth } from '@clerk/nextjs/server'
+import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { Link } from '@/i18n/navigation'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import RefCapture from '@/components/RefCapture'
+import { getLocale } from 'next-intl/server'
 
 export default async function Home() {
+  const { userId } = await auth()
+  if (userId) {
+    const locale = await getLocale()
+    redirect(`/${locale}/dashboard`)
+  }
+
   const t = await getTranslations('home')
 
   const features = [

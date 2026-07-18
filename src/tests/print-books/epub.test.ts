@@ -59,12 +59,12 @@ function createProject(): BookProject {
     profileId: "profile-1",
     ageBand: "3-5",
     status: "composing",
-    trimSize: "lulu-hardcover-32",
+    trimSize: "storycot-dynamic-square",
     pageCount: 32,
     spreadCount: 16,
     completedSpreads: 16,
     totalSpreads: 16,
-    currentStageLabel: "Preparing your illustrated PDF...",
+    currentStageLabel: "Preparing your book PDF...",
     beats: [],
     spreads: [
       {
@@ -148,7 +148,7 @@ describe("buildBookEpub", () => {
     expect(stored.epubUrl).toBe("https://example.com/storycot.epub");
     expect(mockStoreBookAsset).toHaveBeenCalledWith(
       expect.objectContaining({
-        pathname: "books/book-1/storycot.epub",
+        pathname: "books/book-1/Moonlight Garden.epub",
         contentType: "application/epub+zip",
       })
     );

@@ -22,11 +22,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { profileId, theme, premise, notes, locale } = (await req.json()) as {
+  const { profileId, theme, premise, notes, storyLength, locale } = (await req.json()) as {
     profileId: string;
     theme?: string;
     premise?: string;
     notes?: string;
+    storyLength?: 'short' | 'standard' | 'long';
     locale?: string;
   };
 
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest) {
     theme: theme ?? "a gentle adventure",
     premise,
     notes: notes ?? "",
+    storyLength: storyLength ?? "standard",
     createdAt: new Date().toISOString(),
     status: "generating",
   };

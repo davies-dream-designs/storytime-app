@@ -279,7 +279,22 @@
     "deleteStory": "Delete story",
     "deleteConfirm": "Dit verhaal verwijderen? Alle geïllustreerde PDF's/boeken die hiervan zijn gemaakt, worden ook uit uw bibliotheek verwijderd.",
     "deleting": "Bezig met verwijderen",
-    "deleteError": "We konden dit verhaal niet verwijderen."
+    "deleteError": "We konden dit verhaal niet verwijderen.",
+    "storyLengthLabel": "Story length",
+    "storyLength": {
+      "short": {
+        "label": "Short",
+        "desc": "4–6 pages · toddlers"
+      },
+      "standard": {
+        "label": "Standard",
+        "desc": "10–14 pages · classic"
+      },
+      "long": {
+        "label": "Long",
+        "desc": "14–18 pages · bookworms"
+      }
+    }
   },
   "books": {
     "createButton": "Genereer geïllustreerde PDF",
@@ -351,7 +366,7 @@
     "fallbackExportsTitle": "Downloadbare exports niet beschikbaar",
     "fallbackExportsBody": "Deze omgeving gebruikt inline fallback-exportgegevens in plaats van opgeslagen PDF-bestanden, dus klantgerichte downloads worden verborgen.",
     "proofingTitle": "Proefafdrukrapport",
-    "proofingPassed": "Er zijn geen blokkerende Lulu-georiënteerde proofingproblemen gevonden. Handmatige beoordeling is nog steeds vereist voordat je bestelt.",
+    "proofingPassed": "Er zijn geen blokkerende Storycot-printgerichte proofingproblemen gevonden. Handmatige beoordeling is nog steeds vereist voordat je bestelt.",
     "proofingOrderReady": "Het huidige exportpakket doorstaat geautomatiseerde controles en is klaar voor een laatste menselijke bestelbeoordeling.",
     "proofingExportReady": "Het exportpakket is downloadbaar, maar proofing of draft-art checks houden het nog steeds in de gaten.",
     "proofingBlocked": "Deze export heeft nog steeds blokkerende afdrukvoorbereidingsproblemen en is niet klaar voor fysieke bestelling.",
@@ -405,7 +420,8 @@
       "composing": "Afbeelding wordt samengesteld...",
       "proofing": "Proofing.",
       "ready": "Klaar",
-      "failed": "Mislukt"
+      "failed": "Mislukt",
+      "ordered": "Ordered"
     },
     "versionLabel": "Concept v{value}",
     "finalVersionLabel": "Eindpakket v{value}",
@@ -430,7 +446,22 @@
     "deleteBook": "Geïllustreerde PDF verwijderen",
     "deleteConfirm": "Dit geïllustreerde PDF/boekproject verwijderen? Het originele verhaal blijft in je bibliotheek staan.",
     "deleting": "Bezig met verwijderen",
-    "deleteError": "We konden deze geïllustreerde PDF niet verwijderen."
+    "deleteError": "We konden deze geïllustreerde PDF niet verwijderen.",
+    "estimateTitle": "Illustration estimate",
+    "estimateBody": "{credits} credits for about {pages} pages and {illustrations} custom illustrations. Credits cover the digital illustrated book; print is chosen separately afterwards.",
+    "journeyLabel": "Your book journey",
+    "journeyStoryTitle": "Story",
+    "journeyStoryDone": "Your personalised story is written.",
+    "journeyIllustrationsTitle": "Illustrations",
+    "journeyIllustrationsWorking": "We’re turning the story into a finished illustrated book.",
+    "journeyIllustrationsDone": "The illustrations and review files are ready.",
+    "journeyPrintTitle": "Print format",
+    "journeyPrintWaiting": "Choose softcover, hardcover, or layflat after the preview is ready.",
+    "journeyPrintReady": "Choose the physical format that fits your budget and occasion.",
+    "printOptionsTitle": "Choose a print format",
+    "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
+    "readyLabel": "Your illustrated book is ready to order.",
+    "orderedLabel": "Order placed — your book is with the printer."
   },
   "account": {
     "title": "Uw account",

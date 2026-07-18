@@ -40,7 +40,7 @@ function createStory(): Story {
         pageNumber: 1,
         text: "Mila stepped into the moonlight garden.",
         illustrationPrompt:
-          "A magical hardcover picture-book cover moment in a moonlight garden.",
+          "A magical print-ready picture-book cover moment in a moonlight garden.",
       },
     ],
   };
@@ -67,7 +67,7 @@ function createProject(): BookProject {
     profileId: "profile-1",
     ageBand: "3-5",
     status: "illustrating",
-    trimSize: "lulu-hardcover-32",
+    trimSize: "storycot-dynamic-square",
     pageCount: 32,
     spreadCount: 16,
     completedSpreads: 0,
@@ -88,7 +88,7 @@ function createProject(): BookProject {
         rightPageText: "",
         sceneBrief: "Front cover for Moonlight Garden",
         illustrationPrompt:
-          'A magical hardcover picture-book cover for "Moonlight Garden" starring Mila.',
+          'A magical print-ready picture-book cover for "Moonlight Garden" starring Mila.',
       },
     ],
     assets: { proofVersion: 0 },
@@ -195,10 +195,12 @@ describe("generateCoverIllustration", () => {
 
     expect(requests.map((request) => request.customId)).toEqual([
       "cover",
-      "spread:book-1:spread:2:spread",
+      "spread:book-1:spread:2:left",
+      "spread:book-1:spread:2:right",
     ]);
-    expect(requests[0]?.size).toBe("1024x1536");
+    expect(requests[0]?.size).toBe("1024x1024");
     expect(requests[1]?.size).toBe("1024x1024");
+    expect(requests[2]?.size).toBe("1024x1024");
   });
 
   it("fails batch output when generated image lines are missing", async () => {
@@ -300,6 +302,20 @@ describe("generateCoverIllustration", () => {
       isBookAssetStorageConfigured: () => true,
     }));
 
+    // Mock sharp so upscaling is a passthrough (test buffers are not real PNGs).
+    vi.doMock("sharp", () => {
+      const instance = {
+        resize: vi.fn().mockReturnThis(),
+        png: vi.fn().mockReturnThis(),
+        toBuffer: vi.fn().mockResolvedValue(Buffer.from("upscaled-png")),
+      };
+      const sharpFn = vi.fn(() => instance);
+      const sharpMock = Object.assign(sharpFn, {
+        kernel: { lanczos3: "lanczos3" },
+      });
+      return { default: sharpMock };
+    });
+
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({
@@ -344,6 +360,7 @@ describe("generateCoverIllustration", () => {
     );
 
     vi.unstubAllGlobals();
+    vi.doUnmock("sharp");
     vi.doUnmock("@/lib/print-books/storage");
   });
 });

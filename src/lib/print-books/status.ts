@@ -11,7 +11,7 @@ const STATUS_LABELS: Record<BookProjectStatus, string> = {
   illustrating: "Painting moonlit pages...",
   composing: "Weaving the story into a real book...",
   proofing: "Tucking the final pages into place...",
-  ready: "Your print-book draft is ready for review.",
+  ready: "Your illustrated book is ready to order.",
   failed: "This book needs another try.",
 };
 

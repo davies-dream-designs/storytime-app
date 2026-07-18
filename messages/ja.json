@@ -405,7 +405,8 @@
       "composing": "作曲",
       "proofing": "校正",
       "ready": "準備完了",
-      "failed": "失敗しました"
+      "failed": "失敗しました",
+      "ordered": "Ordered"
     },
     "versionLabel": "ドラフト v{value}",
     "finalVersionLabel": "最終パッケージ v{value}",
@@ -443,7 +444,9 @@
     "journeyPrintWaiting": "Choose softcover, hardcover, or layflat after the preview is ready.",
     "journeyPrintReady": "Choose the physical format that fits your budget and occasion.",
     "printOptionsTitle": "Choose a print format",
-    "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book."
+    "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
+    "readyLabel": "Your illustrated book is ready to order.",
+    "orderedLabel": "Order placed — your book is with the printer."
   },
   "account": {
     "title": "あなたのアカウント",

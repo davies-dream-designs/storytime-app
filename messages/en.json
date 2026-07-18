@@ -418,8 +418,11 @@
       "composing": "Composing",
       "proofing": "Proofing",
       "ready": "Ready",
+      "ordered": "Ordered",
       "failed": "Failed"
     },
+    "readyLabel": "Your illustrated book is ready to order.",
+    "orderedLabel": "Order placed — your book is with the printer.",
     "versionLabel": "Draft v{value}",
     "finalVersionLabel": "Final package v{value}",
     "generateArtButton": "Generate final art",

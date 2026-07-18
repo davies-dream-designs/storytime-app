@@ -405,7 +405,8 @@
       "composing": "Составление",
       "proofing": "Проверка",
       "ready": "Готово",
-      "failed": "Не удалось"
+      "failed": "Не удалось",
+      "ordered": "Ordered"
     },
     "versionLabel": "Черновик v{value}",
     "finalVersionLabel": "Финальный пакет v{value}",
@@ -443,7 +444,9 @@
     "journeyPrintWaiting": "Choose softcover, hardcover, or layflat after the preview is ready.",
     "journeyPrintReady": "Choose the physical format that fits your budget and occasion.",
     "printOptionsTitle": "Choose a print format",
-    "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book."
+    "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
+    "readyLabel": "Your illustrated book is ready to order.",
+    "orderedLabel": "Order placed — your book is with the printer."
   },
   "account": {
     "title": "Ваш аккаунт",

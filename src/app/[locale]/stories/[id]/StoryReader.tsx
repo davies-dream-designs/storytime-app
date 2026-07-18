@@ -73,6 +73,7 @@ export default function StoryReader({ story }: { story: Story }) {
             setLiveStory(data as Story);
             setPage(0);
             setStreaming(false);
+            window.dispatchEvent(new CustomEvent("storycot:credits-updated"));
             router.refresh();
           }
 

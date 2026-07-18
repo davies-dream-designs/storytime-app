@@ -11,7 +11,7 @@ const STATUS_LABELS: Record<BookProjectStatus, string> = {
   illustrating: "Painting moonlit pages...",
   composing: "Weaving the story into a real book...",
   proofing: "Tucking the final pages into place...",
-  ready: "Your print-book draft is ready for review.",
+  ready: "Your illustrated book is ready to order.",
   failed: "This book needs another try.",
 };
 
@@ -110,6 +110,11 @@ export function getBookProjectProgress(project: BookProjectStatusView): number {
 export function getBookProjectDisplayStageLabel(
   project: BookProjectStatusView
 ): string {
+  // For terminal states use the live label so copy changes apply without a rebuild
+  if (project.status === "ready" || project.status === "failed") {
+    return getBookProjectStageLabel(project.status);
+  }
+
   if (
     project.status === "illustrating" &&
     project.currentStageLabel.startsWith("Waiting for final art batch")

@@ -152,6 +152,13 @@ export default function BooksLibrary({ projects, stories }: BooksLibraryProps) {
               getBookTitle(project, storyTitleById) ?? t("untitledBook");
             const profileName = profileNameById.get(project.profileId);
 
+            const isPaid = project.printOrder?.status === "paid";
+            const stageLabel = isPaid
+              ? t("orderedLabel")
+              : project.status === "ready"
+              ? t("readyLabel")
+              : project.currentStageLabel;
+
             return (
               <article
                 key={project.id}
@@ -169,7 +176,7 @@ export default function BooksLibrary({ projects, stories }: BooksLibraryProps) {
                       {formatLocalShortDate(project.createdAt)}
                     </p>
                     <p className="mt-3 text-sm font-bold uppercase tracking-wide text-star-600">
-                      {project.currentStageLabel}
+                      {stageLabel}
                     </p>
                     <p className="mt-1 text-sm text-night-500">
                       {t("spreadProgress", {
@@ -178,8 +185,14 @@ export default function BooksLibrary({ projects, stories }: BooksLibraryProps) {
                       })}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-night-50 px-4 py-3 text-sm font-bold text-night-600">
-                    {t(`status.${project.status}`)}
+                  <div
+                    className={`rounded-2xl px-4 py-3 text-sm font-bold ${
+                      isPaid
+                        ? "bg-green-50 text-green-700"
+                        : "bg-night-50 text-night-600"
+                    }`}
+                  >
+                    {isPaid ? t("status.ordered") : t(`status.${project.status}`)}
                   </div>
                 </div>
                 <div className="mt-5 flex flex-wrap gap-2">

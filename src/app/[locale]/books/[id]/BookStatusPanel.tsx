@@ -10,6 +10,8 @@ import {
 } from "@/lib/print-books/status";
 import type { BookProject } from "@/types/printBook";
 
+type SpreadPreview = { id: string; sequence: number; thumbnailUrl?: string };
+
 type BookStatusPayload = Pick<
   BookProject,
   | "id"
@@ -22,7 +24,7 @@ type BookStatusPayload = Pick<
   | "errorCode"
   | "errorMessage"
   | "assets"
->;
+> & { spreadPreviews?: SpreadPreview[] };
 
 function isTerminal(status: BookProject["status"]): boolean {
   return status === "ready" || status === "failed";
@@ -36,6 +38,11 @@ export default function BookStatusPanel({
   const t = useTranslations("books");
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
+  const [spreadPreviews, setSpreadPreviews] = useState<SpreadPreview[]>(() =>
+    initialProject.spreads
+      .map((s) => ({ id: s.id, sequence: s.sequence, thumbnailUrl: s.thumbnailUrl ?? s.imageUrl }))
+      .sort((a, b) => a.sequence - b.sequence)
+  );
   const [retrying, setRetrying] = useState(false);
   const [repairingArt, setRepairingArt] = useState(false);
   const [startingBuild, setStartingBuild] = useState(false);
@@ -75,6 +82,11 @@ export default function BookStatusPanel({
       if (!res.ok) return;
       const next = (await res.json()) as BookStatusPayload;
       setProject((current) => ({ ...current, ...next }));
+      if (next.spreadPreviews) {
+        setSpreadPreviews(
+          [...next.spreadPreviews].sort((a, b) => a.sequence - b.sequence)
+        );
+      }
 
       if (
         (next.status === "ready" || next.status === "failed") &&
@@ -120,6 +132,9 @@ export default function BookStatusPanel({
     Boolean(activeJobStatus);
   const hasMixedArt =
     project.status === "ready" && project.assets.artMode === "mixed";
+  const showSpreadGrid =
+    project.status === "illustrating" ||
+    spreadPreviews.some((p) => p.thumbnailUrl);
   const lastUpdated = project.updatedAt
     ? new Intl.DateTimeFormat(undefined, {
         month: "short",
@@ -168,6 +183,39 @@ export default function BookStatusPanel({
           style={{ width: `${Math.min(progress, 100)}%` }}
         />
       </div>
+
+      {showSpreadGrid && project.totalSpreads > 0 ? (
+        <div className="mt-6">
+          <p className="mb-3 text-xs font-bold uppercase tracking-wide text-night-400">
+            {t("spreadProgress", {
+              completed: project.completedSpreads,
+              total: project.totalSpreads,
+            })}
+          </p>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+            {Array.from({ length: project.totalSpreads }).map((_, i) => {
+              const preview = spreadPreviews[i];
+              const url = preview?.thumbnailUrl;
+              return (
+                <div
+                  key={preview?.id ?? i}
+                  className="aspect-square overflow-hidden rounded-xl bg-night-100"
+                >
+                  {url ? (
+                    <img
+                      src={url}
+                      alt={t("spreadNumberLabel", { sequence: preview.sequence })}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full animate-pulse bg-night-100" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       {isActiveBuild ? (
         <div className="mt-6 rounded-2xl border border-star-200 bg-star-50 p-4">

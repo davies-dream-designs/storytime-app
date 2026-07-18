@@ -39,8 +39,7 @@ function GenerateForm() {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] =
     useState<StorySuggestion | null>(null);
-  const [customMode, setCustomMode] = useState(false);
-  const [customTheme, setCustomTheme] = useState("");
+  const [customPremise, setCustomPremise] = useState("");
   const [notes, setNotes] = useState("");
   const [storyPreset, setStoryPreset] = useState<StoryPreset>("moonlit-adventures");
   const [generating, setGenerating] = useState(false);
@@ -74,17 +73,16 @@ function GenerateForm() {
       .finally(() => setLoadingProfiles(false));
   }, [defaultProfileId]);
 
-  async function fetchSuggestions(pid: string) {
+  async function fetchSuggestions(pid: string, fresh = false) {
     if (!pid) return;
     setLoadingSuggestions(true);
     setSuggestions([]);
     setSelectedSuggestion(null);
-    setCustomMode(false);
     try {
       const res = await fetch("/api/stories/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId: pid, locale }),
+        body: JSON.stringify({ profileId: pid, locale, fresh }),
       });
       const data = await res.json();
       if (res.ok) setSuggestions(data);
@@ -99,7 +97,7 @@ function GenerateForm() {
     setProfileId(pid);
     setSuggestions([]);
     setSelectedSuggestion(null);
-    setCustomMode(false);
+    setCustomPremise("");
     const profile = profiles.find(p => p.id === pid);
     if (profile) setStoryPreset(getDefaultPreset(getAge(profile)));
   }
@@ -110,7 +108,7 @@ function GenerateForm() {
       setError(t("errorNoProfile"));
       return;
     }
-    if (!selectedSuggestion && !customMode) {
+    if (!selectedSuggestion && !customPremise.trim()) {
       setError(t("errorNoIdea"));
       return;
     }
@@ -128,7 +126,7 @@ function GenerateForm() {
           }
         : {
             profileId,
-            theme: customTheme || "a gentle adventure",
+            premise: customPremise.trim(),
             notes,
             storyPreset,
             locale,
@@ -192,7 +190,7 @@ function GenerateForm() {
   }
 
   const showIdeas = suggestions.length > 0 || loadingSuggestions;
-  const readyToGenerate = profileId && (selectedSuggestion || customMode);
+  const readyToGenerate = profileId && (selectedSuggestion || customPremise.trim());
 
   return (
     <div className="space-y-8">
@@ -224,7 +222,7 @@ function GenerateForm() {
           ))}
         </div>
 
-        {profileId && !showIdeas && (
+        {profileId && (
           <div className="mt-5 space-y-4">
             <div>
               <p className="mb-2 text-sm font-bold uppercase tracking-wide text-night-400">
@@ -256,13 +254,28 @@ function GenerateForm() {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => fetchSuggestions(profileId)}
-              className="w-full rounded-xl border-2 border-dashed border-night-300 py-3 text-sm font-bold text-night-600 transition hover:border-star-400 hover:text-star-600"
-            >
-              {t("getIdeas", { name: selectedProfile?.name ?? "" })}
-            </button>
+            <div>
+              <label className={formStyles.label}>{t("storyIdeaLabel")}</label>
+              <textarea
+                value={customPremise}
+                onChange={(e) => setCustomPremise(e.target.value)}
+                rows={2}
+                placeholder={t("storyIdeaPlaceholder", {
+                  name: selectedProfile?.name ?? "",
+                })}
+                className={formStyles.textarea}
+              />
+            </div>
+
+            {!showIdeas && (
+              <button
+                type="button"
+                onClick={() => fetchSuggestions(profileId)}
+                className="w-full rounded-xl border-2 border-dashed border-night-300 py-3 text-sm font-bold text-night-600 transition hover:border-star-400 hover:text-star-600"
+              >
+                {t("getIdeas", { name: selectedProfile?.name ?? "" })}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -290,10 +303,7 @@ function GenerateForm() {
                 <button
                   key={i}
                   type="button"
-                  onClick={() => {
-                    setSelectedSuggestion(s);
-                    setCustomMode(false);
-                  }}
+                  onClick={() => setSelectedSuggestion(s)}
                   className={choiceCardClassName(
                     selectedSuggestion === s,
                     "w-full p-4 text-left"
@@ -318,82 +328,57 @@ function GenerateForm() {
 
               <button
                 type="button"
-                onClick={() => {
-                  setCustomMode(true);
-                  setSelectedSuggestion(null);
-                }}
-                className={choiceCardClassName(
-                  customMode,
-                  "w-full p-4 text-left"
-                )}
+                onClick={() => fetchSuggestions(profileId, true)}
+                className="w-full rounded-xl border border-night-200 py-2.5 text-sm font-bold text-night-600 transition hover:bg-night-50"
               >
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">✏️</span>
-                  <p className="font-display font-bold text-night-800">
-                    {t("customOption")}
-                  </p>
-                </div>
+                {t("getMoreIdeas")}
               </button>
-
-              {customMode && (
-                <div className="space-y-3 rounded-2xl border border-night-100 bg-white p-4">
-                  <div>
-                    <label className="mb-1.5 block text-sm font-bold text-night-700">
-                      {t("themeLabel")}
-                    </label>
-                    <input
-                      value={customTheme}
-                      onChange={(e) => setCustomTheme(e.target.value)}
-                      placeholder={t("themePlaceholder")}
-                      className={formStyles.field}
-                    />
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
       )}
 
-      {readyToGenerate && (
-        <div>
-          <label className={formStyles.label}>{t("notesLabel")}</label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={2}
-            placeholder={t("notesPlaceholder", {
-              name: selectedProfile?.name ?? "",
-            })}
-            className={formStyles.textarea}
-          />
-        </div>
-      )}
+      {profileId && (
+        <>
+          <div>
+            <label className={formStyles.label}>{t("notesLabel")}</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder={t("notesPlaceholder", {
+                name: selectedProfile?.name ?? "",
+              })}
+              className={formStyles.textarea}
+            />
+          </div>
 
-      {error && <p className={formStyles.error}>{error}</p>}
+          {error && <p className={formStyles.error}>{error}</p>}
 
-      {readyToGenerate && (
-        <Button
-          onClick={handleGenerate}
-          disabled={generating}
-          fullWidth
-          size="large"
-          className="font-display"
-        >
-          {generating ? (
-            <span className="flex items-center justify-center gap-2">
-              <span className="animate-spin">✨</span> {t("generating")}
-            </span>
-          ) : (
-            t("generateButton2")
+          {readyToGenerate && (
+            <Button
+              onClick={handleGenerate}
+              disabled={generating}
+              fullWidth
+              size="large"
+              className="font-display"
+            >
+              {generating ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="animate-spin">✨</span> {t("generating")}
+                </span>
+              ) : (
+                t("generateButton2")
+              )}
+            </Button>
           )}
-        </Button>
-      )}
 
-      {generating && (
-        <p className="text-center text-sm text-night-400">
-          {t("generatingSub")}
-        </p>
+          {generating && (
+            <p className="text-center text-sm text-night-400">
+              {t("generatingSub")}
+            </p>
+          )}
+        </>
       )}
     </div>
   );

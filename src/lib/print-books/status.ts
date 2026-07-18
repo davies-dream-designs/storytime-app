@@ -110,6 +110,11 @@ export function getBookProjectProgress(project: BookProjectStatusView): number {
 export function getBookProjectDisplayStageLabel(
   project: BookProjectStatusView
 ): string {
+  // For terminal states use the live label so copy changes apply without a rebuild
+  if (project.status === "ready" || project.status === "failed") {
+    return getBookProjectStageLabel(project.status);
+  }
+
   if (
     project.status === "illustrating" &&
     project.currentStageLabel.startsWith("Waiting for final art batch")

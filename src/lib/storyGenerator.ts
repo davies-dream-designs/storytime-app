@@ -233,11 +233,11 @@ export async function generateSuggestions(
 Child profile:
 - Name: ${profile.name}, age ${getAge(profile)}
 - Appearance: ${buildChildAppearanceSummary(profile.appearance) || "No structured appearance details provided."}
-- Favourite characters/toys: ${profile.favouriteCharacters.join(", ") || "none"}
-- Favourite activities: ${profile.favouriteActivities.join(", ") || "none"}
-- Favourite animals: ${profile.favouriteAnimals.join(", ") || "none"}
-- Favourite places: ${profile.favouritePlaces.join(", ") || "none"}
-- Themes they like: ${profile.lessons.join(", ") || "adventure, kindness"}
+- Favourite characters/toys: ${(profile.favouriteCharacters ?? []).join(", ") || "none"}
+- Favourite activities: ${(profile.favouriteActivities ?? []).join(", ") || "none"}
+- Favourite animals: ${(profile.favouriteAnimals ?? []).join(", ") || "none"}
+- Favourite places: ${(profile.favouritePlaces ?? []).join(", ") || "none"}
+- Themes they like: ${(profile.lessons ?? []).join(", ") || "adventure, kindness"}
 ${avoidSection}
 
 Generate exactly 3 unique, imaginative bedtime story ideas for ${profile.name}.

@@ -216,6 +216,7 @@ export interface BookProject {
   printOrder?: PrintBookOrder;
   errorCode?: string;
   errorMessage?: string;
+  rawError?: string;
   retryCount: number;
   createdAt: string;
   updatedAt: string;

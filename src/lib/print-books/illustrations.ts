@@ -507,7 +507,12 @@ function assertOpenAIResponse(
   action: string
 ) {
   if (!response.ok) {
-    throw new Error(`${action} failed: ${response.status} ${bodyText}`);
+    const isHtml =
+      bodyText.trimStart().startsWith("<") || bodyText.includes("<!DOCTYPE");
+    const detail = isHtml
+      ? `HTTP ${response.status}`
+      : bodyText.slice(0, 300);
+    throw new Error(`${action} failed: ${detail}`);
   }
 }
 

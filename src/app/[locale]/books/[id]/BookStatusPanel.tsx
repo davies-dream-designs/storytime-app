@@ -199,7 +199,7 @@ export default function BookStatusPanel({
         <div className="mt-6 rounded-2xl border border-blush-200 bg-blush-100 p-4">
           <p className="font-bold text-blush-700">{t("failedTitle")}</p>
           <p className="mt-1 text-sm text-blush-600">
-            {project.errorMessage ?? t("failedFallback")}
+            {t("failedFallback")}
           </p>
           <p className="mt-2 text-sm text-blush-600">
             {t("failedPaymentNote")}

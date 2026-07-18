@@ -84,6 +84,13 @@ function getQueuedStageLabel(mode: BookBuildMode, project: BookProject) {
   }
 }
 
+function userMessageForErrorCode(errorCode: string): string {
+  if (errorCode.startsWith("planning")) return "We hit a snag planning the book. Hit retry — it usually clears up.";
+  if (errorCode.startsWith("bible")) return "The character setup didn't finish. Retry to pick up where it left off.";
+  if (errorCode.startsWith("illustrating")) return "Illustrations didn't finish generating. Retry and we'll pick up from where it stopped.";
+  return "The illustrated book didn't finish. Your credits have been refunded. Hit retry to try again.";
+}
+
 async function markJobProjectFailure(
   project: BookProject,
   jobId: string,
@@ -96,7 +103,8 @@ async function markJobProjectFailure(
     status: "failed",
     currentStageLabel: getBookProjectStageLabel("failed"),
     errorCode,
-    errorMessage: message,
+    errorMessage: userMessageForErrorCode(errorCode),
+    rawError: message,
     assets: {
       ...project.assets,
       activeJobId: undefined,
@@ -106,11 +114,14 @@ async function markJobProjectFailure(
     },
   });
 
-  await db.bookBuildJobs.update(jobId, {
-    status: "failed",
-    errorMessage: message,
-    completedAt: getNowIso(),
-  });
+  await Promise.all([
+    db.bookBuildJobs.update(jobId, {
+      status: "failed",
+      errorMessage: message,
+      completedAt: getNowIso(),
+    }),
+    db.bookProjects.addToFailedIndex(project.id),
+  ]);
 }
 
 async function loadBuildContext(project: BookProject) {

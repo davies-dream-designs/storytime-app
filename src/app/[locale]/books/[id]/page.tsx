@@ -122,33 +122,70 @@ export default async function BookProjectPage({
               Print order
             </p>
             <h2 className="mt-2 font-display text-3xl font-bold text-night-800">
-              {project.printOrder.productLabel} selected
+              {(() => {
+                const f = project.printOrder!.fulfillment;
+                if (!f || f.status === "not_configured" || f.status === "ready_for_manual_review")
+                  return "Order received";
+                if (f.status === "submitted") return "Sent to print";
+                if (f.status === "failed") return "Order needs attention";
+                return "Order received";
+              })()}
             </h2>
-            <p className="mt-2 text-night-600">
-              {project.printOrder.format} ·{" "}
+            <p className="mt-1 text-night-500">
+              {project.printOrder.productLabel} · {project.printOrder.format} ·{" "}
               {project.printOrder.amountAud.toLocaleString("en-AU", {
                 style: "currency",
                 currency: "AUD",
-              })}{" "}
-              paid
+              })}
             </p>
-            <p className="mt-4 leading-7 text-night-600">
-              The story, illustrations, cover, and print files are together now.
-              This is the moment it becomes a real book.
-            </p>
-            {project.printOrder.fulfillment ? (
-              <div className="mt-5 rounded-2xl bg-white/80 p-4 text-sm text-night-600">
-                <p className="font-bold text-night-800">
-                  Fulfilment:{" "}
-                  {project.printOrder.fulfillment.status.replaceAll("_", " ")}
-                </p>
-                {project.printOrder.fulfillment.message ? (
-                  <p className="mt-1 leading-6">
-                    {project.printOrder.fulfillment.message}
+
+            {(() => {
+              const f = project.printOrder!.fulfillment;
+              if (f?.status === "submitted") {
+                return (
+                  <div className="mt-5 space-y-3">
+                    <p className="leading-7 text-night-600">
+                      Your book is with the printer. Prodigi will send you a
+                      dispatch email with tracking once it ships — check the
+                      inbox you used at checkout.
+                    </p>
+                    <div className="rounded-2xl bg-white/70 px-4 py-3 text-sm text-night-600">
+                      <p className="font-semibold text-night-800">What to expect</p>
+                      <p className="mt-1">Production: 3–5 business days</p>
+                      <p>Delivery to Australia: a further 5–7 business days</p>
+                    </div>
+                    {f.externalOrderId ? (
+                      <p className="text-xs text-night-400">
+                        Printer ref: {f.externalOrderId}
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              }
+              if (f?.status === "failed") {
+                return (
+                  <p className="mt-4 leading-7 text-blush-600">
+                    There was a problem sending your order to the printer. Our
+                    team has been notified and will sort it out — no further
+                    action needed from you.
                   </p>
-                ) : null}
-              </div>
-            ) : null}
+                );
+              }
+              return (
+                <div className="mt-5 space-y-3">
+                  <p className="leading-7 text-night-600">
+                    Payment received — your book is being prepared for print.
+                    You&apos;ll get a dispatch email with tracking once it
+                    ships.
+                  </p>
+                  <div className="rounded-2xl bg-white/70 px-4 py-3 text-sm text-night-600">
+                    <p className="font-semibold text-night-800">What to expect</p>
+                    <p className="mt-1">Production: 3–5 business days</p>
+                    <p>Delivery to Australia: a further 5–7 business days</p>
+                  </div>
+                </div>
+              );
+            })()}
           </section>
         ) : null}
 

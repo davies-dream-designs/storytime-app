@@ -268,13 +268,18 @@ function GenerateForm() {
             </div>
 
             {!showIdeas && (
-              <button
-                type="button"
-                onClick={() => fetchSuggestions(profileId)}
-                className="w-full rounded-xl border-2 border-dashed border-night-300 py-3 text-sm font-bold text-night-600 transition hover:border-star-400 hover:text-star-600"
-              >
-                {t("getIdeas", { name: selectedProfile?.name ?? "" })}
-              </button>
+              <div className="space-y-2">
+                <p className="text-xs text-night-400">
+                  {t("getIdeasHint")}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => fetchSuggestions(profileId)}
+                  className="w-full rounded-xl border-2 border-dashed border-night-300 py-3 text-sm font-bold text-night-600 transition hover:border-star-400 hover:text-star-600"
+                >
+                  {t("getIdeas", { name: selectedProfile?.name ?? "" })}
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -326,13 +331,9 @@ function GenerateForm() {
                 </button>
               ))}
 
-              <button
-                type="button"
-                onClick={() => fetchSuggestions(profileId, true)}
-                className="w-full rounded-xl border border-night-200 py-2.5 text-sm font-bold text-night-600 transition hover:bg-night-50"
-              >
-                {t("getMoreIdeas")}
-              </button>
+              <p className="text-xs text-night-400">
+                {t("suggestionsNote")}
+              </p>
             </div>
           )}
         </div>

@@ -279,7 +279,22 @@
     "deleteStory": "Hapus cerita",
     "deleteConfirm": "Hapus cerita ini? PDF/buku bergambar apa pun yang dibuat darinya juga akan dihapus dari perpustakaan Anda.",
     "deleting": "Menghapus…",
-    "deleteError": "Kami tidak dapat menghapus cerita ini."
+    "deleteError": "Kami tidak dapat menghapus cerita ini.",
+    "storyLengthLabel": "Story length",
+    "storyLength": {
+      "short": {
+        "label": "Short",
+        "desc": "4–6 pages · toddlers"
+      },
+      "standard": {
+        "label": "Standard",
+        "desc": "10–14 pages · classic"
+      },
+      "long": {
+        "label": "Long",
+        "desc": "14–18 pages · bookworms"
+      }
+    }
   },
   "books": {
     "createButton": "Hasilkan PDF bergambar",

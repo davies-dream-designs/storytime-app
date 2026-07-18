@@ -279,7 +279,22 @@
     "deleteStory": "删除故事",
     "deleteConfirm": "要删除这个故事吗？由它创建的插图 PDF/图书也会从资料库中移除。",
     "deleting": "正在删除…",
-    "deleteError": "无法删除这个故事。"
+    "deleteError": "无法删除这个故事。",
+    "storyLengthLabel": "Story length",
+    "storyLength": {
+      "short": {
+        "label": "Short",
+        "desc": "4–6 pages · toddlers"
+      },
+      "standard": {
+        "label": "Standard",
+        "desc": "10–14 pages · classic"
+      },
+      "long": {
+        "label": "Long",
+        "desc": "14–18 pages · bookworms"
+      }
+    }
   },
   "books": {
     "createButton": "生成插图 PDF",

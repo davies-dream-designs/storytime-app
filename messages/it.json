@@ -279,7 +279,22 @@
     "deleteStory": "Elimina storia",
     "deleteConfirm": "Eliminare questa storia? Anche eventuali PDF/libri illustrati creati da essa saranno rimossi dalla tua biblioteca.",
     "deleting": "Eliminazione…",
-    "deleteError": "Non siamo riusciti a eliminare questa storia."
+    "deleteError": "Non siamo riusciti a eliminare questa storia.",
+    "storyLengthLabel": "Story length",
+    "storyLength": {
+      "short": {
+        "label": "Short",
+        "desc": "4–6 pages · toddlers"
+      },
+      "standard": {
+        "label": "Standard",
+        "desc": "10–14 pages · classic"
+      },
+      "long": {
+        "label": "Long",
+        "desc": "14–18 pages · bookworms"
+      }
+    }
   },
   "books": {
     "createButton": "Genera PDF illustrato",

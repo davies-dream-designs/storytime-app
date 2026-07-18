@@ -279,7 +279,22 @@
     "deleteStory": "Hikayeyi sil",
     "deleteConfirm": "Bu hikaye silinsin mi? Bundan oluşturulan resimli PDF/kitap da kitaplığınızdan kaldırılacaktır.",
     "deleting": "Siliniyor…",
-    "deleteError": "Bu hikayeyi silemedik."
+    "deleteError": "Bu hikayeyi silemedik.",
+    "storyLengthLabel": "Story length",
+    "storyLength": {
+      "short": {
+        "label": "Short",
+        "desc": "4–6 pages · toddlers"
+      },
+      "standard": {
+        "label": "Standard",
+        "desc": "10–14 pages · classic"
+      },
+      "long": {
+        "label": "Long",
+        "desc": "14–18 pages · bookworms"
+      }
+    }
   },
   "books": {
     "createButton": "Resimli PDF oluştur",

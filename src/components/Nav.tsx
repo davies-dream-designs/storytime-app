@@ -115,6 +115,15 @@ export default function Nav() {
                   </span>
                 ) : null}
               </Link>
+              {creditInfo?.isAdmin ? (
+                <Link
+                  href="/admin"
+                  aria-current={isActive("/admin") ? "page" : undefined}
+                  className={`rounded-full px-3 py-2 text-xs font-bold transition ${isActive("/admin") ? "bg-night-700 text-moon-200" : "text-night-400 hover:bg-night-100"}`}
+                >
+                  Admin
+                </Link>
+              ) : null}
               <LanguageSwitcher />
               <UserButton />
             </>
@@ -135,6 +144,19 @@ export default function Nav() {
           <LanguageSwitcher />
           {isSignedIn ? (
             <>
+              {creditInfo && !creditInfo.isAdmin ? (
+                <Link
+                  href="/account"
+                  className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold transition ${
+                    creditInfo.credits === 0
+                      ? "bg-red-100 text-red-600"
+                      : "bg-night-100 text-night-600"
+                  }`}
+                  title={t("accountCredits")}
+                >
+                  ✨ {creditInfo.credits}
+                </Link>
+              ) : null}
               <UserButton />
               <button
                 onClick={() => setOpen((o) => !o)}

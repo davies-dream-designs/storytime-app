@@ -198,6 +198,17 @@ export const db = {
       await this.replace(id, next);
       return next;
     },
+    failedIndexKey(): string {
+      return "bookProjectsFailed";
+    },
+    async addToFailedIndex(id: string): Promise<void> {
+      const existing = (await kv.get<string[]>(this.failedIndexKey())) ?? [];
+      const next = [id, ...existing.filter((i) => i !== id)].slice(0, 200);
+      await kv.set(this.failedIndexKey(), next);
+    },
+    async getFailedIndex(): Promise<string[]> {
+      return (await kv.get<string[]>(this.failedIndexKey())) ?? [];
+    },
     async delete(id: string): Promise<boolean> {
       const project = await this.getById(id);
       if (!project) return false;

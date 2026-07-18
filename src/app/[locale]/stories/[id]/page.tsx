@@ -11,6 +11,7 @@ import { db } from "@/lib/db";
 import { inferAgeBand } from "@/lib/print-books/ageBand";
 import { getStorycotPageCountForAgeBand } from "@/lib/print-books/printProducts";
 import { estimateIllustratedBookCredits } from "@/lib/pricing";
+import { getUserCredits } from "@/lib/credits";
 import StoryReader from "./StoryReader";
 import ShareButton from "./ShareButton";
 import CreatePrintBookButton from "./CreatePrintBookButton";
@@ -26,10 +27,12 @@ export default async function StoryPage({
   const story = await db.stories.getById(id);
   if (!story || story.userId !== userId) notFound();
 
-  const [profile, bookProjects] = await Promise.all([
-    db.profiles.getById(story.profileId),
-    db.bookProjects.getByStoryId(id),
-  ]);
+  const [profile, bookProjects, { credits: userCredits, isAdmin }] =
+    await Promise.all([
+      db.profiles.getById(story.profileId),
+      db.bookProjects.getByStoryId(id),
+      userId ? getUserCredits(userId) : Promise.resolve({ credits: 0, isAdmin: false }),
+    ]);
   const existingBook = bookProjects.find((p) => p.status !== "failed") ?? null;
   const ageBand = profile ? inferAgeBand(profile) : "3-5";
   const estimatedPageCount = getStorycotPageCountForAgeBand(ageBand);
@@ -119,6 +122,8 @@ export default async function StoryPage({
                     credits={illustrationEstimate.credits}
                     pageCount={estimatedPageCount}
                     illustrationCount={estimatedIllustrationCount}
+                    userCredits={userCredits}
+                    isAdmin={isAdmin}
                   />
                 )}
               </>

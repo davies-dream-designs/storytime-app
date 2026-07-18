@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth, SignInButton, UserButton } from "@clerk/nextjs";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -11,6 +11,18 @@ import { buttonClassName } from "@/components/ui/buttonStyles";
 export default function Nav() {
   const { isSignedIn } = useAuth();
   const [open, setOpen] = useState(false);
+  const [creditInfo, setCreditInfo] = useState<{
+    credits: number;
+    isAdmin: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!isSignedIn) return;
+    fetch("/api/user/credits")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setCreditInfo(d as { credits: number; isAdmin: boolean }); })
+      .catch(() => {});
+  }, [isSignedIn]);
   const pathname = usePathname();
   const t = useTranslations("nav");
   const logoHref = isSignedIn ? "/dashboard" : "/";
@@ -87,10 +99,21 @@ export default function Nav() {
               <Link
                 href="/account"
                 aria-current={isActive("/account") ? "page" : undefined}
-                className={`rounded-full px-3 py-2 text-sm font-bold transition ${isActive("/account") ? "bg-night-700 text-moon-200 shadow-sm shadow-night-700/20" : "text-night-500 hover:bg-night-100"}`}
+                className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-bold transition ${isActive("/account") ? "bg-night-700 text-moon-200 shadow-sm shadow-night-700/20" : "text-night-500 hover:bg-night-100"}`}
                 title={t("accountCredits")}
               >
                 ✨
+                {creditInfo && !creditInfo.isAdmin ? (
+                  <span
+                    className={`min-w-[1.25rem] rounded-full px-1 text-center text-xs ${
+                      creditInfo.credits === 0
+                        ? "bg-red-100 text-red-600"
+                        : "bg-night-100 text-night-600"
+                    }`}
+                  >
+                    {creditInfo.credits}
+                  </span>
+                ) : null}
               </Link>
               <LanguageSwitcher />
               <UserButton />
@@ -197,9 +220,20 @@ export default function Nav() {
             href="/account"
             aria-current={isActive("/account") ? "page" : undefined}
             onClick={() => setOpen(false)}
-            className={mobileLinkClass("/account")}
+            className={`flex items-center justify-between ${mobileLinkClass("/account")}`}
           >
             {t("accountMobile")}
+            {creditInfo && !creditInfo.isAdmin ? (
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                  creditInfo.credits === 0
+                    ? "bg-red-100 text-red-600"
+                    : "bg-night-100 text-night-600"
+                }`}
+              >
+                {creditInfo.credits} ✨
+              </span>
+            ) : null}
           </Link>
           <Link
             href="/stories/new"

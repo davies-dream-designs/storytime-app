@@ -11,6 +11,17 @@ function getCredits(value: unknown) {
     : DEFAULT_CREDITS;
 }
 
+export async function getUserCredits(
+  userId: string
+): Promise<{ credits: number; isAdmin: boolean }> {
+  const client = await clerkClient();
+  const user = await client.users.getUser(userId);
+  return {
+    credits: getCredits(user.privateMetadata.credits),
+    isAdmin: user.privateMetadata.isAdmin === true,
+  };
+}
+
 export function needsIllustratedBookReservation(project: BookProject) {
   return (
     project.billing?.product !== "illustrated_book" ||

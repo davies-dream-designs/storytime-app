@@ -88,6 +88,7 @@ export async function POST(
             theme: story.theme,
             premise: story.premise,
             notes: story.notes,
+            storyPreset: story.storyPreset,
             recentTitles,
             locale,
           },

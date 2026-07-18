@@ -216,6 +216,10 @@
     "customOption": "其他创意…",
     "themeLabel": "主题或创意",
     "themePlaceholder": "例如：勇敢、太空冒险、帮助朋友…",
+    "storyIdeaLabel": "Story idea",
+    "storyIdeaPlaceholder": "e.g. {name} meets a friendly dragon in the garden…",
+    "getIdeasHint": "Don't have an idea? We can weave some magic for you…",
+    "suggestionsNote": "These suggestions are saved for 24 hours. Come back tomorrow for fresh ones.",
     "notesLabel": "额外细节（可选）",
     "notesPlaceholder": "例如：包含 {name} 这周去海滩的经历…",
     "errorNoProfile": "请选择一个儿童档案",
@@ -279,7 +283,25 @@
     "deleteStory": "删除故事",
     "deleteConfirm": "要删除这个故事吗？由它创建的插图 PDF/图书也会从资料库中移除。",
     "deleting": "正在删除…",
-    "deleteError": "无法删除这个故事。"
+    "deleteError": "无法删除这个故事。",
+    "storyPresetLabel": "Story style",
+    "storyPreset": {
+      "tiny-tales": {
+        "label": "Tiny Tales",
+        "ageRange": "Ages 0–3",
+        "desc": "4–6 pages · big illustrations · one sentence per page"
+      },
+      "moonlit-adventures": {
+        "label": "Moonlit Adventures",
+        "ageRange": "Ages 4–6",
+        "desc": "8–10 pages · balanced illustrations and text"
+      },
+      "epic-sagas": {
+        "label": "Epic Sagas",
+        "ageRange": "Ages 7+",
+        "desc": "10–14 pages · more story · fewer illustrations"
+      }
+    }
   },
   "books": {
     "createButton": "生成插图 PDF",
@@ -434,6 +456,9 @@
     "deleteError": "无法删除这个插图 PDF。",
     "estimateTitle": "Illustration estimate",
     "estimateBody": "{credits} credits for about {pages} pages and {illustrations} custom illustrations. Credits cover the digital illustrated book; print is chosen separately afterwards.",
+    "estimateBodyTinyTales": "{credits} credits · Tiny Tales — 4–6 illustrated pages, big pictures for little ones (ages 0–3). Credits cover the digital illustrated book; print is chosen separately afterwards.",
+    "estimateBodyMoonlitAdventures": "{credits} credits · Moonlit Adventures — 8–10 illustrated pages with balanced art and story (ages 4–6). Credits cover the digital illustrated book; print is chosen separately afterwards.",
+    "estimateBodyEpicSagas": "{credits} credits · Epic Sagas — 10–14 illustrated pages with rich storytelling (ages 7+). Credits cover the digital illustrated book; print is chosen separately afterwards.",
     "journeyLabel": "Your book journey",
     "journeyStoryTitle": "Story",
     "journeyStoryDone": "Your personalised story is written.",

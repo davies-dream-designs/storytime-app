@@ -30,7 +30,7 @@ function summarizeStoryVisuals(story: Story): string {
     .map(
       (page) =>
         `- Page ${page.pageNumber}: text="${page.text.trim()}" visual="${
-          page.illustrationPrompt.trim() || 'None provided'
+          (page.illustrationPrompt ?? '').trim() || 'None provided'
         }"`
     )
     .join('\n')

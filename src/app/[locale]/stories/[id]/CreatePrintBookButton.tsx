@@ -12,6 +12,7 @@ export default function CreatePrintBookButton({
   illustrationCount,
   userCredits,
   isAdmin,
+  storyPreset,
 }: {
   storyId: string;
   credits: number;
@@ -19,6 +20,7 @@ export default function CreatePrintBookButton({
   illustrationCount: number;
   userCredits: number;
   isAdmin: boolean;
+  storyPreset?: string;
 }) {
   const t = useTranslations("books");
   const router = useRouter();
@@ -68,16 +70,19 @@ export default function CreatePrintBookButton({
     }
   }
 
+  const estimateBodyText =
+    storyPreset === "tiny-tales"
+      ? t("estimateBodyTinyTales", { credits })
+      : storyPreset === "moonlit-adventures"
+        ? t("estimateBodyMoonlitAdventures", { credits })
+        : storyPreset === "epic-sagas"
+          ? t("estimateBodyEpicSagas", { credits })
+          : t("estimateBody", { credits, pages: pageCount, illustrations: illustrationCount });
+
   const estimateBox = (
     <div className="mb-3 max-w-md rounded-2xl border border-star-200 bg-star-50 px-4 py-3 text-sm text-night-600">
       <p className="font-bold text-night-800">{t("estimateTitle")}</p>
-      <p className="mt-1">
-        {t("estimateBody", {
-          credits,
-          pages: pageCount,
-          illustrations: illustrationCount,
-        })}
-      </p>
+      <p className="mt-1">{estimateBodyText}</p>
     </div>
   );
 

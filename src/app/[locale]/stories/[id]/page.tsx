@@ -124,6 +124,7 @@ export default async function StoryPage({
                     illustrationCount={estimatedIllustrationCount}
                     userCredits={userCredits}
                     isAdmin={isAdmin}
+                    storyPreset={story.storyPreset}
                   />
                 )}
               </>

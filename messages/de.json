@@ -216,6 +216,10 @@
     "customOption": "Etwas anderes…",
     "themeLabel": "Thema oder Idee",
     "themePlaceholder": "z. B. Mut, Weltraumabenteuer, Freunden helfen…",
+    "storyIdeaLabel": "Story idea",
+    "storyIdeaPlaceholder": "e.g. {name} meets a friendly dragon in the garden…",
+    "getIdeasHint": "Don't have an idea? We can weave some magic for you…",
+    "suggestionsNote": "These suggestions are saved for 24 hours. Come back tomorrow for fresh ones.",
     "notesLabel": "Weitere Details (optional)",
     "notesPlaceholder": "z. B. {name}s Ausflug zum Strand diese Woche einbauen…",
     "errorNoProfile": "Bitte wähle ein Kinderprofil",
@@ -279,7 +283,25 @@
     "deleteStory": "Geschichte löschen",
     "deleteConfirm": "Diese Geschichte löschen? Jedes daraus erstellte illustrierte PDF/Buch wird ebenfalls aus deiner Bibliothek entfernt.",
     "deleting": "Wird gelöscht…",
-    "deleteError": "Diese Geschichte konnte nicht gelöscht werden."
+    "deleteError": "Diese Geschichte konnte nicht gelöscht werden.",
+    "storyPresetLabel": "Story style",
+    "storyPreset": {
+      "tiny-tales": {
+        "label": "Tiny Tales",
+        "ageRange": "Ages 0–3",
+        "desc": "4–6 pages · big illustrations · one sentence per page"
+      },
+      "moonlit-adventures": {
+        "label": "Moonlit Adventures",
+        "ageRange": "Ages 4–6",
+        "desc": "8–10 pages · balanced illustrations and text"
+      },
+      "epic-sagas": {
+        "label": "Epic Sagas",
+        "ageRange": "Ages 7+",
+        "desc": "10–14 pages · more story · fewer illustrations"
+      }
+    }
   },
   "books": {
     "createButton": "Illustriertes PDF erstellen",
@@ -434,6 +456,9 @@
     "deleteError": "Dieses illustrierte PDF konnte nicht gelöscht werden.",
     "estimateTitle": "Illustration estimate",
     "estimateBody": "{credits} credits for about {pages} pages and {illustrations} custom illustrations. Credits cover the digital illustrated book; print is chosen separately afterwards.",
+    "estimateBodyTinyTales": "{credits} credits · Tiny Tales — 4–6 illustrated pages, big pictures for little ones (ages 0–3). Credits cover the digital illustrated book; print is chosen separately afterwards.",
+    "estimateBodyMoonlitAdventures": "{credits} credits · Moonlit Adventures — 8–10 illustrated pages with balanced art and story (ages 4–6). Credits cover the digital illustrated book; print is chosen separately afterwards.",
+    "estimateBodyEpicSagas": "{credits} credits · Epic Sagas — 10–14 illustrated pages with rich storytelling (ages 7+). Credits cover the digital illustrated book; print is chosen separately afterwards.",
     "journeyLabel": "Your book journey",
     "journeyStoryTitle": "Story",
     "journeyStoryDone": "Your personalised story is written.",

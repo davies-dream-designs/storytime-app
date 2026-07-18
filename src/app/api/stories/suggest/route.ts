@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { profileId, locale } = (await req.json()) as { profileId: string; locale?: string }
+  const { profileId, locale, fresh } = (await req.json()) as { profileId: string; locale?: string; fresh?: boolean }
   if (!profileId) return NextResponse.json({ error: 'profileId is required' }, { status: 400 })
 
   const profile = await db.profiles.getById(profileId)
@@ -24,8 +24,10 @@ export async function POST(req: NextRequest) {
   }
 
   const cacheKey = `suggestions:${profileId}:${locale ?? 'en'}`
-  const cached = await kv.get<StorySuggestion[]>(cacheKey)
-  if (cached) return NextResponse.json(cached)
+  if (!fresh) {
+    const cached = await kv.get<StorySuggestion[]>(cacheKey)
+    if (cached) return NextResponse.json(cached)
+  }
 
   const recentStories = (await db.stories.getByProfileId(profileId))
     .filter((s) => s.userId === userId)

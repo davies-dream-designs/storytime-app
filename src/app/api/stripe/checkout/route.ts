@@ -28,6 +28,14 @@ function getRequestOrigin(req: NextRequest) {
     return `${forwardedProto}://${forwardedHost}`.replace(/\/$/, "");
   }
 
+  // Referer is reliable for same-origin fetches when Origin is omitted (common on iOS Safari)
+  const referer = req.headers.get("referer");
+  if (referer) {
+    try {
+      return new URL(referer).origin;
+    } catch {}
+  }
+
   return (
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
     (process.env.VERCEL_URL

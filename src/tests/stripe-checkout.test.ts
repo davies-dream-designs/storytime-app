@@ -78,6 +78,29 @@ describe("stripe checkout", () => {
     );
   });
 
+  it("falls back to referer origin when Origin header is absent (iOS Safari behaviour)", async () => {
+    const { POST } = await import("@/app/api/stripe/checkout/route");
+
+    await POST(
+      new NextRequest("https://dev.storycot.com/api/stripe/checkout", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          // no origin header — iOS Safari omits it for same-origin fetches
+          referer: "https://dev.storycot.com/en/account",
+        },
+        body: JSON.stringify({ pack: "starter" }),
+      })
+    );
+
+    expect(mockCreateSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success_url: "https://dev.storycot.com/en/account?success=1",
+        cancel_url: "https://dev.storycot.com/en/account?canceled=1",
+      })
+    );
+  });
+
   it("passes the current app locale to Stripe Checkout when supported", async () => {
     const { POST } = await import("@/app/api/stripe/checkout/route");
 

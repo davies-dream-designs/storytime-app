@@ -1,5 +1,1 @@
-export {
-  getConfiguredLuluCoverSpineWidthIn,
-  getLuluCoverSpineWidth,
-  getLuluHardcoverCasewrapSpineWidthFromTable,
-} from '@/lib/print-books/lulu'
+export { getBookSpineWidthIn as getStorycotSpineWidth } from "@/lib/print-books/bookConfig";

@@ -1,6 +1,6 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { ILLUSTRATED_BOOK_CREDIT_COST } from "@/lib/pricing";
+import { estimateIllustratedBookCredits } from "@/lib/pricing";
 import type { BookBilling, BookProject } from "@/types/printBook";
 
 const DEFAULT_CREDITS = 3;
@@ -9,6 +9,17 @@ function getCredits(value: unknown) {
   return typeof value === "number" && Number.isFinite(value)
     ? value
     : DEFAULT_CREDITS;
+}
+
+export async function getUserCredits(
+  userId: string
+): Promise<{ credits: number; isAdmin: boolean }> {
+  const client = await clerkClient();
+  const user = await client.users.getUser(userId);
+  return {
+    credits: getCredits(user.privateMetadata.credits),
+    isAdmin: user.privateMetadata.isAdmin === true,
+  };
 }
 
 export function needsIllustratedBookReservation(project: BookProject) {
@@ -27,17 +38,22 @@ export async function reserveIllustratedBookCredits(project: BookProject) {
   const isAdmin = user.privateMetadata.isAdmin === true;
   const currentCredits = getCredits(user.privateMetadata.credits);
   const now = new Date().toISOString();
+  const estimate = estimateIllustratedBookCredits({
+    ageBand: project.ageBand,
+    pageCount: project.pageCount,
+    illustrationCount: project.spreadCount,
+  });
 
-  if (!isAdmin && currentCredits < ILLUSTRATED_BOOK_CREDIT_COST) {
+  if (!isAdmin && currentCredits < estimate.credits) {
     throw new Error(
-      `Insufficient credits. Illustrated PDFs cost ${ILLUSTRATED_BOOK_CREDIT_COST} credits.`
+      `Insufficient credits. This illustrated book costs ${estimate.credits} credits.`
     );
   }
 
   if (!isAdmin) {
     await client.users.updateUserMetadata(project.userId, {
       privateMetadata: {
-        credits: currentCredits - ILLUSTRATED_BOOK_CREDIT_COST,
+        credits: currentCredits - estimate.credits,
       },
     });
   }
@@ -45,7 +61,7 @@ export async function reserveIllustratedBookCredits(project: BookProject) {
   const billing: BookBilling = {
     product: "illustrated_book",
     status: isAdmin ? "captured" : "reserved",
-    credits: isAdmin ? 0 : ILLUSTRATED_BOOK_CREDIT_COST,
+    credits: isAdmin ? 0 : estimate.credits,
     reservedAt: now,
     capturedAt: isAdmin ? now : undefined,
   };

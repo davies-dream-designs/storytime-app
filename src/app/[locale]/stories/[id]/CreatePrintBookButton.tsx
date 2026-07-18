@@ -2,18 +2,30 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import Button from "@/components/ui/Button";
 
 export default function CreatePrintBookButton({
   storyId,
+  credits,
+  pageCount,
+  illustrationCount,
+  userCredits,
+  isAdmin,
 }: {
   storyId: string;
+  credits: number;
+  pageCount: number;
+  illustrationCount: number;
+  userCredits: number;
+  isAdmin: boolean;
 }) {
   const t = useTranslations("books");
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const hasEnoughCredits = isAdmin || userCredits >= credits;
 
   async function getErrorMessage(
     res: Response,
@@ -56,8 +68,40 @@ export default function CreatePrintBookButton({
     }
   }
 
+  const estimateBox = (
+    <div className="mb-3 max-w-md rounded-2xl border border-star-200 bg-star-50 px-4 py-3 text-sm text-night-600">
+      <p className="font-bold text-night-800">{t("estimateTitle")}</p>
+      <p className="mt-1">
+        {t("estimateBody", {
+          credits,
+          pages: pageCount,
+          illustrations: illustrationCount,
+        })}
+      </p>
+    </div>
+  );
+
+  if (!hasEnoughCredits) {
+    return (
+      <div className="basis-full sm:basis-auto">
+        {estimateBox}
+        <div className="mb-3 max-w-md rounded-2xl border border-blush-200 bg-blush-100 px-4 py-3 text-sm">
+          <p className="font-bold text-blush-700">Not enough credits</p>
+          <p className="mt-1 text-blush-600">
+            You have {userCredits} credit{userCredits === 1 ? "" : "s"} — this
+            book costs {credits}. Top up to unlock illustrations.
+          </p>
+        </div>
+        <Link href="/account" className="storycot-btn storycot-btn-primary">
+          Top up credits →
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className={error ? "basis-full sm:basis-auto" : ""}>
+      {estimateBox}
       <Button
         variant="secondary"
         size="compact"
@@ -73,6 +117,14 @@ export default function CreatePrintBookButton({
         <div className="mt-3 max-w-md rounded-2xl border border-blush-200 bg-blush-100 px-4 py-3 text-sm text-blush-700 sm:max-w-sm">
           <p className="font-bold">{t("createErrorTitle")}</p>
           <p className="mt-1">{error}</p>
+          {/insufficient credits/i.test(error) ? (
+            <Link
+              href="/account"
+              className="storycot-btn storycot-btn-primary mt-3 inline-block text-sm"
+            >
+              Top up credits →
+            </Link>
+          ) : null}
         </div>
       ) : null}
     </div>

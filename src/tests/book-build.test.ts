@@ -5,14 +5,12 @@ import type { BookBuildJob, BookProject } from "@/types/printBook";
 const {
   mockAfter,
   mockAuth,
-  mockDispatchBookBuildJob,
   mockEnqueueBookBuildJob,
 } = vi.hoisted(() => ({
   mockAfter: vi.fn(async (callback: () => Promise<void> | void) => {
     await callback();
   }),
   mockAuth: vi.fn(async () => ({ userId: "user-1" })),
-  mockDispatchBookBuildJob: vi.fn(),
   mockEnqueueBookBuildJob: vi.fn(),
 }));
 
@@ -40,8 +38,12 @@ vi.mock("@/lib/db", () => ({
 }));
 
 vi.mock("@/lib/print-books/jobs", () => ({
-  dispatchBookBuildJob: mockDispatchBookBuildJob,
   enqueueBookBuildJob: mockEnqueueBookBuildJob,
+}));
+
+vi.mock("@/lib/inngest/client", () => ({
+  inngest: { send: vi.fn().mockResolvedValue(undefined) },
+  INNGEST_EVENTS: { bookBuildRequested: "storycot/book.build.requested" },
 }));
 
 function createBookProject(): BookProject {
@@ -52,7 +54,7 @@ function createBookProject(): BookProject {
     profileId: "profile-1",
     ageBand: "3-5",
     status: "queued",
-    trimSize: "lulu-hardcover-32",
+    trimSize: "storycot-dynamic-square",
     pageCount: 32,
     spreadCount: 16,
     completedSpreads: 0,
@@ -120,10 +122,6 @@ describe("POST /api/books/[id]/build", () => {
       mode: "full",
       baseUrl: "http://localhost",
     });
-    expect(mockDispatchBookBuildJob).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "job-1" })
-    );
-
     const body = await res.json();
     expect(body.assets?.activeJobId).toBe("job-1");
   });
@@ -178,7 +176,6 @@ describe("POST /api/books/[id]/build", () => {
     );
 
     expect(res.status).toBe(409);
-    expect(mockDispatchBookBuildJob).not.toHaveBeenCalled();
     expect(await res.json()).toEqual({
       error: "A full build is already running for this book.",
     });
@@ -186,7 +183,7 @@ describe("POST /api/books/[id]/build", () => {
 
   it("returns 402 when illustrated generation has insufficient credits", async () => {
     mockEnqueueBookBuildJob.mockRejectedValue(
-      new Error("Insufficient credits. Illustrated PDFs cost 8 credits.")
+      new Error("Insufficient credits. This illustrated book costs 8 credits.")
     );
 
     const { POST } = await import("@/app/api/books/[id]/build/route");
@@ -201,7 +198,7 @@ describe("POST /api/books/[id]/build", () => {
 
     expect(res.status).toBe(402);
     expect(await res.json()).toEqual({
-      error: "Insufficient credits. Illustrated PDFs cost 8 credits.",
+      error: "Insufficient credits. This illustrated book costs 8 credits.",
     });
   });
 

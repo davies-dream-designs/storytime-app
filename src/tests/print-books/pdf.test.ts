@@ -65,7 +65,7 @@ function createProject(): BookProject {
     profileId: 'profile-1',
     ageBand: '3-5',
     status: 'composing',
-    trimSize: 'lulu-hardcover-32',
+    trimSize: 'storycot-dynamic-square',
     pageCount: 32,
     spreadCount: 16,
     completedSpreads: 16,
@@ -85,7 +85,7 @@ function createProject(): BookProject {
         leftPageText: 'Moonlight Garden',
         rightPageText: '',
         sceneBrief: 'Front cover for Moonlight Garden',
-        illustrationPrompt: 'A magical hardcover picture-book cover for "Moonlight Garden" starring Mila.',
+        illustrationPrompt: 'A magical print-ready picture-book cover for "Moonlight Garden" starring Mila.',
         imageUrl: 'data:image/svg+xml;base64,cover',
       },
       {
@@ -112,7 +112,7 @@ function createProject(): BookProject {
 describe('generateBookPdfs', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    delete process.env.LULU_COVER_SPINE_WIDTH_IN
+    delete process.env.STORYCOT_COVER_SPINE_WIDTH_IN
     mockStoreBookAsset
       .mockResolvedValueOnce('data:application/pdf;base64,cover')
       .mockResolvedValueOnce('data:application/pdf;base64,print')
@@ -128,14 +128,14 @@ describe('generateBookPdfs', () => {
 
     expect(result.coverPdfUrl).toBe('data:application/pdf;base64,cover')
     expect(result.coverPdfReadyForOrdering).toBe(true)
-    expect(result.coverPdfSpineSource).toBe('lulu_table')
-    expect(result.coverPdfSpineWidthIn).toBe(0.25)
-    expect(result.coverPdfPageWidthIn).toBe(17.75)
-    expect(result.coverPdfPageHeightIn).toBe(8.75)
+    expect(result.coverPdfSpineSource).toBe('storycot_estimate')
+    expect(result.coverPdfSpineWidthIn).toBe(0.18)
+    expect(result.coverPdfPageWidthIn).toBe(17.28)
+    expect(result.coverPdfPageHeightIn).toBe(8.55)
     expect(result.coverSpineTextIncluded).toBe(false)
     expect(result.printPdfUrl).toBe('data:application/pdf;base64,print')
-    expect(result.printPdfPageWidthIn).toBe(8.75)
-    expect(result.printPdfPageHeightIn).toBe(8.75)
+    expect(result.printPdfPageWidthIn).toBe(8.55)
+    expect(result.printPdfPageHeightIn).toBe(8.55)
     expect(result.interiorTextSafeMarginIn).toBe(0.625)
     expect(result.previewImages).toEqual(['data:image/svg+xml;base64,cover', 'data:image/svg+xml;base64,spread'])
     expect(mockStoreBookAsset).toHaveBeenNthCalledWith(
@@ -154,8 +154,8 @@ describe('generateBookPdfs', () => {
     )
   })
 
-  it('marks the cover export orderable when an explicit Lulu spine width is configured', async () => {
-    process.env.LULU_COVER_SPINE_WIDTH_IN = '0.31'
+  it('marks the cover export orderable when an explicit Storycot spine width is configured', async () => {
+    process.env.STORYCOT_COVER_SPINE_WIDTH_IN = '0.31'
     mockStoreBookAsset.mockReset()
     mockStoreBookAsset
       .mockResolvedValueOnce('data:application/pdf;base64,cover')

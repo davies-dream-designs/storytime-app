@@ -3,11 +3,11 @@ import type {
   BookProject,
   ProofingCheck,
 } from "@/types/printBook";
-import { LULU_CASEWRAP_CHILDRENS_PROFILE } from "@/lib/print-books/lulu";
-
-export const LULU_SQUARE_HARDCOVER_SPEC = {
-  ...LULU_CASEWRAP_CHILDRENS_PROFILE,
-} as const;
+import {
+  BOOK_SPEC,
+  BOOK_PDF_PAGE_WIDTH_IN,
+  BOOK_PDF_PAGE_HEIGHT_IN,
+} from "@/lib/print-books/bookConfig";
 
 export interface ProofingReport {
   passed: boolean;
@@ -17,7 +17,7 @@ export interface ProofingReport {
   orderabilityState: BookOrderabilityState;
 }
 
-export function runLuluProofing(
+export function runStorycotPrintProofing(
   project: BookProject,
   options?: { strictForOrdering?: boolean }
 ): ProofingReport {
@@ -32,63 +32,65 @@ export function runLuluProofing(
     if (check.status === "warn") warnings.push(check.detail);
   };
 
-  if (project.pageCount !== LULU_SQUARE_HARDCOVER_SPEC.targetPageCount) {
+  const pageCountValid =
+    project.pageCount >= BOOK_SPEC.minPageCount &&
+    project.pageCount <= BOOK_SPEC.maxPageCount &&
+    project.pageCount % 2 === 0;
+  if (!pageCountValid) {
     addCheck({
       key: "page_count",
       label: "Interior page count",
       status: "fail",
-      detail: `Expected ${LULU_SQUARE_HARDCOVER_SPEC.targetPageCount} pages, found ${project.pageCount}.`,
+      detail: `Expected an even page count between ${BOOK_SPEC.minPageCount} and ${BOOK_SPEC.maxPageCount}, found ${project.pageCount}.`,
     });
   } else {
     addCheck({
       key: "page_count",
       label: "Interior page count",
       status: "pass",
-      detail: `Page count matches the ${LULU_SQUARE_HARDCOVER_SPEC.targetPageCount}-page hardcover target.`,
+      detail: `${project.pageCount} pages fits the dynamic Storycot review package.`,
     });
   }
 
-  if (project.spreadCount !== LULU_SQUARE_HARDCOVER_SPEC.targetSpreadCount) {
+  const expectedSpreadCount = project.pageCount / 2;
+  if (project.spreadCount !== expectedSpreadCount) {
     addCheck({
       key: "spread_count",
       label: "Spread count",
       status: "fail",
-      detail: `Expected ${LULU_SQUARE_HARDCOVER_SPEC.targetSpreadCount} spreads, found ${project.spreadCount}.`,
+      detail: `Expected ${expectedSpreadCount} spreads for ${project.pageCount} pages, found ${project.spreadCount}.`,
     });
   } else {
     addCheck({
       key: "spread_count",
       label: "Spread count",
       status: "pass",
-      detail: `Spread count matches the ${LULU_SQUARE_HARDCOVER_SPEC.targetSpreadCount}-spread layout.`,
+      detail: `Spread count matches the ${project.pageCount}-page layout.`,
     });
   }
 
-  if (
-    project.trimSize !== "lulu-hardcover-24" &&
-    project.trimSize !== "lulu-hardcover-32"
-  ) {
+  if (project.trimSize !== BOOK_SPEC.trimKey) {
     addCheck({
       key: "product_profile",
-      label: "Selected Lulu product profile",
+      label: "Selected print review profile",
       status: "fail",
-      detail: `Book project trim profile must remain lulu-hardcover-24 for ${LULU_SQUARE_HARDCOVER_SPEC.trimLabel}.`,
+      detail: `Book project trim profile must remain ${BOOK_SPEC.trimKey} for ${BOOK_SPEC.trimLabel}.`,
     });
   } else {
     addCheck({
       key: "product_profile",
-      label: "Selected Lulu product profile",
+      label: "Selected print review profile",
       status: "pass",
-      detail: `Project is targeting ${LULU_SQUARE_HARDCOVER_SPEC.trimLabel}.`,
+      detail: `Project is targeting ${BOOK_SPEC.trimLabel}.`,
     });
   }
 
-  if (project.spreads.length !== LULU_SQUARE_HARDCOVER_SPEC.targetSpreadCount) {
+  if (project.spreads.length !== expectedSpreadCount) {
     addCheck({
       key: "stored_spreads",
       label: "Stored spreads",
       status: "fail",
-      detail: `Expected ${LULU_SQUARE_HARDCOVER_SPEC.targetSpreadCount} stored spreads, found ${project.spreads.length}.`,
+      detail: `Expected ${expectedSpreadCount} stored spreads, found ${project.spreads.length}.`,
     });
   } else {
     addCheck({
@@ -139,14 +141,14 @@ export function runLuluProofing(
       key: "cover_pdf",
       label: "Cover PDF export",
       status: "fail",
-      detail: "Separate Lulu cover PDF is missing.",
+      detail: "Separate cover PDF is missing.",
     });
   } else {
     addCheck({
       key: "cover_pdf",
       label: "Cover PDF export",
       status: "pass",
-      detail: "Separate Lulu cover PDF is present.",
+      detail: "Separate cover PDF is present.",
     });
   }
 
@@ -156,37 +158,32 @@ export function runLuluProofing(
     project.assets.coverPdfSpineWidthIn
   ) {
     const expectedCoverWidth = Number(
-      (
-        (LULU_SQUARE_HARDCOVER_SPEC.trimWidthIn +
-          LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2) *
-          2 +
-        project.assets.coverPdfSpineWidthIn
-      ).toFixed(3)
+      (BOOK_PDF_PAGE_WIDTH_IN * 2 + project.assets.coverPdfSpineWidthIn).toFixed(3)
     );
-    const expectedCoverHeight = Number(
-      (
-        LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn +
-        LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2
-      ).toFixed(3)
-    );
+    const expectedCoverHeight = BOOK_PDF_PAGE_HEIGHT_IN;
     const widthMatches =
       Math.abs(project.assets.coverPdfPageWidthIn - expectedCoverWidth) < 0.001;
     const heightMatches =
-      Math.abs(project.assets.coverPdfPageHeightIn - expectedCoverHeight) <
-      0.001;
+      Math.abs(project.assets.coverPdfPageHeightIn - expectedCoverHeight) < 0.001;
     addCheck({
       key: "cover_geometry",
       label: "Cover PDF geometry",
       status: widthMatches && heightMatches ? "pass" : "fail",
       detail:
         widthMatches && heightMatches
-          ? `Cover PDF page size matches Lulu geometry at ${expectedCoverWidth}" x ${expectedCoverHeight}".`
+          ? `Cover PDF page size matches Storycot geometry at ${expectedCoverWidth}" x ${expectedCoverHeight}".`
           : `Cover PDF page size must be ${expectedCoverWidth}" x ${expectedCoverHeight}", found ${project.assets.coverPdfPageWidthIn}" x ${project.assets.coverPdfPageHeightIn}".`,
     });
   }
 
+  // A spread has art if any of its image fields are populated (supports both per-page and legacy shared).
   const spreadsMissingImages = project.spreads
-    .filter((spread) => !spread.imageUrl)
+    .filter(
+      (spread) =>
+        !spread.leftPageImageUrl &&
+        !spread.rightPageImageUrl &&
+        !spread.imageUrl
+    )
     .map((spread) => spread.sequence);
   if (spreadsMissingImages.length > 0) {
     addCheck({
@@ -240,22 +237,11 @@ export function runLuluProofing(
     project.assets.printPdfPageWidthIn &&
     project.assets.printPdfPageHeightIn
   ) {
-    const expectedPrintWidth = Number(
-      (
-        LULU_SQUARE_HARDCOVER_SPEC.trimWidthIn +
-        LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2
-      ).toFixed(3)
-    );
-    const expectedPrintHeight = Number(
-      (
-        LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn +
-        LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2
-      ).toFixed(3)
-    );
     const widthMatches =
-      Math.abs(project.assets.printPdfPageWidthIn - expectedPrintWidth) < 0.001;
+      Math.abs(project.assets.printPdfPageWidthIn - BOOK_PDF_PAGE_WIDTH_IN) <
+      0.001;
     const heightMatches =
-      Math.abs(project.assets.printPdfPageHeightIn - expectedPrintHeight) <
+      Math.abs(project.assets.printPdfPageHeightIn - BOOK_PDF_PAGE_HEIGHT_IN) <
       0.001;
     addCheck({
       key: "print_geometry",
@@ -263,22 +249,22 @@ export function runLuluProofing(
       status: widthMatches && heightMatches ? "pass" : "fail",
       detail:
         widthMatches && heightMatches
-          ? `Interior print pages match Lulu full-bleed geometry at ${expectedPrintWidth}" x ${expectedPrintHeight}".`
-          : `Interior print pages must be ${expectedPrintWidth}" x ${expectedPrintHeight}", found ${project.assets.printPdfPageWidthIn}" x ${project.assets.printPdfPageHeightIn}".`,
+          ? `Interior print pages match Storycot full-bleed geometry at ${BOOK_PDF_PAGE_WIDTH_IN}" x ${BOOK_PDF_PAGE_HEIGHT_IN}".`
+          : `Interior print pages must be ${BOOK_PDF_PAGE_WIDTH_IN}" x ${BOOK_PDF_PAGE_HEIGHT_IN}", found ${project.assets.printPdfPageWidthIn}" x ${project.assets.printPdfPageHeightIn}".`,
     });
   }
 
   if (project.assets.interiorTextSafeMarginIn) {
     const textMarginPass =
       project.assets.interiorTextSafeMarginIn >=
-      LULU_SQUARE_HARDCOVER_SPEC.fullBleedTextSafeMarginIn;
+      BOOK_SPEC.fullBleedTextSafeMarginIn;
     addCheck({
       key: "text_safe_margin",
       label: "Interior text safe margin",
       status: textMarginPass ? "pass" : "fail",
       detail: textMarginPass
-        ? `Interior text stays within the ${LULU_SQUARE_HARDCOVER_SPEC.fullBleedTextSafeMarginIn}" full-bleed safe margin.`
-        : `Interior text safe margin must be at least ${LULU_SQUARE_HARDCOVER_SPEC.fullBleedTextSafeMarginIn}" from the page edge, found ${project.assets.interiorTextSafeMarginIn}".`,
+        ? `Interior text stays within the ${BOOK_SPEC.fullBleedTextSafeMarginIn}" full-bleed safe margin.`
+        : `Interior text safe margin must be at least ${BOOK_SPEC.fullBleedTextSafeMarginIn}" from the page edge, found ${project.assets.interiorTextSafeMarginIn}".`,
     });
   }
 
@@ -305,11 +291,11 @@ export function runLuluProofing(
   }
 
   warnings.push(
-    `Renderer targets ${LULU_SQUARE_HARDCOVER_SPEC.trimLabel} with ${LULU_SQUARE_HARDCOVER_SPEC.bleedIn}" bleed, ${LULU_SQUARE_HARDCOVER_SPEC.safetyMarginIn}" trim safety, and ${LULU_SQUARE_HARDCOVER_SPEC.fullBleedTextSafeMarginIn}" full-bleed text safety.`
+    `Renderer targets ${BOOK_SPEC.trimLabel} with ${BOOK_SPEC.bleedIn}" bleed, ${BOOK_SPEC.safetyMarginIn}" trim safety, and ${BOOK_SPEC.fullBleedTextSafeMarginIn}" full-bleed text safety.`
   );
 
   warnings.push(
-    "Interior print pages are rendered as single pages with split spread artwork, but every project still needs a manual Lulu preview check before ordering."
+    "Interior print pages are rendered as single pages with split spread artwork, but every project still needs a manual print preview check before ordering."
   );
 
   if (project.assets.coverPdfUrl) {
@@ -323,14 +309,14 @@ export function runLuluProofing(
   );
 
   if (
-    project.assets.coverPdfSpineSource === "lulu_table" &&
+    project.assets.coverPdfSpineSource === "storycot_estimate" &&
     project.assets.coverPdfSpineWidthIn
   ) {
     addCheck({
       key: "spine_width",
       label: "Cover spine width",
       status: "pass",
-      detail: `Cover spine width matches Lulu's hardcover table at ${project.assets.coverPdfSpineWidthIn}".`,
+      detail: `Cover spine width uses Storycot's current estimate at ${project.assets.coverPdfSpineWidthIn}".`,
     });
   } else if (project.assets.coverPdfSpineWidthIn) {
     addCheck({
@@ -343,7 +329,7 @@ export function runLuluProofing(
 
   if (typeof project.assets.coverSpineTextIncluded === "boolean") {
     const shouldHaveSpineText =
-      project.pageCount >= LULU_SQUARE_HARDCOVER_SPEC.spineTextMinPageCount;
+      project.pageCount >= BOOK_SPEC.spineTextMinPageCount;
     const isValid =
       shouldHaveSpineText || !project.assets.coverSpineTextIncluded;
     addCheck({
@@ -353,8 +339,8 @@ export function runLuluProofing(
       detail: isValid
         ? shouldHaveSpineText
           ? "Spine text is allowed for this page count."
-          : `Spine text is correctly omitted under ${LULU_SQUARE_HARDCOVER_SPEC.spineTextMinPageCount} pages.`
-        : `Spine text must be omitted under ${LULU_SQUARE_HARDCOVER_SPEC.spineTextMinPageCount} pages.`,
+          : `Spine text is correctly omitted under ${BOOK_SPEC.spineTextMinPageCount} pages.`
+        : `Spine text must be omitted under ${BOOK_SPEC.spineTextMinPageCount} pages.`,
     });
   }
 

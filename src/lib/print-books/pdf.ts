@@ -13,22 +13,20 @@ import {
 } from "pdf-lib";
 import type { ChildProfile, Story } from "@/types";
 import type { BookProject, BookSpread } from "@/types/printBook";
-import { getLuluCoverSpineWidth } from "@/lib/print-books/cover";
+import {
+  BOOK_SPEC,
+  BOOK_PDF_PAGE_WIDTH_IN,
+  BOOK_PDF_PAGE_HEIGHT_IN,
+  getBookSpineWidthIn,
+} from "@/lib/print-books/bookConfig";
 import { storeBookAsset } from "@/lib/print-books/storage";
-import { LULU_SQUARE_HARDCOVER_SPEC } from "@/lib/print-books/proofing";
 
 const POINTS_PER_INCH = 72;
-const PRINT_PAGE_WIDTH =
-  (LULU_SQUARE_HARDCOVER_SPEC.trimWidthIn +
-    LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2) *
-  POINTS_PER_INCH;
-const PRINT_PAGE_HEIGHT =
-  (LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn +
-    LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2) *
-  POINTS_PER_INCH;
-const BLEED = LULU_SQUARE_HARDCOVER_SPEC.bleedIn * POINTS_PER_INCH;
+const PRINT_PAGE_WIDTH = BOOK_PDF_PAGE_WIDTH_IN * POINTS_PER_INCH;
+const PRINT_PAGE_HEIGHT = BOOK_PDF_PAGE_HEIGHT_IN * POINTS_PER_INCH;
+const BLEED = BOOK_SPEC.bleedIn * POINTS_PER_INCH;
 const FULL_BLEED_TEXT_SAFE_MARGIN =
-  LULU_SQUARE_HARDCOVER_SPEC.fullBleedTextSafeMarginIn * POINTS_PER_INCH;
+  BOOK_SPEC.fullBleedTextSafeMarginIn * POINTS_PER_INCH;
 const BRAND_PURPLE = rgb(0.17, 0.13, 0.39);
 const BRAND_LILAC = rgb(0.53, 0.46, 0.9);
 
@@ -98,6 +96,7 @@ function drawWrappedText(input: {
   color?: ReturnType<typeof rgb>;
   align?: "left" | "center";
   shadow?: boolean;
+  maxLines?: number;
 }) {
   const {
     page,
@@ -111,8 +110,10 @@ function drawWrappedText(input: {
     color = rgb(0.15, 0.18, 0.24),
     align = "left",
     shadow = false,
+    maxLines,
   } = input;
-  const lines = wrapTextToWidth({ text, font, size, maxWidth });
+  const allLines = wrapTextToWidth({ text, font, size, maxWidth });
+  const lines = maxLines != null ? allLines.slice(0, maxLines) : allLines;
   lines.forEach((line, index) => {
     const lineX =
       align === "center"
@@ -811,7 +812,7 @@ async function drawCopyrightPage(input: {
       color: BRAND_PURPLE,
     }
   );
-  page.drawText(LULU_SQUARE_HARDCOVER_SPEC.trimLabel, {
+  page.drawText(BOOK_SPEC.trimLabel, {
     x: pageWidth * 0.12,
     y: pageHeight * 0.24,
     font: sans,
@@ -861,47 +862,6 @@ async function drawEndLeafPage(input: {
   });
 }
 
-// Final interior page: centred Storycot colophon with a gentle call to action.
-async function drawClosingBrandPage(input: {
-  pdfDoc: PDFDocument;
-  page: ReturnType<PDFDocument["addPage"]>;
-  pageWidth: number;
-  pageHeight: number;
-  serif: Awaited<ReturnType<PDFDocument["embedFont"]>>;
-  sans: Awaited<ReturnType<PDFDocument["embedFont"]>>;
-}) {
-  const { pdfDoc, page, pageWidth, pageHeight, serif, sans } = input;
-  const centerX = pageWidth / 2;
-  drawPageBackground(page, pageWidth, pageHeight, BRAND_PURPLE);
-  const iconSize = 52;
-  await drawBrandWordmark({
-    pdfDoc,
-    page,
-    variant: "light",
-    x: centerX - getWordmarkWidth(sans, iconSize) / 2,
-    y: pageHeight * 0.6,
-    iconSize,
-    font: sans,
-  });
-  drawCenteredText({
-    page,
-    text: "Sweet dreams.",
-    centerX,
-    y: pageHeight * 0.44,
-    font: serif,
-    size: 24,
-    color: rgb(0.99, 0.96, 0.88),
-  });
-  drawCenteredText({
-    page,
-    text: "Create your own personalised bedtime story at storycot.com",
-    centerX,
-    y: pageHeight * 0.16,
-    font: serif,
-    size: 12,
-    color: rgb(0.95, 0.93, 0.87),
-  });
-}
 
 async function drawBookPage(input: {
   pdfDoc: PDFDocument;
@@ -968,6 +928,7 @@ async function drawBookPage(input: {
       size: 17,
       color: theme.ink,
       align: "center",
+      maxLines: Math.floor((textRect.height - 54) / 22) + 1,
     });
   }
 
@@ -1096,18 +1057,6 @@ async function buildPrintPdf(input: {
         sans,
       });
 
-      const closingBrandPage = pdfDoc.addPage([
-        PRINT_PAGE_WIDTH,
-        PRINT_PAGE_HEIGHT,
-      ]);
-      await drawClosingBrandPage({
-        pdfDoc,
-        page: closingBrandPage,
-        pageWidth: PRINT_PAGE_WIDTH,
-        pageHeight: PRINT_PAGE_HEIGHT,
-        serif,
-        sans,
-      });
       continue;
     }
 
@@ -1178,7 +1127,7 @@ async function buildCoverPdf(input: {
   const sans = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const sansBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const theme = pickPlaceholderTheme(input.story);
-  const spine = getLuluCoverSpineWidth(input.project.pageCount);
+  const spine = getBookSpineWidthIn(input.project.pageCount);
   const coverSpineWidth = spine.widthIn * POINTS_PER_INCH;
   const coverTotalWidth = PRINT_PAGE_WIDTH * 2 + coverSpineWidth;
   const page = pdfDoc.addPage([coverTotalWidth, PRINT_PAGE_HEIGHT]);
@@ -1356,7 +1305,7 @@ async function buildCoverPdf(input: {
     size: 11,
     color: theme.skyAccent,
   });
-  page.drawText(LULU_SQUARE_HARDCOVER_SPEC.trimLabel, {
+  page.drawText(BOOK_SPEC.trimLabel, {
     x: backCoverX + BLEED + 58,
     y: 118,
     font: sans,
@@ -1372,7 +1321,7 @@ async function buildCoverPdf(input: {
   });
 
   if (
-    input.project.pageCount >= LULU_SQUARE_HARDCOVER_SPEC.spineTextMinPageCount
+    input.project.pageCount >= BOOK_SPEC.spineTextMinPageCount
   ) {
     page.drawText("Storycot", {
       x: spineX + coverSpineWidth / 2 - 20,
@@ -1404,7 +1353,7 @@ export async function generateBookPdfs(input: {
   coverPdfUrl: string;
   coverPdfReadyForOrdering: boolean;
   coverPdfSpineWidthIn: number;
-  coverPdfSpineSource: "configured" | "lulu_table";
+  coverPdfSpineSource: "configured" | "storycot_estimate";
   coverPdfPageWidthIn: number;
   coverPdfPageHeightIn: number;
   coverSpineTextIncluded: boolean;
@@ -1414,7 +1363,7 @@ export async function generateBookPdfs(input: {
   interiorTextSafeMarginIn: number;
   previewImages: string[];
 }> {
-  const coverSpine = getLuluCoverSpineWidth(input.project.pageCount);
+  const coverSpine = getBookSpineWidthIn(input.project.pageCount);
   const coverBytes = await buildCoverPdf(input);
   const printBytes = await buildPrintPdf(input);
 
@@ -1435,37 +1384,15 @@ export async function generateBookPdfs(input: {
     coverPdfSpineWidthIn: coverSpine.widthIn,
     coverPdfSpineSource: coverSpine.source,
     coverPdfPageWidthIn: Number(
-      (
-        (LULU_SQUARE_HARDCOVER_SPEC.trimWidthIn +
-          LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2) *
-          2 +
-        coverSpine.widthIn
-      ).toFixed(3)
+      (BOOK_PDF_PAGE_WIDTH_IN * 2 + coverSpine.widthIn).toFixed(3)
     ),
-    coverPdfPageHeightIn: Number(
-      (
-        LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn +
-        LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2
-      ).toFixed(3)
-    ),
+    coverPdfPageHeightIn: BOOK_PDF_PAGE_HEIGHT_IN,
     coverSpineTextIncluded:
-      input.project.pageCount >=
-      LULU_SQUARE_HARDCOVER_SPEC.spineTextMinPageCount,
+      input.project.pageCount >= BOOK_SPEC.spineTextMinPageCount,
     printPdfUrl,
-    printPdfPageWidthIn: Number(
-      (
-        LULU_SQUARE_HARDCOVER_SPEC.trimWidthIn +
-        LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2
-      ).toFixed(3)
-    ),
-    printPdfPageHeightIn: Number(
-      (
-        LULU_SQUARE_HARDCOVER_SPEC.trimHeightIn +
-        LULU_SQUARE_HARDCOVER_SPEC.bleedIn * 2
-      ).toFixed(3)
-    ),
-    interiorTextSafeMarginIn:
-      LULU_SQUARE_HARDCOVER_SPEC.fullBleedTextSafeMarginIn,
+    printPdfPageWidthIn: BOOK_PDF_PAGE_WIDTH_IN,
+    printPdfPageHeightIn: BOOK_PDF_PAGE_HEIGHT_IN,
+    interiorTextSafeMarginIn: BOOK_SPEC.fullBleedTextSafeMarginIn,
     previewImages: input.project.spreads
       .map((spread) => spread.leftPageImageUrl ?? spread.imageUrl)
       .filter(

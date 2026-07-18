@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { composeHardcoverSpreads, createEmptyBookProject } from '@/lib/print-books/composer'
+import { composePrintBookSpreads, createEmptyBookProject } from '@/lib/print-books/composer'
 import { deriveBeatsFromStory } from '@/lib/print-books/beats'
 import type { ChildProfile, Story } from '@/types'
 import type { CharacterBible } from '@/types/printBook'
@@ -88,7 +88,7 @@ function createCharacterBible(): CharacterBible {
 }
 
 describe('createEmptyBookProject', () => {
-  it('creates a queued 24-page hardcover project shell', () => {
+  it('creates a queued dynamic square book shell', () => {
     const project = createEmptyBookProject({
       id: 'book-1',
       userId: 'user-1',
@@ -103,10 +103,10 @@ describe('createEmptyBookProject', () => {
   })
 })
 
-describe('composeHardcoverSpreads', () => {
-  it('always composes to 12 spreads covering 24 pages', () => {
+describe('composePrintBookSpreads', () => {
+  it('composes a 3-5 book to 12 spreads covering 24 pages', () => {
     const story = createStory(10)
-    const spreads = composeHardcoverSpreads({
+    const spreads = composePrintBookSpreads({
       bookProjectId: 'book-1',
       story,
       profile: createProfile(4),
@@ -121,7 +121,7 @@ describe('composeHardcoverSpreads', () => {
 
   it('creates more quiet pacing for the youngest age band', () => {
     const story = createStory(6)
-    const spreads = composeHardcoverSpreads({
+    const spreads = composePrintBookSpreads({
       bookProjectId: 'book-1',
       story,
       profile: createProfile(2),
@@ -135,9 +135,9 @@ describe('composeHardcoverSpreads', () => {
     expect(spreads.some((spread) => spread.sceneBrief.includes('Story page'))).toBe(true)
   })
 
-  it('keeps front matter and end matter fixed', () => {
+  it('keeps front matter first and end matter last for longer books', () => {
     const story = createStory(12)
-    const spreads = composeHardcoverSpreads({
+    const spreads = composePrintBookSpreads({
       bookProjectId: 'book-1',
       story,
       profile: createProfile(7),
@@ -147,13 +147,15 @@ describe('composeHardcoverSpreads', () => {
 
     expect(spreads[0]?.layoutType).toBe('front_matter')
     expect(spreads[1]?.layoutType).toBe('front_matter')
-    expect(spreads[10]?.layoutType).toBe('end_matter')
-    expect(spreads[11]?.layoutType).toBe('end_matter')
+    expect(spreads).toHaveLength(16)
+    expect(spreads.at(-2)?.layoutType).toBe('end_matter')
+    expect(spreads.at(-1)?.layoutType).toBe('end_matter')
+    expect(spreads.at(-1)?.pageEnd).toBe(32)
   })
 
   it('derives extra interior spreads from the story instead of using only generic filler', () => {
     const story = createStory(4)
-    const spreads = composeHardcoverSpreads({
+    const spreads = composePrintBookSpreads({
       bookProjectId: 'book-1',
       story,
       profile: createProfile(2),
@@ -170,7 +172,7 @@ describe('composeHardcoverSpreads', () => {
 
   it('splits story text at sentence boundaries for regular spreads', () => {
     const story = createSentenceStory()
-    const spreads = composeHardcoverSpreads({
+    const spreads = composePrintBookSpreads({
       bookProjectId: 'book-1',
       story,
       profile: createProfile(4),
@@ -187,7 +189,7 @@ describe('composeHardcoverSpreads', () => {
 
   it('uses named expansion roles instead of generic quiet filler for short stories', () => {
     const story = createStory(4)
-    const spreads = composeHardcoverSpreads({
+    const spreads = composePrintBookSpreads({
       bookProjectId: 'book-1',
       story,
       profile: createProfile(4),
@@ -201,9 +203,9 @@ describe('composeHardcoverSpreads', () => {
     expect(interiorSpreads.some((spread) => spread.sceneBrief.includes('turn-the-page'))).toBe(true)
   })
 
-  it('keeps every story page when there are more source pages than hardcover story spreads', () => {
+  it('keeps every story page when there are more source pages than planned story spreads', () => {
     const story = createStory(14)
-    const spreads = composeHardcoverSpreads({
+    const spreads = composePrintBookSpreads({
       bookProjectId: 'book-1',
       story,
       profile: createProfile(2),
@@ -219,7 +221,7 @@ describe('composeHardcoverSpreads', () => {
 
   it('keeps scene brief separate from illustration intent', () => {
     const story = createStory(1)
-    const spreads = composeHardcoverSpreads({
+    const spreads = composePrintBookSpreads({
       bookProjectId: 'book-1',
       story,
       profile: createProfile(4),
@@ -234,7 +236,7 @@ describe('composeHardcoverSpreads', () => {
 
   it('threads character bible continuity into illustration prompts when available', () => {
     const story = createStory(2)
-    const spreads = composeHardcoverSpreads({
+    const spreads = composePrintBookSpreads({
       bookProjectId: 'book-1',
       story,
       profile: createProfile(4),

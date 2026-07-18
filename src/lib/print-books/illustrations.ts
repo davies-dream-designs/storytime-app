@@ -1,3 +1,4 @@
+import sharp from "sharp";
 import type { ChildProfile, Story } from "@/types";
 import type {
   BookProject,
@@ -6,6 +7,7 @@ import type {
   OpenAIImageBatchAsset,
   OpenAIImageBatchStatus,
 } from "@/types/printBook";
+import { BOOK_SPEC } from "@/lib/print-books/bookConfig";
 import { buildIllustrationDirection } from "@/lib/print-books/characterBible";
 import {
   isBookAssetStorageConfigured,
@@ -15,6 +17,26 @@ import {
 export function isGeneratedIllustrationConfigured(): boolean {
   return Boolean(process.env.OPENAI_API_KEY) && isBookAssetStorageConfigured();
 }
+
+// ---------------------------------------------------------------------------
+// Upscaling
+// ---------------------------------------------------------------------------
+
+// Upscale a square PNG buffer from 1024×1024 (OpenAI output) to the print-quality
+// target defined in BOOK_SPEC (300 PPI at the trim size = 2490×2490 px).
+async function upscaleImageBuffer(input: Buffer): Promise<Buffer> {
+  return sharp(input)
+    .resize(BOOK_SPEC.upscaleWidthPx, BOOK_SPEC.upscaleHeightPx, {
+      kernel: sharp.kernel.lanczos3,
+      fit: "fill",
+    })
+    .png({ compressionLevel: 7 })
+    .toBuffer();
+}
+
+// ---------------------------------------------------------------------------
+// Placeholder SVG generators (used when OpenAI is not configured)
+// ---------------------------------------------------------------------------
 
 function escapeXml(value: string): string {
   return value
@@ -161,7 +183,7 @@ export function buildCoverIllustrationPrompt(input: {
     `Age band: ${input.project.ageBand}.`,
     `Theme: ${story.theme || "gentle bedtime adventure"}.`,
     `Cover scene: ${sceneDirection}`,
-    "Create a portrait-oriented children's hardcover front cover with space for title treatment and a warm bedtime-book feeling.",
+    "Create a square children's picture-book front cover with space for title treatment and a warm bedtime-book feeling.",
     "Do not render any visible publisher logo or extra text into the art itself.",
   ].join(" ");
 }
@@ -185,7 +207,8 @@ function createPlaceholderCoverSvg(input: {
     clampText(characterBible.companionCharacters[0] || "a storybook friend", 28)
   );
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1536" viewBox="0 0 1024 1536" role="img" aria-label="${title}">
+  // Square 1024×1024 to match the trim (was incorrectly 1024×1536 portrait).
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="${title}">
   <defs>
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="${theme.skyTop}"/>
@@ -193,77 +216,112 @@ function createPlaceholderCoverSvg(input: {
       <stop offset="100%" stop-color="${theme.skyBottom}"/>
     </linearGradient>
   </defs>
-  <rect width="1024" height="1536" fill="url(#sky)"/>
-  <circle cx="796" cy="224" r="112" fill="${theme.moon}" opacity="0.95"/>
-  <circle cx="796" cy="224" r="144" fill="${theme.moon}" opacity="0.08"/>
-  <circle cx="182" cy="214" r="4" fill="#fff6de" opacity="0.75"/>
-  <circle cx="228" cy="254" r="3" fill="#fff6de" opacity="0.55"/>
-  <circle cx="884" cy="380" r="4" fill="#fff6de" opacity="0.7"/>
-  <circle cx="832" cy="420" r="3" fill="#fff6de" opacity="0.6"/>
-  <path d="M0 1088 C136 1028 282 1000 412 1026 C562 1056 650 1118 794 1110 C882 1104 955 1074 1024 1038 L1024 1536 L0 1536 Z" fill="${theme.hillBack}"/>
-  <path d="M0 1188 C142 1138 286 1124 420 1148 C578 1177 681 1248 832 1236 C906 1230 972 1204 1024 1178 L1024 1536 L0 1536 Z" fill="${theme.hillFront}"/>
-  <rect x="112" y="112" width="800" height="1312" rx="46" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="5"/>
-  <g transform="translate(158 162)">
+  <rect width="1024" height="1024" fill="url(#sky)"/>
+  <circle cx="796" cy="160" r="80" fill="${theme.moon}" opacity="0.95"/>
+  <circle cx="796" cy="160" r="104" fill="${theme.moon}" opacity="0.08"/>
+  <circle cx="182" cy="148" r="4" fill="#fff6de" opacity="0.75"/>
+  <circle cx="228" cy="178" r="3" fill="#fff6de" opacity="0.55"/>
+  <circle cx="884" cy="256" r="4" fill="#fff6de" opacity="0.7"/>
+  <circle cx="832" cy="290" r="3" fill="#fff6de" opacity="0.6"/>
+  <path d="M0 680 C136 636 282 612 412 638 C562 668 650 730 794 722 C882 716 955 686 1024 650 L1024 1024 L0 1024 Z" fill="${theme.hillBack}"/>
+  <path d="M0 750 C142 714 286 700 420 724 C578 753 681 820 832 808 C906 802 972 776 1024 752 L1024 1024 L0 1024 Z" fill="${theme.hillFront}"/>
+  <rect x="80" y="80" width="864" height="864" rx="36" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="5"/>
+  <g transform="translate(112 112)">
     <rect x="0" y="0" width="216" height="58" rx="29" fill="rgba(255,249,235,0.12)" stroke="rgba(255,249,235,0.22)" stroke-width="2"/>
     <circle cx="38" cy="29" r="14" fill="${theme.accent}"/>
     <path d="M18 38 C30 28 44 28 58 38" fill="none" stroke="#fff8ea" stroke-width="4" stroke-linecap="round"/>
     <text x="76" y="38" fill="#fff8ea" font-size="24" font-family="Arial, sans-serif" font-weight="700">Storycot</text>
   </g>
-  <text x="160" y="326" fill="#fff4d5" font-size="22" font-family="Arial, sans-serif" letter-spacing="3">PERSONALISED BEDTIME STORY</text>
-  <text x="160" y="434" fill="#fffdf8" font-size="${titleSize}" font-family="Georgia, serif" font-weight="700">
-    <tspan x="160" dy="0">${escapeXml(titleLines[0] || "")}</tspan>
-    ${titleLines[1] ? `<tspan x="160" dy="${titleLineStep}">${escapeXml(titleLines[1])}</tspan>` : ""}
-    ${titleLines[2] ? `<tspan x="160" dy="${titleLineStep}">${escapeXml(titleLines[2])}</tspan>` : ""}
+  <text x="112" y="224" fill="#fff4d5" font-size="18" font-family="Arial, sans-serif" letter-spacing="3">PERSONALISED BEDTIME STORY</text>
+  <text x="112" y="306" fill="#fffdf8" font-size="${titleSize}" font-family="Georgia, serif" font-weight="700">
+    <tspan x="112" dy="0">${escapeXml(titleLines[0] || "")}</tspan>
+    ${titleLines[1] ? `<tspan x="112" dy="${titleLineStep}">${escapeXml(titleLines[1])}</tspan>` : ""}
+    ${titleLines[2] ? `<tspan x="112" dy="${titleLineStep}">${escapeXml(titleLines[2])}</tspan>` : ""}
   </text>
-  <text x="160" y="${subtitleY}" fill="#fff0c8" font-size="34" font-family="Georgia, serif">A story for ${childName}</text>
+  <text x="112" y="${subtitleY}" fill="#fff0c8" font-size="28" font-family="Georgia, serif">A story for ${childName}</text>
   <g transform="translate(0 24)">
-    <path d="M180 1028 C300 948 432 906 588 906 C724 906 846 942 932 1008" fill="none" stroke="${theme.accentSoft}" stroke-width="10" stroke-linecap="round" opacity="0.95"/>
+    <path d="M112 640 C220 596 338 572 468 596 C604 624 694 670 804 664 C878 660 948 638 1012 614" fill="none" stroke="${theme.accentSoft}" stroke-width="10" stroke-linecap="round" opacity="0.95"/>
     ${
       theme.motif === "ocean"
-        ? `<path d="M196 1062 C312 1036 400 1024 500 1042 C582 1056 652 1086 736 1082 C824 1078 892 1038 966 1012" fill="none" stroke="${theme.accentSoft}" stroke-width="8" stroke-linecap="round" opacity="0.82"/>
-           <circle cx="468" cy="1012" r="16" fill="${theme.accent}" opacity="0.96"/>
-           <circle cx="512" cy="994" r="12" fill="${theme.accentSoft}" opacity="0.88"/>
-           <circle cx="552" cy="1018" r="18" fill="${theme.accent}" opacity="0.8"/>`
+        ? `<circle cx="432" cy="634" r="14" fill="${theme.accent}" opacity="0.96"/>
+           <circle cx="472" cy="618" r="10" fill="${theme.accentSoft}" opacity="0.88"/>
+           <circle cx="510" cy="638" r="16" fill="${theme.accent}" opacity="0.8"/>`
         : theme.motif === "garden"
-          ? `<path d="M462 968 C450 938 458 900 486 872" fill="none" stroke="${theme.accentSoft}" stroke-width="8" stroke-linecap="round"/>
-             <path d="M540 974 C552 938 548 902 520 872" fill="none" stroke="${theme.accentSoft}" stroke-width="8" stroke-linecap="round"/>
-             <circle cx="486" cy="862" r="24" fill="${theme.accent}" opacity="0.96"/>
-             <circle cx="520" cy="862" r="24" fill="${theme.accent}" opacity="0.9"/>
-             <circle cx="502" cy="832" r="20" fill="${theme.accentSoft}" opacity="0.92"/>`
+          ? `<circle cx="448" cy="614" r="22" fill="${theme.accent}" opacity="0.92"/>
+             <circle cx="490" cy="614" r="22" fill="${theme.accent}" opacity="0.86"/>
+             <circle cx="468" cy="584" r="18" fill="${theme.accentSoft}" opacity="0.92"/>`
           : theme.motif === "night"
-            ? `<circle cx="480" cy="982" r="20" fill="${theme.accent}" opacity="0.92"/>
-               <circle cx="524" cy="958" r="14" fill="${theme.accentSoft}" opacity="0.9"/>
-               <circle cx="560" cy="990" r="10" fill="${theme.accent}" opacity="0.82"/>
-               <path d="M486 1086 L504 1046 L522 1086" fill="none" stroke="${theme.accentSoft}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>`
-            : `<path d="M456 1022 C486 978 526 944 584 922" fill="none" stroke="${theme.accentSoft}" stroke-width="8" stroke-linecap="round"/>
-               <circle cx="446" cy="1036" r="18" fill="${theme.accent}" opacity="0.92"/>
-               <circle cx="586" cy="916" r="14" fill="${theme.accentSoft}" opacity="0.9"/>
-               <circle cx="640" cy="890" r="10" fill="${theme.accent}" opacity="0.82"/>`
+            ? `<circle cx="446" cy="618" r="16" fill="${theme.accent}" opacity="0.92"/>
+               <circle cx="482" cy="600" r="11" fill="${theme.accentSoft}" opacity="0.9"/>
+               <circle cx="514" cy="622" r="8" fill="${theme.accent}" opacity="0.82"/>`
+            : `<circle cx="420" cy="632" r="14" fill="${theme.accent}" opacity="0.92"/>
+               <circle cx="540" cy="572" r="11" fill="${theme.accentSoft}" opacity="0.9"/>
+               <circle cx="590" cy="548" r="8" fill="${theme.accent}" opacity="0.82"/>`
     }
   </g>
-  <rect x="160" y="1296" width="308" height="56" rx="28" fill="rgba(255,248,230,0.12)" stroke="rgba(255,248,230,0.2)" stroke-width="2"/>
-  <text x="194" y="1332" fill="#fff4d8" font-size="22" font-family="Arial, sans-serif">Featuring ${companion}</text>
+  <rect x="112" y="900" width="308" height="56" rx="28" fill="rgba(255,248,230,0.12)" stroke="rgba(255,248,230,0.2)" stroke-width="2"/>
+  <text x="146" y="936" fill="#fff4d8" font-size="22" font-family="Arial, sans-serif">Featuring ${companion}</text>
 </svg>`;
 }
 
-async function generateOpenAICoverPng(prompt: string): Promise<Buffer> {
-  return generateOpenAIImage({
-    prompt,
-    size: "1024x1536",
-  });
+function createPlaceholderPageSvg(input: {
+  story: Story;
+  profile: ChildProfile;
+  characterBible: CharacterBible;
+  spread: BookSpread;
+  side: "left" | "right";
+}): string {
+  const { story, profile, characterBible, spread, side } = input;
+  const title = escapeXml(clampText(story.title, 48));
+  const sceneBrief = escapeXml(clampText(spread.sceneBrief, 120));
+  const childName = escapeXml(profile.name);
+  const palette = escapeXml(characterBible.palette);
+  const pageText = escapeXml(
+    clampText(side === "left" ? spread.leftPageText : spread.rightPageText, 160)
+  );
+  const sideLabel =
+    side === "left" ? `PAGE ${spread.pageStart}` : `PAGE ${spread.pageEnd}`;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="${title}">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1b2b5a"/>
+      <stop offset="55%" stop-color="#5e5aa3"/>
+      <stop offset="100%" stop-color="#f0d39d"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#sky)"/>
+  <circle cx="820" cy="160" r="72" fill="#fff1be" opacity="0.9"/>
+  <path d="M0 740 C140 690 280 680 420 710 S680 780 840 740 S960 710 1024 730 L1024 1024 L0 1024 Z" fill="#21345d"/>
+  <path d="M0 800 C150 760 290 750 420 780 S680 860 840 820 S960 790 1024 808 L1024 1024 L0 1024 Z" fill="#162546" opacity="0.85"/>
+  <text x="72" y="110" fill="#fff8ea" font-size="22" font-family="Arial, sans-serif">SPREAD ${spread.sequence} · ${sideLabel}</text>
+  <text x="72" y="178" fill="#fffef8" font-size="44" font-family="Georgia, serif" font-weight="700">${title}</text>
+  <text x="72" y="234" fill="#fef0c9" font-size="26" font-family="Georgia, serif">${childName}</text>
+  <g transform="translate(360 440)">
+    <circle cx="152" cy="-60" r="20" fill="#ffebc6"/>
+    <rect x="102" y="-38" width="100" height="128" rx="32" fill="#f2ca57"/>
+    <rect x="124" y="90" width="24" height="96" rx="12" fill="#94a7d6"/>
+    <rect x="158" y="90" width="24" height="96" rx="12" fill="#94a7d6"/>
+    <rect x="78" y="-6" width="24" height="80" rx="11" fill="#ffebc6"/>
+    <rect x="202" y="-6" width="24" height="80" rx="11" fill="#ffebc6"/>
+  </g>
+  <text x="72" y="700" fill="#fff8ea" font-size="22" font-family="Arial, sans-serif">Palette: ${escapeXml(clampText(palette, 70))}</text>
+  <text x="72" y="746" fill="#fff8ea" font-size="22" font-family="Arial, sans-serif">${sceneBrief}</text>
+  <foreignObject x="72" y="784" width="880" height="180">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="color:#fff8ea;font-family:Arial,sans-serif;font-size:20px;line-height:1.45;">
+      ${pageText}
+    </div>
+  </foreignObject>
+</svg>`;
 }
 
-async function generateOpenAISquarePng(prompt: string): Promise<Buffer> {
-  return generateOpenAIImage({
-    prompt,
-    size: "1024x1024",
-  });
-}
+// ---------------------------------------------------------------------------
+// OpenAI image generation
+// ---------------------------------------------------------------------------
 
 function getPreferredOpenAIImageModels(): string[] {
   const configured = process.env.OPENAI_IMAGE_MODEL?.trim();
   if (configured) return [configured];
-
   return ["gpt-image-2", "gpt-image-1"];
 }
 
@@ -286,39 +344,6 @@ class ModerationBlockedError extends Error {
   }
 }
 
-type OpenAIImageBatchRequest = {
-  customId: string;
-  prompt: string;
-  pathname: string;
-  size: "1024x1536" | "1024x1024";
-  contentType: "image/png";
-};
-
-type OpenAIImageBatchLine = {
-  custom_id?: string;
-  response?: {
-    status_code?: number;
-    body?: {
-      data?: Array<{ b64_json?: string }>;
-    };
-  };
-  error?: {
-    message?: string;
-  };
-};
-
-type RetrievedOpenAIImageBatch = {
-  id: string;
-  input_file_id: string;
-  output_file_id?: string;
-  error_file_id?: string;
-  status: OpenAIImageBatchStatus;
-  completed_at?: number;
-  request_counts?: {
-    total?: number;
-  };
-};
-
 function parseRetryAfterMs(bodyText: string, headers: Headers): number {
   const retryHeader = headers.get("Retry-After");
   if (retryHeader) {
@@ -332,7 +357,7 @@ function parseRetryAfterMs(bodyText: string, headers: Headers): number {
 
 async function generateOpenAIImage(input: {
   prompt: string;
-  size: "1024x1536" | "1536x1024" | "1024x1024";
+  size: "1024x1024";
 }): Promise<Buffer> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -407,81 +432,51 @@ async function generateOpenAIImage(input: {
   throw new Error(lastErrorMessage);
 }
 
-function replaceCoverSpreadImage(
-  spreads: BookSpread[],
-  coverImageUrl: string
-): BookSpread[] {
-  return spreads.map((spread) =>
-    spread.sequence === 1 || spread.title === "Cover"
-      ? {
-          ...spread,
-          imageUrl: coverImageUrl,
-          thumbnailUrl: coverImageUrl,
-        }
-      : spread
-  );
+// Generate and immediately upscale a single square image.
+async function generateAndUpscale(prompt: string): Promise<Buffer> {
+  const png = await generateOpenAIImage({
+    prompt,
+    size: BOOK_SPEC.coverIllustrationOpenAISize,
+  });
+  return upscaleImageBuffer(png);
 }
 
-function replaceSpreadImage(
-  spreads: BookSpread[],
-  nextSpread: BookSpread
-): BookSpread[] {
-  return spreads.map((spread) =>
-    spread.id === nextSpread.id ? nextSpread : spread
-  );
-}
+// ---------------------------------------------------------------------------
+// Batch types
+// ---------------------------------------------------------------------------
 
-export function applySpreadIllustration(
-  spreads: BookSpread[],
-  nextSpread: BookSpread
-): BookSpread[] {
-  return replaceSpreadImage(spreads, nextSpread);
-}
+type OpenAIImageBatchRequest = {
+  customId: string;
+  prompt: string;
+  pathname: string;
+  size: "1024x1024";
+  contentType: "image/png";
+};
 
-function buildPageIllustrationPrompt(input: {
-  project: BookProject;
-  story: Story;
-  profile: ChildProfile;
-  characterBible: CharacterBible;
-  spread: BookSpread;
-  side: "left" | "right";
-  omitPageText?: boolean;
-}): string {
-  const {
-    project,
-    story,
-    profile,
-    characterBible,
-    spread,
-    side,
-    omitPageText = false,
-  } = input;
-  const pageText = side === "left" ? spread.leftPageText : spread.rightPageText;
+type OpenAIImageBatchLine = {
+  custom_id?: string;
+  response?: {
+    status_code?: number;
+    body?: {
+      data?: Array<{ b64_json?: string }>;
+    };
+  };
+  error?: {
+    message?: string;
+  };
+};
 
-  return [
-    buildIllustrationDirection(characterBible),
-    `Book title: ${story.title}.`,
-    `Main child: ${profile.name}.`,
-    `Age band: ${project.ageBand}.`,
-    `Spread sequence: ${spread.sequence}, ${side} side of the same two-page spread.`,
-    `Scene brief: ${spread.sceneBrief}.`,
-    `Illustration direction: ${spread.illustrationPrompt}.`,
-    ...(omitPageText ? [] : [`Page text: ${pageText || "None"}.`]),
-    "Create one warm square children's book spread illustration that can be reused behind both pages of this spread. Keep the child's face, hair, outfit, proportions, and recurring props exactly consistent with the character bible. No visible text, lettering, captions, or page numbers inside the art.",
-  ].join(" ");
-}
-
-function getOpenAIImageBatchModel(): string {
-  return getPreferredOpenAIImageModels()[0] ?? "gpt-image-2";
-}
-
-function requireOpenAIKey(): string {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
-  return apiKey;
-}
+type RetrievedOpenAIImageBatch = {
+  id: string;
+  input_file_id: string;
+  output_file_id?: string;
+  error_file_id?: string;
+  status: OpenAIImageBatchStatus;
+  completed_at?: number;
+  request_counts?: {
+    total?: number;
+  };
+};
 
 function toOpenAIBatchAsset(
   batch: RetrievedOpenAIImageBatch,
@@ -516,6 +511,96 @@ function assertOpenAIResponse(
   }
 }
 
+function getOpenAIImageBatchModel(): string {
+  return getPreferredOpenAIImageModels()[0] ?? "gpt-image-2";
+}
+
+function requireOpenAIKey(): string {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY is not configured");
+  }
+  return apiKey;
+}
+
+// ---------------------------------------------------------------------------
+// Prompt builders
+// ---------------------------------------------------------------------------
+
+function buildPageIllustrationPrompt(input: {
+  project: BookProject;
+  story: Story;
+  profile: ChildProfile;
+  characterBible: CharacterBible;
+  spread: BookSpread;
+  side: "left" | "right";
+  omitPageText?: boolean;
+}): string {
+  const {
+    project,
+    story,
+    profile,
+    characterBible,
+    spread,
+    side,
+    omitPageText = false,
+  } = input;
+  const pageText = side === "left" ? spread.leftPageText : spread.rightPageText;
+
+  return [
+    buildIllustrationDirection(characterBible),
+    `Book title: ${story.title}.`,
+    `Main child: ${profile.name}.`,
+    `Age band: ${project.ageBand}.`,
+    `Spread sequence: ${spread.sequence}, ${side} page.`,
+    `Scene brief: ${spread.sceneBrief}.`,
+    `Illustration direction: ${spread.illustrationPrompt}.`,
+    ...(omitPageText ? [] : [`Page text: ${pageText || "None"}.`]),
+    "Create one warm square children's book page illustration. Keep the child's face, hair, outfit, proportions, and recurring props exactly consistent with the character bible. No visible text, lettering, captions, or page numbers inside the art.",
+  ].join(" ");
+}
+
+// ---------------------------------------------------------------------------
+// Spread/cover image helpers
+// ---------------------------------------------------------------------------
+
+function replaceCoverSpreadImage(
+  spreads: BookSpread[],
+  coverImageUrl: string
+): BookSpread[] {
+  return spreads.map((spread) =>
+    spread.sequence === 1 || spread.title === "Cover"
+      ? {
+          ...spread,
+          imageUrl: coverImageUrl,
+          thumbnailUrl: coverImageUrl,
+        }
+      : spread
+  );
+}
+
+function replaceSpreadImage(
+  spreads: BookSpread[],
+  nextSpread: BookSpread
+): BookSpread[] {
+  return spreads.map((spread) =>
+    spread.id === nextSpread.id ? nextSpread : spread
+  );
+}
+
+export function applySpreadIllustration(
+  spreads: BookSpread[],
+  nextSpread: BookSpread
+): BookSpread[] {
+  return replaceSpreadImage(spreads, nextSpread);
+}
+
+// ---------------------------------------------------------------------------
+// Batch submission and retrieval
+// ---------------------------------------------------------------------------
+
+// Build one cover request + two per-page requests (left + right) for every
+// non-cover spread. Each interior page gets its own independent illustration.
 export function buildBookImageBatchRequests(input: {
   project: BookProject;
   story: Story;
@@ -528,7 +613,7 @@ export function buildBookImageBatchRequests(input: {
       customId: "cover",
       prompt: buildCoverIllustrationPrompt({ ...input, coverSpread }),
       pathname: `books/${input.project.id}/cover.png`,
-      size: "1024x1536",
+      size: BOOK_SPEC.coverIllustrationOpenAISize,
       contentType: "image/png",
     },
   ];
@@ -536,13 +621,30 @@ export function buildBookImageBatchRequests(input: {
   for (const spread of input.project.spreads) {
     if (spread.sequence === 1 || spread.title === "Cover") continue;
     const base = `books/${input.project.id}/spreads/${spread.sequence}`;
-    requests.push({
-      customId: `spread:${spread.id}:spread`,
-      prompt: buildPageIllustrationPrompt({ ...input, spread, side: "left" }),
-      pathname: `${base}.png`,
-      size: "1024x1024",
-      contentType: "image/png",
-    });
+    requests.push(
+      {
+        customId: `spread:${spread.id}:left`,
+        prompt: buildPageIllustrationPrompt({
+          ...input,
+          spread,
+          side: "left",
+        }),
+        pathname: `${base}-left.png`,
+        size: BOOK_SPEC.interiorIllustrationOpenAISize,
+        contentType: "image/png",
+      },
+      {
+        customId: `spread:${spread.id}:right`,
+        prompt: buildPageIllustrationPrompt({
+          ...input,
+          spread,
+          side: "right",
+        }),
+        pathname: `${base}-right.png`,
+        size: BOOK_SPEC.interiorIllustrationOpenAISize,
+        contentType: "image/png",
+      }
+    );
   }
 
   return requests;
@@ -717,10 +819,10 @@ export async function applyBookImageBatchOutput(input: {
         `OpenAI image batch missing generated image ${request.customId}`
       );
     }
-
+    const upscaled = await upscaleImageBuffer(generated);
     return storeBookAsset({
       pathname: request.pathname,
-      body: generated,
+      body: upscaled,
       contentType: request.contentType,
     });
   };
@@ -731,80 +833,36 @@ export async function applyBookImageBatchOutput(input: {
   }
 
   const coverImageUrl = await storeGenerated(coverRequest);
-
   let spreads = replaceCoverSpreadImage(input.project.spreads, coverImageUrl);
 
   for (const spread of input.project.spreads) {
     if (spread.sequence === 1 || spread.title === "Cover") continue;
 
-    const spreadRequest = requests.find(
-      (request) => request.customId === `spread:${spread.id}:spread`
+    const leftRequest = requests.find(
+      (r) => r.customId === `spread:${spread.id}:left`
     );
-    if (!spreadRequest) continue;
+    const rightRequest = requests.find(
+      (r) => r.customId === `spread:${spread.id}:right`
+    );
+    if (!leftRequest || !rightRequest) continue;
 
-    const spreadImageUrl = await storeGenerated(spreadRequest);
+    const leftUrl = await storeGenerated(leftRequest);
+    const rightUrl = await storeGenerated(rightRequest);
+
     spreads = replaceSpreadImage(spreads, {
       ...spread,
-      imageUrl: spreadImageUrl,
-      leftPageImageUrl: spreadImageUrl,
-      rightPageImageUrl: spreadImageUrl,
-      thumbnailUrl: spreadImageUrl,
+      leftPageImageUrl: leftUrl,
+      rightPageImageUrl: rightUrl,
+      thumbnailUrl: leftUrl,
     });
   }
 
   return { coverImageUrl, spreads, provider: "openai" };
 }
 
-function createPlaceholderPageSvg(input: {
-  story: Story;
-  profile: ChildProfile;
-  characterBible: CharacterBible;
-  spread: BookSpread;
-  side: "left" | "right";
-}): string {
-  const { story, profile, characterBible, spread, side } = input;
-  const title = escapeXml(clampText(story.title, 48));
-  const sceneBrief = escapeXml(clampText(spread.sceneBrief, 120));
-  const childName = escapeXml(profile.name);
-  const palette = escapeXml(characterBible.palette);
-  const pageText = escapeXml(
-    clampText(side === "left" ? spread.leftPageText : spread.rightPageText, 160)
-  );
-  const sideLabel =
-    side === "left" ? `PAGE ${spread.pageStart}` : `PAGE ${spread.pageEnd}`;
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="${title}">
-  <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#1b2b5a"/>
-      <stop offset="55%" stop-color="#5e5aa3"/>
-      <stop offset="100%" stop-color="#f0d39d"/>
-    </linearGradient>
-  </defs>
-  <rect width="1024" height="1024" fill="url(#sky)"/>
-  <circle cx="820" cy="160" r="72" fill="#fff1be" opacity="0.9"/>
-  <path d="M0 740 C140 690 280 680 420 710 S680 780 840 740 S960 710 1024 730 L1024 1024 L0 1024 Z" fill="#21345d"/>
-  <path d="M0 800 C150 760 290 750 420 780 S680 860 840 820 S960 790 1024 808 L1024 1024 L0 1024 Z" fill="#162546" opacity="0.85"/>
-  <text x="72" y="110" fill="#fff8ea" font-size="22" font-family="Arial, sans-serif">SPREAD ${spread.sequence} · ${sideLabel}</text>
-  <text x="72" y="178" fill="#fffef8" font-size="44" font-family="Georgia, serif" font-weight="700">${title}</text>
-  <text x="72" y="234" fill="#fef0c9" font-size="26" font-family="Georgia, serif">${childName}</text>
-  <g transform="translate(360 440)">
-    <circle cx="152" cy="-60" r="20" fill="#ffebc6"/>
-    <rect x="102" y="-38" width="100" height="128" rx="32" fill="#f2ca57"/>
-    <rect x="124" y="90" width="24" height="96" rx="12" fill="#94a7d6"/>
-    <rect x="158" y="90" width="24" height="96" rx="12" fill="#94a7d6"/>
-    <rect x="78" y="-6" width="24" height="80" rx="11" fill="#ffebc6"/>
-    <rect x="202" y="-6" width="24" height="80" rx="11" fill="#ffebc6"/>
-  </g>
-  <text x="72" y="700" fill="#fff8ea" font-size="22" font-family="Arial, sans-serif">Palette: ${escapeXml(clampText(palette, 70))}</text>
-  <text x="72" y="746" fill="#fff8ea" font-size="22" font-family="Arial, sans-serif">${sceneBrief}</text>
-  <foreignObject x="72" y="784" width="880" height="180">
-    <div xmlns="http://www.w3.org/1999/xhtml" style="color:#fff8ea;font-family:Arial,sans-serif;font-size:20px;line-height:1.45;">
-      ${pageText}
-    </div>
-  </foreignObject>
-</svg>`;
-}
+// ---------------------------------------------------------------------------
+// Public generation functions (used by the sequential / non-batch path)
+// ---------------------------------------------------------------------------
 
 export async function generateCoverIllustration(input: {
   project: BookProject;
@@ -820,10 +878,10 @@ export async function generateCoverIllustration(input: {
   const prompt = buildCoverIllustrationPrompt({ ...input, coverSpread });
 
   if (isGeneratedIllustrationConfigured()) {
-    const png = await generateOpenAICoverPng(prompt);
+    const upscaled = await generateAndUpscale(prompt);
     const coverImageUrl = await storeBookAsset({
       pathname: `books/${input.project.id}/cover.png`,
-      body: png,
+      body: upscaled,
       contentType: "image/png",
     });
 
@@ -859,48 +917,52 @@ export async function generateSpreadIllustration(input: {
   const base = `books/${project.id}/spreads/${spread.sequence}`;
 
   if (isGeneratedIllustrationConfigured()) {
-    const generateSpread = async (): Promise<string> => {
+    // Generate left and right page images sequentially to stay within rate limits.
+    const generatePage = async (
+      side: "left" | "right"
+    ): Promise<string> => {
+      const suffix = side === "left" ? "-left" : "-right";
+      const prompt = buildPageIllustrationPrompt({ ...input, side });
+
       try {
-        const png = await generateOpenAISquarePng(
-          buildPageIllustrationPrompt({ ...input, side: "left" })
-        );
+        const upscaled = await generateAndUpscale(prompt);
         return storeBookAsset({
-          pathname: `${base}.png`,
-          body: png,
+          pathname: `${base}${suffix}.png`,
+          body: upscaled,
           contentType: "image/png",
         });
       } catch (err) {
         if (!(err instanceof ModerationBlockedError)) throw err;
-        // Retry with a safe minimal prompt (drop page text which most often triggers moderation)
-        const png = await generateOpenAISquarePng(
-          buildPageIllustrationPrompt({
-            ...input,
-            side: "left",
-            omitPageText: true,
-          })
-        );
+        // Retry without page text — the text is the most common moderation trigger.
+        const fallbackPrompt = buildPageIllustrationPrompt({
+          ...input,
+          side,
+          omitPageText: true,
+        });
+        const upscaled = await generateAndUpscale(fallbackPrompt);
         return storeBookAsset({
-          pathname: `${base}.png`,
-          body: png,
+          pathname: `${base}${suffix}.png`,
+          body: upscaled,
           contentType: "image/png",
         });
       }
     };
 
-    const spreadImageUrl = await generateSpread();
+    const leftUrl = await generatePage("left");
+    const rightUrl = await generatePage("right");
 
     return {
       spread: {
         ...spread,
-        imageUrl: spreadImageUrl,
-        leftPageImageUrl: spreadImageUrl,
-        rightPageImageUrl: spreadImageUrl,
-        thumbnailUrl: spreadImageUrl,
+        leftPageImageUrl: leftUrl,
+        rightPageImageUrl: rightUrl,
+        thumbnailUrl: leftUrl,
       },
       provider: "openai",
     };
   }
 
+  // Placeholder path: generate distinct left and right SVGs per page.
   const [leftSvg, rightSvg] = [
     createPlaceholderPageSvg({ ...input, side: "left" }),
     createPlaceholderPageSvg({ ...input, side: "right" }),

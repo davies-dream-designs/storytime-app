@@ -482,6 +482,8 @@ async function generateFluxImage(prompt: string): Promise<Buffer> {
   }
 
   const model = getFluxModel();
+  // schnell caps at 12 steps (default 4); dev supports up to 50.
+  const num_inference_steps = model.includes("schnell") ? 4 : 28;
   const MAX_RETRIES = 3;
   let lastErrorMessage = "Unknown FLUX image generation error";
 
@@ -498,7 +500,7 @@ async function generateFluxImage(prompt: string): Promise<Buffer> {
         num_images: 1,
         output_format: "png",
         enable_safety_checker: false,
-        num_inference_steps: 28,
+        num_inference_steps,
       }),
     });
 

@@ -14,8 +14,38 @@ import {
   storeBookAsset,
 } from "@/lib/print-books/storage";
 
+// ---------------------------------------------------------------------------
+// Provider selection
+// ---------------------------------------------------------------------------
+
+export type ImageProvider = "openai" | "flux";
+
+// Which image backend to use. Defaults to OpenAI so production is unchanged
+// until FLUX is explicitly enabled via IMAGE_PROVIDER=flux.
+export function getImageProvider(): ImageProvider {
+  return process.env.IMAGE_PROVIDER?.trim().toLowerCase() === "flux"
+    ? "flux"
+    : "openai";
+}
+
+function isOpenAIConfigured(): boolean {
+  return Boolean(process.env.OPENAI_API_KEY);
+}
+
+function isFluxConfigured(): boolean {
+  return Boolean(process.env.FAL_KEY);
+}
+
+// True when the selected provider has its credentials AND blob storage is ready.
 export function isGeneratedIllustrationConfigured(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY) && isBookAssetStorageConfigured();
+  if (!isBookAssetStorageConfigured()) return false;
+  return getImageProvider() === "flux" ? isFluxConfigured() : isOpenAIConfigured();
+}
+
+// The OpenAI Batch API path only applies when OpenAI is the selected provider.
+// FLUX is fast enough to run through the durable per-spread path instead.
+export function shouldUseImageBatch(): boolean {
+  return getImageProvider() === "openai" && isGeneratedIllustrationConfigured();
 }
 
 // ---------------------------------------------------------------------------
@@ -432,12 +462,99 @@ async function generateOpenAIImage(input: {
   throw new Error(lastErrorMessage);
 }
 
-// Generate and immediately upscale a single square image.
-async function generateAndUpscale(prompt: string): Promise<Buffer> {
-  const png = await generateOpenAIImage({
+// ---------------------------------------------------------------------------
+// FLUX image generation (fal.ai)
+// ---------------------------------------------------------------------------
+
+function getFluxModel(): string {
+  return process.env.FLUX_MODEL?.trim() || "fal-ai/flux/dev";
+}
+
+// Generate one square image via fal.ai's synchronous endpoint. fal returns a
+// hosted image URL which we then download to a Buffer. The NSFW safety checker
+// is disabled: this is an author-controlled tool producing wholesome children's
+// book art, and the checker throws frequent false positives on innocent scenes
+// (the exact problem that made OpenAI unusable here).
+async function generateFluxImage(prompt: string): Promise<Buffer> {
+  const apiKey = process.env.FAL_KEY;
+  if (!apiKey) {
+    throw new Error("FAL_KEY is not configured");
+  }
+
+  const model = getFluxModel();
+  const MAX_RETRIES = 3;
+  let lastErrorMessage = "Unknown FLUX image generation error";
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
+    const response = await fetch(`https://fal.run/${model}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Key ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        prompt,
+        image_size: "square_hd", // 1024×1024
+        num_images: 1,
+        output_format: "png",
+        enable_safety_checker: false,
+        num_inference_steps: 28,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      lastErrorMessage = `FLUX image generation failed for ${model}: ${response.status} ${errorBody.slice(0, 300)}`;
+
+      // Retry transient rate limits / gateway errors.
+      if (
+        (response.status === 429 || response.status >= 500) &&
+        attempt < MAX_RETRIES - 1
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 4000 * (attempt + 1)));
+        continue;
+      }
+      throw new Error(lastErrorMessage);
+    }
+
+    const payload = (await response.json()) as {
+      images?: Array<{ url?: string }>;
+    };
+    const imageUrl = payload.images?.[0]?.url;
+    if (!imageUrl) {
+      throw new Error(`FLUX returned no image for ${model}`);
+    }
+
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      throw new Error(
+        `FLUX image download failed: ${imageResponse.status} for ${imageUrl}`
+      );
+    }
+    return Buffer.from(await imageResponse.arrayBuffer());
+  }
+
+  throw new Error(lastErrorMessage);
+}
+
+// ---------------------------------------------------------------------------
+// Provider dispatch
+// ---------------------------------------------------------------------------
+
+// Generate one square base image using the configured provider.
+async function generateBaseImage(prompt: string): Promise<Buffer> {
+  if (getImageProvider() === "flux") {
+    return generateFluxImage(prompt);
+  }
+  return generateOpenAIImage({
     prompt,
     size: BOOK_SPEC.coverIllustrationOpenAISize,
   });
+}
+
+// Generate and immediately upscale a single square image.
+async function generateAndUpscale(prompt: string): Promise<Buffer> {
+  const png = await generateBaseImage(prompt);
   return upscaleImageBuffer(png);
 }
 

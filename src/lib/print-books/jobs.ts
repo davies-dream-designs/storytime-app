@@ -13,6 +13,7 @@ import {
   generateSpreadIllustration,
   isGeneratedIllustrationConfigured,
   retrieveBookImageBatch,
+  shouldUseImageBatch,
   submitBookImageBatch,
 } from "@/lib/print-books/illustrations";
 import { generateBookPdfs } from "@/lib/print-books/pdf";
@@ -160,7 +161,9 @@ async function regenerateProjectArt(input: {
   const totalArtSteps = input.project.spreads.length;
   const currentCursor = input.project.assets.artGenerationCursor ?? 0;
 
-  if (isGeneratedIllustrationConfigured()) {
+  // OpenAI uses the durable Batch API path. FLUX (and the placeholder fallback)
+  // fall through to the per-spread cursor path below, one spread per step.
+  if (shouldUseImageBatch()) {
     const existingBatch = input.project.assets.openAIImageBatch;
 
     if (!existingBatch) {

@@ -15,6 +15,18 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
+function joinUrl(baseUrl: string, path: string): string {
+  return `${baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+}
+
+function getOriginUrl(appUrl: string): string {
+  try {
+    return new URL(appUrl).origin;
+  } catch {
+    return appUrl.replace(/\/+$/, "");
+  }
+}
+
 export async function sendBookReadyEmail(input: {
   toEmail: string;
   toName: string;
@@ -26,8 +38,8 @@ export async function sendBookReadyEmail(input: {
   if (!client) return;
 
   const { toEmail, toName, storyTitle, bookId, appUrl } = input;
-  const bookUrl = `${appUrl}/books/${bookId}`;
-  const logoUrl = `${appUrl}/nav-icon-light.png`;
+  const bookUrl = joinUrl(appUrl, `/books/${bookId}`);
+  const logoUrl = joinUrl(getOriginUrl(appUrl), "/nav-icon-light.png");
   const safeName = escapeHtml(toName);
   const safeStoryTitle = escapeHtml(storyTitle);
   const safeBookUrl = escapeHtml(bookUrl);

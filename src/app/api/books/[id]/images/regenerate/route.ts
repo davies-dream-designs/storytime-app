@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import {
   chargeImageRegenerationCredit,
+  captureIllustratedBookCredits,
   refundImageRegenerationCredit,
+  refundIllustratedBookCredits,
+  reserveIllustratedBookCredits,
 } from "@/lib/credits";
 import { db } from "@/lib/db";
 import { regenerateBookSpreadPageImage } from "@/lib/print-books/jobs";
+import type { BookProject } from "@/types/printBook";
 
 type RegenerateImagePayload = {
   spreadId?: string;
@@ -36,6 +40,8 @@ export async function POST(
   }
 
   let charged = false;
+  let reservedBookCharge = false;
+  let billableProject: BookProject | null = null;
   try {
     const { id } = await params;
     const currentProject = await db.bookProjects.getById(id);
@@ -63,6 +69,12 @@ export async function POST(
     if (isPaidRedo) {
       await chargeImageRegenerationCredit(userId);
       charged = true;
+    } else if (
+      currentProject.billing?.status !== "reserved" &&
+      currentProject.billing?.status !== "captured"
+    ) {
+      billableProject = await reserveIllustratedBookCredits(currentProject);
+      reservedBookCharge = true;
     }
 
     const project = await regenerateBookSpreadPageImage({
@@ -71,10 +83,19 @@ export async function POST(
       spreadId: payload.spreadId,
       side,
     });
+    if (!project) throw new Error("Book project not found");
+
+    if (project.billing?.status === "reserved" && project.status === "ready") {
+      const capturedProject = await captureIllustratedBookCredits(project);
+      return NextResponse.json(capturedProject);
+    }
 
     return NextResponse.json(project);
   } catch (error) {
     if (charged) await refundImageRegenerationCredit(userId);
+    if (reservedBookCharge && billableProject) {
+      await refundIllustratedBookCredits(billableProject);
+    }
 
     const message = error instanceof Error ? error.message : "Unknown error";
     const status = /insufficient credits/i.test(message)

@@ -84,6 +84,69 @@ function wrapTextToWidth(input: {
   return lines;
 }
 
+function truncateTextToWidth(input: {
+  text: string;
+  font: Awaited<ReturnType<PDFDocument["embedFont"]>>;
+  size: number;
+  maxWidth: number;
+}): string {
+  const { text, font, size, maxWidth } = input;
+  if (font.widthOfTextAtSize(text, size) <= maxWidth) return text;
+
+  let truncated = text;
+  while (
+    truncated.length > 0 &&
+    font.widthOfTextAtSize(`${truncated.trimEnd()}...`, size) > maxWidth
+  ) {
+    truncated = truncated.slice(0, -1);
+  }
+
+  return `${truncated.trimEnd()}...`;
+}
+
+export function fitWrappedTextToBox(input: {
+  text: string;
+  font: Awaited<ReturnType<PDFDocument["embedFont"]>>;
+  maxWidth: number;
+  maxHeight: number;
+  paddingY: number;
+  preferredSize: number;
+  minSize: number;
+}) {
+  const { text, font, maxWidth, maxHeight, paddingY, preferredSize, minSize } =
+    input;
+  const sizes: number[] = [];
+  for (let size = preferredSize; size >= minSize; size -= 0.5) {
+    sizes.push(size);
+  }
+
+  for (const size of sizes) {
+    const lineHeight = Math.ceil(size * 1.28);
+    const lines = wrapTextToWidth({ text, font, size, maxWidth });
+    if (lines.length * lineHeight + paddingY <= maxHeight) {
+      return { lines, size, lineHeight, truncated: false };
+    }
+  }
+
+  const size = minSize;
+  const lineHeight = Math.ceil(size * 1.28);
+  const maxLines = Math.max(1, Math.floor((maxHeight - paddingY) / lineHeight));
+  const lines = wrapTextToWidth({ text, font, size, maxWidth }).slice(
+    0,
+    maxLines
+  );
+  if (lines.length > 0) {
+    lines[lines.length - 1] = truncateTextToWidth({
+      text: lines[lines.length - 1],
+      font,
+      size,
+      maxWidth,
+    });
+  }
+
+  return { lines, size, lineHeight, truncated: true };
+}
+
 function drawWrappedText(input: {
   page: ReturnType<PDFDocument["addPage"]>;
   text: string;
@@ -97,6 +160,7 @@ function drawWrappedText(input: {
   align?: "left" | "center";
   shadow?: boolean;
   maxLines?: number;
+  lines?: string[];
 }) {
   const {
     page,
@@ -111,8 +175,10 @@ function drawWrappedText(input: {
     align = "left",
     shadow = false,
     maxLines,
+    lines: inputLines,
   } = input;
-  const allLines = wrapTextToWidth({ text, font, size, maxWidth });
+  const allLines =
+    inputLines ?? wrapTextToWidth({ text, font, size, maxWidth });
   const lines = maxLines != null ? allLines.slice(0, maxLines) : allLines;
   lines.forEach((line, index) => {
     const lineX =
@@ -828,70 +894,13 @@ async function drawCopyrightPage(input: {
   });
 }
 
-// Second-to-last interior page: a clean, centred "The End" leaf.
-async function drawEndLeafPage(input: {
-  pdfDoc: PDFDocument;
+function drawBlankEndpaperPage(input: {
   page: ReturnType<PDFDocument["addPage"]>;
   pageWidth: number;
   pageHeight: number;
-  serif: Awaited<ReturnType<PDFDocument["embedFont"]>>;
-  serifBold: Awaited<ReturnType<PDFDocument["embedFont"]>>;
-  sans: Awaited<ReturnType<PDFDocument["embedFont"]>>;
 }) {
-  const { pdfDoc, page, pageWidth, pageHeight, serifBold, sans } = input;
-  const centerX = pageWidth / 2;
-  drawPageBackground(page, pageWidth, pageHeight, BRAND_PURPLE);
-  const iconSize = 44;
-  await drawBrandWordmark({
-    pdfDoc,
-    page,
-    variant: "light",
-    x: centerX - getWordmarkWidth(sans, iconSize) / 2,
-    y: pageHeight * 0.7,
-    iconSize,
-    font: sans,
-  });
-  drawCenteredText({
-    page,
-    text: "The End",
-    centerX,
-    y: pageHeight * 0.46,
-    font: serifBold,
-    size: 34,
-    color: rgb(0.99, 0.96, 0.88),
-  });
-}
-
-async function drawBackMatterLeafPage(input: {
-  pdfDoc: PDFDocument;
-  page: ReturnType<PDFDocument["addPage"]>;
-  pageWidth: number;
-  pageHeight: number;
-  sans: Awaited<ReturnType<PDFDocument["embedFont"]>>;
-  sansBold: Awaited<ReturnType<PDFDocument["embedFont"]>>;
-}) {
-  const { pdfDoc, page, pageWidth, pageHeight, sans, sansBold } = input;
-  const centerX = pageWidth / 2;
-  drawPageBackground(page, pageWidth, pageHeight, BRAND_PURPLE);
-  const iconSize = 34;
-  await drawBrandWordmark({
-    pdfDoc,
-    page,
-    variant: "light",
-    x: centerX - getWordmarkWidth(sans, iconSize) / 2,
-    y: pageHeight * 0.54,
-    iconSize,
-    font: sans,
-  });
-  drawCenteredText({
-    page,
-    text: "A Storycot story",
-    centerX,
-    y: pageHeight * 0.42,
-    font: sansBold,
-    size: 12,
-    color: rgb(0.99, 0.96, 0.88),
-  });
+  const { page, pageWidth, pageHeight } = input;
+  drawPageBackground(page, pageWidth, pageHeight, rgb(0.98, 0.96, 0.91));
 }
 
 function getMaxTextBoxPt(preset?: StoryPreset): number {
@@ -949,25 +958,27 @@ async function drawBookPage(input: {
   });
 
   if (text) {
-    const textInnerWidth = pageWidth - FULL_BLEED_TEXT_SAFE_MARGIN * 2 - 48;
-    const lineCount = wrapTextToWidth({
+    const textRectWidth = pageWidth - FULL_BLEED_TEXT_SAFE_MARGIN * 2;
+    const textInnerWidth = textRectWidth - 48;
+    const maxHeight = getMaxTextBoxPt(story.storyPreset);
+    const fittedText = fitWrappedTextToBox({
       text,
       font: serif,
-      size: 17,
       maxWidth: textInnerWidth,
-    }).length;
-    const lineHeight = 22;
-    const boxPadding = 54;
+      maxHeight,
+      paddingY: 54,
+      preferredSize: 17,
+      minSize: 9.5,
+    });
     const minHeight = 80;
-    const maxHeight = getMaxTextBoxPt(story.storyPreset);
     const textRectHeight = Math.min(
-      Math.max(minHeight, lineCount * lineHeight + boxPadding),
+      Math.max(minHeight, fittedText.lines.length * fittedText.lineHeight + 54),
       maxHeight
     );
     const textRect = {
       x: FULL_BLEED_TEXT_SAFE_MARGIN,
       y: FULL_BLEED_TEXT_SAFE_MARGIN,
-      width: pageWidth - FULL_BLEED_TEXT_SAFE_MARGIN * 2,
+      width: textRectWidth,
       height: textRectHeight,
     };
     page.drawRectangle({
@@ -986,11 +997,12 @@ async function drawBookPage(input: {
       x: textRect.x + 24,
       topY: textRect.y + textRect.height - 34,
       maxWidth: textRect.width - 48,
-      lineHeight,
+      lineHeight: fittedText.lineHeight,
       font: serif,
-      size: 17,
+      size: fittedText.size,
       color: theme.ink,
       align: "center",
+      lines: fittedText.lines,
     });
   }
 
@@ -1109,27 +1121,20 @@ async function buildPrintPdf(input: {
 
     if (spread.title === "Back Cover") {
       const endLeafPage = pdfDoc.addPage([PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT]);
-      await drawEndLeafPage({
-        pdfDoc,
+      drawBlankEndpaperPage({
         page: endLeafPage,
         pageWidth: PRINT_PAGE_WIDTH,
         pageHeight: PRINT_PAGE_HEIGHT,
-        serif,
-        serifBold,
-        sans,
       });
 
       const backMatterLeafPage = pdfDoc.addPage([
         PRINT_PAGE_WIDTH,
         PRINT_PAGE_HEIGHT,
       ]);
-      await drawBackMatterLeafPage({
-        pdfDoc,
+      drawBlankEndpaperPage({
         page: backMatterLeafPage,
         pageWidth: PRINT_PAGE_WIDTH,
         pageHeight: PRINT_PAGE_HEIGHT,
-        sans,
-        sansBold,
       });
 
       continue;

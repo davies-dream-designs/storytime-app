@@ -14,10 +14,8 @@ type EpubImageAsset = {
 
 const EPUB_TARGET_MAX_BYTES = 45 * 1024 * 1024;
 const EPUB_IMAGE_MAX_BYTES = 1500 * 1024;
-const EPUB_IMAGE_MAX_WIDTH = 1600;
+const EPUB_IMAGE_MAX_WIDTH = 1400;
 const EPUB_IMAGE_QUALITY = 74;
-const EPUB_FIXED_PAGE_WIDTH = 1600;
-const EPUB_FIXED_PAGE_HEIGHT = 1600;
 const EPUB_COVER_WIDTH = 1600;
 const EPUB_COVER_HEIGHT = 2560;
 
@@ -262,7 +260,6 @@ function renderPageXhtml(input: {
   body: string;
   pageLabel?: string;
   variant?: "cover" | "story" | "closing";
-  fixedLayout?: boolean;
 }): string {
   const {
     title,
@@ -271,7 +268,6 @@ function renderPageXhtml(input: {
     body,
     pageLabel,
     variant = "story",
-    fixedLayout = false,
   } = input;
   const isCover = variant === "cover";
   const isClosing = variant === "closing";
@@ -286,7 +282,7 @@ function renderPageXhtml(input: {
   <head>
     <title>${escapeXml(title)}</title>
     <link rel="stylesheet" type="text/css" href="styles/storycot.css" />
-    <meta name="viewport" content="${fixedLayout ? `width=${EPUB_FIXED_PAGE_WIDTH}, height=${EPUB_FIXED_PAGE_HEIGHT}` : "width=device-width, initial-scale=1.0"}" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   </head>
   <body>
     <section class="${sectionClass}">
@@ -419,102 +415,6 @@ h1 {
 }`;
 }
 
-function getFixedLayoutStylesheet(): string {
-  return `html,
-body {
-  background: #fffaf3;
-  height: ${EPUB_FIXED_PAGE_HEIGHT}px;
-  margin: 0;
-  padding: 0;
-  width: ${EPUB_FIXED_PAGE_WIDTH}px;
-}
-
-body {
-  color: #24164f;
-  font-family: Georgia, "Times New Roman", serif;
-  overflow: hidden;
-}
-
-.page,
-.cover-page,
-.closing-page {
-  align-items: center;
-  background: #fffaf3;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  height: ${EPUB_FIXED_PAGE_HEIGHT}px;
-  justify-content: center;
-  overflow: hidden;
-  padding: 96px;
-  page-break-after: always;
-  position: relative;
-  width: ${EPUB_FIXED_PAGE_WIDTH}px;
-}
-
-.cover-page,
-.closing-page {
-  background: #2b1b5d;
-  color: #fff8e7;
-  text-align: center;
-}
-
-.brand {
-  color: #ffd66e;
-  font: 700 26px Arial, sans-serif;
-  letter-spacing: 4px;
-  margin: 0 0 34px;
-  text-transform: uppercase;
-}
-
-.page-label {
-  color: #7a6aad;
-  font: 700 22px Arial, sans-serif;
-  letter-spacing: 2px;
-  margin: 0 0 24px;
-  text-transform: uppercase;
-}
-
-h1 {
-  color: #2b1b5d;
-  font-size: 54px;
-  line-height: 1.12;
-  margin: 0 0 36px;
-  max-width: 1280px;
-  text-align: center;
-}
-
-.cover-page h1,
-.closing-page h1 {
-  color: #fff8e7;
-}
-
-.cover-art,
-.illustration {
-  display: block;
-  height: auto;
-  margin: 0 auto 42px;
-  max-height: 1040px;
-  max-width: 1280px;
-  object-fit: contain;
-}
-
-.cover-art {
-  max-height: 1180px;
-}
-
-.story-text {
-  font-size: 38px;
-  line-height: 1.35;
-  max-width: 1160px;
-  text-align: center;
-}
-
-.story-text p {
-  margin: 0 0 24px;
-}`;
-}
-
 export async function buildBookEpub(input: {
   project: BookProject;
   story: Story;
@@ -583,36 +483,11 @@ export async function buildBookEpub(input: {
     title: string;
     content: string;
   }> = [];
-  pages.push({
-    id: "cover-page",
-    href: "cover.xhtml",
-    title,
-    content: renderPageXhtml({
-      title,
-      heading: title,
-      imageHref: coverImageHref,
-      body: `A Storycot story for ${profile.name}.`,
-      variant: "cover",
-      fixedLayout: true,
-    }),
-  });
-
-  // The branded "The End" page handles all closing copy. Strip any page text
-  // that's just a bedtime sign-off so it doesn't appear twice.
-  function stripClosingText(text: string): string {
-    const t = text.trim().toLowerCase();
-    if (
-      t.startsWith("the end") ||
-      t.startsWith("sweet dreams") ||
-      t === "a storycot story"
-    )
-      return "";
-    return text;
-  }
+  let readingPageNumber = 1;
 
   for (const spread of project.spreads) {
-    // Skip print-only structural spreads — cover is rendered above, title and
-    // back cover are print concepts that don't belong in the EPUB flow.
+    // Skip print-only structural spreads. The cover image remains in EPUB
+    // metadata, but front/back matter should not become Kindle reading pages.
     if (
       spread.sequence === 1 ||
       spread.title === "Cover" ||
@@ -622,62 +497,45 @@ export async function buildBookEpub(input: {
       continue;
 
     const leftImageHref = await addImage(
-      `spread-${spread.sequence}-left`,
+      `img-spread-${spread.sequence}-left`,
       getImageSource(spread, "left")
     );
     const rightImageHref = await addImage(
-      `spread-${spread.sequence}-right`,
+      `img-spread-${spread.sequence}-right`,
       getImageSource(spread, "right")
     );
 
-    const leftBody = stripClosingText(spread.leftPageText);
-    const rightBody = stripClosingText(spread.rightPageText);
+    const leftBody = spread.leftPageText;
+    const rightBody = spread.rightPageText;
 
     if (leftBody || leftImageHref) {
       pages.push({
         id: `spread-${spread.sequence}-left`,
         href: `spread-${spread.sequence}-left.xhtml`,
-        title: `${title} - Page ${spread.pageStart}`,
+        title: `${title} - Page ${readingPageNumber}`,
         content: renderPageXhtml({
           title,
-          heading: spread.title || title,
           imageHref: leftImageHref,
           body: leftBody,
-          pageLabel: `Page ${spread.pageStart}`,
-          fixedLayout: true,
         }),
       });
+      readingPageNumber += 1;
     }
 
     if (rightBody || rightImageHref) {
       pages.push({
         id: `spread-${spread.sequence}-right`,
         href: `spread-${spread.sequence}-right.xhtml`,
-        title: `${title} - Page ${spread.pageEnd}`,
+        title: `${title} - Page ${readingPageNumber}`,
         content: renderPageXhtml({
           title,
-          heading: spread.title || title,
           imageHref: rightImageHref,
           body: rightBody,
-          pageLabel: `Page ${spread.pageEnd}`,
-          fixedLayout: true,
         }),
       });
+      readingPageNumber += 1;
     }
   }
-
-  pages.push({
-    id: "the-end",
-    href: "the-end.xhtml",
-    title: `${title} — The End`,
-    content: renderPageXhtml({
-      title,
-      heading: "The End",
-      body: `Sweet dreams, ${profile.name}.`,
-      variant: "closing",
-      fixedLayout: true,
-    }),
-  });
 
   for (const page of pages) {
     zip.file(`OEBPS/${page.href}`, page.content);
@@ -687,7 +545,7 @@ export async function buildBookEpub(input: {
     zip.file(`OEBPS/${image.href}`, image.bytes);
   }
 
-  zip.file("OEBPS/styles/storycot.css", getFixedLayoutStylesheet());
+  zip.file("OEBPS/styles/storycot.css", getStylesheet());
   zip.file(
     "OEBPS/nav.xhtml",
     `<?xml version="1.0" encoding="UTF-8"?>
@@ -727,7 +585,7 @@ export async function buildBookEpub(input: {
   zip.file(
     "OEBPS/content.opf",
     `<?xml version="1.0" encoding="UTF-8"?>
-<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id" prefix="rendition: http://www.idpf.org/vocab/rendition/#">
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
     <dc:identifier id="book-id">${escapeXml(identifier)}</dc:identifier>
     <dc:title>${escapeXml(title)}</dc:title>
@@ -735,13 +593,6 @@ export async function buildBookEpub(input: {
     <dc:language>en</dc:language>
     <dc:publisher>Storycot</dc:publisher>
     <meta property="dcterms:modified">${modified}</meta>
-    <meta property="rendition:layout">pre-paginated</meta>
-    <meta property="rendition:orientation">auto</meta>
-    <meta property="rendition:spread">none</meta>
-    <meta name="fixed-layout" content="true" />
-    <meta name="original-resolution" content="${EPUB_FIXED_PAGE_WIDTH}x${EPUB_FIXED_PAGE_HEIGHT}" />
-    <meta name="orientation-lock" content="none" />
-    <meta name="book-type" content="children" />
     <meta name="cover" content="cover" />
   </metadata>
   <manifest>

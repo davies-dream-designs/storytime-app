@@ -48,6 +48,17 @@ export default function EpubShareButton({
     };
   }, [href]);
 
+  function downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   function handleClick() {
     if (pending) return;
     setPending(true);
@@ -72,19 +83,19 @@ export default function EpubShareButton({
         typeof navigator !== "undefined" &&
         navigator.canShare?.({ files: [file] })
       ) {
-        await navigator.share({ files: [file] });
-      } else {
-        // Share not supported — download via object URL.
-        // This path is synchronous (no await before it) so iOS doesn't block it.
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        try {
+          await navigator.share({ files: [file] });
+          return;
+        } catch (err) {
+          if (err instanceof Error && err.name === "AbortError") return;
+          window.location.href = href;
+          return;
+        }
       }
+
+      // Share not supported — download via object URL.
+      // This path is synchronous (no await before it) so iOS doesn't block it.
+      downloadBlob(blob, filename);
     };
 
     run()

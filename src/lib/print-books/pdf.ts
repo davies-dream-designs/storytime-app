@@ -828,70 +828,13 @@ async function drawCopyrightPage(input: {
   });
 }
 
-// Second-to-last interior page: a clean, centred "The End" leaf.
-async function drawEndLeafPage(input: {
-  pdfDoc: PDFDocument;
+function drawBlankEndpaperPage(input: {
   page: ReturnType<PDFDocument["addPage"]>;
   pageWidth: number;
   pageHeight: number;
-  serif: Awaited<ReturnType<PDFDocument["embedFont"]>>;
-  serifBold: Awaited<ReturnType<PDFDocument["embedFont"]>>;
-  sans: Awaited<ReturnType<PDFDocument["embedFont"]>>;
 }) {
-  const { pdfDoc, page, pageWidth, pageHeight, serifBold, sans } = input;
-  const centerX = pageWidth / 2;
-  drawPageBackground(page, pageWidth, pageHeight, BRAND_PURPLE);
-  const iconSize = 44;
-  await drawBrandWordmark({
-    pdfDoc,
-    page,
-    variant: "light",
-    x: centerX - getWordmarkWidth(sans, iconSize) / 2,
-    y: pageHeight * 0.7,
-    iconSize,
-    font: sans,
-  });
-  drawCenteredText({
-    page,
-    text: "The End",
-    centerX,
-    y: pageHeight * 0.46,
-    font: serifBold,
-    size: 34,
-    color: rgb(0.99, 0.96, 0.88),
-  });
-}
-
-async function drawBackMatterLeafPage(input: {
-  pdfDoc: PDFDocument;
-  page: ReturnType<PDFDocument["addPage"]>;
-  pageWidth: number;
-  pageHeight: number;
-  sans: Awaited<ReturnType<PDFDocument["embedFont"]>>;
-  sansBold: Awaited<ReturnType<PDFDocument["embedFont"]>>;
-}) {
-  const { pdfDoc, page, pageWidth, pageHeight, sans, sansBold } = input;
-  const centerX = pageWidth / 2;
-  drawPageBackground(page, pageWidth, pageHeight, BRAND_PURPLE);
-  const iconSize = 34;
-  await drawBrandWordmark({
-    pdfDoc,
-    page,
-    variant: "light",
-    x: centerX - getWordmarkWidth(sans, iconSize) / 2,
-    y: pageHeight * 0.54,
-    iconSize,
-    font: sans,
-  });
-  drawCenteredText({
-    page,
-    text: "A Storycot story",
-    centerX,
-    y: pageHeight * 0.42,
-    font: sansBold,
-    size: 12,
-    color: rgb(0.99, 0.96, 0.88),
-  });
+  const { page, pageWidth, pageHeight } = input;
+  drawPageBackground(page, pageWidth, pageHeight, rgb(0.98, 0.96, 0.91));
 }
 
 function getMaxTextBoxPt(preset?: StoryPreset): number {
@@ -1109,27 +1052,20 @@ async function buildPrintPdf(input: {
 
     if (spread.title === "Back Cover") {
       const endLeafPage = pdfDoc.addPage([PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT]);
-      await drawEndLeafPage({
-        pdfDoc,
+      drawBlankEndpaperPage({
         page: endLeafPage,
         pageWidth: PRINT_PAGE_WIDTH,
         pageHeight: PRINT_PAGE_HEIGHT,
-        serif,
-        serifBold,
-        sans,
       });
 
       const backMatterLeafPage = pdfDoc.addPage([
         PRINT_PAGE_WIDTH,
         PRINT_PAGE_HEIGHT,
       ]);
-      await drawBackMatterLeafPage({
-        pdfDoc,
+      drawBlankEndpaperPage({
         page: backMatterLeafPage,
         pageWidth: PRINT_PAGE_WIDTH,
         pageHeight: PRINT_PAGE_HEIGHT,
-        sans,
-        sansBold,
       });
 
       continue;

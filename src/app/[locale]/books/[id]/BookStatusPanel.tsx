@@ -45,6 +45,7 @@ export default function BookStatusPanel({
   );
   const [retrying, setRetrying] = useState(false);
   const [repairingArt, setRepairingArt] = useState(false);
+  const [regeneratingExports, setRegeneratingExports] = useState(false);
   const [startingBuild, setStartingBuild] = useState(false);
   const buildStartedRef = useRef(false);
   const activeJobStatus = project.assets.activeJobStatus;
@@ -109,6 +110,20 @@ export default function BookStatusPanel({
       setProject(next);
     }
     setRetrying(false);
+  }
+
+  async function handleRegenerateExports() {
+    setRegeneratingExports(true);
+    const res = await fetch(`/api/books/${project.id}/build`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "exports" }),
+    });
+    if (res.ok) {
+      const next = (await res.json()) as BookProject;
+      setProject(next);
+    }
+    setRegeneratingExports(false);
   }
 
   async function handleRepairArt() {
@@ -262,6 +277,19 @@ export default function BookStatusPanel({
             className="mt-4"
           >
             {retrying ? t("retryingButton") : t("retryButton")}
+          </Button>
+        </div>
+      ) : null}
+
+      {project.status === "ready" && !activeJobStatus ? (
+        <div className="mt-4 flex justify-end">
+          <Button
+            variant="secondary"
+            size="compact"
+            onClick={handleRegenerateExports}
+            disabled={regeneratingExports}
+          >
+            {regeneratingExports ? "Refreshing PDF…" : "Refresh PDF"}
           </Button>
         </div>
       ) : null}

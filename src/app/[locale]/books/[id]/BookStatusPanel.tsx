@@ -74,6 +74,45 @@ function getFailedImageTargets(spreads: SpreadPreview[]): ExpandedImage[] {
   });
 }
 
+function isPlaceholderImageUrl(url?: string): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return lower.startsWith("data:image/svg") || lower.endsWith(".svg");
+}
+
+function getRepairImageTargets(spreads: SpreadPreview[]): ExpandedImage[] {
+  return spreads.flatMap((preview) => {
+    const images: Array<{
+      side: "left" | "right";
+      url?: string;
+      error?: string;
+    }> = [
+      {
+        side: "left",
+        url: preview.leftPageImageUrl,
+        error: preview.leftPageImageError,
+      },
+      {
+        side: "right",
+        url: preview.rightPageImageUrl,
+        error: preview.rightPageImageError,
+      },
+    ];
+
+    return images
+      .filter(
+        ({ url, error }) => Boolean(error) || !url || isPlaceholderImageUrl(url)
+      )
+      .map(({ side, url }) => ({
+        spreadId: preview.id,
+        sequence: preview.sequence,
+        title: preview.title,
+        side,
+        url,
+      }));
+  });
+}
+
 function isTerminal(status: BookProject["status"]): boolean {
   return status === "ready" || status === "failed";
 }
@@ -256,6 +295,16 @@ export default function BookStatusPanel({
   }
 
   async function handleRepairArt() {
+    const repairTargets = getRepairImageTargets(spreadPreviews);
+    if (repairTargets.length > 0) {
+      setRepairingArt(true);
+      for (const image of repairTargets) {
+        await handleRegenerateImage(image);
+      }
+      setRepairingArt(false);
+      return;
+    }
+
     setRepairingArt(true);
     const res = await fetch(`/api/books/${project.id}/build`, {
       method: "POST",

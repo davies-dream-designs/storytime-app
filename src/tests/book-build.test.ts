@@ -2,11 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import type { BookBuildJob, BookProject } from "@/types/printBook";
 
-const {
-  mockAfter,
-  mockAuth,
-  mockEnqueueBookBuildJob,
-} = vi.hoisted(() => ({
+const { mockAfter, mockAuth, mockEnqueueBookBuildJob } = vi.hoisted(() => ({
   mockAfter: vi.fn(async (callback: () => Promise<void> | void) => {
     await callback();
   }),
@@ -158,6 +154,69 @@ describe("POST /api/books/[id]/build", () => {
       mode: "art",
       baseUrl: "http://localhost",
     });
+  });
+
+  it("defaults bare ready-book build requests to export refresh", async () => {
+    mockDb.bookProjects.getById.mockResolvedValue({
+      ...createBookProject(),
+      status: "ready",
+      spreads: [
+        {
+          id: "spread-1",
+          bookProjectId: "book-1",
+          sequence: 1,
+          pageStart: 1,
+          pageEnd: 2,
+          layoutType: "front_matter",
+          title: "Cover",
+          leftPageText: "",
+          rightPageText: "",
+          sceneBrief: "Cover",
+          illustrationPrompt: "Cover",
+        },
+      ],
+      assets: {
+        proofVersion: 1,
+        coverImageUrl: "https://example.com/cover.png",
+      },
+    });
+
+    const { POST } = await import("@/app/api/books/[id]/build/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/books/book-1/build", {
+        method: "POST",
+      }),
+      { params: Promise.resolve({ id: "book-1" }) }
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockEnqueueBookBuildJob).toHaveBeenCalledWith({
+      project: expect.objectContaining({ id: "book-1", status: "ready" }),
+      mode: "exports",
+      baseUrl: "http://localhost",
+    });
+  });
+
+  it("rejects bare build retries for image-failed books", async () => {
+    mockDb.bookProjects.getById.mockResolvedValue({
+      ...createBookProject(),
+      status: "failed",
+      errorCode: "illustrating:image_failed",
+    });
+
+    const { POST } = await import("@/app/api/books/[id]/build/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/books/book-1/build", {
+        method: "POST",
+      }),
+      { params: Promise.resolve({ id: "book-1" }) }
+    );
+
+    expect(res.status).toBe(409);
+    await expect(res.json()).resolves.toEqual({
+      error: "Retry only the failed image from the spread review.",
+    });
+    expect(mockEnqueueBookBuildJob).not.toHaveBeenCalled();
   });
 
   it("returns 409 when another job is already running", async () => {

@@ -16,6 +16,12 @@ type RegenerateImagePayload = {
   side?: "left" | "right";
 };
 
+function isPlaceholderImageUrl(url?: string): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return lower.startsWith("data:image/svg") || lower.endsWith(".svg");
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -64,7 +70,10 @@ export async function POST(
       side === "left"
         ? currentSpread.leftPageImageError
         : currentSpread.rightPageImageError;
-    const isPaidRedo = Boolean(currentUrl) && !currentError;
+    const isPaidRedo =
+      Boolean(currentUrl) &&
+      !currentError &&
+      !isPlaceholderImageUrl(currentUrl);
 
     if (isPaidRedo) {
       await chargeImageRegenerationCredit(userId);

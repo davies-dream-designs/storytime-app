@@ -18,32 +18,33 @@ import {
 // Provider selection
 // ---------------------------------------------------------------------------
 
-export type ImageProvider = "openai" | "flux";
+export type ImageProvider = "openai" | "flux" | "recraft";
 
-// Which image backend to use. Defaults to OpenAI so production is unchanged
-// until FLUX is explicitly enabled via IMAGE_PROVIDER=flux.
 export function getImageProvider(): ImageProvider {
-  return process.env.IMAGE_PROVIDER?.trim().toLowerCase() === "flux"
-    ? "flux"
-    : "openai";
+  const val = process.env.IMAGE_PROVIDER?.trim().toLowerCase();
+  if (val === "flux") return "flux";
+  if (val === "recraft") return "recraft";
+  return "openai";
 }
 
 function isOpenAIConfigured(): boolean {
   return Boolean(process.env.OPENAI_API_KEY);
 }
 
-function isFluxConfigured(): boolean {
+function isFalConfigured(): boolean {
   return Boolean(process.env.FAL_KEY);
 }
 
 // True when the selected provider has its credentials AND blob storage is ready.
 export function isGeneratedIllustrationConfigured(): boolean {
   if (!isBookAssetStorageConfigured()) return false;
-  return getImageProvider() === "flux" ? isFluxConfigured() : isOpenAIConfigured();
+  const provider = getImageProvider();
+  if (provider === "openai") return isOpenAIConfigured();
+  return isFalConfigured(); // flux and recraft both use FAL_KEY
 }
 
 // The OpenAI Batch API path only applies when OpenAI is the selected provider.
-// FLUX is fast enough to run through the durable per-spread path instead.
+// fal.ai providers run through the durable per-spread path instead.
 export function shouldUseImageBatch(): boolean {
   return getImageProvider() === "openai" && isGeneratedIllustrationConfigured();
 }
@@ -540,14 +541,79 @@ async function generateFluxImage(prompt: string): Promise<Buffer> {
 }
 
 // ---------------------------------------------------------------------------
+// Recraft image generation (fal.ai)
+// ---------------------------------------------------------------------------
+
+// Recraft v3 is purpose-built for illustration and design. Setting style to
+// "digital_illustration" locks in a storybook art aesthetic at the model level
+// so prompts don't need to describe the rendering style — they can focus purely
+// on scene content. Override via RECRAFT_STYLE env var if needed.
+async function generateRecrartImage(prompt: string): Promise<Buffer> {
+  const apiKey = process.env.FAL_KEY;
+  if (!apiKey) throw new Error("FAL_KEY is not configured");
+
+  const style = process.env.RECRAFT_STYLE?.trim() || "digital_illustration";
+  const MAX_RETRIES = 3;
+  let lastErrorMessage = "Unknown Recraft image generation error";
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
+    const response = await fetch("https://fal.run/fal-ai/recraft-v3", {
+      method: "POST",
+      headers: {
+        Authorization: `Key ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        prompt,
+        image_size: "square_hd",
+        style,
+        n: 1,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      lastErrorMessage = `Recraft image generation failed: ${response.status} ${errorBody.slice(0, 300)}`;
+
+      if (
+        (response.status === 429 || response.status >= 500) &&
+        attempt < MAX_RETRIES - 1
+      ) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, 4000 * (attempt + 1))
+        );
+        continue;
+      }
+      throw new Error(lastErrorMessage);
+    }
+
+    const payload = (await response.json()) as {
+      images?: Array<{ url?: string }>;
+    };
+    const imageUrl = payload.images?.[0]?.url;
+    if (!imageUrl) throw new Error("Recraft returned no image");
+
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      throw new Error(
+        `Recraft image download failed: ${imageResponse.status} for ${imageUrl}`
+      );
+    }
+    return Buffer.from(await imageResponse.arrayBuffer());
+  }
+
+  throw new Error(lastErrorMessage);
+}
+
+// ---------------------------------------------------------------------------
 // Provider dispatch
 // ---------------------------------------------------------------------------
 
 // Generate one square base image using the configured provider.
 async function generateBaseImage(prompt: string): Promise<Buffer> {
-  if (getImageProvider() === "flux") {
-    return generateFluxImage(prompt);
-  }
+  const provider = getImageProvider();
+  if (provider === "flux") return generateFluxImage(prompt);
+  if (provider === "recraft") return generateRecrartImage(prompt);
   return generateOpenAIImage({
     prompt,
     size: BOOK_SPEC.coverIllustrationOpenAISize,

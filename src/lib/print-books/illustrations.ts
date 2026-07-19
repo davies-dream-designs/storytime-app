@@ -1352,7 +1352,7 @@ export async function generateSpreadPageIllustration(input: {
       upscaled = await generateAndUpscale(prompt);
     }
     const url = await storeBookAsset({
-      pathname: `${base}${suffix}.png`,
+      pathname: generatedImagePathname(base, suffix),
       body: upscaled,
       contentType: "image/png",
     });
@@ -1372,7 +1372,7 @@ export async function generateSpreadPageIllustration(input: {
     try {
       const upscaled = await generateAndUpscale(fallbackPrompt);
       const url = await storeBookAsset({
-        pathname: `${base}${suffix}.png`,
+        pathname: generatedImagePathname(base, suffix),
         body: upscaled,
         contentType: "image/png",
       });
@@ -1391,6 +1391,10 @@ export async function generateSpreadPageIllustration(input: {
 
 function getImageFailureMessage(err: unknown) {
   return err instanceof Error ? err.message : "Image generation failed.";
+}
+
+function generatedImagePathname(base: string, suffix: string) {
+  return `${base}${suffix}-${Date.now()}.png`;
 }
 
 export async function generateSpreadIllustration(input: {

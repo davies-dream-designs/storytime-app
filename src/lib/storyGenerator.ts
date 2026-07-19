@@ -44,7 +44,7 @@ interface GeneratedStory {
   pages: StoryPage[];
 }
 
-function buildStoryPrompt(input: GenerateStoryInput): string {
+export function buildStoryPrompt(input: GenerateStoryInput): string {
   const { profile, characters, theme, premise, notes, storyPreset, recentTitles, locale } =
     input;
   const language = LOCALE_LANGUAGE[locale ?? "en"] ?? "English";
@@ -85,6 +85,10 @@ Write the story in ${language}. Write a warm, age-appropriate bedtime story that
 7. Feels FRESH and DIFFERENT from typical stories — surprise us with the opening
 8. Uses some warm repetition suitable for young children
 9. Does NOT include "The End", "Sweet dreams", "Goodnight", or any closing sign-off in the story text — the last page ends naturally with the child drifting to sleep
+10. Avoids scenes that could look unsafe or sensitive when illustrated: no bathing, toilets, undressing, visible underwear/nappies, medical treatment, injuries, restraint, scary peril, weapons, drowning, or a child alone in risky water.
+11. Keeps ${profile.name} visibly clothed, safe, comfortable, and supervised or clearly secure in every visual moment. If water appears, keep it shallow/calm and frame ${profile.name} safely on dry ground or with a trusted adult nearby.
+12. Avoids close-up descriptions of private/sensitive body areas. Do not focus illustration prompts on feet, bare skin, mud on body parts, vulnerability, fear, hiding, or being watched.
+13. Makes every illustrationPrompt image-safe: describe setting, characters, action, mood, clothing, and composition only. Do not quote story prose. Do not include wording about nudity, bare body parts, bathing, toilets, fear, injury, danger, restraint, or a child being alone near water.
 
 Respond ONLY with valid JSON — no markdown, no extra text:
 {
@@ -93,7 +97,7 @@ Respond ONLY with valid JSON — no markdown, no extra text:
     {
       "pageNumber": 1,
       "text": "${len.sentencesPerPage} sentences of story text",
-      "illustrationPrompt": "Brief description for a warm watercolour children's illustration"
+      "illustrationPrompt": "Image-safe brief description for a warm watercolour children's illustration: clothed child, safe setting, clear action, cosy mood, no text in image"
     }
   ]
 }

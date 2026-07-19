@@ -31,12 +31,32 @@ const PACKS = [
   },
 ] as const;
 
-export default function CreditPacks() {
+export default function CreditPacks({ isDev = false }: { isDev?: boolean }) {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [auConfirmed, setAuConfirmed] = useState(false);
+  const [devAdding, setDevAdding] = useState(false);
+  const [devMessage, setDevMessage] = useState("");
   const t = useTranslations("account");
   const { startPending } = usePendingUI();
+
+  async function handleDevAddCredits() {
+    setDevAdding(true);
+    setDevMessage("");
+    try {
+      const res = await fetch("/api/dev/credits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: 10 }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      setDevMessage(`Added 10 credits. Total: ${data.total}`);
+    } catch (err) {
+      setDevMessage(err instanceof Error ? err.message : "Failed");
+    }
+    setDevAdding(false);
+  }
 
   async function handlePurchase(packId: string) {
     if (!auConfirmed) {
@@ -151,6 +171,24 @@ export default function CreditPacks() {
       <p className="mt-4 text-center text-xs text-night-400">
         {t("packFooter")}
       </p>
+
+      {isDev ? (
+        <div className="mt-6 rounded-2xl border border-dashed border-night-300 bg-night-50 p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-night-400">
+            Dev only
+          </p>
+          <button
+            onClick={handleDevAddCredits}
+            disabled={devAdding}
+            className="storycot-btn storycot-btn-secondary mt-2"
+          >
+            {devAdding ? "Adding…" : "Add 10 test credits"}
+          </button>
+          {devMessage ? (
+            <p className="mt-2 text-sm text-night-600">{devMessage}</p>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

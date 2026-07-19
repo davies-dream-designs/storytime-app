@@ -102,7 +102,7 @@ export default async function AccountPage({
           </div>
         </section>
 
-        {!isAdmin && <CreditPacks />}
+        {!isAdmin && <CreditPacks isDev={process.env.VERCEL_ENV !== 'production'} />}
         <ShareSection userId={userId} />
       </main>
     </>

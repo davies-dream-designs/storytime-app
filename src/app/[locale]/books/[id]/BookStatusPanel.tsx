@@ -282,7 +282,15 @@ export default function BookStatusPanel({
       ) : null}
 
       {project.status === "ready" && !activeJobStatus ? (
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex justify-end gap-2">
+          <Button
+            variant="secondary"
+            size="compact"
+            onClick={handleRepairArt}
+            disabled={repairingArt}
+          >
+            {repairingArt ? "Redoing Art…" : "Redo Art"}
+          </Button>
           <Button
             variant="secondary"
             size="compact"

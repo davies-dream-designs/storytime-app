@@ -304,8 +304,9 @@ async function regenerateProjectArt(input: {
     });
   }
 
-  // Title spread uses a fully branded design in the PDF — no generated art needed.
-  if (spread.title === "Title") {
+  // Title uses a branded PDF design; Back Cover falls back to a plain panel
+  // when no image is present. Neither needs a generated illustration.
+  if (spread.title === "Title" || spread.title === "Back Cover") {
     return db.bookProjects.update(input.id, {
       status: "illustrating",
       currentStageLabel: `Generating final art ${currentCursor + 1} of ${totalArtSteps}...`,

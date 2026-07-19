@@ -43,6 +43,37 @@ type BookStatusPayload = Pick<
   | "assets"
 > & { spreadPreviews?: SpreadPreview[] };
 
+function getFailedImageTargets(spreads: SpreadPreview[]): ExpandedImage[] {
+  return spreads.flatMap((preview) => {
+    const images: Array<{
+      side: "left" | "right";
+      url?: string;
+      error?: string;
+    }> = [
+      {
+        side: "left",
+        url: preview.leftPageImageUrl,
+        error: preview.leftPageImageError,
+      },
+      {
+        side: "right",
+        url: preview.rightPageImageUrl,
+        error: preview.rightPageImageError,
+      },
+    ];
+
+    return images
+      .filter(({ url, error }) => Boolean(error) || !url)
+      .map(({ side, url }) => ({
+        spreadId: preview.id,
+        sequence: preview.sequence,
+        title: preview.title,
+        side,
+        url,
+      }));
+  });
+}
+
 function isTerminal(status: BookProject["status"]): boolean {
   return status === "ready" || status === "failed";
 }
@@ -146,6 +177,19 @@ export default function BookStatusPanel({
   }, [activeJobStatus, project.id, project.status, router]);
 
   async function handleRetry() {
+    const failedImages = getFailedImageTargets(spreadPreviews);
+    if (
+      project.errorCode === "illustrating:image_failed" &&
+      failedImages.length > 0
+    ) {
+      setRetrying(true);
+      for (const image of failedImages) {
+        await handleRegenerateImage(image);
+      }
+      setRetrying(false);
+      return;
+    }
+
     setRetrying(true);
     const res = await fetch(`/api/books/${project.id}/build`, {
       method: "POST",
@@ -233,6 +277,10 @@ export default function BookStatusPanel({
     Boolean(activeJobStatus);
   const hasMixedArt =
     project.status === "ready" && project.assets.artMode === "mixed";
+  const failedImageTargets = getFailedImageTargets(spreadPreviews);
+  const hasImageGenerationFailure =
+    project.errorCode === "illustrating:image_failed" &&
+    failedImageTargets.length > 0;
   const showSpreadGrid =
     project.status === "illustrating" ||
     project.status === "failed" ||
@@ -459,10 +507,16 @@ export default function BookStatusPanel({
             variant="danger"
             size="compact"
             onClick={handleRetry}
-            disabled={retrying}
+            disabled={retrying || Boolean(regeneratingImage)}
             className="mt-4"
           >
-            {retrying ? t("retryingButton") : t("retryButton")}
+            {hasImageGenerationFailure
+              ? retrying
+                ? "Retrying failed images..."
+                : "Retry failed images only"
+              : retrying
+                ? t("retryingButton")
+                : t("retryButton")}
           </Button>
         </div>
       ) : null}

@@ -687,16 +687,20 @@ function buildPageIllustrationPrompt(input: {
   const compositionHint = compositionVariants[compositionIdx];
 
   return [
+    // Scene-specific content leads so FLUX weights the narrative moment first.
+    `Illustration direction: ${spread.illustrationPrompt}.`,
+    `Scene brief: ${spread.sceneBrief}.`,
+    ...(omitPageText ? [] : pageText ? [`Page moment: ${pageText}.`] : []),
+    `Composition: ${compositionHint}.`,
+    // Character consistency follows as a constraint block.
     buildIllustrationDirection(characterBible),
+    // Metadata.
     `Book title: ${story.title}.`,
     `Main child: ${profile.name}.`,
     `Age band: ${project.ageBand}.`,
     `Spread sequence: ${spread.sequence}, ${side} page.`,
-    `Scene brief: ${spread.sceneBrief}.`,
-    `Illustration direction: ${spread.illustrationPrompt}.`,
-    ...(omitPageText ? [] : [`Page text: ${pageText || "None"}.`]),
-    `Composition: ${compositionHint}.`,
-    "Create one warm square children's book page illustration. The scene, composition, camera angle, character pose, and action must be unique to this spread — actively vary these from other pages in the book. Keep only the child's face shape, hair colour, skin tone, and core outfit exactly consistent with the character bible. No visible text, lettering, captions, or page numbers inside the art.",
+    // Variation is the critical instruction — stated explicitly.
+    "Illustrate this specific story moment. The depicted scene, character action, setting detail, and emotional tone must match the illustration direction above. This image must look meaningfully different from every other page in the book. Keep only the child's face shape, hair colour, skin tone, and core outfit exactly consistent. No text, lettering, or page numbers inside the art.",
   ].join(" ");
 }
 

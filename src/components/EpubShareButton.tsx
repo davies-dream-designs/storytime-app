@@ -28,6 +28,7 @@ export default function EpubShareButton({
   useEffect(() => {
     let cancelled = false;
     setBlobReady(false);
+    setError(null);
     fetch(href)
       .then((res) => (res.ok ? res.blob() : null))
       .then((blob) => {
@@ -36,7 +37,12 @@ export default function EpubShareButton({
           setBlobReady(blob !== null);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) {
+          cachedBlob.current = null;
+          setBlobReady(false);
+        }
+      });
     return () => {
       cancelled = true;
     };
@@ -62,7 +68,10 @@ export default function EpubShareButton({
       const file = new File([blob], filename, { type: "application/epub+zip" });
 
       // Synchronous check — no await between click and share call
-      if (typeof navigator !== "undefined" && navigator.canShare?.({ files: [file] })) {
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.canShare?.({ files: [file] })
+      ) {
         await navigator.share({ files: [file] });
       } else {
         // Share not supported — download via object URL.
@@ -88,7 +97,7 @@ export default function EpubShareButton({
 
   return (
     <div className="contents">
-      <button onClick={handleClick} disabled={pending || !blobReady} className={className}>
+      <button onClick={handleClick} disabled={pending} className={className}>
         {pending ? pendingLabel : !blobReady ? "Loading…" : label}
       </button>
       {error ? (

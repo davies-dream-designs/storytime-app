@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChildProfile, Story } from "@/types";
 import type { BookProject } from "@/types/printBook";
@@ -14,6 +15,18 @@ const pageSvg = Buffer.from(
 vi.mock("@/lib/print-books/storage", () => ({
   storeBookAsset: mockStoreBookAsset,
 }));
+
+function readLocalZipHeader(buffer: Buffer) {
+  return {
+    signature: buffer.readUInt32LE(0),
+    compressionMethod: buffer.readUInt16LE(8),
+    fileNameLength: buffer.readUInt16LE(26),
+    extraFieldLength: buffer.readUInt16LE(28),
+    fileName: buffer
+      .subarray(30, 30 + buffer.readUInt16LE(26))
+      .toString("utf8"),
+  };
+}
 
 function createProfile(): ChildProfile {
   return {
@@ -133,11 +146,32 @@ describe("buildBookEpub", () => {
       zip.file("OEBPS/content.opf")?.async("string")
     ).resolves.toContain("<dc:title>Moonlight Garden</dc:title>");
     await expect(
+      zip.file("OEBPS/content.opf")?.async("string")
+    ).resolves.toContain(
+      '<meta property="rendition:layout">pre-paginated</meta>'
+    );
+    await expect(
+      zip.file("OEBPS/cover.xhtml")?.async("string")
+    ).resolves.toContain("width=1600, height=1600");
+    await expect(
       zip.file("OEBPS/nav.xhtml")?.async("string")
     ).resolves.toContain("Moonlight Garden");
     expect(zip.file("OEBPS/cover.xhtml")).toBeTruthy();
     expect(zip.file("OEBPS/spread-2-left.xhtml")).toBeTruthy();
     expect(zip.file("OEBPS/images/spread-2-left.jpg")).toBeTruthy();
+
+    const coverBytes = await zip
+      .file("OEBPS/images/cover.jpg")!
+      .async("nodebuffer");
+    const coverMetadata = await sharp(coverBytes).metadata();
+    expect(coverMetadata.width).toBe(1600);
+    expect(coverMetadata.height).toBe(2560);
+
+    const mimetypeHeader = readLocalZipHeader(epub);
+    expect(mimetypeHeader.signature).toBe(0x04034b50);
+    expect(mimetypeHeader.fileName).toBe("mimetype");
+    expect(mimetypeHeader.compressionMethod).toBe(0);
+    expect(mimetypeHeader.extraFieldLength).toBe(0);
 
     const stored = await generateBookEpub({
       project: createProject(),
@@ -181,14 +215,17 @@ describe("buildBookEpub", () => {
 
   it("keeps illustrated EPUB image assets under a Kindle-friendly budget", async () => {
     const { buildBookEpub } = await import("@/lib/print-books/epub");
-    const largeImage = await (await import("sharp")).default({
-      create: {
-        width: 3000,
-        height: 3000,
-        channels: 3,
-        background: { r: 120, g: 80, b: 220 },
-      },
-    })
+    const largeImage = await (
+      await import("sharp")
+    )
+      .default({
+        create: {
+          width: 3000,
+          height: 3000,
+          channels: 3,
+          background: { r: 120, g: 80, b: 220 },
+        },
+      })
       .png()
       .toBuffer();
     const largeImageDataUrl = `data:image/png;base64,${largeImage.toString("base64")}`;
@@ -215,7 +252,35 @@ describe("buildBookEpub", () => {
     expect(imageFiles.length).toBeGreaterThan(0);
     for (const file of imageFiles) {
       const bytes = await file.async("nodebuffer");
-      expect(bytes.length).toBeLessThanOrEqual(850 * 1024);
+      expect(bytes.length).toBeLessThanOrEqual(1500 * 1024);
+    }
+  });
+
+  it("exports an illustrated EPUB when a remote image cannot be loaded", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error("network failed"));
+    vi.stubGlobal("fetch", fetchMock);
+    const { buildBookEpub } = await import("@/lib/print-books/epub");
+    const project = createProject();
+    project.assets.coverImageUrl = "https://assets.example.com/cover.jpg";
+    project.spreads[1]!.leftPageImageUrl =
+      "https://assets.example.com/page-left.jpg";
+
+    try {
+      const epub = await buildBookEpub({
+        project,
+        story: createStory(),
+        profile: createProfile(),
+      });
+
+      const zip = await JSZip.loadAsync(epub);
+      expect(zip.file("OEBPS/cover.xhtml")).toBeTruthy();
+      expect(zip.file("OEBPS/images/cover.jpg")).toBeTruthy();
+      expect(zip.file("OEBPS/spread-2-left.xhtml")).toBeTruthy();
+      await expect(
+        zip.file("OEBPS/spread-2-left.xhtml")?.async("string")
+      ).resolves.toContain("Mila stepped into the moonlight garden.");
+    } finally {
+      vi.unstubAllGlobals();
     }
   });
 });

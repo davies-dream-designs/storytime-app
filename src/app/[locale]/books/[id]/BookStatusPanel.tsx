@@ -49,6 +49,12 @@ function isTerminal(status: BookProject["status"]): boolean {
 
 function getSpreadPreviews(project: BookProject): SpreadPreview[] {
   return project.spreads
+    .filter(
+      (s) =>
+        s.layoutType === "text_art" ||
+        s.layoutType === "hero" ||
+        s.layoutType === "quiet"
+    )
     .map((s) => ({
       id: s.id,
       sequence: s.sequence,
@@ -95,6 +101,7 @@ export default function BookStatusPanel({
 
     void fetch(`/api/books/${project.id}/build`, {
       method: "POST",
+      credentials: "same-origin",
       keepalive: true,
     })
       .then(async (res) => {
@@ -116,6 +123,7 @@ export default function BookStatusPanel({
     const interval = window.setInterval(async () => {
       const res = await fetch(`/api/books/${project.id}/status`, {
         cache: "no-store",
+        credentials: "same-origin",
       });
       if (!res.ok) return;
       const next = (await res.json()) as BookStatusPayload;
@@ -141,6 +149,7 @@ export default function BookStatusPanel({
     setRetrying(true);
     const res = await fetch(`/api/books/${project.id}/build`, {
       method: "POST",
+      credentials: "same-origin",
     });
     if (res.ok) {
       const next = (await res.json()) as BookProject;
@@ -153,6 +162,7 @@ export default function BookStatusPanel({
     setRegeneratingExports(true);
     const res = await fetch(`/api/books/${project.id}/build`, {
       method: "POST",
+      credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode: "exports" }),
     });
@@ -168,6 +178,7 @@ export default function BookStatusPanel({
     setImageError("");
     const res = await fetch(`/api/books/${project.id}/images/regenerate`, {
       method: "POST",
+      credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ spreadId: image.spreadId, side: image.side }),
     });
@@ -190,7 +201,10 @@ export default function BookStatusPanel({
       router.refresh();
     } else {
       setImageError(
-        next?.error ?? "That image could not be regenerated. Please try again."
+        res.status === 401
+          ? "Your session expired. Refresh the page, sign in if prompted, then retry this image."
+          : (next?.error ??
+              "That image could not be regenerated. Please try again.")
       );
     }
 
@@ -201,6 +215,7 @@ export default function BookStatusPanel({
     setRepairingArt(true);
     const res = await fetch(`/api/books/${project.id}/build`, {
       method: "POST",
+      credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode: "art" }),
     });
@@ -271,13 +286,16 @@ export default function BookStatusPanel({
         />
       </div>
 
-      {showSpreadGrid && project.totalSpreads > 0 ? (
+      {showSpreadGrid && spreadPreviews.length > 0 ? (
         <div className="mt-6">
           <div className="mb-3 flex items-end justify-between gap-4">
             <p className="text-xs font-bold uppercase tracking-wide text-night-400">
               {t("spreadProgress", {
-                completed: project.completedSpreads,
-                total: project.totalSpreads,
+                completed: spreadPreviews.filter(
+                  (preview) =>
+                    preview.leftPageImageUrl && preview.rightPageImageUrl
+                ).length,
+                total: spreadPreviews.length,
               })}
             </p>
             {project.status === "ready" || project.status === "failed" ? (

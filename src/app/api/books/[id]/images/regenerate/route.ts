@@ -17,8 +17,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { userId } = await auth();
-  if (!userId)
+  if (!userId) {
+    const { id } = await params;
+    console.warn("Book image regenerate unauthorized", { projectId: id });
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const payload = (await req
     .json()

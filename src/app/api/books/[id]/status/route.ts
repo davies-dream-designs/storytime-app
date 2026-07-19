@@ -44,16 +44,24 @@ export async function GET(
     readyAt: project.readyAt,
     errorCode: project.errorCode,
     errorMessage: project.errorMessage,
-    spreadPreviews: project.spreads.map((s) => ({
-      id: s.id,
-      sequence: s.sequence,
-      title: s.title,
-      thumbnailUrl: s.thumbnailUrl ?? s.imageUrl ?? undefined,
-      leftPageImageUrl: s.leftPageImageUrl ?? s.imageUrl ?? undefined,
-      rightPageImageUrl: s.rightPageImageUrl ?? s.imageUrl ?? undefined,
-      leftPageImageError: s.leftPageImageError,
-      rightPageImageError: s.rightPageImageError,
-    })),
+    spreadPreviews: project.spreads
+      .filter(
+        (s) =>
+          s.layoutType === "text_art" ||
+          s.layoutType === "hero" ||
+          s.layoutType === "quiet"
+      )
+      .map((s) => ({
+        id: s.id,
+        sequence: s.sequence,
+        title: s.title,
+        layoutType: s.layoutType,
+        thumbnailUrl: s.thumbnailUrl ?? s.imageUrl ?? undefined,
+        leftPageImageUrl: s.leftPageImageUrl ?? s.imageUrl ?? undefined,
+        rightPageImageUrl: s.rightPageImageUrl ?? s.imageUrl ?? undefined,
+        leftPageImageError: s.leftPageImageError,
+        rightPageImageError: s.rightPageImageError,
+      })),
     assets: {
       lastBuildMode: project.assets.lastBuildMode,
       activeJobId: project.assets.activeJobId,

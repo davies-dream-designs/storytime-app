@@ -13,45 +13,45 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.111.0",
+    "@anthropic-ai/sdk": "^0.112.3",
     "@clerk/localizations": "^4.13.5",
-    "@clerk/nextjs": "^7.5.17",
-    "@stripe/stripe-js": "^9.9.0",
+    "@clerk/nextjs": "^7.5.20",
+    "@stripe/stripe-js": "^9.10.0",
     "@vercel/blob": "^2.6.1",
     "@vercel/kv": "^3.0.0",
     "inngest": "^4.13.0",
     "jszip": "^3.10.1",
-    "next": "15.5.19",
+    "next": "15.5.20",
     "next-intl": "^4.13.2",
     "pdf-lib": "^1.17.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "resend": "^6.17.2",
     "sharp": "^0.35.3",
-    "stripe": "^22.3.1",
+    "stripe": "^22.3.2",
     "uuid": "^14.0.1"
   },
   "overrides": {
     "postcss": ">=8.5.10"
   },
   "devDependencies": {
-    "@clerk/testing": "^2.2.8",
+    "@clerk/testing": "^2.2.10",
     "@playwright/test": "^1.52.0",
-    "@tailwindcss/postcss": "^4.1.10",
+    "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
-    "@types/node": "^22.0.0",
+    "@types/node": "^22.20.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^4.5.2",
-    "eslint": "^9.0.0",
-    "eslint-config-next": "15.5.19",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "15.5.20",
     "jsdom": "^26.1.0",
-    "prettier": "^3.5.3",
+    "prettier": "^3.9.5",
     "tailwindcss": "^4.1.10",
     "typescript": "^5.8.3",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.7"
   }
 }

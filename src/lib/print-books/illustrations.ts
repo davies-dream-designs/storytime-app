@@ -202,6 +202,10 @@ export function buildCoverIllustrationPrompt(input: {
   characterBible: CharacterBible;
   coverSpread?: BookSpread;
 }): string {
+  if (getImageProvider() === "recraft") {
+    return buildRecrartCoverPrompt(input);
+  }
+
   const { story, profile, characterBible, coverSpread } = input;
   const sceneDirection =
     coverSpread?.illustrationPrompt ??
@@ -717,6 +721,90 @@ function requireOpenAIKey(): string {
 // Prompt builders
 // ---------------------------------------------------------------------------
 
+const RECRAFT_PROMPT_LIMIT = 950; // hard cap, Recraft rejects > 1000 chars
+
+function capPrompt(prompt: string): string {
+  return prompt.length > RECRAFT_PROMPT_LIMIT
+    ? prompt.slice(0, RECRAFT_PROMPT_LIMIT - 1).trimEnd()
+    : prompt;
+}
+
+// Recraft has a 1000-char prompt limit, so we build a compact version that
+// prioritises scene content. The illustration style is handled by the model's
+// `style` parameter, so we don't need to describe it in the prompt.
+function buildRecrartPagePrompt(input: {
+  profile: ChildProfile;
+  characterBible: CharacterBible;
+  spread: BookSpread;
+  side: "left" | "right";
+}): string {
+  const { profile, characterBible, spread, side } = input;
+
+  const compositionVariants = [
+    "wide establishing shot",
+    "medium shot at eye level",
+    "close-up on face and hands",
+    "low-angle view",
+    "bird's-eye view",
+    "three-quarter angle",
+    "over-the-shoulder view",
+    "silhouette against lit background",
+  ];
+  const compositionIdx =
+    (spread.sequence * 2 + (side === "right" ? 1 : 0)) %
+    compositionVariants.length;
+  const compositionHint = compositionVariants[compositionIdx];
+
+  // First sentence of each bible field keeps the character readable but short.
+  const appearance =
+    characterBible.childAppearance.split(".")[0]?.trim() ??
+    characterBible.childAppearance;
+  const outfit =
+    characterBible.outfitRules.split(".")[0]?.trim() ??
+    characterBible.outfitRules;
+  const companions = characterBible.companionCharacters.slice(0, 2).join(", ");
+
+  const parts = [
+    spread.illustrationPrompt,
+    spread.sceneBrief,
+    `${profile.name}: ${appearance.slice(0, 100)}.`,
+    `Outfit: ${outfit.slice(0, 80)}.`,
+    companions ? `With: ${companions}.` : "",
+    `Palette: ${characterBible.palette.slice(0, 60)}.`,
+    `Composition: ${compositionHint}.`,
+    "Warm children's picture book. No text in image.",
+  ];
+
+  return capPrompt(parts.filter(Boolean).join(" "));
+}
+
+function buildRecrartCoverPrompt(input: {
+  story: Story;
+  profile: ChildProfile;
+  characterBible: CharacterBible;
+  coverSpread?: BookSpread;
+}): string {
+  const { story, profile, characterBible, coverSpread } = input;
+
+  const sceneDirection =
+    coverSpread?.illustrationPrompt ??
+    `Front cover for "${story.title}" starring ${profile.name}.`;
+  const appearance =
+    characterBible.childAppearance.split(".")[0]?.trim() ??
+    characterBible.childAppearance;
+  const companions = characterBible.companionCharacters.slice(0, 2).join(", ");
+
+  const parts = [
+    sceneDirection,
+    `${profile.name}: ${appearance.slice(0, 100)}.`,
+    companions ? `With: ${companions}.` : "",
+    `Palette: ${characterBible.palette.slice(0, 60)}.`,
+    `Book: "${story.title}". Children's picture book front cover. Warm bedtime feeling. No text in image.`,
+  ];
+
+  return capPrompt(parts.filter(Boolean).join(" "));
+}
+
 function buildPageIllustrationPrompt(input: {
   project: BookProject;
   story: Story;
@@ -726,6 +814,10 @@ function buildPageIllustrationPrompt(input: {
   side: "left" | "right";
   omitPageText?: boolean;
 }): string {
+  if (getImageProvider() === "recraft") {
+    return buildRecrartPagePrompt(input);
+  }
+
   const {
     project,
     story,

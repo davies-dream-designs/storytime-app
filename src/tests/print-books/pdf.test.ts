@@ -1,4 +1,4 @@
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, StandardFonts } from "pdf-lib";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChildProfile, Story } from "@/types";
 import type { BookProject, CharacterBible } from "@/types/printBook";
@@ -276,5 +276,30 @@ describe("generateBookPdfs", () => {
     expect(printPdfBody).toBeTruthy();
     const printPdf = await PDFDocument.load(new Uint8Array(printPdfBody));
     expect(printPdf.getPageCount()).toBe(project.pageCount);
+  });
+
+  it("fits long story text inside the printable text panel", async () => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+    const { fitWrappedTextToBox } = await import("@/lib/print-books/pdf");
+    const maxHeight = 155;
+    const layout = fitWrappedTextToBox({
+      text: Array.from(
+        { length: 8 },
+        () =>
+          "Bailey had the most wonderful idea and set up a teepee for a very special adventure."
+      ).join(" "),
+      font,
+      maxWidth: 430,
+      maxHeight,
+      paddingY: 54,
+      preferredSize: 17,
+      minSize: 9.5,
+    });
+
+    expect(layout.lines.length * layout.lineHeight + 54).toBeLessThanOrEqual(
+      maxHeight
+    );
+    expect(layout.size).toBeLessThan(17);
   });
 });

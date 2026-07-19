@@ -36,8 +36,9 @@ describe("sendBookReadyEmail", () => {
     );
     const message = mockSend.mock.calls[0]?.[0];
     expect(message.html).toContain(
-      'src="https://dev.storycot.com/nav-icon-light.png"'
+      'src="https://storycot.com/nav-icon-light.png"'
     );
+    expect(message.html).not.toContain("dev.storycot.com/nav-icon-light.png");
     expect(message.html).not.toContain("/en/nav-icon-light.png");
     expect(message.html).toContain("https://dev.storycot.com/en/books/book-1");
     expect(message.html).toContain("Storycot");

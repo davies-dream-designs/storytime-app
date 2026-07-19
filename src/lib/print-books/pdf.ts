@@ -84,6 +84,69 @@ function wrapTextToWidth(input: {
   return lines;
 }
 
+function truncateTextToWidth(input: {
+  text: string;
+  font: Awaited<ReturnType<PDFDocument["embedFont"]>>;
+  size: number;
+  maxWidth: number;
+}): string {
+  const { text, font, size, maxWidth } = input;
+  if (font.widthOfTextAtSize(text, size) <= maxWidth) return text;
+
+  let truncated = text;
+  while (
+    truncated.length > 0 &&
+    font.widthOfTextAtSize(`${truncated.trimEnd()}...`, size) > maxWidth
+  ) {
+    truncated = truncated.slice(0, -1);
+  }
+
+  return `${truncated.trimEnd()}...`;
+}
+
+export function fitWrappedTextToBox(input: {
+  text: string;
+  font: Awaited<ReturnType<PDFDocument["embedFont"]>>;
+  maxWidth: number;
+  maxHeight: number;
+  paddingY: number;
+  preferredSize: number;
+  minSize: number;
+}) {
+  const { text, font, maxWidth, maxHeight, paddingY, preferredSize, minSize } =
+    input;
+  const sizes: number[] = [];
+  for (let size = preferredSize; size >= minSize; size -= 0.5) {
+    sizes.push(size);
+  }
+
+  for (const size of sizes) {
+    const lineHeight = Math.ceil(size * 1.28);
+    const lines = wrapTextToWidth({ text, font, size, maxWidth });
+    if (lines.length * lineHeight + paddingY <= maxHeight) {
+      return { lines, size, lineHeight, truncated: false };
+    }
+  }
+
+  const size = minSize;
+  const lineHeight = Math.ceil(size * 1.28);
+  const maxLines = Math.max(1, Math.floor((maxHeight - paddingY) / lineHeight));
+  const lines = wrapTextToWidth({ text, font, size, maxWidth }).slice(
+    0,
+    maxLines
+  );
+  if (lines.length > 0) {
+    lines[lines.length - 1] = truncateTextToWidth({
+      text: lines[lines.length - 1],
+      font,
+      size,
+      maxWidth,
+    });
+  }
+
+  return { lines, size, lineHeight, truncated: true };
+}
+
 function drawWrappedText(input: {
   page: ReturnType<PDFDocument["addPage"]>;
   text: string;
@@ -97,6 +160,7 @@ function drawWrappedText(input: {
   align?: "left" | "center";
   shadow?: boolean;
   maxLines?: number;
+  lines?: string[];
 }) {
   const {
     page,
@@ -111,8 +175,10 @@ function drawWrappedText(input: {
     align = "left",
     shadow = false,
     maxLines,
+    lines: inputLines,
   } = input;
-  const allLines = wrapTextToWidth({ text, font, size, maxWidth });
+  const allLines =
+    inputLines ?? wrapTextToWidth({ text, font, size, maxWidth });
   const lines = maxLines != null ? allLines.slice(0, maxLines) : allLines;
   lines.forEach((line, index) => {
     const lineX =
@@ -892,25 +958,27 @@ async function drawBookPage(input: {
   });
 
   if (text) {
-    const textInnerWidth = pageWidth - FULL_BLEED_TEXT_SAFE_MARGIN * 2 - 48;
-    const lineCount = wrapTextToWidth({
+    const textRectWidth = pageWidth - FULL_BLEED_TEXT_SAFE_MARGIN * 2;
+    const textInnerWidth = textRectWidth - 48;
+    const maxHeight = getMaxTextBoxPt(story.storyPreset);
+    const fittedText = fitWrappedTextToBox({
       text,
       font: serif,
-      size: 17,
       maxWidth: textInnerWidth,
-    }).length;
-    const lineHeight = 22;
-    const boxPadding = 54;
+      maxHeight,
+      paddingY: 54,
+      preferredSize: 17,
+      minSize: 9.5,
+    });
     const minHeight = 80;
-    const maxHeight = getMaxTextBoxPt(story.storyPreset);
     const textRectHeight = Math.min(
-      Math.max(minHeight, lineCount * lineHeight + boxPadding),
+      Math.max(minHeight, fittedText.lines.length * fittedText.lineHeight + 54),
       maxHeight
     );
     const textRect = {
       x: FULL_BLEED_TEXT_SAFE_MARGIN,
       y: FULL_BLEED_TEXT_SAFE_MARGIN,
-      width: pageWidth - FULL_BLEED_TEXT_SAFE_MARGIN * 2,
+      width: textRectWidth,
       height: textRectHeight,
     };
     page.drawRectangle({
@@ -929,11 +997,12 @@ async function drawBookPage(input: {
       x: textRect.x + 24,
       topY: textRect.y + textRect.height - 34,
       maxWidth: textRect.width - 48,
-      lineHeight,
+      lineHeight: fittedText.lineHeight,
       font: serif,
-      size: 17,
+      size: fittedText.size,
       color: theme.ink,
       align: "center",
+      lines: fittedText.lines,
     });
   }
 

@@ -27,6 +27,10 @@ function getOriginUrl(appUrl: string): string {
   }
 }
 
+function getEmailAssetOrigin(): string {
+  return process.env.NEXT_PUBLIC_EMAIL_ASSET_ORIGIN ?? "https://storycot.com";
+}
+
 export async function sendBookReadyEmail(input: {
   toEmail: string;
   toName: string;
@@ -39,7 +43,10 @@ export async function sendBookReadyEmail(input: {
 
   const { toEmail, toName, storyTitle, bookId, appUrl } = input;
   const bookUrl = joinUrl(appUrl, `/books/${bookId}`);
-  const logoUrl = joinUrl(getOriginUrl(appUrl), "/nav-icon-light.png");
+  const logoUrl = joinUrl(
+    getOriginUrl(getEmailAssetOrigin()),
+    "/nav-icon-light.png"
+  );
   const safeName = escapeHtml(toName);
   const safeStoryTitle = escapeHtml(storyTitle);
   const safeBookUrl = escapeHtml(bookUrl);

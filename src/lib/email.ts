@@ -6,6 +6,15 @@ function getClient(): Resend | null {
   return new Resend(apiKey);
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export async function sendBookReadyEmail(input: {
   toEmail: string;
   toName: string;
@@ -18,6 +27,12 @@ export async function sendBookReadyEmail(input: {
 
   const { toEmail, toName, storyTitle, bookId, appUrl } = input;
   const bookUrl = `${appUrl}/books/${bookId}`;
+  const logoUrl = `${appUrl}/nav-icon-light.png`;
+  const safeName = escapeHtml(toName);
+  const safeStoryTitle = escapeHtml(storyTitle);
+  const safeBookUrl = escapeHtml(bookUrl);
+  const safeAppUrl = escapeHtml(appUrl);
+  const safeLogoUrl = escapeHtml(logoUrl);
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -25,45 +40,54 @@ export async function sendBookReadyEmail(input: {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 </head>
-<body style="margin:0;padding:0;background:#f5f0e8;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:40px 16px;">
+<body style="margin:0;padding:0;background:#fdf6ee;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#fdf6ee;padding:40px 16px;">
     <tr>
       <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
 
           <!-- Header -->
           <tr>
             <td align="center" style="padding-bottom:24px;">
-              <span style="font-size:28px;font-weight:700;color:#2b2060;letter-spacing:-0.5px;">🌙 Storycot</span>
+              <table cellpadding="0" cellspacing="0" role="presentation">
+                <tr>
+                  <td style="padding-right:10px;">
+                    <img src="${safeLogoUrl}" width="36" height="36" alt="" style="display:block;border-radius:10px;" />
+                  </td>
+                  <td style="font-size:30px;font-weight:800;color:#2d2058;letter-spacing:-0.4px;">
+                    Storycot
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
           <!-- Card -->
           <tr>
-            <td style="background:#ffffff;border-radius:20px;padding:40px 36px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+            <td style="background:#ffffff;border:1px solid #ede9fe;border-radius:18px;padding:40px 36px;box-shadow:0 14px 34px rgba(45,32,88,0.08);">
 
-              <p style="margin:0 0 8px;font-size:13px;font-weight:600;letter-spacing:0.08em;color:#9b96b8;text-transform:uppercase;">Your illustrated book is ready</p>
-              <h1 style="margin:0 0 16px;font-size:26px;font-weight:700;color:#1a1635;line-height:1.25;">${storyTitle}</h1>
+              <p style="margin:0 0 8px;font-size:13px;font-weight:800;letter-spacing:0.08em;color:#7c3aed;text-transform:uppercase;">Your illustrated book is ready</p>
+              <h1 style="margin:0 0 16px;font-size:30px;font-weight:800;color:#1e1344;line-height:1.18;">${safeStoryTitle}</h1>
 
-              <p style="margin:0 0 28px;font-size:15px;color:#4a4870;line-height:1.6;">
-                Hi ${toName}, the illustrations are done and your personalised storybook is waiting for you. Tap the button below to view it, download the PDF, or order a printed copy.
+              <p style="margin:0 0 28px;font-size:16px;color:#5b4e8a;line-height:1.65;">
+                Hi ${safeName}, the illustrations are done and your personalised Storycot book is waiting for you. Open it to review the art, download the PDF or EPUB, or prepare it for print.
               </p>
 
               <!-- CTA -->
               <table cellpadding="0" cellspacing="0" width="100%">
                 <tr>
                   <td align="center">
-                    <a href="${bookUrl}"
-                       style="display:inline-block;background:#2b2060;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 36px;border-radius:100px;">
-                      View My Book ✨
+                    <a href="${safeBookUrl}"
+                       style="display:inline-block;background:#2d2058;color:#fef9c3;text-decoration:none;font-size:15px;font-weight:800;padding:15px 36px;border-radius:100px;">
+                      Open my book
                     </a>
                   </td>
                 </tr>
               </table>
 
-              <p style="margin:28px 0 0;font-size:13px;color:#9b96b8;text-align:center;line-height:1.5;">
+              <p style="margin:28px 0 0;font-size:13px;color:#7c6dc8;text-align:center;line-height:1.5;">
                 Or copy this link into your browser:<br />
-                <a href="${bookUrl}" style="color:#7c6fe0;">${bookUrl}</a>
+                <a href="${safeBookUrl}" style="color:#7c3aed;">${safeBookUrl}</a>
               </p>
 
             </td>
@@ -72,9 +96,9 @@ export async function sendBookReadyEmail(input: {
           <!-- Footer -->
           <tr>
             <td align="center" style="padding-top:24px;">
-              <p style="margin:0;font-size:12px;color:#b0acce;">
+              <p style="margin:0;font-size:12px;color:#7c6dc8;">
                 You're receiving this because you created a book on
-                <a href="${appUrl}" style="color:#7c6fe0;">storycot.com</a>.
+                <a href="${safeAppUrl}" style="color:#7c3aed;">storycot.com</a>.
               </p>
             </td>
           </tr>
@@ -91,7 +115,7 @@ export async function sendBookReadyEmail(input: {
   await client.emails.send({
     from: "Storycot <noreply@storycot.com>",
     to: toEmail,
-    subject: `✨ Your book is ready — ${storyTitle}`,
+    subject: `Your Storycot book is ready — ${storyTitle}`,
     html,
     text,
   });

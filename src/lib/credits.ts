@@ -30,8 +30,8 @@ export function needsIllustratedBookReservation(project: BookProject) {
   );
 }
 
-export async function reserveIllustratedBookCredits(project: BookProject) {
-  if (!needsIllustratedBookReservation(project)) return project;
+export async function reserveIllustratedBookCredits(project: BookProject, forceCharge = false) {
+  if (!forceCharge && !needsIllustratedBookReservation(project)) return project;
 
   const client = await clerkClient();
   const user = await client.users.getUser(project.userId);

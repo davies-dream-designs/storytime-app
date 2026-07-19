@@ -675,9 +675,11 @@ export async function enqueueBookBuildJob(input: {
   }
 
   const billableProject =
-    input.mode === "full" || input.mode === "art"
+    input.mode === "full"
       ? await reserveIllustratedBookCredits(input.project)
-      : input.project;
+      : input.mode === "art"
+        ? await reserveIllustratedBookCredits(input.project, true)
+        : input.project;
 
   const createdAt = getNowIso();
   const job: BookBuildJob = {

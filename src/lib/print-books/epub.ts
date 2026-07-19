@@ -441,7 +441,14 @@ export async function buildBookEpub(input: {
   });
 
   for (const spread of project.spreads) {
-    if (spread.sequence === 1 || spread.title === "Cover") continue;
+    // Skip print-only structural spreads — cover is rendered above, title and
+    // back cover are print concepts that don't belong in the EPUB flow.
+    if (
+      spread.sequence === 1 ||
+      spread.title === "Cover" ||
+      spread.title === "Title" ||
+      spread.title === "Back Cover"
+    ) continue;
 
     const leftImageHref = await addImage(
       `img-spread-${spread.sequence}-left`,
@@ -487,7 +494,12 @@ export async function buildBookEpub(input: {
     id: "the-end",
     href: "the-end.xhtml",
     title: `${title} — The End`,
-    content: renderPageXhtml({ title, heading: "The End", body: "", variant: "closing" }),
+    content: renderPageXhtml({
+      title,
+      heading: "The End",
+      body: `Sweet dreams, ${profile.name}.`,
+      variant: "closing",
+    }),
   });
 
   for (const page of pages) {

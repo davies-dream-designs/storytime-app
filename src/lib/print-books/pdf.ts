@@ -862,13 +862,48 @@ async function drawEndLeafPage(input: {
   });
 }
 
+async function drawBackMatterLeafPage(input: {
+  pdfDoc: PDFDocument;
+  page: ReturnType<PDFDocument["addPage"]>;
+  pageWidth: number;
+  pageHeight: number;
+  sans: Awaited<ReturnType<PDFDocument["embedFont"]>>;
+  sansBold: Awaited<ReturnType<PDFDocument["embedFont"]>>;
+}) {
+  const { pdfDoc, page, pageWidth, pageHeight, sans, sansBold } = input;
+  const centerX = pageWidth / 2;
+  drawPageBackground(page, pageWidth, pageHeight, BRAND_PURPLE);
+  const iconSize = 34;
+  await drawBrandWordmark({
+    pdfDoc,
+    page,
+    variant: "light",
+    x: centerX - getWordmarkWidth(sans, iconSize) / 2,
+    y: pageHeight * 0.54,
+    iconSize,
+    font: sans,
+  });
+  drawCenteredText({
+    page,
+    text: "A Storycot story",
+    centerX,
+    y: pageHeight * 0.42,
+    font: sansBold,
+    size: 12,
+    color: rgb(0.99, 0.96, 0.88),
+  });
+}
 
 function getMaxTextBoxPt(preset?: StoryPreset): number {
   switch (preset) {
-    case 'tiny-tales':         return 110;  // ~3 lines — image-first for toddlers
-    case 'moonlit-adventures': return 155;  // ~5 lines — balanced
-    case 'epic-sagas':         return 200;  // ~7 lines — text-forward for older kids
-    default:                   return 155;
+    case "tiny-tales":
+      return 110; // ~3 lines — image-first for toddlers
+    case "moonlit-adventures":
+      return 155; // ~5 lines — balanced
+    case "epic-sagas":
+      return 200; // ~7 lines — text-forward for older kids
+    default:
+      return 155;
   }
 }
 
@@ -915,12 +950,20 @@ async function drawBookPage(input: {
 
   if (text) {
     const textInnerWidth = pageWidth - FULL_BLEED_TEXT_SAFE_MARGIN * 2 - 48;
-    const lineCount = wrapTextToWidth({ text, font: serif, size: 17, maxWidth: textInnerWidth }).length;
+    const lineCount = wrapTextToWidth({
+      text,
+      font: serif,
+      size: 17,
+      maxWidth: textInnerWidth,
+    }).length;
     const lineHeight = 22;
     const boxPadding = 54;
     const minHeight = 80;
     const maxHeight = getMaxTextBoxPt(story.storyPreset);
-    const textRectHeight = Math.min(Math.max(minHeight, lineCount * lineHeight + boxPadding), maxHeight);
+    const textRectHeight = Math.min(
+      Math.max(minHeight, lineCount * lineHeight + boxPadding),
+      maxHeight
+    );
     const textRect = {
       x: FULL_BLEED_TEXT_SAFE_MARGIN,
       y: FULL_BLEED_TEXT_SAFE_MARGIN,
@@ -1074,6 +1117,19 @@ async function buildPrintPdf(input: {
         serif,
         serifBold,
         sans,
+      });
+
+      const backMatterLeafPage = pdfDoc.addPage([
+        PRINT_PAGE_WIDTH,
+        PRINT_PAGE_HEIGHT,
+      ]);
+      await drawBackMatterLeafPage({
+        pdfDoc,
+        page: backMatterLeafPage,
+        pageWidth: PRINT_PAGE_WIDTH,
+        pageHeight: PRINT_PAGE_HEIGHT,
+        sans,
+        sansBold,
       });
 
       continue;
@@ -1327,9 +1383,7 @@ async function buildCoverPdf(input: {
     color: BRAND_LILAC,
   });
 
-  if (
-    input.project.pageCount >= BOOK_SPEC.spineTextMinPageCount
-  ) {
+  if (input.project.pageCount >= BOOK_SPEC.spineTextMinPageCount) {
     page.drawText("Storycot", {
       x: spineX + coverSpineWidth / 2 - 20,
       y: PRINT_PAGE_HEIGHT / 2 - 18,

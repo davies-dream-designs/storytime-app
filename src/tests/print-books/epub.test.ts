@@ -159,6 +159,11 @@ describe("buildBookEpub", () => {
     expect(zip.file("OEBPS/cover.xhtml")).toBeTruthy();
     expect(zip.file("OEBPS/spread-2-left.xhtml")).toBeTruthy();
     expect(zip.file("OEBPS/images/spread-2-left.jpg")).toBeTruthy();
+    const firstStoryPage = await zip
+      .file("OEBPS/spread-2-left.xhtml")!
+      .async("string");
+    expect(firstStoryPage).not.toContain("<h1>");
+    expect(firstStoryPage).not.toContain("<h1>Moonlight Garden</h1>");
 
     const coverBytes = await zip
       .file("OEBPS/images/cover.jpg")!

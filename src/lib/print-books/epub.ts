@@ -640,7 +640,6 @@ export async function buildBookEpub(input: {
         title: `${title} - Page ${spread.pageStart}`,
         content: renderPageXhtml({
           title,
-          heading: spread.title || title,
           imageHref: leftImageHref,
           body: leftBody,
           pageLabel: `Page ${spread.pageStart}`,
@@ -656,7 +655,6 @@ export async function buildBookEpub(input: {
         title: `${title} - Page ${spread.pageEnd}`,
         content: renderPageXhtml({
           title,
-          heading: spread.title || title,
           imageHref: rightImageHref,
           body: rightBody,
           pageLabel: `Page ${spread.pageEnd}`,

@@ -869,7 +869,7 @@ export async function processBookBuildJob(jobId: string) {
             (e) => e.id === user.primaryEmailAddressId
           )?.emailAddress;
           const firstName = user.firstName ?? context.profile.name ?? "there";
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://storycot.com";
+          const appUrl = context.baseUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://storycot.com";
           if (email) {
             await sendBookReadyEmail({
               toEmail: email,

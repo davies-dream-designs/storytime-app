@@ -12,13 +12,14 @@ type EpubImageAsset = {
   bytes: Buffer;
 };
 
-const KINDLE_SEND_TO_DEVICE_LIMIT_BYTES = 50 * 1024 * 1024;
 const EPUB_TARGET_MAX_BYTES = 45 * 1024 * 1024;
-const EPUB_IMAGE_MAX_BYTES = 850 * 1024;
-const EPUB_IMAGE_MAX_WIDTH = 960;
-const EPUB_IMAGE_QUALITY = 62;
-const EPUB_COVER_WIDTH = 900;
-const EPUB_COVER_HEIGHT = 1200;
+const EPUB_IMAGE_MAX_BYTES = 1500 * 1024;
+const EPUB_IMAGE_MAX_WIDTH = 1600;
+const EPUB_IMAGE_QUALITY = 74;
+const EPUB_FIXED_PAGE_WIDTH = 1600;
+const EPUB_FIXED_PAGE_HEIGHT = 1600;
+const EPUB_COVER_WIDTH = 1600;
+const EPUB_COVER_HEIGHT = 2560;
 
 function escapeXml(value: string): string {
   return value
@@ -74,8 +75,17 @@ async function toCompactJpeg(
   } = {}
 ): Promise<Buffer> {
   const maxBytes = options.maxBytes ?? EPUB_IMAGE_MAX_BYTES;
-  const widths = [options.maxWidth ?? EPUB_IMAGE_MAX_WIDTH, 820, 700, 560];
-  const qualities = [options.quality ?? EPUB_IMAGE_QUALITY, 56, 48, 40, 34];
+  const initialWidth = options.maxWidth ?? EPUB_IMAGE_MAX_WIDTH;
+  const widths = [
+    initialWidth,
+    Math.min(initialWidth, 1400),
+    Math.min(initialWidth, 1200),
+    960,
+    760,
+  ].filter(
+    (width, index, values) => width > 0 && values.indexOf(width) === index
+  );
+  const qualities = [options.quality ?? EPUB_IMAGE_QUALITY, 68, 60, 52, 44];
 
   let smallest: Buffer | undefined;
 
@@ -99,6 +109,19 @@ async function toCompactJpeg(
   }
 
   return smallest ?? bytes;
+}
+
+async function toCoverJpeg(bytes: Buffer): Promise<Buffer> {
+  return sharp(bytes)
+    .rotate()
+    .flatten({ background: "#2b1b5d" })
+    .resize(EPUB_COVER_WIDTH, EPUB_COVER_HEIGHT, {
+      fit: "contain",
+      background: "#2b1b5d",
+      withoutEnlargement: false,
+    })
+    .jpeg({ quality: 78, mozjpeg: true })
+    .toBuffer();
 }
 
 function createBrandedCoverSvg(input: {
@@ -160,7 +183,10 @@ async function createTextCoverAsset(input: {
   coverImageUrl?: string;
 }): Promise<EpubImageAsset> {
   if (input.coverImageUrl) {
-    const cover = await loadImageAsset({ id: "cover", url: input.coverImageUrl });
+    const cover = await loadImageAsset({
+      id: "cover",
+      url: input.coverImageUrl,
+    });
     if (cover) return cover;
   }
 
@@ -180,31 +206,45 @@ async function createTextCoverAsset(input: {
 async function loadImageAsset(input: {
   id: string;
   url?: string;
+  maxWidth?: number;
+  maxBytes?: number;
+  quality?: number;
 }): Promise<EpubImageAsset | undefined> {
   if (!input.url) return undefined;
 
-  const dataAsset = getDataUrlAsset(input.url);
-  if (dataAsset) {
-    const compact = await toCompactJpeg(dataAsset.bytes);
+  try {
+    const dataAsset = getDataUrlAsset(input.url);
+    const sourceBytes = dataAsset
+      ? dataAsset.bytes
+      : await (async () => {
+          const response = await fetch(input.url!);
+          if (!response.ok) return undefined;
+          return Buffer.from(await response.arrayBuffer());
+        })();
+
+    if (!sourceBytes) return undefined;
+
+    const compact =
+      input.id === "cover"
+        ? await toCoverJpeg(sourceBytes)
+        : await toCompactJpeg(sourceBytes, {
+            maxWidth: input.maxWidth,
+            maxBytes: input.maxBytes,
+            quality: input.quality,
+          });
     return {
       id: input.id,
       href: `images/${input.id}.jpg`,
       mediaType: "image/jpeg",
       bytes: compact,
     };
+  } catch (error) {
+    console.warn("Skipping EPUB image asset that could not be loaded", {
+      id: input.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return undefined;
   }
-
-  const response = await fetch(input.url);
-  if (!response.ok) return undefined;
-  const compact = await toCompactJpeg(
-    Buffer.from(await response.arrayBuffer())
-  );
-  return {
-    id: input.id,
-    href: `images/${input.id}.jpg`,
-    mediaType: "image/jpeg",
-    bytes: compact,
-  };
 }
 
 function renderParagraphs(text: string): string {
@@ -222,6 +262,7 @@ function renderPageXhtml(input: {
   body: string;
   pageLabel?: string;
   variant?: "cover" | "story" | "closing";
+  fixedLayout?: boolean;
 }): string {
   const {
     title,
@@ -230,17 +271,22 @@ function renderPageXhtml(input: {
     body,
     pageLabel,
     variant = "story",
+    fixedLayout = false,
   } = input;
   const isCover = variant === "cover";
   const isClosing = variant === "closing";
-  const sectionClass = isCover ? "cover-page" : isClosing ? "closing-page" : "page";
+  const sectionClass = isCover
+    ? "cover-page"
+    : isClosing
+      ? "closing-page"
+      : "page";
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
   <head>
     <title>${escapeXml(title)}</title>
     <link rel="stylesheet" type="text/css" href="styles/storycot.css" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="${fixedLayout ? `width=${EPUB_FIXED_PAGE_WIDTH}, height=${EPUB_FIXED_PAGE_HEIGHT}` : "width=device-width, initial-scale=1.0"}" />
   </head>
   <body>
     <section class="${sectionClass}">
@@ -273,14 +319,17 @@ function buildNcxXml(input: {
   </head>
   <docTitle><text>${escapeXml(title)}</text></docTitle>
   <navMap>
-    ${pages.map((page, i) => `<navPoint id="np-${i + 1}" playOrder="${i + 1}">
+    ${pages
+      .map(
+        (page, i) => `<navPoint id="np-${i + 1}" playOrder="${i + 1}">
       <navLabel><text>${escapeXml(page.title)}</text></navLabel>
       <content src="${escapeXml(page.href)}" />
-    </navPoint>`).join("\n    ")}
+    </navPoint>`
+      )
+      .join("\n    ")}
   </navMap>
 </ncx>`;
 }
-
 
 function getStylesheet(): string {
   return `html, body {
@@ -370,6 +419,102 @@ h1 {
 }`;
 }
 
+function getFixedLayoutStylesheet(): string {
+  return `html,
+body {
+  background: #fffaf3;
+  height: ${EPUB_FIXED_PAGE_HEIGHT}px;
+  margin: 0;
+  padding: 0;
+  width: ${EPUB_FIXED_PAGE_WIDTH}px;
+}
+
+body {
+  color: #24164f;
+  font-family: Georgia, "Times New Roman", serif;
+  overflow: hidden;
+}
+
+.page,
+.cover-page,
+.closing-page {
+  align-items: center;
+  background: #fffaf3;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: ${EPUB_FIXED_PAGE_HEIGHT}px;
+  justify-content: center;
+  overflow: hidden;
+  padding: 96px;
+  page-break-after: always;
+  position: relative;
+  width: ${EPUB_FIXED_PAGE_WIDTH}px;
+}
+
+.cover-page,
+.closing-page {
+  background: #2b1b5d;
+  color: #fff8e7;
+  text-align: center;
+}
+
+.brand {
+  color: #ffd66e;
+  font: 700 26px Arial, sans-serif;
+  letter-spacing: 4px;
+  margin: 0 0 34px;
+  text-transform: uppercase;
+}
+
+.page-label {
+  color: #7a6aad;
+  font: 700 22px Arial, sans-serif;
+  letter-spacing: 2px;
+  margin: 0 0 24px;
+  text-transform: uppercase;
+}
+
+h1 {
+  color: #2b1b5d;
+  font-size: 54px;
+  line-height: 1.12;
+  margin: 0 0 36px;
+  max-width: 1280px;
+  text-align: center;
+}
+
+.cover-page h1,
+.closing-page h1 {
+  color: #fff8e7;
+}
+
+.cover-art,
+.illustration {
+  display: block;
+  height: auto;
+  margin: 0 auto 42px;
+  max-height: 1040px;
+  max-width: 1280px;
+  object-fit: contain;
+}
+
+.cover-art {
+  max-height: 1180px;
+}
+
+.story-text {
+  font-size: 38px;
+  line-height: 1.35;
+  max-width: 1160px;
+  text-align: center;
+}
+
+.story-text p {
+  margin: 0 0 24px;
+}`;
+}
+
 export async function buildBookEpub(input: {
   project: BookProject;
   story: Story;
@@ -404,7 +549,13 @@ export async function buildBookEpub(input: {
     if (cached) return cached;
 
     const promise = (async () => {
-      const asset = await loadImageAsset({ id, url });
+      const asset = await loadImageAsset({
+        id,
+        url,
+        maxWidth: id === "cover" ? EPUB_COVER_WIDTH : undefined,
+        maxBytes: id === "cover" ? 2200 * 1024 : undefined,
+        quality: id === "cover" ? 78 : undefined,
+      });
       if (!asset) return undefined;
       if (input.compact) {
         asset.bytes = await toCompactJpeg(asset.bytes, {
@@ -420,7 +571,12 @@ export async function buildBookEpub(input: {
     return promise;
   };
 
-  const coverImageHref = await addImage("cover", project.assets.coverImageUrl);
+  let coverImageHref = await addImage("cover", project.assets.coverImageUrl);
+  if (!coverImageHref) {
+    const coverAsset = await createTextCoverAsset({ story, profile });
+    imageAssets.push(coverAsset);
+    coverImageHref = coverAsset.href;
+  }
   const pages: Array<{
     id: string;
     href: string;
@@ -437,6 +593,7 @@ export async function buildBookEpub(input: {
       imageHref: coverImageHref,
       body: `A Storycot story for ${profile.name}.`,
       variant: "cover",
+      fixedLayout: true,
     }),
   });
 
@@ -448,7 +605,8 @@ export async function buildBookEpub(input: {
       t.startsWith("the end") ||
       t.startsWith("sweet dreams") ||
       t === "a storycot story"
-    ) return "";
+    )
+      return "";
     return text;
   }
 
@@ -460,14 +618,15 @@ export async function buildBookEpub(input: {
       spread.title === "Cover" ||
       spread.title === "Title" ||
       spread.title === "Back Cover"
-    ) continue;
+    )
+      continue;
 
     const leftImageHref = await addImage(
-      `img-spread-${spread.sequence}-left`,
+      `spread-${spread.sequence}-left`,
       getImageSource(spread, "left")
     );
     const rightImageHref = await addImage(
-      `img-spread-${spread.sequence}-right`,
+      `spread-${spread.sequence}-right`,
       getImageSource(spread, "right")
     );
 
@@ -485,6 +644,7 @@ export async function buildBookEpub(input: {
           imageHref: leftImageHref,
           body: leftBody,
           pageLabel: `Page ${spread.pageStart}`,
+          fixedLayout: true,
         }),
       });
     }
@@ -500,6 +660,7 @@ export async function buildBookEpub(input: {
           imageHref: rightImageHref,
           body: rightBody,
           pageLabel: `Page ${spread.pageEnd}`,
+          fixedLayout: true,
         }),
       });
     }
@@ -514,6 +675,7 @@ export async function buildBookEpub(input: {
       heading: "The End",
       body: `Sweet dreams, ${profile.name}.`,
       variant: "closing",
+      fixedLayout: true,
     }),
   });
 
@@ -525,7 +687,7 @@ export async function buildBookEpub(input: {
     zip.file(`OEBPS/${image.href}`, image.bytes);
   }
 
-  zip.file("OEBPS/styles/storycot.css", getStylesheet());
+  zip.file("OEBPS/styles/storycot.css", getFixedLayoutStylesheet());
   zip.file(
     "OEBPS/nav.xhtml",
     `<?xml version="1.0" encoding="UTF-8"?>
@@ -565,7 +727,7 @@ export async function buildBookEpub(input: {
   zip.file(
     "OEBPS/content.opf",
     `<?xml version="1.0" encoding="UTF-8"?>
-<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id">
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id" prefix="rendition: http://www.idpf.org/vocab/rendition/#">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
     <dc:identifier id="book-id">${escapeXml(identifier)}</dc:identifier>
     <dc:title>${escapeXml(title)}</dc:title>
@@ -573,6 +735,13 @@ export async function buildBookEpub(input: {
     <dc:language>en</dc:language>
     <dc:publisher>Storycot</dc:publisher>
     <meta property="dcterms:modified">${modified}</meta>
+    <meta property="rendition:layout">pre-paginated</meta>
+    <meta property="rendition:orientation">auto</meta>
+    <meta property="rendition:spread">none</meta>
+    <meta name="fixed-layout" content="true" />
+    <meta name="original-resolution" content="${EPUB_FIXED_PAGE_WIDTH}x${EPUB_FIXED_PAGE_HEIGHT}" />
+    <meta name="orientation-lock" content="none" />
+    <meta name="book-type" content="children" />
     <meta name="cover" content="cover" />
   </metadata>
   <manifest>
@@ -590,11 +759,7 @@ export async function buildBookEpub(input: {
     compressionOptions: { level: 9 },
   });
 
-  if (
-    !input.compact &&
-    epub.length > EPUB_TARGET_MAX_BYTES &&
-    epub.length < KINDLE_SEND_TO_DEVICE_LIMIT_BYTES * 2
-  ) {
+  if (!input.compact && epub.length > EPUB_TARGET_MAX_BYTES) {
     return buildBookEpub({ ...input, compact: true });
   }
 

@@ -101,7 +101,7 @@ export { getBookSpineWidthIn as getStorycotSpineWidth } from "@/lib/print-books/
 
 export function getAdjustedPageCountForProduct(
   pageCount: number,
-  productKey: PrintProductKey
+  _productKey: PrintProductKey
 ): number {
   return pageCount;
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
+import { buildBookEpub } from "@/lib/print-books/epub";
 
 type AssetKey = "printPdf" | "epub";
 
@@ -70,6 +71,20 @@ export async function GET(
 
   const story = await db.stories.getById(project.sourceStoryId);
   const filename = getFilename(asset, story?.title);
+
+  if (asset === "epub" && story) {
+    const profile = await db.profiles.getById(project.profileId);
+    if (profile && profile.userId === userId) {
+      const epub = await buildBookEpub({ project, story, profile });
+      return new NextResponse(new Uint8Array(epub), {
+        headers: {
+          "Content-Type": getContentType(asset),
+          "Content-Disposition": `attachment; filename="${filename}"`,
+          "Cache-Control": "private, no-store",
+        },
+      });
+    }
+  }
 
   const url = getAsset(project, asset);
   if (!url) {

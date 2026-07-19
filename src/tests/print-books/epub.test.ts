@@ -147,18 +147,19 @@ describe("buildBookEpub", () => {
     ).resolves.toContain("<dc:title>Moonlight Garden</dc:title>");
     await expect(
       zip.file("OEBPS/content.opf")?.async("string")
-    ).resolves.toContain(
-      '<meta property="rendition:layout">pre-paginated</meta>'
-    );
+    ).resolves.not.toContain("fixed-layout");
+    await expect(
+      zip.file("OEBPS/content.opf")?.async("string")
+    ).resolves.not.toContain("rendition:layout");
     await expect(
       zip.file("OEBPS/cover.xhtml")?.async("string")
-    ).resolves.toContain("width=1600, height=1600");
+    ).resolves.toContain("width=device-width, initial-scale=1.0");
     await expect(
       zip.file("OEBPS/nav.xhtml")?.async("string")
     ).resolves.toContain("Moonlight Garden");
     expect(zip.file("OEBPS/cover.xhtml")).toBeTruthy();
     expect(zip.file("OEBPS/spread-2-left.xhtml")).toBeTruthy();
-    expect(zip.file("OEBPS/images/spread-2-left.jpg")).toBeTruthy();
+    expect(zip.file("OEBPS/images/img-spread-2-left.jpg")).toBeTruthy();
     const firstStoryPage = await zip
       .file("OEBPS/spread-2-left.xhtml")!
       .async("string");

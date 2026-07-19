@@ -185,6 +185,55 @@ describe("POST /api/books/[id]/images/regenerate", () => {
     });
   });
 
+  it("does not charge image-redo credits when replacing placeholder art", async () => {
+    mockDb.bookProjects.getById.mockResolvedValue({
+      ...createBookProject(),
+      billing: {
+        product: "illustrated_book",
+        status: "captured",
+        credits: 10,
+        reservedAt: "2026-07-15T00:00:00.000Z",
+        capturedAt: "2026-07-15T00:01:00.000Z",
+      },
+      spreads: [
+        {
+          id: "spread-2",
+          bookProjectId: "book-1",
+          sequence: 2,
+          pageStart: 3,
+          pageEnd: 4,
+          layoutType: "hero",
+          leftPageText: "",
+          rightPageText: "",
+          sceneBrief: "Garden",
+          illustrationPrompt: "Garden",
+          rightPageImageUrl: "data:image/svg+xml;base64,placeholder",
+        },
+      ],
+    });
+
+    const { POST } =
+      await import("@/app/api/books/[id]/images/regenerate/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/books/book-1/images/regenerate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ spreadId: "spread-2", side: "right" }),
+      }),
+      { params: Promise.resolve({ id: "book-1" }) }
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockChargeImageRegenerationCredit).not.toHaveBeenCalled();
+    expect(mockReserveIllustratedBookCredits).not.toHaveBeenCalled();
+    expect(mockRegenerateBookSpreadPageImage).toHaveBeenCalledWith({
+      projectId: "book-1",
+      userId: "user-1",
+      spreadId: "spread-2",
+      side: "right",
+    });
+  });
+
   it("re-reserves and captures book credits when retrying after a refunded full-book failure", async () => {
     const refundedProject = {
       ...createBookProject(),

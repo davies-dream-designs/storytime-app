@@ -5,6 +5,19 @@ import { enqueueBookBuildJob } from '@/lib/print-books/jobs'
 import { inngest, INNGEST_EVENTS } from '@/lib/inngest/client'
 import type { BookBuildMode } from '@/types/printBook'
 
+function parseExplicitBuildMode(mode?: BookBuildMode): BookBuildMode | null {
+  if (mode === 'exports' || mode === 'finalize' || mode === 'art' || mode === 'full') {
+    return mode
+  }
+  return null
+}
+
+function getDefaultBuildMode(project: Awaited<ReturnType<typeof db.bookProjects.getById>>): BookBuildMode {
+  if (!project) return 'full'
+  if (project.status === 'ready' || project.status === 'proofing') return 'exports'
+  return 'full'
+}
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -16,14 +29,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const payload = (await req.json().catch(() => null)) as { mode?: BookBuildMode } | null
-  const buildMode: BookBuildMode =
-    payload?.mode === 'exports'
-      ? 'exports'
-      : payload?.mode === 'finalize'
-        ? 'finalize'
-        : payload?.mode === 'art'
-          ? 'art'
-          : 'full'
+  const explicitMode = parseExplicitBuildMode(payload?.mode)
+  const buildMode = explicitMode ?? getDefaultBuildMode(project)
+
+  if (!explicitMode && project.errorCode === 'illustrating:image_failed') {
+    return NextResponse.json(
+      { error: 'Retry only the failed image from the spread review.' },
+      { status: 409 }
+    )
+  }
 
   try {
     const { job, project: queuedProject } = await enqueueBookBuildJob({

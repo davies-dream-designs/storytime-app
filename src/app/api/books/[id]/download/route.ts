@@ -17,7 +17,18 @@ function getContentType(asset: AssetKey): string {
   return asset === "printPdf" ? "application/pdf" : "application/epub+zip";
 }
 
-function getFilename(asset: AssetKey): string {
+function safeFilename(title: string, ext: string): string {
+  const slug = title
+    .replace(/[/\\:*?"<>|]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+  return slug ? `${slug}.${ext}` : `storycot.${ext}`;
+}
+
+function getFilename(asset: AssetKey, storyTitle?: string): string {
+  const ext = asset === "printPdf" ? "pdf" : "epub";
+  if (storyTitle) return safeFilename(storyTitle, ext);
   return asset === "printPdf" ? "storycot-illustrated.pdf" : "storycot.epub";
 }
 
@@ -57,6 +68,9 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  const story = await db.stories.getById(project.sourceStoryId);
+  const filename = getFilename(asset, story?.title);
+
   const url = getAsset(project, asset);
   if (!url) {
     return NextResponse.json({ error: "Asset not found" }, { status: 404 });
@@ -76,7 +90,7 @@ export async function GET(
     return new NextResponse(blobRes.body ?? new Uint8Array(), {
       headers: {
         "Content-Type": getContentType(asset),
-        "Content-Disposition": `attachment; filename="${getFilename(asset)}"`,
+        "Content-Disposition": `attachment; filename="${filename}"`,
         "Cache-Control": "private, no-store",
       },
     });
@@ -93,7 +107,7 @@ export async function GET(
   return new NextResponse(new Uint8Array(parsed.body), {
     headers: {
       "Content-Type": parsed.contentType || getContentType(asset),
-      "Content-Disposition": `attachment; filename="${getFilename(asset)}"`,
+      "Content-Disposition": `attachment; filename="${filename}"`,
       "Cache-Control": "private, no-store",
     },
   });

@@ -43,10 +43,10 @@ export function isGeneratedIllustrationConfigured(): boolean {
   return isFalConfigured(); // flux and recraft both use FAL_KEY
 }
 
-// The OpenAI Batch API path only applies when OpenAI is the selected provider.
-// fal.ai providers run through the durable per-spread path instead.
+// Batch API path is disabled — all providers use the per-spread cursor path
+// so the progress grid works and builds complete in minutes rather than hours.
 export function shouldUseImageBatch(): boolean {
-  return getImageProvider() === "openai" && isGeneratedIllustrationConfigured();
+  return false;
 }
 
 // ---------------------------------------------------------------------------

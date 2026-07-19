@@ -206,6 +206,130 @@ describe("generateCoverIllustration", () => {
     expect(requests[2]?.size).toBe("1024x1024");
   });
 
+  it("omits raw story prose from sequential page image prompts", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    vi.doMock("@/lib/print-books/storage", () => ({
+      storeBookAsset: mockStoreBookAsset,
+      isBookAssetStorageConfigured: () => true,
+    }));
+
+    vi.doMock("sharp", () => {
+      const instance = {
+        resize: vi.fn().mockReturnThis(),
+        removeAlpha: vi.fn().mockReturnThis(),
+        raw: vi.fn().mockReturnThis(),
+        png: vi.fn().mockReturnThis(),
+        toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
+          options?.resolveWithObject
+            ? Promise.resolve({
+                data: Buffer.from([128, 128, 128, 180, 180, 180]),
+                info: { channels: 3 },
+              })
+            : Promise.resolve(Buffer.from("upscaled-png"))
+        ),
+      };
+      const sharpFn = vi.fn(() => instance);
+      const sharpMock = Object.assign(sharpFn, {
+        kernel: { lanczos3: "lanczos3" },
+      });
+      return { default: sharpMock };
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [{ b64_json: Buffer.from("image").toString("base64") }],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mockStoreBookAsset.mockResolvedValue("https://example.com/page.png");
+
+    vi.resetModules();
+    const { generateSpreadPageIllustration } =
+      await import("@/lib/print-books/illustrations");
+
+    const project = createProject();
+    const spread = {
+      ...project.spreads[0]!,
+      id: "book-1:spread:2",
+      sequence: 2,
+      pageStart: 3,
+      pageEnd: 4,
+      title: "Pond",
+      leftPageText:
+        "Bailey stood at the edge of the water with bare little toes touching the warm mud.",
+      rightPageText: "The little fish peeked out from under a lily pad.",
+      sceneBrief: "Bailey watches a shy fish from the safe pond edge.",
+      illustrationPrompt:
+        "A gentle pond scene with Bailey calmly watching a shy fish.",
+    };
+
+    await generateSpreadPageIllustration({
+      project,
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+      spread,
+      side: "left",
+    });
+
+    const requestBody = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body);
+    expect(requestBody.prompt).toContain("A gentle pond scene");
+    expect(requestBody.prompt).not.toContain("bare little toes");
+    expect(requestBody.prompt).not.toContain("Page moment:");
+
+    vi.unstubAllGlobals();
+    vi.doUnmock("sharp");
+    vi.doUnmock("@/lib/print-books/storage");
+  });
+
+  it("falls back to a safe branded cover when cover moderation blocks generation", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    vi.doMock("@/lib/print-books/storage", () => ({
+      storeBookAsset: mockStoreBookAsset,
+      isBookAssetStorageConfigured: () => true,
+    }));
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      headers: new Headers(),
+      text: async () =>
+        JSON.stringify({ error: { code: "moderation_blocked" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mockStoreBookAsset.mockImplementation(async ({ pathname }) =>
+      pathname.endsWith(".svg")
+        ? "data:image/svg+xml;base64,cover"
+        : "https://example.com/cover.png"
+    );
+
+    vi.resetModules();
+    const { generateCoverIllustration } =
+      await import("@/lib/print-books/illustrations");
+
+    const result = await generateCoverIllustration({
+      project: createProject(),
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+    });
+
+    expect(result.provider).toBe("placeholder");
+    expect(result.coverImageUrl).toBe("data:image/svg+xml;base64,cover");
+    expect(mockStoreBookAsset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pathname: "books/book-1/cover.svg",
+        contentType: "image/svg+xml",
+      })
+    );
+
+    vi.unstubAllGlobals();
+    vi.doUnmock("@/lib/print-books/storage");
+  });
+
   it("marks a missing batch image as failed without replacing other images", async () => {
     process.env.OPENAI_API_KEY = "test-key";
 

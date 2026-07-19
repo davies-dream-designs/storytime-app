@@ -880,7 +880,7 @@ function buildPageIllustrationPrompt(input: {
     characterBible,
     spread,
     side,
-    omitPageText = false,
+    omitPageText = true,
   } = input;
   const pageText = side === "left" ? spread.leftPageText : spread.rightPageText;
 
@@ -1295,7 +1295,17 @@ export async function generateCoverIllustration(input: {
         provider: "openai",
       };
     } catch (err) {
-      throw err;
+      if (
+        !(err instanceof ModerationBlockedError) &&
+        !(err instanceof UnusableGeneratedImageError)
+      ) {
+        throw err;
+      }
+
+      console.warn(
+        "Cover generation was blocked or unusable; using safe branded cover fallback.",
+        { error: getImageFailureMessage(err) }
+      );
     }
   }
 

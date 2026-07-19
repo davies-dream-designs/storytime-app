@@ -104,11 +104,21 @@ export function getAdjustedPageCountForProduct(
   productKey: PrintProductKey
 ): number {
   const product = PRINT_PRODUCTS[productKey];
-  const minAdjusted = Math.max(pageCount, product.minPageCount);
-  const remainder = minAdjusted % product.pageStep;
-  return remainder === 0
-    ? minAdjusted
-    : minAdjusted + product.pageStep - remainder;
+  const remainder = pageCount % product.pageStep;
+  return remainder === 0 ? pageCount : pageCount + product.pageStep - remainder;
+}
+
+function getUnsupportedReason(pageCount: number, productKey: PrintProductKey) {
+  const product = PRINT_PRODUCTS[productKey];
+  if (pageCount < product.minPageCount) {
+    return `${product.label} requires at least ${product.minPageCount} print pages. This story has ${pageCount}.`;
+  }
+
+  if (pageCount > product.maxPageCount) {
+    return `${product.label} supports up to ${product.maxPageCount} print pages. This story has ${pageCount}.`;
+  }
+
+  return undefined;
 }
 
 export function quotePrintProduct(
@@ -120,6 +130,7 @@ export function quotePrintProduct(
     project.pageCount,
     productKey
   );
+  const unsupportedReason = getUnsupportedReason(adjustedPageCount, productKey);
   const extraSpreads = Math.max(
     0,
     Math.ceil((adjustedPageCount - product.basePages) / 2)
@@ -134,7 +145,8 @@ export function quotePrintProduct(
     needsPadding: adjustedPageCount > project.pageCount,
     paddingPages: adjustedPageCount - project.pageCount,
     priceAud,
-    isWithinSpecs: adjustedPageCount <= product.maxPageCount,
+    isWithinSpecs: !unsupportedReason,
+    unsupportedReason,
   };
 }
 

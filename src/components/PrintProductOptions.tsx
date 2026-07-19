@@ -66,6 +66,11 @@ export default function PrintProductOptions({
               <dd className="text-right font-medium">{quote.productionDays}</dd>
             </div>
           </dl>
+          {quote.unsupportedReason ? (
+            <p className="mt-4 rounded-xl bg-star-50 px-3 py-2 text-sm font-bold text-night-700">
+              {quote.unsupportedReason}
+            </p>
+          ) : null}
           <PrintCheckoutButton
             projectId={project.id}
             productKey={quote.key}

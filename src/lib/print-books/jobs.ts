@@ -304,6 +304,24 @@ async function regenerateProjectArt(input: {
     });
   }
 
+  // Title spread uses a fully branded design in the PDF — no generated art needed.
+  if (spread.title === "Title") {
+    return db.bookProjects.update(input.id, {
+      status: "illustrating",
+      currentStageLabel: `Generating final art ${currentCursor + 1} of ${totalArtSteps}...`,
+      characterBible: input.characterBible,
+      spreads: input.project.spreads,
+      completedSpreads: currentCursor + 1,
+      totalSpreads: totalArtSteps,
+      assets: {
+        ...input.project.assets,
+        lastBuildMode: input.buildMode,
+        artGenerationCursor: currentCursor + 1,
+        artGenerationTotal: totalArtSteps,
+      },
+    });
+  }
+
   const illustrated = await generateSpreadIllustration({
     project: input.project,
     story: input.story,

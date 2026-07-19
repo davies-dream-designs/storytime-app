@@ -104,6 +104,9 @@ describe("generateCoverIllustration", () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.OPENAI_IMAGE_MODEL;
     delete process.env.BLOB_READ_WRITE_TOKEN;
+    delete process.env.IMAGE_PROVIDER;
+    delete process.env.FAL_KEY;
+    delete process.env.FLUX_MODEL;
     mockStoreBookAsset.mockResolvedValue("data:image/svg+xml;base64,cover");
   });
 
@@ -336,6 +339,83 @@ describe("generateCoverIllustration", () => {
         contentType: "image/svg+xml",
       })
     );
+  });
+
+  it("generates cover art via fal.ai FLUX when IMAGE_PROVIDER=flux", async () => {
+    process.env.IMAGE_PROVIDER = "flux";
+    process.env.FAL_KEY = "fal-test-key";
+
+    vi.doMock("@/lib/print-books/storage", () => ({
+      storeBookAsset: mockStoreBookAsset,
+      isBookAssetStorageConfigured: () => true,
+    }));
+
+    vi.doMock("sharp", () => {
+      const instance = {
+        resize: vi.fn().mockReturnThis(),
+        png: vi.fn().mockReturnThis(),
+        toBuffer: vi.fn().mockResolvedValue(Buffer.from("upscaled-png")),
+      };
+      const sharpFn = vi.fn(() => instance);
+      const sharpMock = Object.assign(sharpFn, {
+        kernel: { lanczos3: "lanczos3" },
+      });
+      return { default: sharpMock };
+    });
+
+    const fetchMock = vi
+      .fn()
+      // 1) fal.ai generation request
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          images: [{ url: "https://fal.media/files/cover.png" }],
+        }),
+      })
+      // 2) download of the returned image URL
+      .mockResolvedValueOnce({
+        ok: true,
+        arrayBuffer: async () =>
+          new Uint8Array(Buffer.from("flux-png-bytes")).buffer,
+      });
+
+    vi.stubGlobal("fetch", fetchMock);
+    mockStoreBookAsset.mockResolvedValue("https://example.com/cover.png");
+
+    vi.resetModules();
+    const { generateCoverIllustration, getImageProvider } =
+      await import("@/lib/print-books/illustrations");
+
+    expect(getImageProvider()).toBe("flux");
+
+    const result = await generateCoverIllustration({
+      project: createProject(),
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+    });
+
+    expect(result.coverImageUrl).toBe("https://example.com/cover.png");
+
+    // Hit fal.ai's FLUX endpoint with the right auth and a disabled safety checker.
+    const generationCall = fetchMock.mock.calls[0];
+    expect(String(generationCall?.[0])).toContain("fal.run/fal-ai/flux/dev");
+    expect(generationCall?.[1]?.headers?.Authorization).toBe("Key fal-test-key");
+    const body = String(generationCall?.[1]?.body);
+    expect(body).toContain('"enable_safety_checker":false');
+    expect(body).toContain('"image_size":"square_hd"');
+    // Second call downloads the produced image.
+    expect(String(fetchMock.mock.calls[1]?.[0])).toBe(
+      "https://fal.media/files/cover.png"
+    );
+    // Stored as PNG for the print pipeline.
+    expect(mockStoreBookAsset).toHaveBeenCalledWith(
+      expect.objectContaining({ contentType: "image/png" })
+    );
+
+    vi.unstubAllGlobals();
+    vi.doUnmock("sharp");
+    vi.doUnmock("@/lib/print-books/storage");
   });
 
   it("falls back from gpt-image-2 to gpt-image-1 when the newer model is unavailable", async () => {

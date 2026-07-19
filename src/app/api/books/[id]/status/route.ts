@@ -37,6 +37,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     readyAt: project.readyAt,
     errorCode: project.errorCode,
     errorMessage: project.errorMessage,
+    spreadPreviews: project.spreads.map((s) => ({
+      id: s.id,
+      sequence: s.sequence,
+      thumbnailUrl: s.thumbnailUrl ?? s.imageUrl ?? undefined,
+    })),
     assets: {
       lastBuildMode: project.assets.lastBuildMode,
       activeJobId: project.assets.activeJobId,

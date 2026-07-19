@@ -13,6 +13,7 @@ import {
   generateSpreadIllustration,
   isGeneratedIllustrationConfigured,
   retrieveBookImageBatch,
+  shouldUseImageBatch,
   submitBookImageBatch,
 } from "@/lib/print-books/illustrations";
 import { generateBookPdfs } from "@/lib/print-books/pdf";
@@ -160,7 +161,9 @@ async function regenerateProjectArt(input: {
   const totalArtSteps = input.project.spreads.length;
   const currentCursor = input.project.assets.artGenerationCursor ?? 0;
 
-  if (isGeneratedIllustrationConfigured()) {
+  // OpenAI uses the durable Batch API path. FLUX (and the placeholder fallback)
+  // fall through to the per-spread cursor path below, one spread per step.
+  if (shouldUseImageBatch()) {
     const existingBatch = input.project.assets.openAIImageBatch;
 
     if (!existingBatch) {
@@ -297,6 +300,25 @@ async function regenerateProjectArt(input: {
         artGenerationTotal: totalArtSteps,
         artMode: input.project.assets.artMode ?? "placeholder",
         lastBuildMode: input.buildMode,
+      },
+    });
+  }
+
+  // Title uses a branded PDF design; Back Cover falls back to a plain panel
+  // when no image is present. Neither needs a generated illustration.
+  if (spread.title === "Title" || spread.title === "Back Cover") {
+    return db.bookProjects.update(input.id, {
+      status: "illustrating",
+      currentStageLabel: `Generating final art ${currentCursor + 1} of ${totalArtSteps}...`,
+      characterBible: input.characterBible,
+      spreads: input.project.spreads,
+      completedSpreads: currentCursor + 1,
+      totalSpreads: totalArtSteps,
+      assets: {
+        ...input.project.assets,
+        lastBuildMode: input.buildMode,
+        artGenerationCursor: currentCursor + 1,
+        artGenerationTotal: totalArtSteps,
       },
     });
   }
@@ -672,9 +694,11 @@ export async function enqueueBookBuildJob(input: {
   }
 
   const billableProject =
-    input.mode === "full" || input.mode === "art"
+    input.mode === "full"
       ? await reserveIllustratedBookCredits(input.project)
-      : input.project;
+      : input.mode === "art"
+        ? await reserveIllustratedBookCredits(input.project, true)
+        : input.project;
 
   const createdAt = getNowIso();
   const job: BookBuildJob = {
@@ -845,7 +869,7 @@ export async function processBookBuildJob(jobId: string) {
             (e) => e.id === user.primaryEmailAddressId
           )?.emailAddress;
           const firstName = user.firstName ?? context.profile.name ?? "there";
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://storycot.com";
+          const appUrl = context.baseUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://storycot.com";
           if (email) {
             await sendBookReadyEmail({
               toEmail: email,

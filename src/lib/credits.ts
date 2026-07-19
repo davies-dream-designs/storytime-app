@@ -22,6 +22,40 @@ export async function getUserCredits(
   };
 }
 
+export async function chargeImageRegenerationCredit(
+  userId: string
+): Promise<{ credits: number; isAdmin: boolean }> {
+  const client = await clerkClient();
+  const user = await client.users.getUser(userId);
+  const isAdmin = user.privateMetadata.isAdmin === true;
+  const currentCredits = getCredits(user.privateMetadata.credits);
+
+  if (isAdmin) return { credits: currentCredits, isAdmin };
+
+  if (currentCredits < 1) {
+    throw new Error(
+      "Insufficient credits. Regenerating an image costs 1 credit."
+    );
+  }
+
+  await client.users.updateUserMetadata(userId, {
+    privateMetadata: { credits: currentCredits - 1 },
+  });
+
+  return { credits: currentCredits - 1, isAdmin };
+}
+
+export async function refundImageRegenerationCredit(userId: string) {
+  const client = await clerkClient();
+  const user = await client.users.getUser(userId);
+  if (user.privateMetadata.isAdmin === true) return;
+
+  const currentCredits = getCredits(user.privateMetadata.credits);
+  await client.users.updateUserMetadata(userId, {
+    privateMetadata: { credits: currentCredits + 1 },
+  });
+}
+
 export function needsIllustratedBookReservation(project: BookProject) {
   return (
     project.billing?.product !== "illustrated_book" ||
@@ -30,7 +64,10 @@ export function needsIllustratedBookReservation(project: BookProject) {
   );
 }
 
-export async function reserveIllustratedBookCredits(project: BookProject, forceCharge = false) {
+export async function reserveIllustratedBookCredits(
+  project: BookProject,
+  forceCharge = false
+) {
   if (!forceCharge && !needsIllustratedBookReservation(project)) return project;
 
   const client = await clerkClient();

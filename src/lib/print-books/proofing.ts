@@ -158,13 +158,17 @@ export function runStorycotPrintProofing(
     project.assets.coverPdfSpineWidthIn
   ) {
     const expectedCoverWidth = Number(
-      (BOOK_PDF_PAGE_WIDTH_IN * 2 + project.assets.coverPdfSpineWidthIn).toFixed(3)
+      (
+        BOOK_PDF_PAGE_WIDTH_IN * 2 +
+        project.assets.coverPdfSpineWidthIn
+      ).toFixed(3)
     );
     const expectedCoverHeight = BOOK_PDF_PAGE_HEIGHT_IN;
     const widthMatches =
       Math.abs(project.assets.coverPdfPageWidthIn - expectedCoverWidth) < 0.001;
     const heightMatches =
-      Math.abs(project.assets.coverPdfPageHeightIn - expectedCoverHeight) < 0.001;
+      Math.abs(project.assets.coverPdfPageHeightIn - expectedCoverHeight) <
+      0.001;
     addCheck({
       key: "cover_geometry",
       label: "Cover PDF geometry",
@@ -180,8 +184,13 @@ export function runStorycotPrintProofing(
   const spreadsMissingImages = project.spreads
     .filter(
       (spread) =>
-        !spread.leftPageImageUrl &&
-        !spread.rightPageImageUrl &&
+        spread.sequence > 1 &&
+        spread.title !== "Title" &&
+        spread.title !== "Back Cover" &&
+        (!spread.leftPageImageUrl ||
+          !spread.rightPageImageUrl ||
+          Boolean(spread.leftPageImageError) ||
+          Boolean(spread.rightPageImageError)) &&
         !spread.imageUrl
     )
     .map((spread) => spread.sequence);

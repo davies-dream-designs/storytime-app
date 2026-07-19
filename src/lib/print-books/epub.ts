@@ -483,35 +483,11 @@ export async function buildBookEpub(input: {
     title: string;
     content: string;
   }> = [];
-  pages.push({
-    id: "cover-page",
-    href: "cover.xhtml",
-    title,
-    content: renderPageXhtml({
-      title,
-      heading: title,
-      imageHref: coverImageHref,
-      body: `A Storycot story for ${profile.name}.`,
-      variant: "cover",
-    }),
-  });
-
-  // The branded "The End" page handles all closing copy. Strip any page text
-  // that's just a bedtime sign-off so it doesn't appear twice.
-  function stripClosingText(text: string): string {
-    const t = text.trim().toLowerCase();
-    if (
-      t.startsWith("the end") ||
-      t.startsWith("sweet dreams") ||
-      t === "a storycot story"
-    )
-      return "";
-    return text;
-  }
+  let readingPageNumber = 1;
 
   for (const spread of project.spreads) {
-    // Skip print-only structural spreads — cover is rendered above, title and
-    // back cover are print concepts that don't belong in the EPUB flow.
+    // Skip print-only structural spreads. The cover image remains in EPUB
+    // metadata, but front/back matter should not become Kindle reading pages.
     if (
       spread.sequence === 1 ||
       spread.title === "Cover" ||
@@ -529,49 +505,37 @@ export async function buildBookEpub(input: {
       getImageSource(spread, "right")
     );
 
-    const leftBody = stripClosingText(spread.leftPageText);
-    const rightBody = stripClosingText(spread.rightPageText);
+    const leftBody = spread.leftPageText;
+    const rightBody = spread.rightPageText;
 
     if (leftBody || leftImageHref) {
       pages.push({
         id: `spread-${spread.sequence}-left`,
         href: `spread-${spread.sequence}-left.xhtml`,
-        title: `${title} - Page ${spread.pageStart}`,
+        title: `${title} - Page ${readingPageNumber}`,
         content: renderPageXhtml({
           title,
           imageHref: leftImageHref,
           body: leftBody,
-          pageLabel: `Page ${spread.pageStart}`,
         }),
       });
+      readingPageNumber += 1;
     }
 
     if (rightBody || rightImageHref) {
       pages.push({
         id: `spread-${spread.sequence}-right`,
         href: `spread-${spread.sequence}-right.xhtml`,
-        title: `${title} - Page ${spread.pageEnd}`,
+        title: `${title} - Page ${readingPageNumber}`,
         content: renderPageXhtml({
           title,
           imageHref: rightImageHref,
           body: rightBody,
-          pageLabel: `Page ${spread.pageEnd}`,
         }),
       });
+      readingPageNumber += 1;
     }
   }
-
-  pages.push({
-    id: "the-end",
-    href: "the-end.xhtml",
-    title: `${title} — The End`,
-    content: renderPageXhtml({
-      title,
-      heading: "The End",
-      body: `Sweet dreams, ${profile.name}.`,
-      variant: "closing",
-    }),
-  });
 
   for (const page of pages) {
     zip.file(`OEBPS/${page.href}`, page.content);

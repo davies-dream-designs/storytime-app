@@ -104,6 +104,9 @@ describe("generateCoverIllustration", () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.OPENAI_IMAGE_MODEL;
     delete process.env.BLOB_READ_WRITE_TOKEN;
+    delete process.env.IMAGE_PROVIDER;
+    delete process.env.FAL_KEY;
+    delete process.env.FLUX_MODEL;
     mockStoreBookAsset.mockResolvedValue("data:image/svg+xml;base64,cover");
   });
 
@@ -203,7 +206,7 @@ describe("generateCoverIllustration", () => {
     expect(requests[2]?.size).toBe("1024x1024");
   });
 
-  it("recovers a missing batch image with a placeholder instead of failing the build", async () => {
+  it("marks a missing batch image as failed without replacing other images", async () => {
     process.env.OPENAI_API_KEY = "test-key";
 
     vi.doMock("@/lib/print-books/storage", () => ({
@@ -215,8 +218,17 @@ describe("generateCoverIllustration", () => {
     vi.doMock("sharp", () => {
       const instance = {
         resize: vi.fn().mockReturnThis(),
+        removeAlpha: vi.fn().mockReturnThis(),
+        raw: vi.fn().mockReturnThis(),
         png: vi.fn().mockReturnThis(),
-        toBuffer: vi.fn().mockResolvedValue(Buffer.from("upscaled-png")),
+        toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
+          options?.resolveWithObject
+            ? Promise.resolve({
+                data: Buffer.from([128, 128, 128, 180, 180, 180]),
+                info: { channels: 3 },
+              })
+            : Promise.resolve(Buffer.from("upscaled-png"))
+        ),
       };
       const sharpFn = vi.fn(() => instance);
       const sharpMock = Object.assign(sharpFn, {
@@ -226,7 +238,7 @@ describe("generateCoverIllustration", () => {
     });
 
     // Regeneration of the missing image fails (simulating a persistent moderation
-    // block), so it should fall back to a placeholder rather than throw.
+    // block), so only that page should be marked failed.
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 400,
@@ -280,11 +292,15 @@ describe("generateCoverIllustration", () => {
       outputText,
     });
 
-    // Book completes; the recovered page marks the art mode as mixed.
     expect(result.provider).toBe("mixed");
     expect(result.coverImageUrl).toBe("https://example.com/image.png");
-    // All three images (cover, left, recovered right) are stored as PNG.
-    expect(mockStoreBookAsset).toHaveBeenCalledTimes(3);
+    expect(result.spreads.find((item) => item.id === spread.id)).toMatchObject({
+      leftPageImageUrl: "https://example.com/image.png",
+      rightPageImageUrl: undefined,
+      rightPageImageError: expect.stringContaining("moderation blocked"),
+    });
+    // Only the cover and successful left page are stored.
+    expect(mockStoreBookAsset).toHaveBeenCalledTimes(2);
     expect(mockStoreBookAsset).toHaveBeenCalledWith(
       expect.objectContaining({ contentType: "image/png" })
     );
@@ -338,6 +354,94 @@ describe("generateCoverIllustration", () => {
     );
   });
 
+  it("generates cover art via fal.ai FLUX when IMAGE_PROVIDER=flux", async () => {
+    process.env.IMAGE_PROVIDER = "flux";
+    process.env.FAL_KEY = "fal-test-key";
+
+    vi.doMock("@/lib/print-books/storage", () => ({
+      storeBookAsset: mockStoreBookAsset,
+      isBookAssetStorageConfigured: () => true,
+    }));
+
+    vi.doMock("sharp", () => {
+      const instance = {
+        resize: vi.fn().mockReturnThis(),
+        removeAlpha: vi.fn().mockReturnThis(),
+        raw: vi.fn().mockReturnThis(),
+        png: vi.fn().mockReturnThis(),
+        toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
+          options?.resolveWithObject
+            ? Promise.resolve({
+                data: Buffer.from([128, 128, 128, 180, 180, 180]),
+                info: { channels: 3 },
+              })
+            : Promise.resolve(Buffer.from("upscaled-png"))
+        ),
+      };
+      const sharpFn = vi.fn(() => instance);
+      const sharpMock = Object.assign(sharpFn, {
+        kernel: { lanczos3: "lanczos3" },
+      });
+      return { default: sharpMock };
+    });
+
+    const fetchMock = vi
+      .fn()
+      // 1) fal.ai generation request
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          images: [{ url: "https://fal.media/files/cover.png" }],
+        }),
+      })
+      // 2) download of the returned image URL
+      .mockResolvedValueOnce({
+        ok: true,
+        arrayBuffer: async () =>
+          new Uint8Array(Buffer.from("flux-png-bytes")).buffer,
+      });
+
+    vi.stubGlobal("fetch", fetchMock);
+    mockStoreBookAsset.mockResolvedValue("https://example.com/cover.png");
+
+    vi.resetModules();
+    const { generateCoverIllustration, getImageProvider } =
+      await import("@/lib/print-books/illustrations");
+
+    expect(getImageProvider()).toBe("flux");
+
+    const result = await generateCoverIllustration({
+      project: createProject(),
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+    });
+
+    expect(result.coverImageUrl).toBe("https://example.com/cover.png");
+
+    // Hit fal.ai's FLUX endpoint with the right auth and a disabled safety checker.
+    const generationCall = fetchMock.mock.calls[0];
+    expect(String(generationCall?.[0])).toContain("fal.run/fal-ai/flux/dev");
+    expect(generationCall?.[1]?.headers?.Authorization).toBe(
+      "Key fal-test-key"
+    );
+    const body = String(generationCall?.[1]?.body);
+    expect(body).toContain('"enable_safety_checker":false');
+    expect(body).toContain('"image_size":"square_hd"');
+    // Second call downloads the produced image.
+    expect(String(fetchMock.mock.calls[1]?.[0])).toBe(
+      "https://fal.media/files/cover.png"
+    );
+    // Stored as PNG for the print pipeline.
+    expect(mockStoreBookAsset).toHaveBeenCalledWith(
+      expect.objectContaining({ contentType: "image/png" })
+    );
+
+    vi.unstubAllGlobals();
+    vi.doUnmock("sharp");
+    vi.doUnmock("@/lib/print-books/storage");
+  });
+
   it("falls back from gpt-image-2 to gpt-image-1 when the newer model is unavailable", async () => {
     process.env.OPENAI_API_KEY = "test-key";
 
@@ -350,8 +454,17 @@ describe("generateCoverIllustration", () => {
     vi.doMock("sharp", () => {
       const instance = {
         resize: vi.fn().mockReturnThis(),
+        removeAlpha: vi.fn().mockReturnThis(),
+        raw: vi.fn().mockReturnThis(),
         png: vi.fn().mockReturnThis(),
-        toBuffer: vi.fn().mockResolvedValue(Buffer.from("upscaled-png")),
+        toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
+          options?.resolveWithObject
+            ? Promise.resolve({
+                data: Buffer.from([128, 128, 128, 180, 180, 180]),
+                info: { channels: 3 },
+              })
+            : Promise.resolve(Buffer.from("upscaled-png"))
+        ),
       };
       const sharpFn = vi.fn(() => instance);
       const sharpMock = Object.assign(sharpFn, {
@@ -402,6 +515,70 @@ describe("generateCoverIllustration", () => {
     expect(String(fetchMock.mock.calls[1]?.[1]?.body)).toContain(
       '"model":"gpt-image-1"'
     );
+
+    vi.unstubAllGlobals();
+    vi.doUnmock("sharp");
+    vi.doUnmock("@/lib/print-books/storage");
+  });
+
+  it("retries cover generation when the provider returns an almost black image", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    process.env.OPENAI_IMAGE_MODEL = "gpt-image-1";
+
+    vi.doMock("@/lib/print-books/storage", () => ({
+      storeBookAsset: mockStoreBookAsset,
+      isBookAssetStorageConfigured: () => true,
+    }));
+
+    const qualitySamples = [
+      Buffer.from([0, 0, 0, 1, 1, 1]),
+      Buffer.from([128, 128, 128, 180, 180, 180]),
+    ];
+    vi.doMock("sharp", () => {
+      const instance = {
+        resize: vi.fn().mockReturnThis(),
+        removeAlpha: vi.fn().mockReturnThis(),
+        raw: vi.fn().mockReturnThis(),
+        png: vi.fn().mockReturnThis(),
+        toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
+          options?.resolveWithObject
+            ? Promise.resolve({
+                data: qualitySamples.shift() ?? Buffer.from([180, 180, 180]),
+                info: { channels: 3 },
+              })
+            : Promise.resolve(Buffer.from("upscaled-png"))
+        ),
+      };
+      const sharpFn = vi.fn(() => instance);
+      const sharpMock = Object.assign(sharpFn, {
+        kernel: { lanczos3: "lanczos3" },
+      });
+      return { default: sharpMock };
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [{ b64_json: Buffer.from("png-bytes").toString("base64") }],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mockStoreBookAsset.mockResolvedValue("https://example.com/cover.png");
+
+    vi.resetModules();
+    const { generateCoverIllustration } =
+      await import("@/lib/print-books/illustrations");
+
+    const result = await generateCoverIllustration({
+      project: createProject(),
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+    });
+
+    expect(result.provider).toBe("openai");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(mockStoreBookAsset).toHaveBeenCalledTimes(1);
 
     vi.unstubAllGlobals();
     vi.doUnmock("sharp");

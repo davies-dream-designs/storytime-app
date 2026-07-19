@@ -14,8 +14,39 @@ import {
   storeBookAsset,
 } from "@/lib/print-books/storage";
 
+// ---------------------------------------------------------------------------
+// Provider selection
+// ---------------------------------------------------------------------------
+
+export type ImageProvider = "openai" | "flux" | "recraft";
+
+export function getImageProvider(): ImageProvider {
+  const val = process.env.IMAGE_PROVIDER?.trim().toLowerCase();
+  if (val === "flux") return "flux";
+  if (val === "recraft") return "recraft";
+  return "openai";
+}
+
+function isOpenAIConfigured(): boolean {
+  return Boolean(process.env.OPENAI_API_KEY);
+}
+
+function isFalConfigured(): boolean {
+  return Boolean(process.env.FAL_KEY);
+}
+
+// True when the selected provider has its credentials AND blob storage is ready.
 export function isGeneratedIllustrationConfigured(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY) && isBookAssetStorageConfigured();
+  if (!isBookAssetStorageConfigured()) return false;
+  const provider = getImageProvider();
+  if (provider === "openai") return isOpenAIConfigured();
+  return isFalConfigured(); // flux and recraft both use FAL_KEY
+}
+
+// Batch API path is disabled — all providers use the per-spread cursor path
+// so the progress grid works and builds complete in minutes rather than hours.
+export function shouldUseImageBatch(): boolean {
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -171,6 +202,10 @@ export function buildCoverIllustrationPrompt(input: {
   characterBible: CharacterBible;
   coverSpread?: BookSpread;
 }): string {
+  if (getImageProvider() === "recraft") {
+    return buildRecrartCoverPrompt(input);
+  }
+
   const { story, profile, characterBible, coverSpread } = input;
   const sceneDirection =
     coverSpread?.illustrationPrompt ??
@@ -344,6 +379,60 @@ class ModerationBlockedError extends Error {
   }
 }
 
+class UnusableGeneratedImageError extends Error {
+  constructor(reason: string) {
+    super(`Generated image failed quality check: ${reason}`);
+    this.name = "UnusableGeneratedImageError";
+  }
+}
+
+async function assertUsableGeneratedImage(input: Buffer): Promise<void> {
+  const { data, info } = await sharp(input)
+    .resize(32, 32, { fit: "inside" })
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  if (info.channels < 3 || data.length < 3) {
+    throw new UnusableGeneratedImageError("image has no RGB pixel data");
+  }
+
+  let luminanceTotal = 0;
+  let luminanceSquaredTotal = 0;
+  let darkPixels = 0;
+  let maxLuminance = 0;
+  let pixelCount = 0;
+
+  for (let index = 0; index + 2 < data.length; index += info.channels) {
+    const luminance =
+      0.2126 * data[index]! +
+      0.7152 * data[index + 1]! +
+      0.0722 * data[index + 2]!;
+    luminanceTotal += luminance;
+    luminanceSquaredTotal += luminance * luminance;
+    if (luminance < 8) darkPixels += 1;
+    if (luminance > maxLuminance) maxLuminance = luminance;
+    pixelCount += 1;
+  }
+
+  if (pixelCount === 0) {
+    throw new UnusableGeneratedImageError("image has no readable pixels");
+  }
+
+  const meanLuminance = luminanceTotal / pixelCount;
+  const variance = luminanceSquaredTotal / pixelCount - meanLuminance ** 2;
+  const stddev = Math.sqrt(Math.max(variance, 0));
+  const darkPixelRatio = darkPixels / pixelCount;
+
+  if (meanLuminance < 10 && darkPixelRatio > 0.98) {
+    throw new UnusableGeneratedImageError("image is almost entirely black");
+  }
+
+  if (meanLuminance < 18 && maxLuminance < 32 && stddev < 6) {
+    throw new UnusableGeneratedImageError("image is too dark and flat");
+  }
+}
+
 function parseRetryAfterMs(bodyText: string, headers: Headers): number {
   const retryHeader = headers.get("Retry-After");
   if (retryHeader) {
@@ -432,12 +521,169 @@ async function generateOpenAIImage(input: {
   throw new Error(lastErrorMessage);
 }
 
-// Generate and immediately upscale a single square image.
-async function generateAndUpscale(prompt: string): Promise<Buffer> {
-  const png = await generateOpenAIImage({
+// ---------------------------------------------------------------------------
+// FLUX image generation (fal.ai)
+// ---------------------------------------------------------------------------
+
+function getFluxModel(): string {
+  return process.env.FLUX_MODEL?.trim() || "fal-ai/flux/dev";
+}
+
+// Generate one square image via fal.ai's synchronous endpoint. fal returns a
+// hosted image URL which we then download to a Buffer. The NSFW safety checker
+// is disabled: this is an author-controlled tool producing wholesome children's
+// book art, and the checker throws frequent false positives on innocent scenes
+// (the exact problem that made OpenAI unusable here).
+async function generateFluxImage(prompt: string): Promise<Buffer> {
+  const apiKey = process.env.FAL_KEY;
+  if (!apiKey) {
+    throw new Error("FAL_KEY is not configured");
+  }
+
+  const model = getFluxModel();
+  // schnell caps at 12 steps (default 4); dev supports up to 50.
+  const num_inference_steps = model.includes("schnell") ? 4 : 28;
+  const MAX_RETRIES = 3;
+  let lastErrorMessage = "Unknown FLUX image generation error";
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
+    const response = await fetch(`https://fal.run/${model}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Key ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        prompt,
+        image_size: "square_hd", // 1024×1024
+        num_images: 1,
+        output_format: "png",
+        enable_safety_checker: false,
+        num_inference_steps,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      lastErrorMessage = `FLUX image generation failed for ${model}: ${response.status} ${errorBody.slice(0, 300)}`;
+
+      // Retry transient rate limits / gateway errors.
+      if (
+        (response.status === 429 || response.status >= 500) &&
+        attempt < MAX_RETRIES - 1
+      ) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, 4000 * (attempt + 1))
+        );
+        continue;
+      }
+      throw new Error(lastErrorMessage);
+    }
+
+    const payload = (await response.json()) as {
+      images?: Array<{ url?: string }>;
+    };
+    const imageUrl = payload.images?.[0]?.url;
+    if (!imageUrl) {
+      throw new Error(`FLUX returned no image for ${model}`);
+    }
+
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      throw new Error(
+        `FLUX image download failed: ${imageResponse.status} for ${imageUrl}`
+      );
+    }
+    return Buffer.from(await imageResponse.arrayBuffer());
+  }
+
+  throw new Error(lastErrorMessage);
+}
+
+// ---------------------------------------------------------------------------
+// Recraft image generation (fal.ai)
+// ---------------------------------------------------------------------------
+
+// Recraft v3 is purpose-built for illustration and design. Setting style to
+// "digital_illustration" locks in a storybook art aesthetic at the model level
+// so prompts don't need to describe the rendering style — they can focus purely
+// on scene content. Override via RECRAFT_STYLE env var if needed.
+async function generateRecrartImage(prompt: string): Promise<Buffer> {
+  const apiKey = process.env.FAL_KEY;
+  if (!apiKey) throw new Error("FAL_KEY is not configured");
+
+  const style = process.env.RECRAFT_STYLE?.trim() || "digital_illustration";
+  const MAX_RETRIES = 3;
+  let lastErrorMessage = "Unknown Recraft image generation error";
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
+    const response = await fetch("https://fal.run/fal-ai/recraft-v3", {
+      method: "POST",
+      headers: {
+        Authorization: `Key ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        prompt,
+        image_size: "square_hd",
+        style,
+        n: 1,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      lastErrorMessage = `Recraft image generation failed: ${response.status} ${errorBody.slice(0, 300)}`;
+
+      if (
+        (response.status === 429 || response.status >= 500) &&
+        attempt < MAX_RETRIES - 1
+      ) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, 4000 * (attempt + 1))
+        );
+        continue;
+      }
+      throw new Error(lastErrorMessage);
+    }
+
+    const payload = (await response.json()) as {
+      images?: Array<{ url?: string }>;
+    };
+    const imageUrl = payload.images?.[0]?.url;
+    if (!imageUrl) throw new Error("Recraft returned no image");
+
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      throw new Error(
+        `Recraft image download failed: ${imageResponse.status} for ${imageUrl}`
+      );
+    }
+    return Buffer.from(await imageResponse.arrayBuffer());
+  }
+
+  throw new Error(lastErrorMessage);
+}
+
+// ---------------------------------------------------------------------------
+// Provider dispatch
+// ---------------------------------------------------------------------------
+
+// Generate one square base image using the configured provider.
+async function generateBaseImage(prompt: string): Promise<Buffer> {
+  const provider = getImageProvider();
+  if (provider === "flux") return generateFluxImage(prompt);
+  if (provider === "recraft") return generateRecrartImage(prompt);
+  return generateOpenAIImage({
     prompt,
     size: BOOK_SPEC.coverIllustrationOpenAISize,
   });
+}
+
+// Generate and immediately upscale a single square image.
+async function generateAndUpscale(prompt: string): Promise<Buffer> {
+  const png = await generateBaseImage(prompt);
+  await assertUsableGeneratedImage(png);
   return upscaleImageBuffer(png);
 }
 
@@ -509,9 +755,7 @@ function assertOpenAIResponse(
   if (!response.ok) {
     const isHtml =
       bodyText.trimStart().startsWith("<") || bodyText.includes("<!DOCTYPE");
-    const detail = isHtml
-      ? `HTTP ${response.status}`
-      : bodyText.slice(0, 300);
+    const detail = isHtml ? `HTTP ${response.status}` : bodyText.slice(0, 300);
     throw new Error(`${action} failed: ${detail}`);
   }
 }
@@ -532,6 +776,90 @@ function requireOpenAIKey(): string {
 // Prompt builders
 // ---------------------------------------------------------------------------
 
+const RECRAFT_PROMPT_LIMIT = 950; // hard cap, Recraft rejects > 1000 chars
+
+function capPrompt(prompt: string): string {
+  return prompt.length > RECRAFT_PROMPT_LIMIT
+    ? prompt.slice(0, RECRAFT_PROMPT_LIMIT - 1).trimEnd()
+    : prompt;
+}
+
+// Recraft has a 1000-char prompt limit, so we build a compact version that
+// prioritises scene content. The illustration style is handled by the model's
+// `style` parameter, so we don't need to describe it in the prompt.
+function buildRecrartPagePrompt(input: {
+  profile: ChildProfile;
+  characterBible: CharacterBible;
+  spread: BookSpread;
+  side: "left" | "right";
+}): string {
+  const { profile, characterBible, spread, side } = input;
+
+  const compositionVariants = [
+    "wide establishing shot",
+    "medium shot at eye level",
+    "close-up on face and hands",
+    "low-angle view",
+    "bird's-eye view",
+    "three-quarter angle",
+    "over-the-shoulder view",
+    "silhouette against lit background",
+  ];
+  const compositionIdx =
+    (spread.sequence * 2 + (side === "right" ? 1 : 0)) %
+    compositionVariants.length;
+  const compositionHint = compositionVariants[compositionIdx];
+
+  // First sentence of each bible field keeps the character readable but short.
+  const appearance =
+    characterBible.childAppearance.split(".")[0]?.trim() ??
+    characterBible.childAppearance;
+  const outfit =
+    characterBible.outfitRules.split(".")[0]?.trim() ??
+    characterBible.outfitRules;
+  const companions = characterBible.companionCharacters.slice(0, 2).join(", ");
+
+  const parts = [
+    spread.illustrationPrompt,
+    spread.sceneBrief,
+    `${profile.name}: ${appearance.slice(0, 100)}.`,
+    `Outfit: ${outfit.slice(0, 80)}.`,
+    companions ? `With: ${companions}.` : "",
+    `Palette: ${characterBible.palette.slice(0, 60)}.`,
+    `Composition: ${compositionHint}.`,
+    "Warm children's picture book. No text in image.",
+  ];
+
+  return capPrompt(parts.filter(Boolean).join(" "));
+}
+
+function buildRecrartCoverPrompt(input: {
+  story: Story;
+  profile: ChildProfile;
+  characterBible: CharacterBible;
+  coverSpread?: BookSpread;
+}): string {
+  const { story, profile, characterBible, coverSpread } = input;
+
+  const sceneDirection =
+    coverSpread?.illustrationPrompt ??
+    `Front cover for "${story.title}" starring ${profile.name}.`;
+  const appearance =
+    characterBible.childAppearance.split(".")[0]?.trim() ??
+    characterBible.childAppearance;
+  const companions = characterBible.companionCharacters.slice(0, 2).join(", ");
+
+  const parts = [
+    sceneDirection,
+    `${profile.name}: ${appearance.slice(0, 100)}.`,
+    companions ? `With: ${companions}.` : "",
+    `Palette: ${characterBible.palette.slice(0, 60)}.`,
+    `Book: "${story.title}". Children's picture book front cover. Warm bedtime feeling. No text in image.`,
+  ];
+
+  return capPrompt(parts.filter(Boolean).join(" "));
+}
+
 function buildPageIllustrationPrompt(input: {
   project: BookProject;
   story: Story;
@@ -541,6 +869,10 @@ function buildPageIllustrationPrompt(input: {
   side: "left" | "right";
   omitPageText?: boolean;
 }): string {
+  if (getImageProvider() === "recraft") {
+    return buildRecrartPagePrompt(input);
+  }
+
   const {
     project,
     story,
@@ -568,16 +900,20 @@ function buildPageIllustrationPrompt(input: {
   const compositionHint = compositionVariants[compositionIdx];
 
   return [
+    // Scene-specific content leads so FLUX weights the narrative moment first.
+    `Illustration direction: ${spread.illustrationPrompt}.`,
+    `Scene brief: ${spread.sceneBrief}.`,
+    ...(omitPageText ? [] : pageText ? [`Page moment: ${pageText}.`] : []),
+    `Composition: ${compositionHint}.`,
+    // Character consistency follows as a constraint block.
     buildIllustrationDirection(characterBible),
+    // Metadata.
     `Book title: ${story.title}.`,
     `Main child: ${profile.name}.`,
     `Age band: ${project.ageBand}.`,
     `Spread sequence: ${spread.sequence}, ${side} page.`,
-    `Scene brief: ${spread.sceneBrief}.`,
-    `Illustration direction: ${spread.illustrationPrompt}.`,
-    ...(omitPageText ? [] : [`Page text: ${pageText || "None"}.`]),
-    `Composition: ${compositionHint}.`,
-    "Create one warm square children's book page illustration. The scene, composition, camera angle, character pose, and action must be unique to this spread — actively vary these from other pages in the book. Keep only the child's face shape, hair colour, skin tone, and core outfit exactly consistent with the character bible. No visible text, lettering, captions, or page numbers inside the art.",
+    // Variation is the critical instruction — stated explicitly.
+    "Illustrate this specific story moment. The depicted scene, character action, setting detail, and emotional tone must match the illustration direction above. This image must look meaningfully different from every other page in the book. Keep only the child's face shape, hair colour, skin tone, and core outfit exactly consistent. No text, lettering, or page numbers inside the art.",
   ].join(" ");
 }
 
@@ -813,12 +1149,6 @@ function parseOpenAIImageBatchOutput(outputText: string): Map<string, Buffer> {
   return images;
 }
 
-// Rasterise a placeholder SVG to a print-sized PNG. Used as the last-resort
-// fallback so a single moderation-blocked image can never sink the whole book.
-async function renderPlaceholderPng(svg: string): Promise<Buffer> {
-  return upscaleImageBuffer(Buffer.from(svg));
-}
-
 export async function applyBookImageBatchOutput(input: {
   project: BookProject;
   story: Story;
@@ -836,52 +1166,32 @@ export async function applyBookImageBatchOutput(input: {
     input.project.spreads.map((spread) => [spread.id, spread] as const)
   );
 
-  // The batch API silently drops individual images that hit moderation or a
-  // transient error. Rather than fail the entire 19-image build (and refund),
-  // recover each missing image on its own: regenerate synchronously, and only
-  // if that is persistently blocked fall back to a rasterised placeholder so
-  // the book still completes. Track recoveries to report art mode honestly.
-  let recoveredCount = 0;
-
-  const placeholderPngFor = async (
-    request: OpenAIImageBatchRequest
-  ): Promise<Buffer> => {
-    if (request.customId === "cover") {
-      return renderPlaceholderPng(createPlaceholderCoverSvg(input));
-    }
-    const match = request.customId.match(/^spread:(.+):(left|right)$/);
-    const spread = match ? spreadById.get(match[1]!) : undefined;
-    if (spread && match) {
-      return renderPlaceholderPng(
-        createPlaceholderPageSvg({
-          story: input.story,
-          profile: input.profile,
-          characterBible: input.characterBible,
-          spread,
-          side: match[2] as "left" | "right",
-        })
-      );
-    }
-    return renderPlaceholderPng(createPlaceholderCoverSvg(input));
-  };
+  // The batch API can silently drop individual images that hit moderation or a
+  // transient error. Recover each missing image on its own; if that one image
+  // is still blocked, mark only that page as failed so it can be retried.
+  let failedCount = 0;
 
   const resolveImageBuffer = async (
     request: OpenAIImageBatchRequest
   ): Promise<Buffer> => {
     const generated = images.get(request.customId);
-    if (generated) return upscaleImageBuffer(generated);
+    if (generated) {
+      try {
+        await assertUsableGeneratedImage(generated);
+        return upscaleImageBuffer(generated);
+      } catch (err) {
+        if (!(err instanceof UnusableGeneratedImageError)) throw err;
+        console.warn(
+          `Batch image ${request.customId} failed quality checks (${err.message}) — regenerating it.`
+        );
+      }
+    }
 
     // Missing from the batch — try one synchronous regeneration.
     try {
       return await generateAndUpscale(request.prompt);
     } catch (err) {
-      console.warn(
-        `Batch image ${request.customId} unrecoverable (${
-          err instanceof Error ? err.message : "unknown error"
-        }) — using placeholder so the book can complete.`
-      );
-      recoveredCount += 1;
-      return placeholderPngFor(request);
+      throw err;
     }
   };
 
@@ -892,6 +1202,18 @@ export async function applyBookImageBatchOutput(input: {
       body: buffer,
       contentType: "image/png",
     });
+  };
+
+  const storePageResolved = async (request: OpenAIImageBatchRequest) => {
+    try {
+      return { url: await storeResolved(request), error: undefined };
+    } catch (err) {
+      failedCount += 1;
+      return {
+        url: undefined,
+        error: getImageFailureMessage(err),
+      };
+    }
   };
 
   const coverRequest = requests.find((request) => request.customId === "cover");
@@ -913,21 +1235,23 @@ export async function applyBookImageBatchOutput(input: {
     );
     if (!leftRequest || !rightRequest) continue;
 
-    const leftUrl = await storeResolved(leftRequest);
-    const rightUrl = await storeResolved(rightRequest);
+    const left = await storePageResolved(leftRequest);
+    const right = await storePageResolved(rightRequest);
 
     spreads = replaceSpreadImage(spreads, {
       ...spread,
-      leftPageImageUrl: leftUrl,
-      rightPageImageUrl: rightUrl,
-      thumbnailUrl: leftUrl,
+      leftPageImageUrl: left.url,
+      rightPageImageUrl: right.url,
+      leftPageImageError: left.error,
+      rightPageImageError: right.error,
+      thumbnailUrl: left.url ?? spread.thumbnailUrl,
     });
   }
 
   return {
     coverImageUrl,
     spreads,
-    provider: recoveredCount > 0 ? "mixed" : "openai",
+    provider: failedCount > 0 ? "mixed" : "openai",
   };
 }
 
@@ -949,18 +1273,30 @@ export async function generateCoverIllustration(input: {
   const prompt = buildCoverIllustrationPrompt({ ...input, coverSpread });
 
   if (isGeneratedIllustrationConfigured()) {
-    const upscaled = await generateAndUpscale(prompt);
-    const coverImageUrl = await storeBookAsset({
-      pathname: `books/${input.project.id}/cover.png`,
-      body: upscaled,
-      contentType: "image/png",
-    });
+    try {
+      let upscaled: Buffer;
+      try {
+        upscaled = await generateAndUpscale(prompt);
+      } catch (err) {
+        if (!(err instanceof UnusableGeneratedImageError)) throw err;
+        console.warn(`${err.message} — retrying cover generation once.`);
+        upscaled = await generateAndUpscale(prompt);
+      }
 
-    return {
-      coverImageUrl,
-      spreads: replaceCoverSpreadImage(input.project.spreads, coverImageUrl),
-      provider: "openai",
-    };
+      const coverImageUrl = await storeBookAsset({
+        pathname: `books/${input.project.id}/cover.png`,
+        body: upscaled,
+        contentType: "image/png",
+      });
+
+      return {
+        coverImageUrl,
+        spreads: replaceCoverSpreadImage(input.project.spreads, coverImageUrl),
+        provider: "openai",
+      };
+    } catch (err) {
+      throw err;
+    }
   }
 
   const svg = createPlaceholderCoverSvg(input);
@@ -977,6 +1313,90 @@ export async function generateCoverIllustration(input: {
   };
 }
 
+export async function generateSpreadPageIllustration(input: {
+  project: BookProject;
+  story: Story;
+  profile: ChildProfile;
+  characterBible: CharacterBible;
+  spread: BookSpread;
+  side: "left" | "right";
+}): Promise<{ url: string; provider: "openai" | "placeholder" }> {
+  const { project, spread, side } = input;
+  const suffix = side === "left" ? "-left" : "-right";
+  const base = `books/${project.id}/spreads/${spread.sequence}`;
+
+  const storePlaceholderPage = async () => {
+    const svg = createPlaceholderPageSvg(input);
+    return storeBookAsset({
+      pathname: `${base}${suffix}.svg`,
+      body: svg,
+      contentType: "image/svg+xml",
+    });
+  };
+
+  if (!isGeneratedIllustrationConfigured()) {
+    return { url: await storePlaceholderPage(), provider: "placeholder" };
+  }
+
+  const prompt = buildPageIllustrationPrompt(input);
+
+  try {
+    let upscaled: Buffer;
+    try {
+      upscaled = await generateAndUpscale(prompt);
+    } catch (err) {
+      if (!(err instanceof UnusableGeneratedImageError)) throw err;
+      console.warn(
+        `${err.message} — retrying spread ${spread.sequence} ${side} page once.`
+      );
+      upscaled = await generateAndUpscale(prompt);
+    }
+    const url = await storeBookAsset({
+      pathname: generatedImagePathname(base, suffix),
+      body: upscaled,
+      contentType: "image/png",
+    });
+    return { url, provider: "openai" };
+  } catch (err) {
+    if (
+      !(err instanceof ModerationBlockedError) &&
+      !(err instanceof UnusableGeneratedImageError)
+    ) {
+      throw err;
+    }
+    // Retry without page text — the text is the most common moderation trigger.
+    const fallbackPrompt = buildPageIllustrationPrompt({
+      ...input,
+      omitPageText: true,
+    });
+    try {
+      const upscaled = await generateAndUpscale(fallbackPrompt);
+      const url = await storeBookAsset({
+        pathname: generatedImagePathname(base, suffix),
+        body: upscaled,
+        contentType: "image/png",
+      });
+      return { url, provider: "openai" };
+    } catch (fallbackErr) {
+      if (
+        !(fallbackErr instanceof ModerationBlockedError) &&
+        !(fallbackErr instanceof UnusableGeneratedImageError)
+      ) {
+        throw fallbackErr;
+      }
+      throw fallbackErr;
+    }
+  }
+}
+
+function getImageFailureMessage(err: unknown) {
+  return err instanceof Error ? err.message : "Image generation failed.";
+}
+
+function generatedImagePathname(base: string, suffix: string) {
+  return `${base}${suffix}-${Date.now()}.png`;
+}
+
 export async function generateSpreadIllustration(input: {
   project: BookProject;
   story: Story;
@@ -984,81 +1404,42 @@ export async function generateSpreadIllustration(input: {
   characterBible: CharacterBible;
   spread: BookSpread;
 }): Promise<{ spread: BookSpread; provider: "openai" | "placeholder" }> {
-  const { project, spread } = input;
-  const base = `books/${project.id}/spreads/${spread.sequence}`;
+  const { spread } = input;
+  // Generate left and right page images sequentially to stay within rate limits.
+  const nextSpread: BookSpread = { ...spread };
+  const providers: Array<"openai" | "placeholder"> = [];
 
-  if (isGeneratedIllustrationConfigured()) {
-    // Generate left and right page images sequentially to stay within rate limits.
-    const generatePage = async (
-      side: "left" | "right"
-    ): Promise<string> => {
-      const suffix = side === "left" ? "-left" : "-right";
-      const prompt = buildPageIllustrationPrompt({ ...input, side });
-
-      try {
-        const upscaled = await generateAndUpscale(prompt);
-        return storeBookAsset({
-          pathname: `${base}${suffix}.png`,
-          body: upscaled,
-          contentType: "image/png",
-        });
-      } catch (err) {
-        if (!(err instanceof ModerationBlockedError)) throw err;
-        // Retry without page text — the text is the most common moderation trigger.
-        const fallbackPrompt = buildPageIllustrationPrompt({
-          ...input,
-          side,
-          omitPageText: true,
-        });
-        const upscaled = await generateAndUpscale(fallbackPrompt);
-        return storeBookAsset({
-          pathname: `${base}${suffix}.png`,
-          body: upscaled,
-          contentType: "image/png",
-        });
-      }
-    };
-
-    const leftUrl = await generatePage("left");
-    const rightUrl = await generatePage("right");
-
-    return {
-      spread: {
-        ...spread,
-        leftPageImageUrl: leftUrl,
-        rightPageImageUrl: rightUrl,
-        thumbnailUrl: leftUrl,
-      },
-      provider: "openai",
-    };
+  try {
+    const left = await generateSpreadPageIllustration({
+      ...input,
+      side: "left",
+    });
+    nextSpread.leftPageImageUrl = left.url;
+    nextSpread.thumbnailUrl = left.url;
+    nextSpread.leftPageImageError = undefined;
+    providers.push(left.provider);
+  } catch (err) {
+    nextSpread.leftPageImageError = getImageFailureMessage(err);
   }
 
-  // Placeholder path: generate distinct left and right SVGs per page.
-  const [leftSvg, rightSvg] = [
-    createPlaceholderPageSvg({ ...input, side: "left" }),
-    createPlaceholderPageSvg({ ...input, side: "right" }),
-  ];
-
-  const [leftPageImageUrl, rightPageImageUrl] = await Promise.all([
-    storeBookAsset({
-      pathname: `${base}-left.svg`,
-      body: leftSvg,
-      contentType: "image/svg+xml",
-    }),
-    storeBookAsset({
-      pathname: `${base}-right.svg`,
-      body: rightSvg,
-      contentType: "image/svg+xml",
-    }),
-  ]);
+  try {
+    const right = await generateSpreadPageIllustration({
+      ...input,
+      side: "right",
+    });
+    nextSpread.rightPageImageUrl = right.url;
+    nextSpread.rightPageImageError = undefined;
+    providers.push(right.provider);
+  } catch (err) {
+    nextSpread.rightPageImageError = getImageFailureMessage(err);
+  }
 
   return {
-    spread: {
-      ...spread,
-      leftPageImageUrl,
-      rightPageImageUrl,
-      thumbnailUrl: leftPageImageUrl,
-    },
-    provider: "placeholder",
+    spread: nextSpread,
+    provider:
+      providers.length === 2 &&
+      providers.every((provider) => provider === "openai")
+        ? "openai"
+        : "placeholder",
   };
 }

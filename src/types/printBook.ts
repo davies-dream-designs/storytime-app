@@ -99,6 +99,8 @@ export interface BookSpread {
   imageUrl?: string;
   leftPageImageUrl?: string;
   rightPageImageUrl?: string;
+  leftPageImageError?: string;
+  rightPageImageError?: string;
   thumbnailUrl?: string;
 }
 
@@ -182,11 +184,7 @@ export interface PrintShippingAddress {
 
 export interface PrintFulfillment {
   provider: "prodigi" | "peecho";
-  status:
-    | "not_configured"
-    | "ready_for_manual_review"
-    | "submitted"
-    | "failed";
+  status: "not_configured" | "ready_for_manual_review" | "submitted" | "failed";
   preparedAt?: string;
   submittedAt?: string;
   externalOrderId?: string;

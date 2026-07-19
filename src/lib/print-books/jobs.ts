@@ -10,9 +10,11 @@ import {
   applyBookImageBatchOutput,
   downloadBookImageBatchOutput,
   generateCoverIllustration,
+  generateSpreadPageIllustration,
   generateSpreadIllustration,
   isGeneratedIllustrationConfigured,
   retrieveBookImageBatch,
+  shouldUseImageBatch,
   submitBookImageBatch,
 } from "@/lib/print-books/illustrations";
 import { generateBookPdfs } from "@/lib/print-books/pdf";
@@ -33,6 +35,7 @@ import type {
   BookBuildMode,
   BookProject,
   BookProjectStatus,
+  BookSpread,
   CharacterBible,
 } from "@/types/printBook";
 
@@ -65,6 +68,25 @@ function getProjectArtMode(input: {
   return "mixed";
 }
 
+function isGeneratedPageSpread(spread: BookSpread) {
+  return (
+    spread.sequence > 1 &&
+    spread.title !== "Title" &&
+    spread.title !== "Back Cover"
+  );
+}
+
+function hasUnresolvedGeneratedPageImages(spreads: BookSpread[]) {
+  return spreads.some(
+    (spread) =>
+      isGeneratedPageSpread(spread) &&
+      (!spread.leftPageImageUrl ||
+        !spread.rightPageImageUrl ||
+        Boolean(spread.leftPageImageError) ||
+        Boolean(spread.rightPageImageError))
+  );
+}
+
 export function isBookBuildJobStale(job: BookBuildJob, now = Date.now()) {
   if (isTerminalJobStatus(job.status)) return false;
   const updatedAt = Date.parse(job.updatedAt);
@@ -86,9 +108,12 @@ function getQueuedStageLabel(mode: BookBuildMode, project: BookProject) {
 }
 
 function userMessageForErrorCode(errorCode: string): string {
-  if (errorCode.startsWith("planning")) return "We hit a snag planning the book. Hit retry — it usually clears up.";
-  if (errorCode.startsWith("bible")) return "The character setup didn't finish. Retry to pick up where it left off.";
-  if (errorCode.startsWith("illustrating")) return "Illustrations didn't finish generating. Retry and we'll pick up from where it stopped.";
+  if (errorCode.startsWith("planning"))
+    return "We hit a snag planning the book. Hit retry — it usually clears up.";
+  if (errorCode.startsWith("bible"))
+    return "The character setup didn't finish. Retry to pick up where it left off.";
+  if (errorCode.startsWith("illustrating"))
+    return "Illustrations didn't finish generating. Retry and we'll pick up from where it stopped.";
   return "The illustrated book didn't finish. Your credits have been refunded. Hit retry to try again.";
 }
 
@@ -160,7 +185,9 @@ async function regenerateProjectArt(input: {
   const totalArtSteps = input.project.spreads.length;
   const currentCursor = input.project.assets.artGenerationCursor ?? 0;
 
-  if (isGeneratedIllustrationConfigured()) {
+  // OpenAI uses the durable Batch API path. FLUX (and the placeholder fallback)
+  // fall through to the per-spread cursor path below, one spread per step.
+  if (shouldUseImageBatch()) {
     const existingBatch = input.project.assets.openAIImageBatch;
 
     if (!existingBatch) {
@@ -301,6 +328,25 @@ async function regenerateProjectArt(input: {
     });
   }
 
+  // Title uses a branded PDF design; Back Cover falls back to a plain panel
+  // when no image is present. Neither needs a generated illustration.
+  if (spread.title === "Title" || spread.title === "Back Cover") {
+    return db.bookProjects.update(input.id, {
+      status: "illustrating",
+      currentStageLabel: `Generating final art ${currentCursor + 1} of ${totalArtSteps}...`,
+      characterBible: input.characterBible,
+      spreads: input.project.spreads,
+      completedSpreads: currentCursor + 1,
+      totalSpreads: totalArtSteps,
+      assets: {
+        ...input.project.assets,
+        lastBuildMode: input.buildMode,
+        artGenerationCursor: currentCursor + 1,
+        artGenerationTotal: totalArtSteps,
+      },
+    });
+  }
+
   const illustrated = await generateSpreadIllustration({
     project: input.project,
     story: input.story,
@@ -329,6 +375,34 @@ async function regenerateProjectArt(input: {
     }) as Array<"openai" | "placeholder">;
 
   if (nextCursor >= totalArtSteps) {
+    if (hasUnresolvedGeneratedPageImages(illustratedSpreads)) {
+      return db.bookProjects.update(input.id, {
+        status: "failed",
+        currentStageLabel: "One or more images need to be retried.",
+        errorCode: "illustrating:image_failed",
+        errorMessage:
+          "One or more images failed to generate. Retry only the failed image from the spread review.",
+        beats: input.project.beats,
+        characterBible: input.characterBible,
+        spreads: illustratedSpreads,
+        completedSpreads: totalArtSteps,
+        totalSpreads: totalArtSteps,
+        assets: {
+          ...input.project.assets,
+          artMode: getProjectArtMode({
+            coverProvider: input.project.assets.coverImageUrl?.endsWith(".png")
+              ? "openai"
+              : "placeholder",
+            spreadProviders,
+            existingArtMode: input.project.assets.artMode,
+          }),
+          lastBuildMode: input.buildMode,
+          artGenerationCursor: undefined,
+          artGenerationTotal: totalArtSteps,
+        },
+      });
+    }
+
     return db.bookProjects.update(input.id, {
       status: "composing",
       currentStageLabel: getBookProjectStageLabel("composing"),
@@ -591,12 +665,145 @@ async function advanceExportBuild(
     throw new Error("This book does not have a complete draft to refresh yet.");
   }
 
+  if (hasUnresolvedGeneratedPageImages(project.spreads)) {
+    throw new Error(
+      "One or more images failed to generate. Retry only the failed image from the spread review."
+    );
+  }
+
   return finalizeProjectExports({
     id: project.id,
     project,
     story: context.story,
     profile: context.profile,
     buildMode: mode,
+  });
+}
+
+export async function regenerateBookSpreadPageImage(input: {
+  projectId: string;
+  userId: string;
+  spreadId: string;
+  side: "left" | "right";
+}) {
+  const project = await db.bookProjects.getById(input.projectId);
+  if (!project || project.userId !== input.userId) {
+    throw new Error("Book project not found");
+  }
+
+  if (project.assets.activeJobStatus) {
+    throw new Error("A build is already running for this book.");
+  }
+
+  if (!project.characterBible || !project.spreads.length) {
+    throw new Error("This book does not have a complete draft to edit yet.");
+  }
+
+  if (!isGeneratedIllustrationConfigured()) {
+    throw new Error(
+      "Final art generation needs provider credentials plus blob storage before it can run."
+    );
+  }
+
+  const spread = project.spreads.find((item) => item.id === input.spreadId);
+  if (
+    !spread ||
+    spread.title === "Cover" ||
+    spread.title === "Title" ||
+    spread.title === "Back Cover"
+  ) {
+    throw new Error("Spread image not found.");
+  }
+
+  const context = await loadBuildContext(project);
+  let generated: Awaited<ReturnType<typeof generateSpreadPageIllustration>>;
+  try {
+    generated = await generateSpreadPageIllustration({
+      project,
+      story: context.story,
+      profile: context.profile,
+      characterBible: project.characterBible,
+      spread,
+      side: input.side,
+    });
+  } catch (err) {
+    const failedSpread: BookSpread = {
+      ...spread,
+      leftPageImageError:
+        input.side === "left"
+          ? err instanceof Error
+            ? err.message
+            : "Image generation failed."
+          : spread.leftPageImageError,
+      rightPageImageError:
+        input.side === "right"
+          ? err instanceof Error
+            ? err.message
+            : "Image generation failed."
+          : spread.rightPageImageError,
+    };
+    await db.bookProjects.update(project.id, {
+      status: "failed",
+      currentStageLabel: "One or more images need to be retried.",
+      errorCode: "illustrating:image_failed",
+      errorMessage:
+        "One or more images failed to generate. Retry only the failed image from the spread review.",
+      spreads: applySpreadIllustration(project.spreads, failedSpread),
+    });
+    throw err;
+  }
+
+  const nextSpread: BookSpread = {
+    ...spread,
+    leftPageImageUrl:
+      input.side === "left" ? generated.url : spread.leftPageImageUrl,
+    rightPageImageUrl:
+      input.side === "right" ? generated.url : spread.rightPageImageUrl,
+    leftPageImageError:
+      input.side === "left" ? undefined : spread.leftPageImageError,
+    rightPageImageError:
+      input.side === "right" ? undefined : spread.rightPageImageError,
+    thumbnailUrl:
+      input.side === "left"
+        ? generated.url
+        : (spread.thumbnailUrl ?? spread.leftPageImageUrl ?? generated.url),
+  };
+
+  const nextSpreads = applySpreadIllustration(project.spreads, nextSpread);
+  const updatedProject = await db.bookProjects.update(project.id, {
+    status: "composing",
+    currentStageLabel: "Refreshing exports with the regenerated image...",
+    spreads: nextSpreads,
+    assets: {
+      ...project.assets,
+      artMode:
+        generated.provider === "placeholder"
+          ? "mixed"
+          : (project.assets.artMode ?? "generated"),
+      lastBuildMode: "exports",
+    },
+  });
+
+  if (!updatedProject) throw new Error("Book project not found");
+
+  if (hasUnresolvedGeneratedPageImages(updatedProject.spreads)) {
+    const failedProject = await db.bookProjects.update(project.id, {
+      status: "failed",
+      currentStageLabel: "One or more images need to be retried.",
+      errorCode: "illustrating:image_failed",
+      errorMessage:
+        "One or more images failed to generate. Retry only the failed image from the spread review.",
+    });
+    if (!failedProject) throw new Error("Book project not found");
+    return failedProject;
+  }
+
+  return finalizeProjectExports({
+    id: project.id,
+    project: updatedProject,
+    story: context.story,
+    profile: context.profile,
+    buildMode: "exports",
   });
 }
 
@@ -672,9 +879,11 @@ export async function enqueueBookBuildJob(input: {
   }
 
   const billableProject =
-    input.mode === "full" || input.mode === "art"
+    input.mode === "full"
       ? await reserveIllustratedBookCredits(input.project)
-      : input.project;
+      : input.mode === "art"
+        ? await reserveIllustratedBookCredits(input.project, true)
+        : input.project;
 
   const createdAt = getNowIso();
   const job: BookBuildJob = {
@@ -845,7 +1054,10 @@ export async function processBookBuildJob(jobId: string) {
             (e) => e.id === user.primaryEmailAddressId
           )?.emailAddress;
           const firstName = user.firstName ?? context.profile.name ?? "there";
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://storycot.com";
+          const appUrl =
+            runningJob.baseUrl ??
+            process.env.NEXT_PUBLIC_APP_URL ??
+            "https://storycot.com";
           if (email) {
             await sendBookReadyEmail({
               toEmail: email,

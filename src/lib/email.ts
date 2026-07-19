@@ -1,17 +1,9 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-function getTransporter() {
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
-
-  if (!user || !pass) return null;
-
-  return nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: { user, pass },
-  });
+function getClient(): Resend | null {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return null;
+  return new Resend(apiKey);
 }
 
 export async function sendBookReadyEmail(input: {
@@ -21,12 +13,11 @@ export async function sendBookReadyEmail(input: {
   bookId: string;
   appUrl: string;
 }): Promise<void> {
-  const transporter = getTransporter();
-  if (!transporter) return; // silently skip if not configured
+  const client = getClient();
+  if (!client) return;
 
   const { toEmail, toName, storyTitle, bookId, appUrl } = input;
   const bookUrl = `${appUrl}/books/${bookId}`;
-  const from = process.env.GMAIL_USER ?? "";
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -97,8 +88,8 @@ export async function sendBookReadyEmail(input: {
 
   const text = `Hi ${toName}, your illustrated storybook "${storyTitle}" is ready!\n\nView it here: ${bookUrl}\n\n— The Storycot Team`;
 
-  await transporter.sendMail({
-    from: `"Storycot" <${from}>`,
+  await client.emails.send({
+    from: "Storycot <noreply@storycot.com>",
     to: toEmail,
     subject: `✨ Your book is ready — ${storyTitle}`,
     html,

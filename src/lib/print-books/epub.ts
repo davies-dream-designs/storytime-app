@@ -440,8 +440,27 @@ export async function buildBookEpub(input: {
     }),
   });
 
+  // The branded "The End" page handles all closing copy. Strip any page text
+  // that's just a bedtime sign-off so it doesn't appear twice.
+  function stripClosingText(text: string): string {
+    const t = text.trim().toLowerCase();
+    if (
+      t.startsWith("the end") ||
+      t.startsWith("sweet dreams") ||
+      t === "a storycot story"
+    ) return "";
+    return text;
+  }
+
   for (const spread of project.spreads) {
-    if (spread.sequence === 1 || spread.title === "Cover") continue;
+    // Skip print-only structural spreads — cover is rendered above, title and
+    // back cover are print concepts that don't belong in the EPUB flow.
+    if (
+      spread.sequence === 1 ||
+      spread.title === "Cover" ||
+      spread.title === "Title" ||
+      spread.title === "Back Cover"
+    ) continue;
 
     const leftImageHref = await addImage(
       `img-spread-${spread.sequence}-left`,
@@ -452,7 +471,10 @@ export async function buildBookEpub(input: {
       getImageSource(spread, "right")
     );
 
-    if (spread.leftPageText || leftImageHref) {
+    const leftBody = stripClosingText(spread.leftPageText);
+    const rightBody = stripClosingText(spread.rightPageText);
+
+    if (leftBody || leftImageHref) {
       pages.push({
         id: `spread-${spread.sequence}-left`,
         href: `spread-${spread.sequence}-left.xhtml`,
@@ -461,13 +483,13 @@ export async function buildBookEpub(input: {
           title,
           heading: spread.title || title,
           imageHref: leftImageHref,
-          body: spread.leftPageText,
+          body: leftBody,
           pageLabel: `Page ${spread.pageStart}`,
         }),
       });
     }
 
-    if (spread.rightPageText || rightImageHref) {
+    if (rightBody || rightImageHref) {
       pages.push({
         id: `spread-${spread.sequence}-right`,
         href: `spread-${spread.sequence}-right.xhtml`,
@@ -476,7 +498,7 @@ export async function buildBookEpub(input: {
           title,
           heading: spread.title || title,
           imageHref: rightImageHref,
-          body: spread.rightPageText,
+          body: rightBody,
           pageLabel: `Page ${spread.pageEnd}`,
         }),
       });
@@ -487,7 +509,12 @@ export async function buildBookEpub(input: {
     id: "the-end",
     href: "the-end.xhtml",
     title: `${title} — The End`,
-    content: renderPageXhtml({ title, heading: "The End", body: "", variant: "closing" }),
+    content: renderPageXhtml({
+      title,
+      heading: "The End",
+      body: `Sweet dreams, ${profile.name}.`,
+      variant: "closing",
+    }),
   });
 
   for (const page of pages) {

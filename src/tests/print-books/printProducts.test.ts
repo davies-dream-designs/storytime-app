@@ -13,10 +13,10 @@ describe("print product policy", () => {
     expect(getStorycotPageCountForAgeBand("6-8")).toBe(32);
   });
 
-  it("pads only the physical product that needs more pages", () => {
+  it("pads only odd page counts to the product page step", () => {
     expect(getAdjustedPageCountForProduct(20, "softcover")).toBe(20);
-    expect(getAdjustedPageCountForProduct(20, "hardcover")).toBe(24);
-    expect(getAdjustedPageCountForProduct(20, "layflat")).toBe(20);
+    expect(getAdjustedPageCountForProduct(21, "softcover")).toBe(22);
+    expect(getAdjustedPageCountForProduct(20, "hardcover")).toBe(20);
   });
 
   it("prices print separately from already-paid illustrations", () => {
@@ -27,5 +27,22 @@ describe("print product policy", () => {
       44.95
     );
     expect(getPrintProductQuotes({ pageCount: 32 })).toHaveLength(3);
+  });
+
+  it("marks formats unavailable when the finished PDF is below the product minimum", () => {
+    const hardcoverQuote = quotePrintProduct({ pageCount: 20 }, "hardcover");
+    expect(hardcoverQuote.pageCount).toBe(20);
+    expect(hardcoverQuote.needsPadding).toBe(false);
+    expect(hardcoverQuote.isWithinSpecs).toBe(false);
+    expect(hardcoverQuote.unsupportedReason).toContain(
+      "requires at least 24 print pages"
+    );
+
+    expect(quotePrintProduct({ pageCount: 18 }, "layflat").isWithinSpecs).toBe(
+      true
+    );
+    expect(
+      quotePrintProduct({ pageCount: 18 }, "softcover").isWithinSpecs
+    ).toBe(false);
   });
 });

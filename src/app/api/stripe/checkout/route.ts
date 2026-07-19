@@ -125,7 +125,11 @@ export async function POST(req: NextRequest) {
     const quote = quotePrintProduct(project, body.productKey);
     if (!quote.isWithinSpecs) {
       return NextResponse.json(
-        { error: "Selected print format is unavailable for this book." },
+        {
+          error:
+            quote.unsupportedReason ??
+            "Selected print format is unavailable for this book.",
+        },
         { status: 400 }
       );
     }

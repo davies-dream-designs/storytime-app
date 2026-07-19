@@ -103,13 +103,15 @@ export function getAdjustedPageCountForProduct(
   pageCount: number,
   productKey: PrintProductKey
 ): number {
-  const product = PRINT_PRODUCTS[productKey];
-  const remainder = pageCount % product.pageStep;
-  return remainder === 0 ? pageCount : pageCount + product.pageStep - remainder;
+  return pageCount;
 }
 
 function getUnsupportedReason(pageCount: number, productKey: PrintProductKey) {
   const product = PRINT_PRODUCTS[productKey];
+  if (pageCount % product.pageStep !== 0) {
+    return `${product.label} requires an even number of print pages. This story has ${pageCount}.`;
+  }
+
   if (pageCount < product.minPageCount) {
     return `${product.label} requires at least ${product.minPageCount} print pages. This story has ${pageCount}.`;
   }

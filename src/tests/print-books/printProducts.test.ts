@@ -13,9 +13,9 @@ describe("print product policy", () => {
     expect(getStorycotPageCountForAgeBand("6-8")).toBe(32);
   });
 
-  it("pads only odd page counts to the product page step", () => {
+  it("quotes the finished PDF page count without product-specific padding", () => {
     expect(getAdjustedPageCountForProduct(20, "softcover")).toBe(20);
-    expect(getAdjustedPageCountForProduct(21, "softcover")).toBe(22);
+    expect(getAdjustedPageCountForProduct(21, "softcover")).toBe(21);
     expect(getAdjustedPageCountForProduct(20, "hardcover")).toBe(20);
   });
 
@@ -44,5 +44,14 @@ describe("print product policy", () => {
     expect(
       quotePrintProduct({ pageCount: 18 }, "softcover").isWithinSpecs
     ).toBe(false);
+  });
+
+  it("marks odd page counts unavailable because Prodigi books require even pages", () => {
+    const softcoverQuote = quotePrintProduct({ pageCount: 19 }, "softcover");
+    expect(softcoverQuote.pageCount).toBe(19);
+    expect(softcoverQuote.isWithinSpecs).toBe(false);
+    expect(softcoverQuote.unsupportedReason).toContain(
+      "requires an even number of print pages"
+    );
   });
 });

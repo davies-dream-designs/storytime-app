@@ -41,13 +41,20 @@ describe("print product policy", () => {
   });
 
   it("marks formats unavailable when the finished PDF is below the product minimum", () => {
-    const hardcoverQuote = quotePrintProduct({ pageCount: 20 }, "hardcover");
-    expect(hardcoverQuote.pageCount).toBe(20);
+    const hardcoverQuote = quotePrintProduct({ pageCount: 18 }, "hardcover");
+    expect(hardcoverQuote.pageCount).toBe(18);
     expect(hardcoverQuote.needsPadding).toBe(false);
     expect(hardcoverQuote.isWithinSpecs).toBe(false);
     expect(hardcoverQuote.unsupportedReason).toContain(
-      "requires at least 24 print pages"
+      "requires at least 20 print pages"
     );
+  });
+
+  it("allows 20-page hardcover books based on Prodigi AU quote support", () => {
+    const hardcoverQuote = quotePrintProduct({ pageCount: 20 }, "hardcover");
+    expect(hardcoverQuote.pageCount).toBe(20);
+    expect(hardcoverQuote.needsPadding).toBe(false);
+    expect(hardcoverQuote.isWithinSpecs).toBe(true);
 
     expect(quotePrintProduct({ pageCount: 18 }, "layflat").isWithinSpecs).toBe(
       false

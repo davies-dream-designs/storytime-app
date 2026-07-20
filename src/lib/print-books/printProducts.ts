@@ -28,7 +28,7 @@ export const PRINT_PRODUCTS = {
     badge: "Keepsake",
     provider: "Prodigi",
     format: "21x21cm square hardcover",
-    minPageCount: 24,
+    minPageCount: 20,
     maxPageCount: 300,
     pageStep: 2,
     basePages: 24,

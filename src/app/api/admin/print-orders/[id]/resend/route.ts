@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
+import Stripe from "stripe";
 import { db } from "@/lib/db";
 import { submitPrintFulfillment } from "@/lib/print-books/fulfillment";
+import { retrieveCheckoutShipping } from "@/lib/stripe/checkoutShipping";
+import type { PrintBookOrder } from "@/types/printBook";
 
 async function requireAdmin() {
   const { userId } = await auth();
@@ -10,6 +13,27 @@ async function requireAdmin() {
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
   return user.privateMetadata.isAdmin === true;
+}
+
+async function hydrateMissingShipping(
+  printOrder: PrintBookOrder
+): Promise<PrintBookOrder> {
+  if (printOrder.shipping) return printOrder;
+  if (!printOrder.checkoutSessionId || !process.env.STRIPE_SECRET_KEY) {
+    return printOrder;
+  }
+
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  const { billingCountry, shipping } = await retrieveCheckoutShipping(
+    stripe,
+    printOrder.checkoutSessionId
+  );
+
+  return {
+    ...printOrder,
+    billingCountry: billingCountry ?? printOrder.billingCountry,
+    shipping,
+  };
 }
 
 export async function POST(
@@ -44,14 +68,15 @@ export async function POST(
     );
   }
 
+  const orderForFulfillment = await hydrateMissingShipping(printOrder);
   const fulfillment = await submitPrintFulfillment({
     project,
-    order: printOrder,
+    order: orderForFulfillment,
   });
 
   const updated = await db.bookProjects.update(project.id, {
     printOrder: {
-      ...printOrder,
+      ...orderForFulfillment,
       fulfillment,
     },
   });

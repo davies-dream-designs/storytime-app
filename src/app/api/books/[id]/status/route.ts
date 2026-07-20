@@ -77,5 +77,26 @@ export async function GET(
       finalExportVersion: project.assets.finalExportVersion,
       proofVersion: project.assets.proofVersion,
     },
+    printOrder: project.printOrder
+      ? {
+          productKey: project.printOrder.productKey,
+          productLabel: project.printOrder.productLabel,
+          status: project.printOrder.status,
+          amountAud: project.printOrder.amountAud,
+          pageCount: project.printOrder.pageCount,
+          paidAt: project.printOrder.paidAt,
+          fulfillment: project.printOrder.fulfillment
+            ? {
+                provider: project.printOrder.fulfillment.provider,
+                status: project.printOrder.fulfillment.status,
+                preparedAt: project.printOrder.fulfillment.preparedAt,
+                submittedAt: project.printOrder.fulfillment.submittedAt,
+                externalOrderId: project.printOrder.fulfillment.externalOrderId,
+                externalStatus: project.printOrder.fulfillment.externalStatus,
+                message: project.printOrder.fulfillment.message,
+              }
+            : undefined,
+        }
+      : undefined,
   });
 }

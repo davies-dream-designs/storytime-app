@@ -257,7 +257,17 @@ export async function submitPrintFulfillment(input: {
 }): Promise<PrintFulfillment> {
   const fulfillment = preparePrintFulfillment(input);
 
-  if (fulfillment.status !== "ready_for_manual_review" || !fulfillment.payload) {
+  if (
+    fulfillment.status !== "ready_for_manual_review" ||
+    !fulfillment.payload
+  ) {
+    console.warn("Print fulfillment not ready for submission", {
+      projectId: input.project.id,
+      productKey: input.order.productKey,
+      provider: fulfillment.provider,
+      status: fulfillment.status,
+      message: fulfillment.message,
+    });
     return fulfillment;
   }
 
@@ -265,6 +275,13 @@ export async function submitPrintFulfillment(input: {
     const { orderId, externalStatus } = await submitProdigiOrder(
       fulfillment.payload
     );
+    console.info("Print fulfillment submitted", {
+      projectId: input.project.id,
+      productKey: input.order.productKey,
+      provider: fulfillment.provider,
+      externalOrderId: orderId,
+      externalStatus,
+    });
     return {
       ...fulfillment,
       status: "submitted",
@@ -275,6 +292,12 @@ export async function submitPrintFulfillment(input: {
       payload: undefined,
     };
   } catch (error) {
+    console.error("Print fulfillment submission failed", {
+      projectId: input.project.id,
+      productKey: input.order.productKey,
+      provider: fulfillment.provider,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return {
       ...fulfillment,
       status: "failed",

@@ -33,6 +33,7 @@ const mockDb = {
     getByUserId: vi.fn(),
     getByStoryId: vi.fn(),
     create: vi.fn(),
+    update: vi.fn(),
     delete: vi.fn(),
   },
 };
@@ -187,6 +188,7 @@ describe("/api/books/[id] and /status", () => {
     mockIsBookBuildJobStale.mockReturnValue(false);
     mockDb.bookProjects.getById.mockResolvedValue(createBookProject());
     mockDb.bookProjects.getByStoryId.mockResolvedValue([]);
+    mockDb.bookProjects.update.mockResolvedValue(undefined);
     mockDb.bookProjects.delete.mockResolvedValue(true);
   });
 
@@ -235,6 +237,56 @@ describe("/api/books/[id] and /status", () => {
       completedSpreads: 0,
       totalSpreads: 16,
     });
+  });
+
+  it("returns sanitized print order status without shipping details", async () => {
+    mockDb.bookProjects.getById.mockResolvedValue({
+      ...createBookProject(),
+      printOrder: {
+        productKey: "softcover",
+        productLabel: "Softcover",
+        provider: "Prodigi",
+        format: "21x21cm square softcover",
+        status: "paid",
+        amountAud: 29.95,
+        pageCount: 24,
+        paidAt: "2026-07-20T01:24:00.000Z",
+        shipping: {
+          name: "Test Customer",
+          email: "test@example.com",
+          line1: "1 Test St",
+          city: "Sydney",
+          postalCode: "2000",
+          countryCode: "AU",
+        },
+        fulfillment: {
+          provider: "prodigi",
+          status: "failed",
+          message: "Prodigi order submission failed",
+        },
+      },
+    });
+
+    const { GET } = await import("@/app/api/books/[id]/status/route");
+    const res = await GET(
+      new NextRequest("http://localhost/api/books/book-1/status"),
+      {
+        params: Promise.resolve({ id: "book-1" }),
+      }
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.printOrder).toMatchObject({
+      productKey: "softcover",
+      status: "paid",
+      fulfillment: {
+        provider: "prodigi",
+        status: "failed",
+      },
+    });
+    expect(JSON.stringify(body.printOrder)).not.toContain("Test Customer");
+    expect(JSON.stringify(body.printOrder)).not.toContain("test@example.com");
   });
 
   it("nudges queued jobs during status polling", async () => {

@@ -159,6 +159,7 @@ export default function BookStatusPanel({
   const [expandedImage, setExpandedImage] = useState<ExpandedImage | null>(
     null
   );
+  const [pollUntil, setPollUntil] = useState(0);
   const [startingBuild, setStartingBuild] = useState(false);
   const buildStartedRef = useRef(false);
   const activeJobStatus = project.assets.activeJobStatus;
@@ -188,32 +189,42 @@ export default function BookStatusPanel({
   }, [project.id, project.status]);
 
   useEffect(() => {
-    if (isTerminal(project.status) && !activeJobStatus) return;
+    const shouldPoll =
+      !isTerminal(project.status) ||
+      Boolean(activeJobStatus) ||
+      pollUntil > Date.now();
+    if (!shouldPoll) return;
 
-    const interval = window.setInterval(async () => {
-      const res = await fetch(`/api/books/${project.id}/status`, {
-        cache: "no-store",
-        credentials: "same-origin",
-      });
-      if (!res.ok) return;
-      const next = (await res.json()) as BookStatusPayload;
-      setProject((current) => ({ ...current, ...next }));
-      if (next.spreadPreviews) {
-        setSpreadPreviews(
-          [...next.spreadPreviews].sort((a, b) => a.sequence - b.sequence)
-        );
-      }
+    const interval = window.setInterval(
+      async () => {
+        const res = await fetch(`/api/books/${project.id}/status`, {
+          cache: "no-store",
+          credentials: "same-origin",
+        });
+        if (!res.ok) return;
+        const next = (await res.json()) as BookStatusPayload;
+        setProject((current) => ({ ...current, ...next }));
+        if (next.spreadPreviews) {
+          setSpreadPreviews(
+            [...next.spreadPreviews].sort((a, b) => a.sequence - b.sequence)
+          );
+        }
 
-      if (
-        (next.status === "ready" || next.status === "failed") &&
-        !next.assets.activeJobStatus
-      ) {
-        router.refresh();
-      }
-    }, 4000);
+        if (
+          (next.status === "ready" || next.status === "failed") &&
+          !next.assets.activeJobStatus
+        ) {
+          router.refresh();
+          if (Date.now() >= pollUntil) {
+            window.clearInterval(interval);
+          }
+        }
+      },
+      pollUntil > Date.now() ? 2000 : 4000
+    );
 
     return () => window.clearInterval(interval);
-  }, [activeJobStatus, project.id, project.status, router]);
+  }, [activeJobStatus, pollUntil, project.id, project.status, router]);
 
   async function handleRetry() {
     const failedImages = getFailedImageTargets(spreadPreviews);
@@ -270,6 +281,7 @@ export default function BookStatusPanel({
     if (res.ok) {
       const nextProject = next as BookProject;
       setProject(nextProject);
+      setPollUntil(Date.now() + 20_000);
       const previews = getSpreadPreviews(nextProject);
       setSpreadPreviews(previews);
       const nextPreview = previews.find(

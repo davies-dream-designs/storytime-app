@@ -197,7 +197,7 @@ describe("stripe checkout", () => {
           expect.objectContaining({
             price_data: expect.objectContaining({
               currency: "aud",
-              unit_amount: 3315,
+              unit_amount: 3015,
             }),
           }),
         ],
@@ -205,7 +205,7 @@ describe("stripe checkout", () => {
           checkoutType: "print_book",
           projectId: "book-1",
           productKey: "softcover",
-          amountAud: "33.15",
+          amountAud: "30.15",
         }),
       })
     );
@@ -215,7 +215,7 @@ describe("stripe checkout", () => {
         printOrder: expect.objectContaining({
           status: "checkout_started",
           productKey: "softcover",
-          amountAud: 33.15,
+          amountAud: 30.15,
           checkoutSessionId: "cs_test_123",
         }),
       })

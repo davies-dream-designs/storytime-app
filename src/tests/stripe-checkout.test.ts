@@ -222,7 +222,8 @@ describe("stripe checkout", () => {
     );
   });
 
-  it("rejects softcover checkout while AU fulfillment is unavailable", async () => {
+  it("creates a Lulu softcover checkout when Lulu print files are ready", async () => {
+    process.env.STORYCOT_PRINT_PROVIDER = "lulu";
     mockGetBookProjectById.mockResolvedValue({
       id: "book-1",
       userId: "user-1",
@@ -232,6 +233,9 @@ describe("stripe checkout", () => {
       assets: {
         coverPdfUrl: "https://example.com/cover.pdf",
         printPdfUrl: "https://example.com/print.pdf",
+        luluCoverPdfUrl: "https://example.com/lulu-cover.pdf",
+        luluPrintPdfUrl: "https://example.com/lulu-print.pdf",
+        luluPrintPdfPageCount: 24,
         orderabilityState: "export_ready",
       },
     });
@@ -254,10 +258,64 @@ describe("stripe checkout", () => {
       })
     );
 
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({
-      error:
-        "Softcover is temporarily unavailable in Australia while we source a local print route.",
+      url: "https://checkout.stripe.test/session",
+    });
+    expect(mockCreateSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        line_items: [
+          expect.objectContaining({
+            price_data: expect.objectContaining({
+              currency: "aud",
+              unit_amount: 3015,
+            }),
+          }),
+        ],
+        metadata: expect.objectContaining({
+          productKey: "softcover",
+          amountAud: "30.15",
+        }),
+      })
+    );
+  });
+
+  it("rejects Lulu checkout until Lulu-sized print files exist", async () => {
+    process.env.STORYCOT_PRINT_PROVIDER = "lulu";
+    mockGetBookProjectById.mockResolvedValue({
+      id: "book-1",
+      userId: "user-1",
+      status: "ready",
+      pageCount: 20,
+      spreadCount: 10,
+      assets: {
+        coverPdfUrl: "https://example.com/cover.pdf",
+        printPdfUrl: "https://example.com/print.pdf",
+        orderabilityState: "export_ready",
+      },
+    });
+
+    const { POST } = await import("@/app/api/stripe/checkout/route");
+
+    const res = await POST(
+      new NextRequest("https://dev.storycot.com/api/stripe/checkout", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://dev.storycot.com",
+          referer: "https://dev.storycot.com/en/books/book-1",
+        },
+        body: JSON.stringify({
+          type: "print_book",
+          projectId: "book-1",
+          productKey: "hardcover",
+        }),
+      })
+    );
+
+    expect(res.status).toBe(409);
+    await expect(res.json()).resolves.toEqual({
+      error: "Lulu print files are not ready yet.",
     });
     expect(mockCreateSession).not.toHaveBeenCalled();
   });

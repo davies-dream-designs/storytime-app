@@ -7,6 +7,10 @@ import {
   isPrintProductKey,
   quotePrintProduct,
 } from "@/lib/print-books/printProducts";
+import {
+  hasLuluPrintAssets,
+  isLuluPrintProvider,
+} from "@/lib/print-books/lulu";
 
 const PACKS = {
   starter: { credits: 10, amount: 499, label: "Storycot Starter — 10 stories" },
@@ -111,6 +115,13 @@ export async function POST(req: NextRequest) {
     if (!project.assets.printPdfUrl || !project.assets.coverPdfUrl) {
       return NextResponse.json(
         { error: "Print files are not ready yet." },
+        { status: 409 }
+      );
+    }
+
+    if (isLuluPrintProvider() && !hasLuluPrintAssets(project)) {
+      return NextResponse.json(
+        { error: "Lulu print files are not ready yet." },
         { status: 409 }
       );
     }

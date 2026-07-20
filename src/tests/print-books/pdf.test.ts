@@ -196,6 +196,7 @@ describe("generateBookPdfs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.STORYCOT_COVER_SPINE_WIDTH_IN;
+    delete process.env.STORYCOT_PRINT_PROVIDER;
     mockStoreBookAsset
       .mockResolvedValueOnce("data:application/pdf;base64,cover")
       .mockResolvedValueOnce("data:application/pdf;base64,print");
@@ -276,6 +277,56 @@ describe("generateBookPdfs", () => {
     expect(printPdfBody).toBeTruthy();
     const printPdf = await PDFDocument.load(new Uint8Array(printPdfBody));
     expect(printPdf.getPageCount()).toBe(project.pageCount);
+  });
+
+  it("exports Lulu-specific PDFs with a padded 24-page interior", async () => {
+    process.env.STORYCOT_PRINT_PROVIDER = "lulu";
+    mockStoreBookAsset.mockReset();
+    mockStoreBookAsset
+      .mockResolvedValueOnce("data:application/pdf;base64,cover")
+      .mockResolvedValueOnce("data:application/pdf;base64,print")
+      .mockResolvedValueOnce("data:application/pdf;base64,lulu-cover")
+      .mockResolvedValueOnce("data:application/pdf;base64,lulu-print");
+
+    const project = createProjectWithFullBackMatter();
+    project.pageCount = 20;
+    const { generateBookPdfs } = await import("@/lib/print-books/pdf");
+    const result = await generateBookPdfs({
+      project,
+      story: createStory(),
+      profile: createProfile(),
+    });
+
+    expect(result.luluCoverPdfUrl).toBe(
+      "data:application/pdf;base64,lulu-cover"
+    );
+    expect(result.luluPrintPdfUrl).toBe(
+      "data:application/pdf;base64,lulu-print"
+    );
+    expect(result.luluPrintPdfPageWidthIn).toBe(8.75);
+    expect(result.luluPrintPdfPageHeightIn).toBe(8.75);
+    expect(result.luluPrintPdfPageCount).toBe(24);
+    expect(mockStoreBookAsset).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        pathname: "books/book-1/lulu-cover.pdf",
+        contentType: "application/pdf",
+      })
+    );
+    expect(mockStoreBookAsset).toHaveBeenNthCalledWith(
+      4,
+      expect.objectContaining({
+        pathname: "books/book-1/lulu-print.pdf",
+        contentType: "application/pdf",
+      })
+    );
+
+    const luluPrintPdfBody = mockStoreBookAsset.mock.calls[3]?.[0]?.body;
+    expect(luluPrintPdfBody).toBeTruthy();
+    const luluPrintPdf = await PDFDocument.load(
+      new Uint8Array(luluPrintPdfBody)
+    );
+    expect(luluPrintPdf.getPageCount()).toBe(24);
   });
 
   it("fits long story text inside the printable text panel", async () => {

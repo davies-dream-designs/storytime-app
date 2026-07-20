@@ -20,18 +20,20 @@ describe("print product policy", () => {
   });
 
   it("prices print separately from already-paid illustrations", () => {
-    expect(quotePrintProduct({ pageCount: 24 }, "hardcover").priceAud).toBe(
-      39.95
-    );
+    const hardcoverQuote = quotePrintProduct({ pageCount: 24 }, "hardcover");
+    expect(hardcoverQuote.priceAud).toBe(39.95);
+    expect(hardcoverQuote.provider).toBe("Lulu");
+    expect(hardcoverQuote.format).toBe('8.5" square hardcover casewrap');
+    const softcoverQuote = quotePrintProduct({ pageCount: 24 }, "softcover");
+    expect(softcoverQuote.priceAud).toBe(26.95);
+    expect(softcoverQuote.provider).toBe("Lulu");
+    expect(softcoverQuote.format).toBe('8.5" square premium colour paperback');
     expect(getPrintProductQuotes({ pageCount: 32 })).toHaveLength(3);
   });
 
   it("temporarily disables products without viable AU fulfillment", () => {
     const softcoverQuote = quotePrintProduct({ pageCount: 24 }, "softcover");
-    expect(softcoverQuote.isWithinSpecs).toBe(false);
-    expect(softcoverQuote.unsupportedReason).toContain(
-      "temporarily unavailable in Australia"
-    );
+    expect(softcoverQuote.isWithinSpecs).toBe(true);
 
     const layflatQuote = quotePrintProduct({ pageCount: 24 }, "layflat");
     expect(layflatQuote.isWithinSpecs).toBe(false);
@@ -50,7 +52,7 @@ describe("print product policy", () => {
     );
   });
 
-  it("allows 20-page hardcover books based on Prodigi AU quote support", () => {
+  it("allows 20-page hardcover books while fulfillment pads Lulu exports", () => {
     const hardcoverQuote = quotePrintProduct({ pageCount: 20 }, "hardcover");
     expect(hardcoverQuote.pageCount).toBe(20);
     expect(hardcoverQuote.needsPadding).toBe(false);
@@ -64,12 +66,12 @@ describe("print product policy", () => {
     ).toBe(false);
   });
 
-  it("marks odd page counts unavailable because Prodigi books require even pages", () => {
+  it("marks odd page counts unavailable because print books require even pages", () => {
     const softcoverQuote = quotePrintProduct({ pageCount: 19 }, "softcover");
     expect(softcoverQuote.pageCount).toBe(19);
     expect(softcoverQuote.isWithinSpecs).toBe(false);
     expect(softcoverQuote.unsupportedReason).toContain(
-      "temporarily unavailable in Australia"
+      "requires an even number of print pages"
     );
   });
 });

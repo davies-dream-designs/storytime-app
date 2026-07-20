@@ -4,13 +4,17 @@ import type {
   PrintFulfillment,
   PrintShippingAddress,
 } from "@/types/printBook";
+import {
+  buildLuluPrintJobPayload,
+  submitLuluPrintJob,
+} from "@/lib/print-books/lulu";
 
 type FulfillmentProvider = PrintFulfillment["provider"];
 
 function getFulfillmentProvider(): FulfillmentProvider {
-  return process.env.STORYCOT_PRINT_PROVIDER === "peecho"
-    ? "peecho"
-    : "prodigi";
+  if (process.env.STORYCOT_PRINT_PROVIDER === "peecho") return "peecho";
+  if (process.env.STORYCOT_PRINT_PROVIDER === "lulu") return "lulu";
+  return "prodigi";
 }
 
 function getProdigiSku(productKey: PrintBookOrder["productKey"]) {
@@ -197,9 +201,11 @@ export function preparePrintFulfillment(input: {
 
   try {
     const payload =
-      provider === "peecho"
-        ? buildPeechoPayload({ ...input, shipping })
-        : buildProdigiPayload({ ...input, shipping });
+      provider === "lulu"
+        ? buildLuluPrintJobPayload({ ...input, shipping })
+        : provider === "peecho"
+          ? buildPeechoPayload({ ...input, shipping })
+          : buildProdigiPayload({ ...input, shipping });
 
     return {
       provider,
@@ -272,9 +278,10 @@ export async function submitPrintFulfillment(input: {
   }
 
   try {
-    const { orderId, externalStatus } = await submitProdigiOrder(
-      fulfillment.payload
-    );
+    const { orderId, externalStatus } =
+      fulfillment.provider === "lulu"
+        ? await submitLuluPrintJob(fulfillment.payload)
+        : await submitProdigiOrder(fulfillment.payload);
     console.info("Print fulfillment submitted", {
       projectId: input.project.id,
       productKey: input.order.productKey,
@@ -288,7 +295,7 @@ export async function submitPrintFulfillment(input: {
       submittedAt: new Date().toISOString(),
       externalOrderId: orderId,
       externalStatus,
-      message: `Order ${orderId} submitted to Prodigi.`,
+      message: `Order ${orderId} submitted to ${fulfillment.provider === "lulu" ? "Lulu" : "Prodigi"}.`,
       payload: undefined,
     };
   } catch (error) {
@@ -302,7 +309,9 @@ export async function submitPrintFulfillment(input: {
       ...fulfillment,
       status: "failed",
       message:
-        error instanceof Error ? error.message : "Prodigi submission failed.",
+        error instanceof Error
+          ? error.message
+          : `${fulfillment.provider === "lulu" ? "Lulu" : "Prodigi"} submission failed.`,
     };
   }
 }

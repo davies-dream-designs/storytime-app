@@ -55,6 +55,49 @@ describe("download routes", () => {
     await expect(res.text()).resolves.toBe("pdf");
   });
 
+  it("serves Lulu print PDFs through the authenticated route", async () => {
+    mockDb.bookProjects.getById.mockResolvedValue({
+      id: "book-1",
+      userId: "user-1",
+      sourceStoryId: "story-1",
+      assets: {
+        luluPrintPdfUrl: `data:application/pdf;base64,${Buffer.from("lulu interior").toString("base64")}`,
+        luluCoverPdfUrl: `data:application/pdf;base64,${Buffer.from("lulu cover").toString("base64")}`,
+      },
+    });
+    mockDb.stories.getById.mockResolvedValue({
+      id: "story-1",
+      userId: "user-1",
+      title: "Moonlight Garden",
+    });
+
+    const { GET } = await import("@/app/api/books/[id]/download/route");
+    const interiorRes = await GET(
+      new NextRequest(
+        "http://localhost/api/books/book-1/download?asset=luluPrintPdf"
+      ),
+      { params: Promise.resolve({ id: "book-1" }) }
+    );
+    const coverRes = await GET(
+      new NextRequest(
+        "http://localhost/api/books/book-1/download?asset=luluCoverPdf"
+      ),
+      { params: Promise.resolve({ id: "book-1" }) }
+    );
+
+    expect(interiorRes.status).toBe(200);
+    expect(interiorRes.headers.get("content-type")).toBe("application/pdf");
+    expect(interiorRes.headers.get("content-disposition")).toContain(
+      "Moonlight Garden Lulu interior.pdf"
+    );
+    await expect(interiorRes.text()).resolves.toBe("lulu interior");
+    expect(coverRes.status).toBe(200);
+    expect(coverRes.headers.get("content-disposition")).toContain(
+      "Moonlight Garden Lulu cover.pdf"
+    );
+    await expect(coverRes.text()).resolves.toBe("lulu cover");
+  });
+
   it("rebuilds illustrated book EPUB downloads instead of serving stale stored EPUBs", async () => {
     const pageSvg = Buffer.from(
       '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#f7d897"/></svg>'

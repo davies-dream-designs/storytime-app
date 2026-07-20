@@ -19,6 +19,11 @@ import {
   BOOK_PDF_PAGE_HEIGHT_IN,
   getBookSpineWidthIn,
 } from "@/lib/print-books/bookConfig";
+import {
+  LULU_HARDCOVER_MIN_PAGES,
+  LULU_INTERIOR_PDF_PAGE_HEIGHT_IN,
+  LULU_INTERIOR_PDF_PAGE_WIDTH_IN,
+} from "@/lib/print-books/lulu";
 import { storeBookAsset } from "@/lib/print-books/storage";
 
 const POINTS_PER_INCH = 72;
@@ -29,6 +34,24 @@ const FULL_BLEED_TEXT_SAFE_MARGIN =
   BOOK_SPEC.fullBleedTextSafeMarginIn * POINTS_PER_INCH;
 const BRAND_PURPLE = rgb(0.17, 0.13, 0.39);
 const BRAND_LILAC = rgb(0.53, 0.46, 0.9);
+
+type PdfPageGeometry = {
+  pageWidth: number;
+  pageHeight: number;
+  textSafeMargin: number;
+};
+
+const STORYCOT_PDF_GEOMETRY: PdfPageGeometry = {
+  pageWidth: PRINT_PAGE_WIDTH,
+  pageHeight: PRINT_PAGE_HEIGHT,
+  textSafeMargin: FULL_BLEED_TEXT_SAFE_MARGIN,
+};
+
+const LULU_PDF_GEOMETRY: PdfPageGeometry = {
+  pageWidth: LULU_INTERIOR_PDF_PAGE_WIDTH_IN * POINTS_PER_INCH,
+  pageHeight: LULU_INTERIOR_PDF_PAGE_HEIGHT_IN * POINTS_PER_INCH,
+  textSafeMargin: FULL_BLEED_TEXT_SAFE_MARGIN,
+};
 
 let lightLogoBytes: Uint8Array | null = null;
 let darkLogoBytes: Uint8Array | null = null;
@@ -925,6 +948,7 @@ async function drawBookPage(input: {
   side: "start" | "end";
   pageWidth: number;
   pageHeight: number;
+  textSafeMargin: number;
   artRect: { x: number; y: number; width: number; height: number };
   serif: Awaited<ReturnType<PDFDocument["embedFont"]>>;
   sans: Awaited<ReturnType<PDFDocument["embedFont"]>>;
@@ -938,6 +962,7 @@ async function drawBookPage(input: {
     side,
     pageWidth,
     pageHeight,
+    textSafeMargin,
     artRect,
     serif,
     sans,
@@ -958,7 +983,7 @@ async function drawBookPage(input: {
   });
 
   if (text) {
-    const textRectWidth = pageWidth - FULL_BLEED_TEXT_SAFE_MARGIN * 2;
+    const textRectWidth = pageWidth - textSafeMargin * 2;
     const textInnerWidth = textRectWidth - 48;
     const maxHeight = getMaxTextBoxPt(story.storyPreset);
     const fittedText = fitWrappedTextToBox({
@@ -976,8 +1001,8 @@ async function drawBookPage(input: {
       maxHeight
     );
     const textRect = {
-      x: FULL_BLEED_TEXT_SAFE_MARGIN,
-      y: FULL_BLEED_TEXT_SAFE_MARGIN,
+      x: textSafeMargin,
+      y: textSafeMargin,
       width: textRectWidth,
       height: textRectHeight,
     };
@@ -1043,7 +1068,11 @@ async function buildPrintPdf(input: {
   project: BookProject;
   story: Story;
   profile: ChildProfile;
+  geometry?: PdfPageGeometry;
+  minPageCount?: number;
 }): Promise<Uint8Array> {
+  const geometry = input.geometry ?? STORYCOT_PDF_GEOMETRY;
+  const { pageWidth, pageHeight, textSafeMargin } = geometry;
   const pdfDoc = await PDFDocument.create();
   const serif = await pdfDoc.embedFont(StandardFonts.TimesRoman);
   const serifBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
@@ -1053,15 +1082,12 @@ async function buildPrintPdf(input: {
 
   for (const spread of input.project.spreads) {
     if (spread.title === "Cover") {
-      const halfTitlePage = pdfDoc.addPage([
-        PRINT_PAGE_WIDTH,
-        PRINT_PAGE_HEIGHT,
-      ]);
+      const halfTitlePage = pdfDoc.addPage([pageWidth, pageHeight]);
       await drawHalfTitlePage({
         pdfDoc,
         page: halfTitlePage,
-        pageWidth: PRINT_PAGE_WIDTH,
-        pageHeight: PRINT_PAGE_HEIGHT,
+        pageWidth,
+        pageHeight,
         story: input.story,
         profile: input.profile,
         theme,
@@ -1070,29 +1096,26 @@ async function buildPrintPdf(input: {
         sans,
       });
 
-      const frontispiecePage = pdfDoc.addPage([
-        PRINT_PAGE_WIDTH,
-        PRINT_PAGE_HEIGHT,
-      ]);
+      const frontispiecePage = pdfDoc.addPage([pageWidth, pageHeight]);
       await drawFrontispiecePage({
         pdfDoc,
         page: frontispiecePage,
         spread,
         story: input.story,
-        pageWidth: PRINT_PAGE_WIDTH,
-        pageHeight: PRINT_PAGE_HEIGHT,
+        pageWidth,
+        pageHeight,
         sans,
       });
       continue;
     }
 
     if (spread.title === "Title") {
-      const titlePage = pdfDoc.addPage([PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT]);
+      const titlePage = pdfDoc.addPage([pageWidth, pageHeight]);
       await drawTitlePage({
         pdfDoc,
         page: titlePage,
-        pageWidth: PRINT_PAGE_WIDTH,
-        pageHeight: PRINT_PAGE_HEIGHT,
+        pageWidth,
+        pageHeight,
         story: input.story,
         profile: input.profile,
         theme,
@@ -1101,15 +1124,12 @@ async function buildPrintPdf(input: {
         sans,
       });
 
-      const copyrightPage = pdfDoc.addPage([
-        PRINT_PAGE_WIDTH,
-        PRINT_PAGE_HEIGHT,
-      ]);
+      const copyrightPage = pdfDoc.addPage([pageWidth, pageHeight]);
       await drawCopyrightPage({
         pdfDoc,
         page: copyrightPage,
-        pageWidth: PRINT_PAGE_WIDTH,
-        pageHeight: PRINT_PAGE_HEIGHT,
+        pageWidth,
+        pageHeight,
         project: input.project,
         serifBold,
         serif,
@@ -1120,27 +1140,24 @@ async function buildPrintPdf(input: {
     }
 
     if (spread.title === "Back Cover") {
-      const endLeafPage = pdfDoc.addPage([PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT]);
+      const endLeafPage = pdfDoc.addPage([pageWidth, pageHeight]);
       drawBlankEndpaperPage({
         page: endLeafPage,
-        pageWidth: PRINT_PAGE_WIDTH,
-        pageHeight: PRINT_PAGE_HEIGHT,
+        pageWidth,
+        pageHeight,
       });
 
-      const backMatterLeafPage = pdfDoc.addPage([
-        PRINT_PAGE_WIDTH,
-        PRINT_PAGE_HEIGHT,
-      ]);
+      const backMatterLeafPage = pdfDoc.addPage([pageWidth, pageHeight]);
       drawBlankEndpaperPage({
         page: backMatterLeafPage,
-        pageWidth: PRINT_PAGE_WIDTH,
-        pageHeight: PRINT_PAGE_HEIGHT,
+        pageWidth,
+        pageHeight,
       });
 
       continue;
     }
 
-    const startPage = pdfDoc.addPage([PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT]);
+    const startPage = pdfDoc.addPage([pageWidth, pageHeight]);
     await drawBookPage({
       pdfDoc,
       page: startPage,
@@ -1148,19 +1165,20 @@ async function buildPrintPdf(input: {
       spread,
       pageNumber: spread.pageStart,
       side: "start",
-      pageWidth: PRINT_PAGE_WIDTH,
-      pageHeight: PRINT_PAGE_HEIGHT,
+      pageWidth,
+      pageHeight,
+      textSafeMargin,
       artRect: {
         x: 0,
         y: 0,
-        width: PRINT_PAGE_WIDTH,
-        height: PRINT_PAGE_HEIGHT,
+        width: pageWidth,
+        height: pageHeight,
       },
       serif,
       sans,
     });
 
-    const endPage = pdfDoc.addPage([PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT]);
+    const endPage = pdfDoc.addPage([pageWidth, pageHeight]);
     await drawBookPage({
       pdfDoc,
       page: endPage,
@@ -1168,17 +1186,23 @@ async function buildPrintPdf(input: {
       spread,
       pageNumber: spread.pageEnd,
       side: "end",
-      pageWidth: PRINT_PAGE_WIDTH,
-      pageHeight: PRINT_PAGE_HEIGHT,
+      pageWidth,
+      pageHeight,
+      textSafeMargin,
       artRect: {
         x: 0,
         y: 0,
-        width: PRINT_PAGE_WIDTH,
-        height: PRINT_PAGE_HEIGHT,
+        width: pageWidth,
+        height: pageHeight,
       },
       serif,
       sans,
     });
+  }
+
+  while (input.minPageCount && pdfDoc.getPageCount() < input.minPageCount) {
+    const page = pdfDoc.addPage([pageWidth, pageHeight]);
+    drawBlankEndpaperPage({ page, pageWidth, pageHeight });
   }
 
   return pdfDoc.save({ useObjectStreams: false });
@@ -1188,7 +1212,11 @@ async function buildCoverPdf(input: {
   project: BookProject;
   story: Story;
   profile: ChildProfile;
+  geometry?: PdfPageGeometry;
+  spineWidthIn?: number;
 }): Promise<Uint8Array> {
+  const geometry = input.geometry ?? STORYCOT_PDF_GEOMETRY;
+  const { pageWidth, pageHeight } = geometry;
   const pdfDoc = await PDFDocument.create();
   const serif = await pdfDoc.embedFont(StandardFonts.TimesRoman);
   const serifBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
@@ -1196,9 +1224,10 @@ async function buildCoverPdf(input: {
   const sansBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const theme = pickPlaceholderTheme(input.story);
   const spine = getBookSpineWidthIn(input.project.pageCount);
-  const coverSpineWidth = spine.widthIn * POINTS_PER_INCH;
-  const coverTotalWidth = PRINT_PAGE_WIDTH * 2 + coverSpineWidth;
-  const page = pdfDoc.addPage([coverTotalWidth, PRINT_PAGE_HEIGHT]);
+  const spineWidthIn = input.spineWidthIn ?? spine.widthIn;
+  const coverSpineWidth = spineWidthIn * POINTS_PER_INCH;
+  const coverTotalWidth = pageWidth * 2 + coverSpineWidth;
+  const page = pdfDoc.addPage([coverTotalWidth, pageHeight]);
   const coverSpread = input.project.spreads.find(
     (spread) => spread.sequence === 1
   );
@@ -1207,22 +1236,22 @@ async function buildCoverPdf(input: {
     input.project.assets.coverImageUrl || coverSpread?.imageUrl
   );
   const backCoverX = 0;
-  const spineX = PRINT_PAGE_WIDTH;
-  const frontCoverX = PRINT_PAGE_WIDTH + coverSpineWidth;
+  const spineX = pageWidth;
+  const frontCoverX = pageWidth + coverSpineWidth;
 
   page.drawRectangle({
     x: 0,
     y: 0,
     width: coverTotalWidth,
-    height: PRINT_PAGE_HEIGHT,
+    height: pageHeight,
     color: theme.sky,
   });
 
   page.drawRectangle({
     x: backCoverX,
     y: 0,
-    width: PRINT_PAGE_WIDTH,
-    height: PRINT_PAGE_HEIGHT,
+    width: pageWidth,
+    height: pageHeight,
     color: theme.paper,
   });
 
@@ -1230,7 +1259,7 @@ async function buildCoverPdf(input: {
     x: spineX,
     y: 0,
     width: coverSpineWidth,
-    height: PRINT_PAGE_HEIGHT,
+    height: pageHeight,
     color: theme.groundAccent,
   });
 
@@ -1248,20 +1277,20 @@ async function buildCoverPdf(input: {
   );
   if (backImage) {
     const backScale = Math.max(
-      PRINT_PAGE_WIDTH / backImage.width,
-      PRINT_PAGE_HEIGHT / backImage.height
+      pageWidth / backImage.width,
+      pageHeight / backImage.height
     );
     const backDrawWidth = backImage.width * backScale;
     const backDrawHeight = backImage.height * backScale;
     page.pushOperators(
       pushGraphicsState(),
-      rectangle(backCoverX, 0, PRINT_PAGE_WIDTH, PRINT_PAGE_HEIGHT),
+      rectangle(backCoverX, 0, pageWidth, pageHeight),
       clip(),
       endPath()
     );
     page.drawImage(backImage, {
-      x: backCoverX + (PRINT_PAGE_WIDTH - backDrawWidth) / 2,
-      y: (PRINT_PAGE_HEIGHT - backDrawHeight) / 2,
+      x: backCoverX + (pageWidth - backDrawWidth) / 2,
+      y: (pageHeight - backDrawHeight) / 2,
       width: backDrawWidth,
       height: backDrawHeight,
     });
@@ -1269,8 +1298,8 @@ async function buildCoverPdf(input: {
     // Soft paper scrim so the dark blurb text stays legible over the art.
     page.drawRectangle({
       x: backCoverX + BLEED + 24,
-      y: PRINT_PAGE_HEIGHT - 300,
-      width: PRINT_PAGE_WIDTH - (BLEED + 24) * 2,
+      y: pageHeight - 300,
+      width: pageWidth - (BLEED + 24) * 2,
       height: 216,
       color: theme.paper,
       opacity: 0.86,
@@ -1278,15 +1307,12 @@ async function buildCoverPdf(input: {
   }
 
   if (image) {
-    const scale = Math.max(
-      PRINT_PAGE_WIDTH / image.width,
-      PRINT_PAGE_HEIGHT / image.height
-    );
+    const scale = Math.max(pageWidth / image.width, pageHeight / image.height);
     const drawWidth = image.width * scale;
     const drawHeight = image.height * scale;
     page.drawImage(image, {
-      x: frontCoverX + (PRINT_PAGE_WIDTH - drawWidth) / 2,
-      y: (PRINT_PAGE_HEIGHT - drawHeight) / 2,
+      x: frontCoverX + (pageWidth - drawWidth) / 2,
+      y: (pageHeight - drawHeight) / 2,
       width: drawWidth,
       height: drawHeight,
     });
@@ -1296,8 +1322,8 @@ async function buildCoverPdf(input: {
       rect: {
         x: frontCoverX,
         y: 0,
-        width: PRINT_PAGE_WIDTH,
-        height: PRINT_PAGE_HEIGHT,
+        width: pageWidth,
+        height: pageHeight,
       },
       theme,
       variant: 1,
@@ -1309,28 +1335,28 @@ async function buildCoverPdf(input: {
     page,
     variant: "light",
     x: frontCoverX + BLEED + 30,
-    y: PRINT_PAGE_HEIGHT - 62,
+    y: pageHeight - 62,
     iconSize: 36,
     font: sansBold,
   });
   page.drawRectangle({
     x: frontCoverX + BLEED + 24,
-    y: PRINT_PAGE_HEIGHT - 232,
-    width: PRINT_PAGE_WIDTH - (BLEED + 24) * 2,
+    y: pageHeight - 232,
+    width: pageWidth - (BLEED + 24) * 2,
     height: 148,
     color: BRAND_PURPLE,
     opacity: image ? 0.48 : 0.82,
   });
   page.drawText(input.story.title, {
     x: frontCoverX + BLEED + 42,
-    y: PRINT_PAGE_HEIGHT - 148,
+    y: pageHeight - 148,
     font: serifBold,
     size: 28,
     color: rgb(0.99, 0.96, 0.88),
   });
   page.drawText(`Created for ${input.profile.name}`, {
     x: frontCoverX + BLEED + 42,
-    y: PRINT_PAGE_HEIGHT - 184,
+    y: pageHeight - 184,
     font: serif,
     size: 16,
     color: rgb(0.97, 0.92, 0.82),
@@ -1338,7 +1364,7 @@ async function buildCoverPdf(input: {
 
   page.drawText("A personalised story from Storycot", {
     x: backCoverX + BLEED + 42,
-    y: PRINT_PAGE_HEIGHT - 116,
+    y: pageHeight - 116,
     font: sansBold,
     size: 13,
     color: theme.ink,
@@ -1350,8 +1376,8 @@ async function buildCoverPdf(input: {
       360
     ),
     x: backCoverX + BLEED + 42,
-    topY: PRINT_PAGE_HEIGHT - 148,
-    maxWidth: PRINT_PAGE_WIDTH * 0.56,
+    topY: pageHeight - 148,
+    maxWidth: pageWidth * 0.56,
     lineHeight: 18,
     font: serif,
     size: 12,
@@ -1361,7 +1387,7 @@ async function buildCoverPdf(input: {
   page.drawRectangle({
     x: backCoverX + BLEED + 42,
     y: 56,
-    width: PRINT_PAGE_WIDTH - (BLEED + 42) * 2,
+    width: pageWidth - (BLEED + 42) * 2,
     height: 110,
     color: rgb(1, 1, 1),
     opacity: 0.74,
@@ -1391,7 +1417,7 @@ async function buildCoverPdf(input: {
   if (input.project.pageCount >= BOOK_SPEC.spineTextMinPageCount) {
     page.drawText("Storycot", {
       x: spineX + coverSpineWidth / 2 - 20,
-      y: PRINT_PAGE_HEIGHT / 2 - 18,
+      y: pageHeight / 2 - 18,
       font: sansBold,
       size: 10,
       color: rgb(0.95, 0.93, 0.87),
@@ -1400,7 +1426,7 @@ async function buildCoverPdf(input: {
 
     page.drawText(clampText(input.story.title, 36), {
       x: spineX + coverSpineWidth / 2 - 10,
-      y: PRINT_PAGE_HEIGHT / 2 - 72,
+      y: pageHeight / 2 - 72,
       font: sansBold,
       size: 9,
       color: rgb(0.95, 0.93, 0.87),
@@ -1426,12 +1452,26 @@ export async function generateBookPdfs(input: {
   printPdfUrl: string;
   printPdfPageWidthIn: number;
   printPdfPageHeightIn: number;
+  luluCoverPdfUrl?: string;
+  luluCoverPdfPageWidthIn?: number;
+  luluCoverPdfPageHeightIn?: number;
+  luluCoverPdfSpineWidthIn?: number;
+  luluPrintPdfUrl?: string;
+  luluPrintPdfPageWidthIn?: number;
+  luluPrintPdfPageHeightIn?: number;
+  luluPrintPdfPageCount?: number;
   interiorTextSafeMarginIn: number;
   previewImages: string[];
 }> {
   const coverSpine = getBookSpineWidthIn(input.project.pageCount);
   const coverBytes = await buildCoverPdf(input);
   const printBytes = await buildPrintPdf(input);
+  const shouldGenerateLuluPdfs = process.env.STORYCOT_PRINT_PROVIDER === "lulu";
+  const luluPageCount = Math.max(
+    input.project.pageCount,
+    LULU_HARDCOVER_MIN_PAGES
+  );
+  const luluSpine = getBookSpineWidthIn(luluPageCount);
 
   const coverPdfUrl = await storeBookAsset({
     pathname: `books/${input.project.id}/cover.pdf`,
@@ -1443,6 +1483,32 @@ export async function generateBookPdfs(input: {
     body: Buffer.from(printBytes),
     contentType: "application/pdf",
   });
+  const luluCoverPdfUrl = shouldGenerateLuluPdfs
+    ? await storeBookAsset({
+        pathname: `books/${input.project.id}/lulu-cover.pdf`,
+        body: Buffer.from(
+          await buildCoverPdf({
+            ...input,
+            geometry: LULU_PDF_GEOMETRY,
+            spineWidthIn: luluSpine.widthIn,
+          })
+        ),
+        contentType: "application/pdf",
+      })
+    : undefined;
+  const luluPrintPdfUrl = shouldGenerateLuluPdfs
+    ? await storeBookAsset({
+        pathname: `books/${input.project.id}/lulu-print.pdf`,
+        body: Buffer.from(
+          await buildPrintPdf({
+            ...input,
+            geometry: LULU_PDF_GEOMETRY,
+            minPageCount: LULU_HARDCOVER_MIN_PAGES,
+          })
+        ),
+        contentType: "application/pdf",
+      })
+    : undefined;
 
   return {
     coverPdfUrl,
@@ -1458,6 +1524,26 @@ export async function generateBookPdfs(input: {
     printPdfUrl,
     printPdfPageWidthIn: BOOK_PDF_PAGE_WIDTH_IN,
     printPdfPageHeightIn: BOOK_PDF_PAGE_HEIGHT_IN,
+    luluCoverPdfUrl,
+    luluCoverPdfPageWidthIn: shouldGenerateLuluPdfs
+      ? Number(
+          (LULU_INTERIOR_PDF_PAGE_WIDTH_IN * 2 + luluSpine.widthIn).toFixed(3)
+        )
+      : undefined,
+    luluCoverPdfPageHeightIn: shouldGenerateLuluPdfs
+      ? LULU_INTERIOR_PDF_PAGE_HEIGHT_IN
+      : undefined,
+    luluCoverPdfSpineWidthIn: shouldGenerateLuluPdfs
+      ? luluSpine.widthIn
+      : undefined,
+    luluPrintPdfUrl,
+    luluPrintPdfPageWidthIn: shouldGenerateLuluPdfs
+      ? LULU_INTERIOR_PDF_PAGE_WIDTH_IN
+      : undefined,
+    luluPrintPdfPageHeightIn: shouldGenerateLuluPdfs
+      ? LULU_INTERIOR_PDF_PAGE_HEIGHT_IN
+      : undefined,
+    luluPrintPdfPageCount: shouldGenerateLuluPdfs ? luluPageCount : undefined,
     interiorTextSafeMarginIn: BOOK_SPEC.fullBleedTextSafeMarginIn,
     previewImages: input.project.spreads
       .map((spread) => spread.leftPageImageUrl ?? spread.imageUrl)

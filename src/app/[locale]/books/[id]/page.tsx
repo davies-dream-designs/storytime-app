@@ -41,6 +41,8 @@ export default async function BookProjectPage({
 
   const hasPrintPdf = Boolean(project.assets.printPdfUrl);
   const hasEpub = Boolean(project.assets.epubUrl);
+  const hasLuluPrintPdf = Boolean(project.assets.luluPrintPdfUrl);
+  const hasLuluCoverPdf = Boolean(project.assets.luluCoverPdfUrl);
 
   return (
     <>
@@ -95,6 +97,37 @@ export default async function BookProjectPage({
             <p className="mt-3 text-sm leading-6 text-night-500">
               {t("epubHelp")}
             </p>
+          ) : null}
+          {isAdmin && (hasLuluPrintPdf || hasLuluCoverPdf) ? (
+            <div className="mt-4 rounded-2xl border border-night-100 bg-white/80 p-4">
+              <p className="text-sm font-semibold text-night-800">
+                Lulu test files
+              </p>
+              <div className="mt-3 flex flex-wrap gap-3">
+                {hasLuluPrintPdf ? (
+                  <DownloadLink
+                    href={`/api/books/${project.id}/download?asset=luluPrintPdf`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="storycot-btn storycot-btn-secondary"
+                    pendingLabel={t("downloadStarting")}
+                  >
+                    Lulu interior PDF
+                  </DownloadLink>
+                ) : null}
+                {hasLuluCoverPdf ? (
+                  <DownloadLink
+                    href={`/api/books/${project.id}/download?asset=luluCoverPdf`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="storycot-btn storycot-btn-secondary"
+                    pendingLabel={t("downloadStarting")}
+                  >
+                    Lulu cover PDF
+                  </DownloadLink>
+                ) : null}
+              </div>
+            </div>
           ) : null}
         </div>
 
@@ -183,7 +216,10 @@ export default async function BookProjectPage({
                       action needed from you.
                     </p>
                     {isAdmin ? (
-                      <PrintFulfillmentResendButton bookId={project.id} />
+                      <PrintFulfillmentResendButton
+                        bookId={project.id}
+                        provider={project.printOrder.provider}
+                      />
                     ) : null}
                   </>
                 );
@@ -203,7 +239,10 @@ export default async function BookProjectPage({
                     <p>Delivery to Australia: a further 5–7 business days</p>
                   </div>
                   {isAdmin ? (
-                    <PrintFulfillmentResendButton bookId={project.id} />
+                    <PrintFulfillmentResendButton
+                      bookId={project.id}
+                      provider={project.printOrder.provider}
+                    />
                   ) : null}
                 </div>
               );

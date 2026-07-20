@@ -4,8 +4,10 @@ import { useState } from "react";
 
 export default function PrintFulfillmentResendButton({
   bookId,
+  provider,
 }: {
   bookId: string;
+  provider: string;
 }) {
   const [status, setStatus] = useState<
     "idle" | "submitting" | "submitted" | "failed"
@@ -23,7 +25,7 @@ export default function PrintFulfillmentResendButton({
 
     if (!res.ok) {
       setStatus("failed");
-      setMessage(body.error ?? "Could not send the order to Prodigi.");
+      setMessage(body.error ?? `Could not send the order to ${provider}.`);
       return;
     }
 
@@ -32,15 +34,16 @@ export default function PrintFulfillmentResendButton({
       setStatus("submitted");
       setMessage(
         fulfillment.externalOrderId
-          ? `Sent to Prodigi. Printer ref: ${fulfillment.externalOrderId}`
-          : "Sent to Prodigi."
+          ? `Sent to ${provider}. Printer ref: ${fulfillment.externalOrderId}`
+          : `Sent to ${provider}.`
       );
       return;
     }
 
     setStatus("failed");
     setMessage(
-      fulfillment?.message ?? "Prodigi did not accept the order. Check logs."
+      fulfillment?.message ??
+        `${provider} did not accept the order. Check logs.`
     );
   }
 
@@ -57,7 +60,7 @@ export default function PrintFulfillmentResendButton({
         disabled={status === "submitting" || status === "submitted"}
         className="storycot-btn storycot-btn-secondary mt-3 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {status === "submitting" ? "Sending..." : "Send to Prodigi"}
+        {status === "submitting" ? "Sending..." : `Send to ${provider}`}
       </button>
       {message ? (
         <p

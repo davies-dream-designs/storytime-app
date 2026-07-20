@@ -123,8 +123,10 @@ export function collectBookAssetUrls(project: BookProject): string[] {
 
   add(project.assets.coverImageUrl);
   add(project.assets.coverPdfUrl);
+  add(project.assets.luluCoverPdfUrl);
   add(project.assets.previewPdfUrl);
   add(project.assets.printPdfUrl);
+  add(project.assets.luluPrintPdfUrl);
   add(project.assets.epubUrl);
   project.assets.previewImages?.forEach(add);
 

@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { buildBookEpub } from "@/lib/print-books/epub";
 
-type AssetKey = "printPdf" | "epub";
+type AssetKey = "printPdf" | "epub" | "luluPrintPdf" | "luluCoverPdf";
 
 function getAsset(
   project: Awaited<ReturnType<typeof db.bookProjects.getById>>,
@@ -11,11 +11,13 @@ function getAsset(
 ) {
   if (!project) return undefined;
   if (asset === "printPdf") return project.assets.printPdfUrl;
+  if (asset === "luluPrintPdf") return project.assets.luluPrintPdfUrl;
+  if (asset === "luluCoverPdf") return project.assets.luluCoverPdfUrl;
   return project.assets.epubUrl;
 }
 
 function getContentType(asset: AssetKey): string {
-  return asset === "printPdf" ? "application/pdf" : "application/epub+zip";
+  return asset === "epub" ? "application/epub+zip" : "application/pdf";
 }
 
 function safeFilename(title: string, ext: string): string {
@@ -29,6 +31,16 @@ function safeFilename(title: string, ext: string): string {
 
 function getFilename(asset: AssetKey, storyTitle?: string): string {
   const ext = asset === "printPdf" ? "pdf" : "epub";
+  if (asset === "luluPrintPdf") {
+    return storyTitle
+      ? safeFilename(`${storyTitle} Lulu interior`, "pdf")
+      : "storycot-lulu-interior.pdf";
+  }
+  if (asset === "luluCoverPdf") {
+    return storyTitle
+      ? safeFilename(`${storyTitle} Lulu cover`, "pdf")
+      : "storycot-lulu-cover.pdf";
+  }
   if (storyTitle) return safeFilename(storyTitle, ext);
   return asset === "printPdf" ? "storycot-illustrated.pdf" : "storycot.epub";
 }
@@ -59,7 +71,12 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const asset = req.nextUrl.searchParams.get("asset") as AssetKey | null;
-  if (asset !== "printPdf" && asset !== "epub") {
+  if (
+    asset !== "printPdf" &&
+    asset !== "epub" &&
+    asset !== "luluPrintPdf" &&
+    asset !== "luluCoverPdf"
+  ) {
     return NextResponse.json({ error: "Invalid asset" }, { status: 400 });
   }
 

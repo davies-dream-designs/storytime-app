@@ -176,7 +176,7 @@ describe("stripe checkout", () => {
         body: JSON.stringify({
           type: "print_book",
           projectId: "book-1",
-          productKey: "softcover",
+          productKey: "hardcover",
         }),
       })
     );
@@ -197,15 +197,15 @@ describe("stripe checkout", () => {
           expect.objectContaining({
             price_data: expect.objectContaining({
               currency: "aud",
-              unit_amount: 3015,
+              unit_amount: 4435,
             }),
           }),
         ],
         metadata: expect.objectContaining({
           checkoutType: "print_book",
           projectId: "book-1",
-          productKey: "softcover",
-          amountAud: "30.15",
+          productKey: "hardcover",
+          amountAud: "44.35",
         }),
       })
     );
@@ -214,11 +214,51 @@ describe("stripe checkout", () => {
       expect.objectContaining({
         printOrder: expect.objectContaining({
           status: "checkout_started",
-          productKey: "softcover",
-          amountAud: 30.15,
+          productKey: "hardcover",
+          amountAud: 44.35,
           checkoutSessionId: "cs_test_123",
         }),
       })
     );
+  });
+
+  it("rejects softcover checkout while AU fulfillment is unavailable", async () => {
+    mockGetBookProjectById.mockResolvedValue({
+      id: "book-1",
+      userId: "user-1",
+      status: "ready",
+      pageCount: 32,
+      spreadCount: 16,
+      assets: {
+        coverPdfUrl: "https://example.com/cover.pdf",
+        printPdfUrl: "https://example.com/print.pdf",
+        orderabilityState: "export_ready",
+      },
+    });
+
+    const { POST } = await import("@/app/api/stripe/checkout/route");
+
+    const res = await POST(
+      new NextRequest("https://dev.storycot.com/api/stripe/checkout", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://dev.storycot.com",
+          referer: "https://dev.storycot.com/en/books/book-1",
+        },
+        body: JSON.stringify({
+          type: "print_book",
+          projectId: "book-1",
+          productKey: "softcover",
+        }),
+      })
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({
+      error:
+        "Softcover is temporarily unavailable in Australia while we source a local print route.",
+    });
+    expect(mockCreateSession).not.toHaveBeenCalled();
   });
 });

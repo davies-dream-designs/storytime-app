@@ -20,13 +20,24 @@ describe("print product policy", () => {
   });
 
   it("prices print separately from already-paid illustrations", () => {
-    expect(quotePrintProduct({ pageCount: 24 }, "softcover").priceAud).toBe(
-      26.95
-    );
     expect(quotePrintProduct({ pageCount: 24 }, "hardcover").priceAud).toBe(
       39.95
     );
     expect(getPrintProductQuotes({ pageCount: 32 })).toHaveLength(3);
+  });
+
+  it("temporarily disables products without viable AU fulfillment", () => {
+    const softcoverQuote = quotePrintProduct({ pageCount: 24 }, "softcover");
+    expect(softcoverQuote.isWithinSpecs).toBe(false);
+    expect(softcoverQuote.unsupportedReason).toContain(
+      "temporarily unavailable in Australia"
+    );
+
+    const layflatQuote = quotePrintProduct({ pageCount: 24 }, "layflat");
+    expect(layflatQuote.isWithinSpecs).toBe(false);
+    expect(layflatQuote.unsupportedReason).toContain(
+      "temporarily unavailable in Australia"
+    );
   });
 
   it("marks formats unavailable when the finished PDF is below the product minimum", () => {
@@ -39,7 +50,7 @@ describe("print product policy", () => {
     );
 
     expect(quotePrintProduct({ pageCount: 18 }, "layflat").isWithinSpecs).toBe(
-      true
+      false
     );
     expect(
       quotePrintProduct({ pageCount: 18 }, "softcover").isWithinSpecs
@@ -51,7 +62,7 @@ describe("print product policy", () => {
     expect(softcoverQuote.pageCount).toBe(19);
     expect(softcoverQuote.isWithinSpecs).toBe(false);
     expect(softcoverQuote.unsupportedReason).toContain(
-      "requires an even number of print pages"
+      "temporarily unavailable in Australia"
     );
   });
 });

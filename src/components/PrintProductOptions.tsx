@@ -14,10 +14,12 @@ export default function PrintProductOptions({
 }: {
   project: Pick<BookProject, "id" | "pageCount">;
 }) {
-  const quotes = getPrintProductQuotes(project);
+  const quotes = getPrintProductQuotes(project).filter(
+    (quote) => quote.key === "hardcover"
+  );
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-2">
       {quotes.map((quote) => (
         <article
           key={quote.key}

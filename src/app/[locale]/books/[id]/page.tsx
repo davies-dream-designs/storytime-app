@@ -98,11 +98,17 @@ export default async function BookProjectPage({
               {t("epubHelp")}
             </p>
           ) : null}
-          {isAdmin && (hasLuluPrintPdf || hasLuluCoverPdf) ? (
+          {isAdmin ? (
             <div className="mt-4 rounded-2xl border border-night-100 bg-white/80 p-4">
               <p className="text-sm font-semibold text-night-800">
                 Lulu test files
               </p>
+              {!hasLuluPrintPdf || !hasLuluCoverPdf ? (
+                <p className="mt-1 text-sm text-night-500">
+                  Refresh the PDF exports to generate Lulu-specific print files
+                  for this book.
+                </p>
+              ) : null}
               <div className="mt-3 flex flex-wrap gap-3">
                 {hasLuluPrintPdf ? (
                   <DownloadLink
@@ -114,7 +120,15 @@ export default async function BookProjectPage({
                   >
                     Lulu interior PDF
                   </DownloadLink>
-                ) : null}
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="storycot-btn storycot-btn-secondary opacity-50"
+                  >
+                    Lulu interior missing
+                  </button>
+                )}
                 {hasLuluCoverPdf ? (
                   <DownloadLink
                     href={`/api/books/${project.id}/download?asset=luluCoverPdf`}
@@ -125,7 +139,15 @@ export default async function BookProjectPage({
                   >
                     Lulu cover PDF
                   </DownloadLink>
-                ) : null}
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="storycot-btn storycot-btn-secondary opacity-50"
+                  >
+                    Lulu cover missing
+                  </button>
+                )}
               </div>
             </div>
           ) : null}

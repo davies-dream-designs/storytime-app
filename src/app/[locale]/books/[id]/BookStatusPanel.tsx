@@ -263,6 +263,7 @@ export default function BookStatusPanel({
     if (res.ok) {
       const next = (await res.json()) as BookProject;
       setProject(next);
+      router.refresh();
     }
     setRegeneratingExports(false);
   }

@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
@@ -9,6 +9,7 @@ import EpubShareButton from "@/components/EpubShareButton";
 import PrintProductOptions from "@/components/PrintProductOptions";
 import { db } from "@/lib/db";
 import BookStatusPanel from "./BookStatusPanel";
+import PrintFulfillmentResendButton from "./PrintFulfillmentResendButton";
 
 export default async function BookProjectPage({
   params,
@@ -30,8 +31,13 @@ export default async function BookProjectPage({
   ]);
   if (!project || project.userId !== userId) notFound();
 
-  const story = await db.stories.getById(project.sourceStoryId);
+  const [story, client] = await Promise.all([
+    db.stories.getById(project.sourceStoryId),
+    clerkClient(),
+  ]);
   if (!story || story.userId !== userId) notFound();
+  const user = await client.users.getUser(userId);
+  const isAdmin = user.privateMetadata.isAdmin === true;
 
   const hasPrintPdf = Boolean(project.assets.printPdfUrl);
   const hasEpub = Boolean(project.assets.epubUrl);
@@ -124,7 +130,11 @@ export default async function BookProjectPage({
             <h2 className="mt-2 font-display text-3xl font-bold text-night-800">
               {(() => {
                 const f = project.printOrder!.fulfillment;
-                if (!f || f.status === "not_configured" || f.status === "ready_for_manual_review")
+                if (
+                  !f ||
+                  f.status === "not_configured" ||
+                  f.status === "ready_for_manual_review"
+                )
                   return "Order received";
                 if (f.status === "submitted") return "Sent to print";
                 if (f.status === "failed") return "Order needs attention";
@@ -150,7 +160,9 @@ export default async function BookProjectPage({
                       inbox you used at checkout.
                     </p>
                     <div className="rounded-2xl bg-white/70 px-4 py-3 text-sm text-night-600">
-                      <p className="font-semibold text-night-800">What to expect</p>
+                      <p className="font-semibold text-night-800">
+                        What to expect
+                      </p>
                       <p className="mt-1">Production: 3–5 business days</p>
                       <p>Delivery to Australia: a further 5–7 business days</p>
                     </div>
@@ -164,11 +176,16 @@ export default async function BookProjectPage({
               }
               if (f?.status === "failed") {
                 return (
-                  <p className="mt-4 leading-7 text-blush-600">
-                    There was a problem sending your order to the printer. Our
-                    team has been notified and will sort it out — no further
-                    action needed from you.
-                  </p>
+                  <>
+                    <p className="mt-4 leading-7 text-blush-600">
+                      There was a problem sending your order to the printer. Our
+                      team has been notified and will sort it out — no further
+                      action needed from you.
+                    </p>
+                    {isAdmin ? (
+                      <PrintFulfillmentResendButton bookId={project.id} />
+                    ) : null}
+                  </>
                 );
               }
               return (
@@ -179,10 +196,15 @@ export default async function BookProjectPage({
                     ships.
                   </p>
                   <div className="rounded-2xl bg-white/70 px-4 py-3 text-sm text-night-600">
-                    <p className="font-semibold text-night-800">What to expect</p>
+                    <p className="font-semibold text-night-800">
+                      What to expect
+                    </p>
                     <p className="mt-1">Production: 3–5 business days</p>
                     <p>Delivery to Australia: a further 5–7 business days</p>
                   </div>
+                  {isAdmin ? (
+                    <PrintFulfillmentResendButton bookId={project.id} />
+                  ) : null}
                 </div>
               );
             })()}

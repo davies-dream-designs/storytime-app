@@ -2,15 +2,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import type { BookProject, PrintFulfillment } from "@/types/printBook";
 
-const { mockAuth, mockGetUser, mockSubmitPrintFulfillment } = vi.hoisted(
-  () => ({
-    mockAuth: vi.fn(async () => ({ userId: "admin-1" })),
-    mockGetUser: vi.fn(async () => ({
-      privateMetadata: { isAdmin: true },
-    })),
-    mockSubmitPrintFulfillment: vi.fn(),
-  })
-);
+const {
+  mockAuth,
+  mockGetUser,
+  mockRetrieveCheckoutShipping,
+  mockSubmitPrintFulfillment,
+} = vi.hoisted(() => ({
+  mockAuth: vi.fn(async () => ({ userId: "admin-1" })),
+  mockGetUser: vi.fn(async () => ({
+    privateMetadata: { isAdmin: true },
+  })),
+  mockRetrieveCheckoutShipping: vi.fn(),
+  mockSubmitPrintFulfillment: vi.fn(),
+}));
 
 const mockDb = {
   bookProjects: {
@@ -34,6 +38,14 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/print-books/fulfillment", () => ({
   submitPrintFulfillment: mockSubmitPrintFulfillment,
+}));
+
+vi.mock("@/lib/stripe/checkoutShipping", () => ({
+  retrieveCheckoutShipping: mockRetrieveCheckoutShipping,
+}));
+
+vi.mock("stripe", () => ({
+  default: vi.fn().mockImplementation(() => ({})),
 }));
 
 function createPaidProject(): BookProject {
@@ -92,6 +104,7 @@ describe("POST /api/admin/print-orders/[id]/resend", () => {
     vi.clearAllMocks();
     mockAuth.mockResolvedValue({ userId: "admin-1" });
     mockGetUser.mockResolvedValue({ privateMetadata: { isAdmin: true } });
+    process.env.STRIPE_SECRET_KEY = "sk_test_123";
     mockDb.bookProjects.getById.mockResolvedValue(createPaidProject());
     mockDb.bookProjects.update.mockImplementation(async (_id, updates) => ({
       ...createPaidProject(),
@@ -103,6 +116,65 @@ describe("POST /api/admin/print-orders/[id]/resend", () => {
       externalOrderId: "ord_123",
       externalStatus: "received",
     } satisfies PrintFulfillment);
+    mockRetrieveCheckoutShipping.mockResolvedValue({
+      billingCountry: "AU",
+      shipping: {
+        name: "Stripe Customer",
+        email: "stripe@example.com",
+        line1: "9 Stripe Rd",
+        city: "Sydney",
+        postalCode: "2000",
+        countryCode: "AU",
+      },
+    });
+  });
+
+  it("hydrates missing shipping from the Stripe Checkout Session before resubmitting", async () => {
+    mockDb.bookProjects.getById.mockResolvedValue({
+      ...createPaidProject(),
+      printOrder: {
+        ...createPaidProject().printOrder!,
+        shipping: undefined,
+      },
+    });
+
+    const { POST } =
+      await import("@/app/api/admin/print-orders/[id]/resend/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/admin/print-orders/book-1/resend", {
+        method: "POST",
+      }),
+      { params: Promise.resolve({ id: "book-1" }) }
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockRetrieveCheckoutShipping).toHaveBeenCalledWith(
+      expect.anything(),
+      "cs_test_123"
+    );
+    expect(mockSubmitPrintFulfillment).toHaveBeenCalledWith({
+      project: expect.objectContaining({ id: "book-1" }),
+      order: expect.objectContaining({
+        billingCountry: "AU",
+        shipping: expect.objectContaining({
+          name: "Stripe Customer",
+          line1: "9 Stripe Rd",
+        }),
+      }),
+    });
+    expect(mockDb.bookProjects.update).toHaveBeenCalledWith(
+      "book-1",
+      expect.objectContaining({
+        printOrder: expect.objectContaining({
+          shipping: expect.objectContaining({
+            name: "Stripe Customer",
+          }),
+          fulfillment: expect.objectContaining({
+            status: "submitted",
+          }),
+        }),
+      })
+    );
   });
 
   it("resubmits a paid order that has not reached the printer", async () => {

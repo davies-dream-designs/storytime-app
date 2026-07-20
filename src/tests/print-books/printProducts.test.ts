@@ -21,10 +21,10 @@ describe("print product policy", () => {
 
   it("prices print separately from already-paid illustrations", () => {
     expect(quotePrintProduct({ pageCount: 24 }, "softcover").priceAud).toBe(
-      29.95
+      26.95
     );
     expect(quotePrintProduct({ pageCount: 24 }, "hardcover").priceAud).toBe(
-      44.95
+      39.95
     );
     expect(getPrintProductQuotes({ pageCount: 32 })).toHaveLength(3);
   });

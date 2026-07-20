@@ -1051,34 +1051,46 @@ export async function processBookBuildJob(jobId: string) {
       finalProject = await captureIllustratedBookCredits(
         finalProject ?? nextProject
       );
+      const emailProject = finalProject ?? nextProject;
 
-      // Fire-and-forget — email failure must never break the build
-      after(async () => {
-        try {
-          const { clerkClient } = await import("@clerk/nextjs/server");
-          const clerk = await clerkClient();
-          const user = await clerk.users.getUser(job.userId);
-          const email = user.emailAddresses.find(
-            (e) => e.id === user.primaryEmailAddressId
-          )?.emailAddress;
-          const firstName = user.firstName ?? context.profile.name ?? "there";
-          const appUrl =
-            runningJob.baseUrl ??
-            process.env.NEXT_PUBLIC_APP_URL ??
-            "https://storycot.com";
-          if (email) {
-            await sendBookReadyEmail({
-              toEmail: email,
-              toName: firstName,
-              storyTitle: context.story.title,
-              bookId: project.id,
-              appUrl,
-            });
+      if (!emailProject.assets.bookReadyEmailSentAt) {
+        const bookReadyEmailSentAt = getNowIso();
+        finalProject =
+          (await db.bookProjects.update(project.id, {
+            assets: {
+              ...emailProject.assets,
+              bookReadyEmailSentAt,
+            },
+          })) ?? emailProject;
+
+        // Fire-and-forget — email failure must never break the build.
+        after(async () => {
+          try {
+            const { clerkClient } = await import("@clerk/nextjs/server");
+            const clerk = await clerkClient();
+            const user = await clerk.users.getUser(job.userId);
+            const email = user.emailAddresses.find(
+              (e) => e.id === user.primaryEmailAddressId
+            )?.emailAddress;
+            const firstName = user.firstName ?? context.profile.name ?? "there";
+            const appUrl =
+              runningJob.baseUrl ??
+              process.env.NEXT_PUBLIC_APP_URL ??
+              "https://storycot.com";
+            if (email) {
+              await sendBookReadyEmail({
+                toEmail: email,
+                toName: firstName,
+                storyTitle: context.story.title,
+                bookId: project.id,
+                appUrl,
+              });
+            }
+          } catch (err) {
+            console.error("Book ready email failed (non-fatal)", err);
           }
-        } catch (err) {
-          console.error("Book ready email failed (non-fatal)", err);
-        }
-      });
+        });
+      }
     }
 
     const waitingForImageBatch =

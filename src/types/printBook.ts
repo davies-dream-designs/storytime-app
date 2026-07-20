@@ -143,6 +143,7 @@ export interface BookAsset {
   openAIImageBatch?: OpenAIImageBatchAsset;
   orderabilityState?: BookOrderabilityState;
   finalizedAt?: string;
+  bookReadyEmailSentAt?: string;
   exportProfile?: string;
   proofingPassed?: boolean;
   proofingChecks?: ProofingCheck[];

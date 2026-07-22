@@ -50,6 +50,13 @@ function isTerminalJobStatus(status: BookBuildJobStatus) {
   return status === "completed" || status === "failed";
 }
 
+export function shouldSendBookReadyEmail(input: {
+  mode: BookBuildMode;
+  project: BookProject;
+}) {
+  return input.mode === "full" && !input.project.assets.bookReadyEmailSentAt;
+}
+
 function getNextProofVersion(project: BookProject): number {
   return (project.assets.proofVersion ?? 0) + 1;
 }
@@ -1053,7 +1060,12 @@ export async function processBookBuildJob(jobId: string) {
       );
       const emailProject = finalProject ?? nextProject;
 
-      if (!emailProject.assets.bookReadyEmailSentAt) {
+      if (
+        shouldSendBookReadyEmail({
+          mode: runningJob.mode,
+          project: emailProject,
+        })
+      ) {
         const bookReadyEmailSentAt = getNowIso();
         finalProject =
           (await db.bookProjects.update(project.id, {

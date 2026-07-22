@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import Button from "@/components/ui/Button";
@@ -28,6 +28,14 @@ type ExpandedImage = {
   side: "left" | "right";
   url?: string;
   displayLabel?: string;
+  index?: number;
+};
+
+type ArtworkPreview = {
+  preview: SpreadPreview;
+  side: "left" | "right";
+  url?: string;
+  error?: string;
 };
 
 type BookStatusPayload = Pick<
@@ -164,32 +172,82 @@ export default function BookStatusPanel({
   const [startingBuild, setStartingBuild] = useState(false);
   const buildStartedRef = useRef(false);
   const activeJobStatus = project.assets.activeJobStatus;
-  const artworkPreviews = spreadPreviews.flatMap((preview) => {
-    const images: Array<{
-      side: "left" | "right";
-      url?: string;
-      error?: string;
-    }> = [
-      {
-        side: "left",
-        url: preview.leftPageImageUrl,
-        error: preview.leftPageImageError,
-      },
-      {
-        side: "right",
-        url: preview.rightPageImageUrl,
-        error: preview.rightPageImageError,
-      },
-    ];
+  const artworkPreviews: ArtworkPreview[] = useMemo(
+    () =>
+      spreadPreviews.flatMap((preview) => {
+        const images: Array<{
+          side: "left" | "right";
+          url?: string;
+          error?: string;
+        }> = [
+          {
+            side: "left",
+            url: preview.leftPageImageUrl,
+            error: preview.leftPageImageError,
+          },
+          {
+            side: "right",
+            url: preview.rightPageImageUrl,
+            error: preview.rightPageImageError,
+          },
+        ];
 
-    return images.map((image) => ({
-      ...image,
-      preview,
-    }));
-  });
+        return images.map((image) => ({
+          ...image,
+          preview,
+        }));
+      }),
+    [spreadPreviews]
+  );
   const completedArtworkCount = artworkPreviews.filter(
     (preview) => preview.url
   ).length;
+
+  const getExpandedImageFromArtwork = useCallback(
+    (index: number): ExpandedImage | null => {
+      const artwork = artworkPreviews[index];
+      if (!artwork?.url) return null;
+      return {
+        spreadId: artwork.preview.id,
+        sequence: artwork.preview.sequence,
+        title: artwork.preview.title,
+        side: artwork.side,
+        url: artwork.url,
+        displayLabel: `Illustration ${index + 1}`,
+        index,
+      };
+    },
+    [artworkPreviews]
+  );
+
+  function openArtworkPreview(index: number) {
+    setExpandedImage(getExpandedImageFromArtwork(index));
+  }
+
+  const moveExpandedImage = useCallback(
+    (direction: -1 | 1) => {
+      if (!expandedImage) return;
+      let nextIndex =
+        expandedImage.index ??
+        artworkPreviews.findIndex(
+          (artwork) =>
+            artwork.preview.id === expandedImage.spreadId &&
+            artwork.side === expandedImage.side
+        );
+      if (nextIndex < 0) nextIndex = 0;
+      for (let i = 0; i < artworkPreviews.length; i += 1) {
+        nextIndex =
+          (nextIndex + direction + artworkPreviews.length) %
+          artworkPreviews.length;
+        const nextImage = getExpandedImageFromArtwork(nextIndex);
+        if (nextImage) {
+          setExpandedImage(nextImage);
+          return;
+        }
+      }
+    },
+    [artworkPreviews, expandedImage, getExpandedImageFromArtwork]
+  );
 
   useEffect(() => {
     if (project.status !== "queued" || buildStartedRef.current) return;
@@ -252,6 +310,28 @@ export default function BookStatusPanel({
 
     return () => window.clearInterval(interval);
   }, [activeJobStatus, pollUntil, project.id, project.status, router]);
+
+  useEffect(() => {
+    if (!expandedImage) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        moveExpandedImage(-1);
+      }
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        moveExpandedImage(1);
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setExpandedImage(null);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [expandedImage, moveExpandedImage]);
 
   async function handleRetry() {
     const failedImages = getFailedImageTargets(spreadPreviews);
@@ -457,18 +537,7 @@ export default function BookStatusPanel({
                 >
                   <button
                     type="button"
-                    onClick={() =>
-                      url
-                        ? setExpandedImage({
-                            spreadId: preview.id,
-                            sequence: preview.sequence,
-                            title: preview.title,
-                            side,
-                            url: url!,
-                            displayLabel,
-                          })
-                        : undefined
-                    }
+                    onClick={() => (url ? openArtworkPreview(index) : undefined)}
                     className="block aspect-square w-full overflow-hidden bg-night-100"
                     aria-label={`Open ${displayLabel}`}
                   >
@@ -504,6 +573,7 @@ export default function BookStatusPanel({
                             side,
                             url,
                             displayLabel,
+                            index,
                           })
                         }
                         disabled={
@@ -588,23 +658,29 @@ export default function BookStatusPanel({
       ) : null}
 
       {project.status === "ready" && !activeJobStatus ? (
-        <div className="mt-4 flex justify-end gap-2">
-          <Button
-            variant="secondary"
-            size="compact"
-            onClick={handleRepairArt}
-            disabled={repairingArt}
-          >
-            {repairingArt ? "Redoing Art…" : "Redo Art"}
-          </Button>
-          <Button
-            variant="secondary"
-            size="compact"
-            onClick={handleRegenerateExports}
-            disabled={regeneratingExports}
-          >
-            {regeneratingExports ? "Refreshing PDF…" : "Refresh PDF"}
-          </Button>
+        <div className="mt-6 rounded-2xl border border-night-100 bg-night-50 p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
+          <div>
+            <p className="text-sm font-bold text-night-700">Book files</p>
+            <p className="mt-1 text-sm text-night-500">
+              Refresh exports after layout or artwork changes.
+            </p>
+          </div>
+          <div className="mt-4 grid gap-2 sm:mt-0 sm:grid-cols-2">
+            <Button
+              variant="secondary"
+              onClick={handleRepairArt}
+              disabled={repairingArt}
+            >
+              {repairingArt ? "Redoing art..." : "Redo art"}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleRegenerateExports}
+              disabled={regeneratingExports}
+            >
+              {regeneratingExports ? "Refreshing PDFs..." : "Refresh PDFs"}
+            </Button>
+          </div>
         </div>
       ) : null}
 
@@ -635,15 +711,42 @@ export default function BookStatusPanel({
             onClick={(event) => event.stopPropagation()}
           >
             {expandedImage.url ? (
-              <img
-                src={expandedImage.url}
-                alt={expandedImage.displayLabel ?? "Selected illustration"}
-                className="max-h-[76vh] w-full bg-night-100 object-contain"
-              />
+              <div className="relative bg-night-100">
+                <img
+                  src={expandedImage.url}
+                  alt={expandedImage.displayLabel ?? "Selected illustration"}
+                  className="max-h-[76vh] w-full object-contain"
+                />
+                {artworkPreviews.length > 1 ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => moveExpandedImage(-1)}
+                      className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-2xl font-bold text-night-800 shadow-lg"
+                      aria-label="Previous illustration"
+                    >
+                      ‹
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveExpandedImage(1)}
+                      className="absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-2xl font-bold text-night-800 shadow-lg"
+                      aria-label="Next illustration"
+                    >
+                      ›
+                    </button>
+                  </>
+                ) : null}
+              </div>
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
               <p className="text-sm font-bold text-night-700">
                 {expandedImage.displayLabel ?? "Selected illustration"}
+                {expandedImage.index !== undefined ? (
+                  <span className="ml-2 font-medium text-night-400">
+                    {expandedImage.index + 1} of {artworkPreviews.length}
+                  </span>
+                ) : null}
               </p>
               <div className="flex items-center gap-2">
                 {(project.status === "ready" || project.status === "failed") &&

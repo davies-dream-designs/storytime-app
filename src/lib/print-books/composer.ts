@@ -27,9 +27,9 @@ function getTargetStorySpreadCount(
   const maxInteriorSpreads = getMaxInteriorStorySpreads(pageCount);
   switch (ageBand) {
     case "0-2":
-      return Math.min(6, maxInteriorSpreads);
-    case "3-5":
       return Math.min(8, maxInteriorSpreads);
+    case "3-5":
+      return Math.min(10, maxInteriorSpreads);
     case "6-8":
       return Math.min(12, maxInteriorSpreads);
   }
@@ -488,11 +488,12 @@ function createStorySpreads(
 
   for (let i = 0; i < storyBeats.length; i += 1) {
     const beat = storyBeats[i];
-    const layoutType: BookSpreadLayoutType = ageBand === "0-2" || beat.isQuietBeat
-      ? "quiet"
-      : heroSpreadSequences.has(i + 1)
-        ? "hero"
-        : "text_art";
+    const layoutType: BookSpreadLayoutType =
+      ageBand === "0-2" || beat.isQuietBeat
+        ? "quiet"
+        : heroSpreadSequences.has(i + 1)
+          ? "hero"
+          : "text_art";
     const { leftPageText, rightPageText } = splitTextForSpread(
       beat.textDraft,
       ageBand === "0-2" || beat.isQuietBeat

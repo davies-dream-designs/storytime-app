@@ -8,8 +8,8 @@ import {
 
 describe("print product policy", () => {
   it("chooses age-based logical book lengths", () => {
-    expect(getStorycotPageCountForAgeBand("0-2")).toBe(20);
-    expect(getStorycotPageCountForAgeBand("3-5")).toBe(24);
+    expect(getStorycotPageCountForAgeBand("0-2")).toBe(24);
+    expect(getStorycotPageCountForAgeBand("3-5")).toBe(28);
     expect(getStorycotPageCountForAgeBand("6-8")).toBe(32);
   });
 

@@ -82,9 +82,9 @@ export const PRINT_PRODUCTS = {
 export function getStorycotPageCountForAgeBand(ageBand: AgeBand): number {
   switch (ageBand) {
     case "0-2":
-      return 20;
-    case "3-5":
       return 24;
+    case "3-5":
+      return 28;
     case "6-8":
       return 32;
   }

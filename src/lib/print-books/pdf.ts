@@ -1096,6 +1096,16 @@ function getCombinedPageText(spread: BookSpread) {
     .join("\n\n");
 }
 
+function getTextPageDisplayText(spread: BookSpread) {
+  const text = getCombinedPageText(spread);
+  if (spread.title !== "The End") return text;
+  return text.replace(/^The End\.?\s*/i, "").trim();
+}
+
+function hasTextPageContent(spread: BookSpread) {
+  return Boolean(spread.title || getTextPageDisplayText(spread));
+}
+
 async function drawLuluTextPage(input: {
   pdfDoc: PDFDocument;
   page: ReturnType<PDFDocument["addPage"]>;
@@ -1135,7 +1145,7 @@ async function drawLuluTextPage(input: {
     font: sans,
   });
 
-  const text = getCombinedPageText(spread);
+  const text = getTextPageDisplayText(spread);
   const textWidth = pageWidth - textSafeMargin * 2;
   if (spread.title) {
     page.drawText(spread.title, {
@@ -1302,23 +1312,26 @@ async function buildPrintPdf(input: {
     }
 
     if (input.textArtInterior) {
-      const textPage = pdfDoc.addPage([pageWidth, pageHeight]);
-      await drawLuluTextPage({
-        pdfDoc,
-        page: textPage,
-        story: input.story,
-        spread: {
-          ...spread,
-          rightPageText: "",
-        },
-        pageWidth,
-        pageHeight,
-        textSafeMargin,
-        serif,
-        serifBold,
-        sans,
-        pageNumber: pdfDoc.getPageCount(),
-      });
+      const startTextSpread = {
+        ...spread,
+        rightPageText: "",
+      };
+      if (hasTextPageContent(startTextSpread)) {
+        const textPage = pdfDoc.addPage([pageWidth, pageHeight]);
+        await drawLuluTextPage({
+          pdfDoc,
+          page: textPage,
+          story: input.story,
+          spread: startTextSpread,
+          pageWidth,
+          pageHeight,
+          textSafeMargin,
+          serif,
+          serifBold,
+          sans,
+          pageNumber: pdfDoc.getPageCount(),
+        });
+      }
 
       const startArtPage = pdfDoc.addPage([pageWidth, pageHeight]);
       await drawLuluArtPage({
@@ -1338,37 +1351,43 @@ async function buildPrintPdf(input: {
         (spread.rightPageText || spread.rightPageImageUrl);
 
       if (includeRightSide) {
-        const rightTextPage = pdfDoc.addPage([pageWidth, pageHeight]);
-        await drawLuluTextPage({
-          pdfDoc,
-          page: rightTextPage,
-          story: input.story,
-          spread: {
-            ...spread,
-            leftPageText: spread.rightPageText,
-            rightPageText: "",
-          },
-          pageWidth,
-          pageHeight,
-          textSafeMargin,
-          serif,
-          serifBold,
-          sans,
-          pageNumber: pdfDoc.getPageCount(),
-        });
+        const rightTextSpread = {
+          ...spread,
+          title: undefined,
+          leftPageText: spread.rightPageText,
+          rightPageText: "",
+        };
+        if (hasTextPageContent(rightTextSpread)) {
+          const rightTextPage = pdfDoc.addPage([pageWidth, pageHeight]);
+          await drawLuluTextPage({
+            pdfDoc,
+            page: rightTextPage,
+            story: input.story,
+            spread: rightTextSpread,
+            pageWidth,
+            pageHeight,
+            textSafeMargin,
+            serif,
+            serifBold,
+            sans,
+            pageNumber: pdfDoc.getPageCount(),
+          });
+        }
 
-        const endArtPage = pdfDoc.addPage([pageWidth, pageHeight]);
-        await drawLuluArtPage({
-          pdfDoc,
-          page: endArtPage,
-          story: input.story,
-          spread,
-          side: "end",
-          pageWidth,
-          pageHeight,
-          pageNumber: pdfDoc.getPageCount(),
-          sans,
-        });
+        if (spread.rightPageImageUrl) {
+          const endArtPage = pdfDoc.addPage([pageWidth, pageHeight]);
+          await drawLuluArtPage({
+            pdfDoc,
+            page: endArtPage,
+            story: input.story,
+            spread,
+            side: "end",
+            pageWidth,
+            pageHeight,
+            pageNumber: pdfDoc.getPageCount(),
+            sans,
+          });
+        }
       }
       continue;
     }

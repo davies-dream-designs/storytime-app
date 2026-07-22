@@ -4,12 +4,15 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
 import DownloadLink from "@/components/DownloadLink";
-import EpubShareButton from "@/components/EpubShareButton";
+import FileDownloadButton from "@/components/FileDownloadButton";
 import DeleteStoryButton from "@/components/DeleteStoryButton";
 import { getDateLocale } from "@/i18n/locales";
 import { db } from "@/lib/db";
-import { inferAgeBand } from "@/lib/print-books/ageBand";
-import { getStorycotPageCountForAgeBand } from "@/lib/print-books/printProducts";
+import { inferBookAgeBand } from "@/lib/print-books/ageBand";
+import {
+  getStorycotIllustrationCountForAgeBand,
+  getStorycotPageCountForAgeBand,
+} from "@/lib/print-books/printProducts";
 import { estimateIllustratedBookCredits } from "@/lib/pricing";
 import { getUserCredits } from "@/lib/credits";
 import StoryReader from "./StoryReader";
@@ -31,12 +34,17 @@ export default async function StoryPage({
     await Promise.all([
       db.profiles.getById(story.profileId),
       db.bookProjects.getByStoryId(id),
-      userId ? getUserCredits(userId) : Promise.resolve({ credits: 0, isAdmin: false }),
+      userId
+        ? getUserCredits(userId)
+        : Promise.resolve({ credits: 0, isAdmin: false }),
     ]);
   const existingBook = bookProjects.find((p) => p.status !== "failed") ?? null;
-  const ageBand = profile ? inferAgeBand(profile) : "3-5";
+  const ageBand = profile
+    ? inferBookAgeBand({ profile, storyPreset: story.storyPreset })
+    : "3-5";
   const estimatedPageCount = getStorycotPageCountForAgeBand(ageBand);
-  const estimatedIllustrationCount = estimatedPageCount / 2;
+  const estimatedIllustrationCount =
+    getStorycotIllustrationCountForAgeBand(ageBand);
   const illustrationEstimate = estimateIllustratedBookCredits({
     ageBand,
     pageCount: estimatedPageCount,
@@ -102,12 +110,13 @@ export default async function StoryPage({
                 >
                   {t("printButton")}
                 </DownloadLink>
-                <EpubShareButton
+                <FileDownloadButton
                   href={`/api/stories/${id}/epub`}
-                  title={story.title}
+                  shareTitle={story.title}
                   label={t("textEpubButton")}
                   pendingLabel={t("downloadStarting")}
                   className="storycot-btn storycot-btn-secondary"
+                  shareWhenAvailable
                 />
                 {existingBook ? (
                   <Link

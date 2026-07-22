@@ -8,37 +8,37 @@ export const PRINT_PRODUCTS = {
     key: "softcover",
     label: "Softcover",
     badge: "Best value",
-    provider: "Prodigi",
-    format: "21x21cm square softcover",
+    provider: "Lulu",
+    format: '8.5" square premium colour paperback',
     minPageCount: 20,
     maxPageCount: 300,
     pageStep: 2,
     basePages: 24,
     basePriceAud: 26.95,
     extraSpreadAud: 0.8,
-    estimatedManufacturingAud: 13.5,
-    estimatedShippingAud: 6.95,
+    estimatedManufacturingAud: 10.55,
+    estimatedShippingAud: 15.15,
     productionDays: "4-6 business days",
     description:
-      "Affordable printed edition for everyday bedtime reading. Illustrations are already paid for.",
+      "Flexible paperback edition for everyday bedtime reading. Illustrations are already paid for.",
   },
   hardcover: {
     key: "hardcover",
     label: "Hardcover",
     badge: "Keepsake",
-    provider: "Prodigi",
-    format: "21x21cm square hardcover",
+    provider: "Lulu",
+    format: '8.5" square hardcover casewrap',
     minPageCount: 20,
     maxPageCount: 300,
     pageStep: 2,
     basePages: 24,
     basePriceAud: 39.95,
     extraSpreadAud: 1.1,
-    estimatedManufacturingAud: 24,
-    estimatedShippingAud: 7.95,
+    estimatedManufacturingAud: 18.5,
+    estimatedShippingAud: 15.15,
     productionDays: "5-7 business days",
     description:
-      "Giftable keepsake edition with a rigid cover and printable spine when the book is thick enough.",
+      "Giftable keepsake edition with a rigid casewrap cover and premium colour pages.",
   },
   layflat: {
     key: "layflat",
@@ -82,12 +82,31 @@ export const PRINT_PRODUCTS = {
 export function getStorycotPageCountForAgeBand(ageBand: AgeBand): number {
   switch (ageBand) {
     case "0-2":
-      return 20;
-    case "3-5":
       return 24;
+    case "3-5":
+      return 28;
     case "6-8":
       return 32;
   }
+}
+
+export function getStorycotStorySpreadCountForAgeBand(
+  ageBand: AgeBand
+): number {
+  switch (ageBand) {
+    case "0-2":
+      return 8;
+    case "3-5":
+      return 10;
+    case "6-8":
+      return 12;
+  }
+}
+
+export function getStorycotIllustrationCountForAgeBand(
+  ageBand: AgeBand
+): number {
+  return getStorycotStorySpreadCountForAgeBand(ageBand) + 1;
 }
 
 export function isPrintProductKey(value: unknown): value is PrintProductKey {
@@ -109,10 +128,6 @@ export function getAdjustedPageCountForProduct(
 
 function getUnsupportedReason(pageCount: number, productKey: PrintProductKey) {
   const product = PRINT_PRODUCTS[productKey];
-  if (productKey === "softcover") {
-    return "Softcover is temporarily unavailable in Australia while we source a local print route.";
-  }
-
   if (productKey === "layflat") {
     return "Layflat is temporarily unavailable in Australia while we source a local print route.";
   }

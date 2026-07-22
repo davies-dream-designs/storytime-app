@@ -7,6 +7,11 @@ import {
   isPrintProductKey,
   quotePrintProduct,
 } from "@/lib/print-books/printProducts";
+import {
+  hasLuluPrintAssets,
+  isLuluPrintProvider,
+} from "@/lib/print-books/lulu";
+import { isStoryPrintRestricted } from "@/lib/ipGuardrails";
 
 const PACKS = {
   starter: { credits: 10, amount: 499, label: "Storycot Starter — 10 stories" },
@@ -108,9 +113,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const story = await db.stories.getById(project.sourceStoryId);
+    if (!story || story.userId !== userId) {
+      return NextResponse.json({ error: "Story not found" }, { status: 404 });
+    }
+
+    if (isStoryPrintRestricted(story)) {
+      return NextResponse.json(
+        {
+          error:
+            "This story can be downloaded for personal review, but it cannot be ordered as a printed book because it may include protected characters, brands, or source material.",
+        },
+        { status: 409 }
+      );
+    }
+
     if (!project.assets.printPdfUrl || !project.assets.coverPdfUrl) {
+      if (project.assets.downloadableFilesArchivedAt) {
+        return NextResponse.json(
+          {
+            error:
+              "This book's print files have been archived. Refresh PDFs before checkout.",
+          },
+          { status: 409 }
+        );
+      }
       return NextResponse.json(
         { error: "Print files are not ready yet." },
+        { status: 409 }
+      );
+    }
+
+    if (isLuluPrintProvider() && !hasLuluPrintAssets(project)) {
+      return NextResponse.json(
+        { error: "Lulu print files are not ready yet." },
         { status: 409 }
       );
     }

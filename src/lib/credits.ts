@@ -1,6 +1,7 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { estimateIllustratedBookCredits } from "@/lib/pricing";
+import { getStorycotIllustrationCountForAgeBand } from "@/lib/print-books/printProducts";
 import type { BookBilling, BookProject } from "@/types/printBook";
 
 const DEFAULT_CREDITS = 3;
@@ -78,7 +79,7 @@ export async function reserveIllustratedBookCredits(
   const estimate = estimateIllustratedBookCredits({
     ageBand: project.ageBand,
     pageCount: project.pageCount,
-    illustrationCount: project.spreadCount,
+    illustrationCount: getStorycotIllustrationCountForAgeBand(project.ageBand),
   });
 
   if (!isAdmin && currentCredits < estimate.credits) {

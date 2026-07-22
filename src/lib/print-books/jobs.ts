@@ -12,6 +12,7 @@ import {
   generateCoverIllustration,
   generateSpreadPageIllustration,
   generateSpreadIllustration,
+  isBookStoryIllustrationSpread,
   isGeneratedIllustrationConfigured,
   retrieveBookImageBatch,
   shouldUseImageBatch,
@@ -50,6 +51,13 @@ function isTerminalJobStatus(status: BookBuildJobStatus) {
   return status === "completed" || status === "failed";
 }
 
+export function shouldSendBookReadyEmail(input: {
+  mode: BookBuildMode;
+  project: BookProject;
+}) {
+  return input.mode === "full" && !input.project.assets.bookReadyEmailSentAt;
+}
+
 function getNextProofVersion(project: BookProject): number {
   return (project.assets.proofVersion ?? 0) + 1;
 }
@@ -80,10 +88,8 @@ function hasUnresolvedGeneratedPageImages(spreads: BookSpread[]) {
   return spreads.some(
     (spread) =>
       isGeneratedPageSpread(spread) &&
-      (!spread.leftPageImageUrl ||
-        !spread.rightPageImageUrl ||
-        Boolean(spread.leftPageImageError) ||
-        Boolean(spread.rightPageImageError))
+      (!(spread.leftPageImageUrl ?? spread.imageUrl) ||
+        Boolean(spread.leftPageImageError))
   );
 }
 
@@ -293,7 +299,7 @@ async function regenerateProjectArt(input: {
 
     return db.bookProjects.update(input.id, {
       status: "illustrating",
-      currentStageLabel: `Generating final art 1 of ${totalArtSteps}...`,
+      currentStageLabel: "Generating final art...",
       characterBible: input.characterBible,
       spreads: cover.spreads,
       completedSpreads: 1,
@@ -328,12 +334,10 @@ async function regenerateProjectArt(input: {
     });
   }
 
-  // Title uses a branded PDF design; Back Cover falls back to a plain panel
-  // when no image is present. Neither needs a generated illustration.
-  if (spread.title === "Title" || spread.title === "Back Cover") {
+  if (!isBookStoryIllustrationSpread(spread)) {
     return db.bookProjects.update(input.id, {
       status: "illustrating",
-      currentStageLabel: `Generating final art ${currentCursor + 1} of ${totalArtSteps}...`,
+      currentStageLabel: "Generating final art...",
       characterBible: input.characterBible,
       spreads: input.project.spreads,
       completedSpreads: currentCursor + 1,
@@ -429,7 +433,7 @@ async function regenerateProjectArt(input: {
 
   return db.bookProjects.update(input.id, {
     status: "illustrating",
-    currentStageLabel: `Generating final art ${nextCursor + 1} of ${totalArtSteps}...`,
+    currentStageLabel: "Generating final art...",
     characterBible: input.characterBible,
     spreads: illustratedSpreads,
     completedSpreads: nextCursor,
@@ -483,11 +487,21 @@ async function finalizeProjectExports(input: {
     previewPdfPageWidthIn: undefined,
     previewPdfPageHeightIn: undefined,
     printPdfUrl: pdfAssets.printPdfUrl,
+    luluCoverPdfUrl: pdfAssets.luluCoverPdfUrl,
+    luluCoverPdfPageWidthIn: pdfAssets.luluCoverPdfPageWidthIn,
+    luluCoverPdfPageHeightIn: pdfAssets.luluCoverPdfPageHeightIn,
+    luluCoverPdfSpineWidthIn: pdfAssets.luluCoverPdfSpineWidthIn,
+    luluPrintPdfUrl: pdfAssets.luluPrintPdfUrl,
+    luluPrintPdfPageWidthIn: pdfAssets.luluPrintPdfPageWidthIn,
+    luluPrintPdfPageHeightIn: pdfAssets.luluPrintPdfPageHeightIn,
+    luluPrintPdfPageCount: pdfAssets.luluPrintPdfPageCount,
     epubUrl: epubAssets.epubUrl,
     printPdfPageWidthIn: pdfAssets.printPdfPageWidthIn,
     printPdfPageHeightIn: pdfAssets.printPdfPageHeightIn,
     interiorTextSafeMarginIn: pdfAssets.interiorTextSafeMarginIn,
     previewImages: pdfAssets.previewImages,
+    downloadableFilesArchivedAt: undefined,
+    downloadableFilesArchiveReason: undefined,
   };
 
   const proofingReport = runStorycotPrintProofing(
@@ -1043,34 +1057,56 @@ export async function processBookBuildJob(jobId: string) {
       finalProject = await captureIllustratedBookCredits(
         finalProject ?? nextProject
       );
+      const emailProject = finalProject ?? nextProject;
 
-      // Fire-and-forget — email failure must never break the build
-      after(async () => {
-        try {
-          const { clerkClient } = await import("@clerk/nextjs/server");
-          const clerk = await clerkClient();
-          const user = await clerk.users.getUser(job.userId);
-          const email = user.emailAddresses.find(
-            (e) => e.id === user.primaryEmailAddressId
-          )?.emailAddress;
-          const firstName = user.firstName ?? context.profile.name ?? "there";
-          const appUrl =
-            runningJob.baseUrl ??
-            process.env.NEXT_PUBLIC_APP_URL ??
-            "https://storycot.com";
-          if (email) {
-            await sendBookReadyEmail({
-              toEmail: email,
-              toName: firstName,
-              storyTitle: context.story.title,
-              bookId: project.id,
-              appUrl,
-            });
-          }
-        } catch (err) {
-          console.error("Book ready email failed (non-fatal)", err);
+      if (
+        shouldSendBookReadyEmail({
+          mode: runningJob.mode,
+          project: emailProject,
+        })
+      ) {
+        const bookReadyEmailSentAt = getNowIso();
+        const claimedProject = await db.bookProjects.claimReadyEmail(
+          project.id,
+          bookReadyEmailSentAt
+        );
+        if (!claimedProject) {
+          return {
+            job: updatedJob,
+            project: finalProject ?? nextProject,
+            shouldContinue: !terminalProject,
+          };
         }
-      });
+        finalProject = claimedProject;
+
+        // Fire-and-forget — email failure must never break the build.
+        after(async () => {
+          try {
+            const { clerkClient } = await import("@clerk/nextjs/server");
+            const clerk = await clerkClient();
+            const user = await clerk.users.getUser(job.userId);
+            const email = user.emailAddresses.find(
+              (e) => e.id === user.primaryEmailAddressId
+            )?.emailAddress;
+            const firstName = user.firstName ?? context.profile.name ?? "there";
+            const appUrl =
+              runningJob.baseUrl ??
+              process.env.NEXT_PUBLIC_APP_URL ??
+              "https://storycot.com";
+            if (email) {
+              await sendBookReadyEmail({
+                toEmail: email,
+                toName: firstName,
+                storyTitle: context.story.title,
+                bookId: project.id,
+                appUrl,
+              });
+            }
+          } catch (err) {
+            console.error("Book ready email failed (non-fatal)", err);
+          }
+        });
+      }
     }
 
     const waitingForImageBatch =

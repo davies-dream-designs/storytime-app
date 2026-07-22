@@ -37,16 +37,16 @@ describe("pricing policy", () => {
     expect(
       estimateIllustratedBookCredits({
         ageBand: "0-2",
-        pageCount: 20,
-        illustrationCount: 10,
+        pageCount: 24,
+        illustrationCount: 9,
       }).credits
     ).toBe(8);
     expect(
       estimateIllustratedBookCredits({
         ageBand: "6-8",
         pageCount: 32,
-        illustrationCount: 16,
+        illustrationCount: 13,
       }).credits
-    ).toBe(12);
+    ).toBe(11);
   });
 });

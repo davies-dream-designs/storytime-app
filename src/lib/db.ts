@@ -201,6 +201,26 @@ export const db = {
     failedIndexKey(): string {
       return "bookProjectsFailed";
     },
+    readyEmailClaimKey(id: string): string {
+      return `bookProjectReadyEmail:${id}`;
+    },
+    async claimReadyEmail(
+      id: string,
+      sentAt: string
+    ): Promise<BookProject | undefined> {
+      const current = await this.getById(id);
+      if (!current || current.assets.bookReadyEmailSentAt) return undefined;
+
+      const claimed = await kv.setnx(this.readyEmailClaimKey(id), sentAt);
+      if (!claimed) return undefined;
+
+      return this.update(id, {
+        assets: {
+          ...current.assets,
+          bookReadyEmailSentAt: sentAt,
+        },
+      });
+    },
     async addToFailedIndex(id: string): Promise<void> {
       const existing = (await kv.get<string[]>(this.failedIndexKey())) ?? [];
       const next = [id, ...existing.filter((i) => i !== id)].slice(0, 200);

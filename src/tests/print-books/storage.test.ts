@@ -46,8 +46,11 @@ describe("storeBookAsset", () => {
 
   it("collects and deletes blob-backed book assets", async () => {
     process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_token";
-    const { collectBookAssetUrls, deleteBookProjectAssets } =
-      await import("@/lib/print-books/storage");
+    const {
+      collectBookAssetUrls,
+      collectBookDownloadableAssetUrls,
+      deleteBookProjectAssets,
+    } = await import("@/lib/print-books/storage");
     const blob = (pathname: string) =>
       `https://store.blob.vercel-storage.com/${pathname}`;
     const project = {
@@ -56,6 +59,8 @@ describe("storeBookAsset", () => {
         proofVersion: 0,
         coverImageUrl: blob("books/book-1/cover.png"),
         printPdfUrl: blob("books/book-1/print.pdf"),
+        luluCoverPdfUrl: blob("books/book-1/lulu-cover.pdf"),
+        luluPrintPdfUrl: blob("books/book-1/lulu-print.pdf"),
         epubUrl: blob("books/book-1/storycot.epub"),
         previewImages: [
           blob("books/book-1/previews/1.png"),
@@ -76,15 +81,24 @@ describe("storeBookAsset", () => {
     const urls = collectBookAssetUrls(project as never);
     expect(urls).toEqual([
       blob("books/book-1/cover.png"),
+      blob("books/book-1/lulu-cover.pdf"),
       blob("books/book-1/print.pdf"),
+      blob("books/book-1/lulu-print.pdf"),
       blob("books/book-1/storycot.epub"),
       blob("books/book-1/previews/1.png"),
       blob("books/book-1/spreads/1.png"),
       blob("books/book-1/spreads/2-left.png"),
       blob("books/book-1/spreads/2-thumb.png"),
     ]);
+    expect(collectBookDownloadableAssetUrls(project as never)).toEqual([
+      blob("books/book-1/lulu-cover.pdf"),
+      blob("books/book-1/print.pdf"),
+      blob("books/book-1/lulu-print.pdf"),
+      blob("books/book-1/storycot.epub"),
+      blob("books/book-1/previews/1.png"),
+    ]);
 
-    await expect(deleteBookProjectAssets(project as never)).resolves.toBe(7);
+    await expect(deleteBookProjectAssets(project as never)).resolves.toBe(9);
     expect(mockBlobDelete).toHaveBeenCalledWith(urls, {
       token: "vercel_blob_rw_token",
     });

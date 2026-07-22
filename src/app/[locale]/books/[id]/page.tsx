@@ -3,11 +3,12 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
-import DownloadLink from "@/components/DownloadLink";
 import DeleteBookButton from "@/components/DeleteBookButton";
-import EpubShareButton from "@/components/EpubShareButton";
+import FileDownloadButton from "@/components/FileDownloadButton";
 import PrintProductOptions from "@/components/PrintProductOptions";
 import { db } from "@/lib/db";
+import { isStoryPrintRestricted } from "@/lib/ipGuardrails";
+import { getBookFileRetentionState } from "@/lib/print-books/retention";
 import BookStatusPanel from "./BookStatusPanel";
 import PrintFulfillmentResendButton from "./PrintFulfillmentResendButton";
 
@@ -41,6 +42,17 @@ export default async function BookProjectPage({
 
   const hasPrintPdf = Boolean(project.assets.printPdfUrl);
   const hasEpub = Boolean(project.assets.epubUrl);
+  const hasLuluPrintPdf = Boolean(project.assets.luluPrintPdfUrl);
+  const hasLuluCoverPdf = Boolean(project.assets.luluCoverPdfUrl);
+  const fileRetention = getBookFileRetentionState(project);
+  const printRestricted = isStoryPrintRestricted(story);
+  const fileRetentionDate = fileRetention.availableUntil
+    ? new Intl.DateTimeFormat("en-AU", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(new Date(fileRetention.availableUntil))
+    : undefined;
 
   return (
     <>
@@ -65,31 +77,90 @@ export default async function BookProjectPage({
               ? t("illustratedPdfReadyPageSub", { title: story.title })
               : t("illustratedPdfPageSub", { title: story.title })}
           </p>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <DeleteBookButton
-              bookId={project.id}
-              redirectTo={`/stories/${story.id}`}
-            />
-            {hasPrintPdf ? (
-              <DownloadLink
-                href={`/api/books/${project.id}/download?asset=printPdf`}
-                target="_blank"
-                rel="noreferrer"
-                className="storycot-btn storycot-btn-primary"
-                pendingLabel={t("downloadStarting")}
-              >
-                {t("illustratedPdfButton")}
-              </DownloadLink>
-            ) : null}
-            {hasEpub ? (
-              <EpubShareButton
-                href={`/api/books/${project.id}/download?asset=epub`}
-                title={story.title}
-                label={t("epubButton")}
-                pendingLabel={t("downloadStarting")}
-                className="storycot-btn storycot-btn-secondary"
+          <div className="mt-5 rounded-2xl border border-night-100 bg-white/80 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-night-800">
+                  Book files
+                </p>
+                {fileRetention.isArchived ? (
+                  <p className="mt-1 text-sm text-night-500">
+                    High-resolution download and print files have been archived.
+                    Your story is still saved; use Refresh PDFs below to prepare
+                    fresh files.
+                  </p>
+                ) : fileRetentionDate ? (
+                  <p className="mt-1 text-sm text-night-500">
+                    Download and print-ready files are kept available until{" "}
+                    {fileRetentionDate}. Your story stays in your library after
+                    that.
+                  </p>
+                ) : isAdmin && (!hasLuluPrintPdf || !hasLuluCoverPdf) ? (
+                  <p className="mt-1 text-sm text-night-500">
+                    Refresh the PDF exports to generate Lulu-specific print
+                    files for this book.
+                  </p>
+                ) : null}
+              </div>
+              <DeleteBookButton
+                bookId={project.id}
+                redirectTo={`/stories/${story.id}`}
               />
-            ) : null}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-3">
+              {hasPrintPdf ? (
+                <FileDownloadButton
+                  href={`/api/books/${project.id}/download?asset=printPdf`}
+                  className="storycot-btn storycot-btn-primary"
+                  label={t("illustratedPdfButton")}
+                  pendingLabel={t("downloadStarting")}
+                />
+              ) : null}
+              {hasEpub ? (
+                <FileDownloadButton
+                  href={`/api/books/${project.id}/download?asset=epub`}
+                  shareTitle={story.title}
+                  label={t("epubButton")}
+                  pendingLabel={t("downloadStarting")}
+                  className="storycot-btn storycot-btn-secondary"
+                  shareWhenAvailable
+                />
+              ) : null}
+              {isAdmin && hasLuluPrintPdf ? (
+                <FileDownloadButton
+                  href={`/api/books/${project.id}/download?asset=luluPrintPdf`}
+                  className="storycot-btn storycot-btn-secondary"
+                  label="Lulu interior PDF"
+                  pendingLabel={t("downloadStarting")}
+                />
+              ) : null}
+              {isAdmin && !hasLuluPrintPdf ? (
+                <button
+                  type="button"
+                  disabled
+                  className="storycot-btn storycot-btn-secondary opacity-50"
+                >
+                  Lulu interior missing
+                </button>
+              ) : null}
+              {isAdmin && hasLuluCoverPdf ? (
+                <FileDownloadButton
+                  href={`/api/books/${project.id}/download?asset=luluCoverPdf`}
+                  className="storycot-btn storycot-btn-secondary"
+                  label="Lulu cover PDF"
+                  pendingLabel={t("downloadStarting")}
+                />
+              ) : null}
+              {isAdmin && !hasLuluCoverPdf ? (
+                <button
+                  type="button"
+                  disabled
+                  className="storycot-btn storycot-btn-secondary opacity-50"
+                >
+                  Lulu cover missing
+                </button>
+              ) : null}
+            </div>
           </div>
           {hasEpub ? (
             <p className="mt-3 text-sm leading-6 text-night-500">
@@ -183,7 +254,10 @@ export default async function BookProjectPage({
                       action needed from you.
                     </p>
                     {isAdmin ? (
-                      <PrintFulfillmentResendButton bookId={project.id} />
+                      <PrintFulfillmentResendButton
+                        bookId={project.id}
+                        provider={project.printOrder.provider}
+                      />
                     ) : null}
                   </>
                 );
@@ -203,7 +277,10 @@ export default async function BookProjectPage({
                     <p>Delivery to Australia: a further 5–7 business days</p>
                   </div>
                   {isAdmin ? (
-                    <PrintFulfillmentResendButton bookId={project.id} />
+                    <PrintFulfillmentResendButton
+                      bookId={project.id}
+                      provider={project.printOrder.provider}
+                    />
                   ) : null}
                 </div>
               );
@@ -218,10 +295,27 @@ export default async function BookProjectPage({
             <h2 className="font-display text-2xl font-bold text-night-800">
               {t("printOptionsTitle")}
             </h2>
-            <p className="mt-2 text-night-600">{t("printOptionsSub")}</p>
-            <div className="mt-6">
-              <PrintProductOptions project={project} />
-            </div>
+            {printRestricted ? (
+              <div className="mt-4 rounded-2xl border border-star-200 bg-star-50 p-4 text-sm leading-6 text-night-700">
+                <p className="font-bold text-night-800">
+                  Printed ordering is unavailable for this story
+                </p>
+                <p className="mt-1">
+                  You can still download the PDF or EPUB for personal review,
+                  but Storycot can only send original stories to Australian
+                  print fulfilment. Create an original version without protected
+                  characters, brands, logos, or recognisable source worlds to
+                  order through Lulu.
+                </p>
+              </div>
+            ) : (
+              <>
+                <p className="mt-2 text-night-600">{t("printOptionsSub")}</p>
+                <div className="mt-6">
+                  <PrintProductOptions project={project} />
+                </div>
+              </>
+            )}
           </section>
         ) : null}
       </main>

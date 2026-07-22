@@ -120,6 +120,14 @@ export interface BookAsset {
   epubUrl?: string;
   printPdfPageWidthIn?: number;
   printPdfPageHeightIn?: number;
+  luluCoverPdfUrl?: string;
+  luluCoverPdfPageWidthIn?: number;
+  luluCoverPdfPageHeightIn?: number;
+  luluCoverPdfSpineWidthIn?: number;
+  luluPrintPdfUrl?: string;
+  luluPrintPdfPageWidthIn?: number;
+  luluPrintPdfPageHeightIn?: number;
+  luluPrintPdfPageCount?: number;
   interiorTextSafeMarginIn?: number;
   previewImages?: string[];
   artMode?: BookArtMode;
@@ -135,6 +143,9 @@ export interface BookAsset {
   openAIImageBatch?: OpenAIImageBatchAsset;
   orderabilityState?: BookOrderabilityState;
   finalizedAt?: string;
+  bookReadyEmailSentAt?: string;
+  downloadableFilesArchivedAt?: string;
+  downloadableFilesArchiveReason?: "retention" | "manual";
   exportProfile?: string;
   proofingPassed?: boolean;
   proofingChecks?: ProofingCheck[];
@@ -183,7 +194,7 @@ export interface PrintShippingAddress {
 }
 
 export interface PrintFulfillment {
-  provider: "prodigi" | "peecho";
+  provider: "prodigi" | "peecho" | "lulu";
   status: "not_configured" | "ready_for_manual_review" | "submitted" | "failed";
   preparedAt?: string;
   submittedAt?: string;

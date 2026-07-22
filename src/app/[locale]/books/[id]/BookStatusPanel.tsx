@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import Button from "@/components/ui/Button";
@@ -27,6 +27,15 @@ type ExpandedImage = {
   title?: string;
   side: "left" | "right";
   url?: string;
+  displayLabel?: string;
+  index?: number;
+};
+
+type ArtworkPreview = {
+  preview: SpreadPreview;
+  side: "left" | "right";
+  url?: string;
+  error?: string;
 };
 
 type BookStatusPayload = Pick<
@@ -44,34 +53,18 @@ type BookStatusPayload = Pick<
 > & { spreadPreviews?: SpreadPreview[] };
 
 function getFailedImageTargets(spreads: SpreadPreview[]): ExpandedImage[] {
-  return spreads.flatMap((preview) => {
-    const images: Array<{
-      side: "left" | "right";
-      url?: string;
-      error?: string;
-    }> = [
-      {
-        side: "left",
-        url: preview.leftPageImageUrl,
-        error: preview.leftPageImageError,
-      },
-      {
-        side: "right",
-        url: preview.rightPageImageUrl,
-        error: preview.rightPageImageError,
-      },
-    ];
-
-    return images
-      .filter(({ url, error }) => Boolean(error) || !url)
-      .map(({ side, url }) => ({
-        spreadId: preview.id,
-        sequence: preview.sequence,
-        title: preview.title,
-        side,
-        url,
-      }));
-  });
+  return spreads
+    .filter(
+      (preview) =>
+        Boolean(preview.leftPageImageError) || !preview.leftPageImageUrl
+    )
+    .map((preview) => ({
+      spreadId: preview.id,
+      sequence: preview.sequence,
+      title: preview.title,
+      side: "left",
+      url: preview.leftPageImageUrl,
+    }));
 }
 
 function isPlaceholderImageUrl(url?: string): boolean {
@@ -81,36 +74,20 @@ function isPlaceholderImageUrl(url?: string): boolean {
 }
 
 function getRepairImageTargets(spreads: SpreadPreview[]): ExpandedImage[] {
-  return spreads.flatMap((preview) => {
-    const images: Array<{
-      side: "left" | "right";
-      url?: string;
-      error?: string;
-    }> = [
-      {
-        side: "left",
-        url: preview.leftPageImageUrl,
-        error: preview.leftPageImageError,
-      },
-      {
-        side: "right",
-        url: preview.rightPageImageUrl,
-        error: preview.rightPageImageError,
-      },
-    ];
-
-    return images
-      .filter(
-        ({ url, error }) => Boolean(error) || !url || isPlaceholderImageUrl(url)
-      )
-      .map(({ side, url }) => ({
-        spreadId: preview.id,
-        sequence: preview.sequence,
-        title: preview.title,
-        side,
-        url,
-      }));
-  });
+  return spreads
+    .filter(
+      (preview) =>
+        Boolean(preview.leftPageImageError) ||
+        !preview.leftPageImageUrl ||
+        isPlaceholderImageUrl(preview.leftPageImageUrl)
+    )
+    .map((preview) => ({
+      spreadId: preview.id,
+      sequence: preview.sequence,
+      title: preview.title,
+      side: "left",
+      url: preview.leftPageImageUrl,
+    }));
 }
 
 function isTerminal(status: BookProject["status"]): boolean {
@@ -131,9 +108,9 @@ function getSpreadPreviews(project: BookProject): SpreadPreview[] {
       title: s.title,
       thumbnailUrl: s.thumbnailUrl ?? s.imageUrl,
       leftPageImageUrl: s.leftPageImageUrl ?? s.imageUrl,
-      rightPageImageUrl: s.rightPageImageUrl ?? s.imageUrl,
+      rightPageImageUrl: undefined,
       leftPageImageError: s.leftPageImageError,
-      rightPageImageError: s.rightPageImageError,
+      rightPageImageError: undefined,
     }))
     .sort((a, b) => a.sequence - b.sequence);
 }
@@ -159,9 +136,72 @@ export default function BookStatusPanel({
   const [expandedImage, setExpandedImage] = useState<ExpandedImage | null>(
     null
   );
+  const [pollUntil, setPollUntil] = useState(0);
   const [startingBuild, setStartingBuild] = useState(false);
   const buildStartedRef = useRef(false);
+  const latestProjectUpdatedAtRef = useRef(
+    Date.parse(initialProject.updatedAt)
+  );
   const activeJobStatus = project.assets.activeJobStatus;
+  const artworkPreviews: ArtworkPreview[] = useMemo(
+    () =>
+      spreadPreviews.map((preview) => ({
+        preview,
+        side: "left",
+        url: preview.leftPageImageUrl,
+        error: preview.leftPageImageError,
+      })),
+    [spreadPreviews]
+  );
+  const completedArtworkCount = artworkPreviews.filter(
+    (preview) => preview.url
+  ).length;
+
+  const getExpandedImageFromArtwork = useCallback(
+    (index: number): ExpandedImage | null => {
+      const artwork = artworkPreviews[index];
+      if (!artwork?.url) return null;
+      return {
+        spreadId: artwork.preview.id,
+        sequence: artwork.preview.sequence,
+        title: artwork.preview.title,
+        side: artwork.side,
+        url: artwork.url,
+        displayLabel: `Illustration ${index + 1}`,
+        index,
+      };
+    },
+    [artworkPreviews]
+  );
+
+  function openArtworkPreview(index: number) {
+    setExpandedImage(getExpandedImageFromArtwork(index));
+  }
+
+  const moveExpandedImage = useCallback(
+    (direction: -1 | 1) => {
+      if (!expandedImage) return;
+      let nextIndex =
+        expandedImage.index ??
+        artworkPreviews.findIndex(
+          (artwork) =>
+            artwork.preview.id === expandedImage.spreadId &&
+            artwork.side === expandedImage.side
+        );
+      if (nextIndex < 0) nextIndex = 0;
+      for (let i = 0; i < artworkPreviews.length; i += 1) {
+        nextIndex =
+          (nextIndex + direction + artworkPreviews.length) %
+          artworkPreviews.length;
+        const nextImage = getExpandedImageFromArtwork(nextIndex);
+        if (nextImage) {
+          setExpandedImage(nextImage);
+          return;
+        }
+      }
+    },
+    [artworkPreviews, expandedImage, getExpandedImageFromArtwork]
+  );
 
   useEffect(() => {
     if (project.status !== "queued" || buildStartedRef.current) return;
@@ -188,32 +228,75 @@ export default function BookStatusPanel({
   }, [project.id, project.status]);
 
   useEffect(() => {
-    if (isTerminal(project.status) && !activeJobStatus) return;
+    const shouldPoll =
+      !isTerminal(project.status) ||
+      Boolean(activeJobStatus) ||
+      pollUntil > Date.now();
+    if (!shouldPoll) return;
 
-    const interval = window.setInterval(async () => {
-      const res = await fetch(`/api/books/${project.id}/status`, {
-        cache: "no-store",
-        credentials: "same-origin",
-      });
-      if (!res.ok) return;
-      const next = (await res.json()) as BookStatusPayload;
-      setProject((current) => ({ ...current, ...next }));
-      if (next.spreadPreviews) {
-        setSpreadPreviews(
-          [...next.spreadPreviews].sort((a, b) => a.sequence - b.sequence)
-        );
-      }
+    const interval = window.setInterval(
+      async () => {
+        const res = await fetch(`/api/books/${project.id}/status`, {
+          cache: "no-store",
+          credentials: "same-origin",
+        });
+        if (!res.ok) return;
+        const next = (await res.json()) as BookStatusPayload;
+        const nextUpdatedAt = Date.parse(next.updatedAt);
+        if (
+          Number.isFinite(nextUpdatedAt) &&
+          Number.isFinite(latestProjectUpdatedAtRef.current) &&
+          nextUpdatedAt < latestProjectUpdatedAtRef.current
+        ) {
+          return;
+        }
+        if (Number.isFinite(nextUpdatedAt)) {
+          latestProjectUpdatedAtRef.current = nextUpdatedAt;
+        }
+        setProject((current) => ({ ...current, ...next }));
+        if (next.spreadPreviews) {
+          setSpreadPreviews(
+            [...next.spreadPreviews].sort((a, b) => a.sequence - b.sequence)
+          );
+        }
 
-      if (
-        (next.status === "ready" || next.status === "failed") &&
-        !next.assets.activeJobStatus
-      ) {
-        router.refresh();
-      }
-    }, 4000);
+        if (
+          (next.status === "ready" || next.status === "failed") &&
+          !next.assets.activeJobStatus
+        ) {
+          router.refresh();
+          if (Date.now() >= pollUntil) {
+            window.clearInterval(interval);
+          }
+        }
+      },
+      pollUntil > Date.now() ? 2000 : 4000
+    );
 
     return () => window.clearInterval(interval);
-  }, [activeJobStatus, project.id, project.status, router]);
+  }, [activeJobStatus, pollUntil, project.id, project.status, router]);
+
+  useEffect(() => {
+    if (!expandedImage) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        moveExpandedImage(-1);
+      }
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        moveExpandedImage(1);
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setExpandedImage(null);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [expandedImage, moveExpandedImage]);
 
   async function handleRetry() {
     const failedImages = getFailedImageTargets(spreadPreviews);
@@ -252,6 +335,7 @@ export default function BookStatusPanel({
     if (res.ok) {
       const next = (await res.json()) as BookProject;
       setProject(next);
+      router.refresh();
     }
     setRegeneratingExports(false);
   }
@@ -270,6 +354,7 @@ export default function BookStatusPanel({
     if (res.ok) {
       const nextProject = next as BookProject;
       setProject(nextProject);
+      setPollUntil(Date.now() + 20_000);
       const previews = getSpreadPreviews(nextProject);
       setSpreadPreviews(previews);
       const nextPreview = previews.find(
@@ -387,13 +472,8 @@ export default function BookStatusPanel({
         <div className="mt-6">
           <div className="mb-3 flex items-end justify-between gap-4">
             <p className="text-xs font-bold uppercase tracking-wide text-night-400">
-              {t("spreadProgress", {
-                completed: spreadPreviews.filter(
-                  (preview) =>
-                    preview.leftPageImageUrl && preview.rightPageImageUrl
-                ).length,
-                total: spreadPreviews.length,
-              })}
+              {completedArtworkCount} of {artworkPreviews.length} illustrations
+              planned
             </p>
             {project.status === "ready" || project.status === "failed" ? (
               <p className="text-xs font-bold text-night-400">
@@ -402,109 +482,82 @@ export default function BookStatusPanel({
             ) : null}
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-            {spreadPreviews.map((preview) => {
-              const images: Array<{
-                side: "left" | "right";
-                url?: string;
-                error?: string;
-              }> = [
-                {
-                  side: "left",
-                  url: preview.leftPageImageUrl,
-                  error: preview.leftPageImageError,
-                },
-                {
-                  side: "right",
-                  url: preview.rightPageImageUrl,
-                  error: preview.rightPageImageError,
-                },
-              ];
-
-              return images.map(({ side, url, error }) => {
-                const key = `${preview.id}:${side}`;
-                const isRegenerating = regeneratingImage === key;
-                const isEditableStatus =
-                  project.status === "ready" || project.status === "failed";
-                const isGeneratedPage =
-                  preview.title !== "Cover" &&
-                  preview.title !== "Title" &&
-                  preview.title !== "Back Cover";
-                const isFreeRetry = Boolean(error) || !url;
-                const canRegenerate =
-                  isEditableStatus && isGeneratedPage && !activeJobStatus;
-                return (
-                  <div
-                    key={key}
-                    className="overflow-hidden rounded-2xl border border-night-100 bg-night-50"
+            {artworkPreviews.map(({ preview, side, url, error }, index) => {
+              const key = `${preview.id}:${side}`;
+              const isRegenerating = regeneratingImage === key;
+              const isEditableStatus =
+                project.status === "ready" || project.status === "failed";
+              const isGeneratedPage =
+                preview.title !== "Cover" &&
+                preview.title !== "Title" &&
+                preview.title !== "Back Cover";
+              const isFreeRetry = Boolean(error) || !url;
+              const canRegenerate =
+                isEditableStatus && isGeneratedPage && !activeJobStatus;
+              const displayLabel = `Illustration ${index + 1}`;
+              return (
+                <div
+                  key={key}
+                  className="overflow-hidden rounded-2xl border border-night-100 bg-night-50"
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      url ? openArtworkPreview(index) : undefined
+                    }
+                    className="block aspect-square w-full overflow-hidden bg-night-100"
+                    aria-label={`Open ${displayLabel}`}
                   >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        url
-                          ? setExpandedImage({
-                              spreadId: preview.id,
-                              sequence: preview.sequence,
-                              title: preview.title,
-                              side,
-                              url: url!,
-                            })
-                          : undefined
-                      }
-                      className="block aspect-square w-full overflow-hidden bg-night-100"
-                      aria-label={`Open spread ${preview.sequence} ${side} image`}
-                    >
-                      {url ? (
-                        <img
-                          src={url}
-                          alt={`${t("spreadNumberLabel", {
+                    {url ? (
+                      <img
+                        src={url}
+                        alt={displayLabel}
+                        className="h-full w-full object-cover transition hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-night-100 px-3 text-center text-xs font-bold text-night-400">
+                        {error ? "Image failed" : "Waiting for image"}
+                      </div>
+                    )}
+                  </button>
+                  {error ? (
+                    <p className="px-3 pt-2 text-xs font-medium text-blush-700">
+                      {error}
+                    </p>
+                  ) : null}
+                  <div className="flex items-center justify-between gap-2 px-3 py-2">
+                    <span className="text-xs font-bold uppercase tracking-wide text-night-500">
+                      {displayLabel}
+                    </span>
+                    {canRegenerate ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleRegenerateImage({
+                            spreadId: preview.id,
                             sequence: preview.sequence,
-                          })} ${side}`}
-                          className="h-full w-full object-cover transition hover:scale-105"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center bg-night-100 px-3 text-center text-xs font-bold text-night-400">
-                          {error ? "Image failed" : "Waiting for image"}
-                        </div>
-                      )}
-                    </button>
-                    {error ? (
-                      <p className="px-3 pt-2 text-xs font-medium text-blush-700">
-                        {error}
-                      </p>
+                            title: preview.title,
+                            side,
+                            url,
+                            displayLabel,
+                            index,
+                          })
+                        }
+                        disabled={
+                          Boolean(regeneratingImage) || Boolean(activeJobStatus)
+                        }
+                        className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-night-700 shadow-sm disabled:opacity-50"
+                      >
+                        {isRegenerating
+                          ? "Working…"
+                          : isFreeRetry
+                            ? "Retry"
+                            : "Redo"}
+                      </button>
                     ) : null}
-                    <div className="flex items-center justify-between gap-2 px-3 py-2">
-                      <span className="text-xs font-bold uppercase tracking-wide text-night-500">
-                        {preview.sequence} · {side}
-                      </span>
-                      {canRegenerate ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleRegenerateImage({
-                              spreadId: preview.id,
-                              sequence: preview.sequence,
-                              title: preview.title,
-                              side,
-                              url,
-                            })
-                          }
-                          disabled={
-                            Boolean(regeneratingImage) ||
-                            Boolean(activeJobStatus)
-                          }
-                          className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-night-700 shadow-sm disabled:opacity-50"
-                        >
-                          {isRegenerating
-                            ? "Working…"
-                            : isFreeRetry
-                              ? "Retry"
-                              : "Redo"}
-                        </button>
-                      ) : null}
-                    </div>
                   </div>
-                );
-              });
+                </div>
+              );
             })}
           </div>
           {imageError ? (
@@ -571,23 +624,29 @@ export default function BookStatusPanel({
       ) : null}
 
       {project.status === "ready" && !activeJobStatus ? (
-        <div className="mt-4 flex justify-end gap-2">
-          <Button
-            variant="secondary"
-            size="compact"
-            onClick={handleRepairArt}
-            disabled={repairingArt}
-          >
-            {repairingArt ? "Redoing Art…" : "Redo Art"}
-          </Button>
-          <Button
-            variant="secondary"
-            size="compact"
-            onClick={handleRegenerateExports}
-            disabled={regeneratingExports}
-          >
-            {regeneratingExports ? "Refreshing PDF…" : "Refresh PDF"}
-          </Button>
+        <div className="mt-6 rounded-2xl border border-night-100 bg-night-50 p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
+          <div>
+            <p className="text-sm font-bold text-night-700">Export actions</p>
+            <p className="mt-1 text-sm text-night-500">
+              Refresh exports after layout or artwork changes.
+            </p>
+          </div>
+          <div className="mt-4 grid gap-2 sm:mt-0 sm:grid-cols-2">
+            <Button
+              variant="secondary"
+              onClick={handleRepairArt}
+              disabled={repairingArt}
+            >
+              {repairingArt ? "Redoing art..." : "Redo art"}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleRegenerateExports}
+              disabled={regeneratingExports}
+            >
+              {regeneratingExports ? "Refreshing PDFs..." : "Refresh PDFs"}
+            </Button>
+          </div>
         </div>
       ) : null}
 
@@ -618,15 +677,42 @@ export default function BookStatusPanel({
             onClick={(event) => event.stopPropagation()}
           >
             {expandedImage.url ? (
-              <img
-                src={expandedImage.url}
-                alt={`Spread ${expandedImage.sequence} ${expandedImage.side} image`}
-                className="max-h-[76vh] w-full bg-night-100 object-contain"
-              />
+              <div className="relative bg-night-100">
+                <img
+                  src={expandedImage.url}
+                  alt={expandedImage.displayLabel ?? "Selected illustration"}
+                  className="max-h-[76vh] w-full object-contain"
+                />
+                {artworkPreviews.length > 1 ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => moveExpandedImage(-1)}
+                      className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-2xl font-bold text-night-800 shadow-lg"
+                      aria-label="Previous illustration"
+                    >
+                      ‹
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveExpandedImage(1)}
+                      className="absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-2xl font-bold text-night-800 shadow-lg"
+                      aria-label="Next illustration"
+                    >
+                      ›
+                    </button>
+                  </>
+                ) : null}
+              </div>
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
               <p className="text-sm font-bold text-night-700">
-                Spread {expandedImage.sequence} · {expandedImage.side} image
+                {expandedImage.displayLabel ?? "Selected illustration"}
+                {expandedImage.index !== undefined ? (
+                  <span className="ml-2 font-medium text-night-400">
+                    {expandedImage.index + 1} of {artworkPreviews.length}
+                  </span>
+                ) : null}
               </p>
               <div className="flex items-center gap-2">
                 {(project.status === "ready" || project.status === "failed") &&

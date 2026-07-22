@@ -22,6 +22,9 @@ function createProject(): BookProject {
       proofVersion: 1,
       coverPdfUrl: "https://assets.storycot.test/book-1-cover.pdf",
       printPdfUrl: "https://assets.storycot.test/book-1-print.pdf",
+      luluCoverPdfUrl: "https://assets.storycot.test/book-1-lulu-cover.pdf",
+      luluPrintPdfUrl: "https://assets.storycot.test/book-1-lulu-print.pdf",
+      luluPrintPdfPageCount: 24,
       orderabilityState: "export_ready",
     },
     retryCount: 0,
@@ -60,6 +63,8 @@ describe("preparePrintFulfillment", () => {
     process.env = { ...previousEnv };
     delete process.env.STORYCOT_PRINT_PROVIDER;
     delete process.env.STORYCOT_PRODIGI_SOFTCOVER_SKU;
+    delete process.env.LULU_CONTACT_EMAIL;
+    delete process.env.LULU_SHIPPING_LEVEL;
   });
 
   it("keeps paid orders safe when supplier SKUs are not configured", () => {
@@ -102,5 +107,111 @@ describe("preparePrintFulfillment", () => {
         },
       ],
     });
+  });
+
+  it("prepares a Lulu hardcover payload with separate cover and interior PDFs", () => {
+    process.env.STORYCOT_PRINT_PROVIDER = "lulu";
+    process.env.LULU_CONTACT_EMAIL = "print@example.com";
+    process.env.LULU_SHIPPING_LEVEL = "MAIL";
+
+    const fulfillment = preparePrintFulfillment({
+      project: createProject(),
+      order: {
+        ...createOrder(),
+        productKey: "hardcover",
+        productLabel: "Hardcover",
+        provider: "Lulu",
+        format: '8.5" square hardcover casewrap',
+      },
+    });
+
+    expect(fulfillment.status).toBe("ready_for_manual_review");
+    expect(fulfillment.provider).toBe("lulu");
+    expect(fulfillment.payload).toMatchObject({
+      contact_email: "print@example.com",
+      external_id: "storycot-book-1",
+      line_items: [
+        {
+          external_id: "book-1-hardcover",
+          printable_normalization: {
+            cover: {
+              source_url: "https://assets.storycot.test/book-1-lulu-cover.pdf",
+            },
+            interior: {
+              source_url: "https://assets.storycot.test/book-1-lulu-print.pdf",
+            },
+            pod_package_id: "0850X0850.FC.PRE.CW.080CW444.MXX",
+          },
+          quantity: 1,
+          title: "Hardcover",
+        },
+      ],
+      shipping_address: {
+        name: "Mila Reader",
+        email: "mila@example.com",
+        street1: "1 Story Lane",
+        city: "Sydney",
+        state_code: "NSW",
+        postcode: "2000",
+        country_code: "AU",
+      },
+      shipping_level: "MAIL",
+    });
+  });
+
+  it("prepares a Lulu softcover payload with the paperback package", () => {
+    process.env.STORYCOT_PRINT_PROVIDER = "lulu";
+
+    const fulfillment = preparePrintFulfillment({
+      project: createProject(),
+      order: {
+        ...createOrder(),
+        productKey: "softcover",
+        productLabel: "Softcover",
+        provider: "Lulu",
+        format: '8.5" square premium colour paperback',
+      },
+    });
+
+    expect(fulfillment.status).toBe("ready_for_manual_review");
+    expect(fulfillment.provider).toBe("lulu");
+    expect(fulfillment.payload).toMatchObject({
+      line_items: [
+        {
+          external_id: "book-1-softcover",
+          printable_normalization: {
+            pod_package_id: "0850X0850.FC.PRE.PB.080CW444.GXX",
+          },
+          title: "Softcover",
+        },
+      ],
+    });
+  });
+
+  it("blocks Lulu fulfillment until 20-page books have a padded interior export", () => {
+    process.env.STORYCOT_PRINT_PROVIDER = "lulu";
+    const project = {
+      ...createProject(),
+      pageCount: 20,
+      assets: {
+        ...createProject().assets,
+        luluPrintPdfPageCount: 20,
+      },
+    };
+
+    const fulfillment = preparePrintFulfillment({
+      project,
+      order: {
+        ...createOrder(),
+        productKey: "hardcover",
+        provider: "Lulu",
+      },
+    });
+
+    expect(fulfillment.provider).toBe("lulu");
+    expect(fulfillment.status).toBe("not_configured");
+    expect(fulfillment.message).toContain(
+      "requires at least 24 interior pages"
+    );
   });
 });

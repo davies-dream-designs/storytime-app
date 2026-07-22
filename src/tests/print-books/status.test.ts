@@ -41,7 +41,7 @@ describe("getBookProjectStageLabel", () => {
       "Painting moonlit pages..."
     );
     expect(getBookProjectStageLabel("ready")).toBe(
-      "Your print-book draft is ready for review."
+      "Your illustrated book is ready to order."
     );
   });
 });

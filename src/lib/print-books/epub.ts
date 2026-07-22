@@ -39,12 +39,15 @@ function splitParagraphs(value: string): string[] {
     .filter(Boolean);
 }
 
-function getImageSource(
-  spread: BookSpread,
-  side: "left" | "right"
-): string | undefined {
-  if (side === "left") return spread.leftPageImageUrl ?? spread.imageUrl;
-  return spread.rightPageImageUrl ?? spread.imageUrl;
+function getPrimaryImageSource(spread: BookSpread): string | undefined {
+  return spread.leftPageImageUrl ?? spread.imageUrl;
+}
+
+function getSpreadReadingText(spread: BookSpread): string {
+  return [spread.leftPageText, spread.rightPageText]
+    .map((text) => normalizeWhitespace(text))
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 function getDataUrlAsset(
@@ -178,16 +181,7 @@ function createBrandedCoverSvg(input: {
 async function createTextCoverAsset(input: {
   story: Story;
   profile?: ChildProfile;
-  coverImageUrl?: string;
 }): Promise<EpubImageAsset> {
-  if (input.coverImageUrl) {
-    const cover = await loadImageAsset({
-      id: "cover",
-      url: input.coverImageUrl,
-    });
-    if (cover) return cover;
-  }
-
   const cover = await sharp(Buffer.from(createBrandedCoverSvg(input)))
     .resize(EPUB_COVER_WIDTH, EPUB_COVER_HEIGHT, { fit: "fill" })
     .flatten({ background: "#2b1b5d" })
@@ -259,7 +253,7 @@ function renderPageXhtml(input: {
   imageHref?: string;
   body: string;
   pageLabel?: string;
-  variant?: "cover" | "story" | "closing";
+  variant?: "cover" | "story" | "image" | "closing";
 }): string {
   const {
     title,
@@ -270,12 +264,15 @@ function renderPageXhtml(input: {
     variant = "story",
   } = input;
   const isCover = variant === "cover";
+  const isImage = variant === "image";
   const isClosing = variant === "closing";
   const sectionClass = isCover
     ? "cover-page"
-    : isClosing
-      ? "closing-page"
-      : "page";
+    : isImage
+      ? "image-page"
+      : isClosing
+        ? "closing-page"
+        : "page";
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
@@ -339,7 +336,14 @@ body {
 
 .page {
   box-sizing: border-box;
+  padding: 3rem 2rem;
+  page-break-after: always;
+}
+
+.image-page {
+  box-sizing: border-box;
   padding: 0;
+  page-break-after: always;
 }
 
 .cover-page {
@@ -400,7 +404,7 @@ h1 {
 .illustration {
   display: block;
   height: auto;
-  margin: 0 auto 1.5rem;
+  margin: 0 auto;
   max-width: 100%;
 }
 
@@ -496,41 +500,21 @@ export async function buildBookEpub(input: {
     )
       continue;
 
-    const leftImageHref = await addImage(
-      `img-spread-${spread.sequence}-left`,
-      getImageSource(spread, "left")
+    const imageHref = await addImage(
+      `img-spread-${spread.sequence}`,
+      getPrimaryImageSource(spread)
     );
-    const rightImageHref = await addImage(
-      `img-spread-${spread.sequence}-right`,
-      getImageSource(spread, "right")
-    );
+    const body = getSpreadReadingText(spread);
 
-    const leftBody = spread.leftPageText;
-    const rightBody = spread.rightPageText;
-
-    if (leftBody || leftImageHref) {
+    if (body || imageHref) {
       pages.push({
-        id: `spread-${spread.sequence}-left`,
-        href: `spread-${spread.sequence}-left.xhtml`,
+        id: `spread-${spread.sequence}`,
+        href: `spread-${spread.sequence}.xhtml`,
         title: `${title} - Page ${readingPageNumber}`,
         content: renderPageXhtml({
           title,
-          imageHref: leftImageHref,
-          body: leftBody,
-        }),
-      });
-      readingPageNumber += 1;
-    }
-
-    if (rightBody || rightImageHref) {
-      pages.push({
-        id: `spread-${spread.sequence}-right`,
-        href: `spread-${spread.sequence}-right.xhtml`,
-        title: `${title} - Page ${readingPageNumber}`,
-        content: renderPageXhtml({
-          title,
-          imageHref: rightImageHref,
-          body: rightBody,
+          body,
+          imageHref,
         }),
       });
       readingPageNumber += 1;
@@ -620,7 +604,6 @@ export async function buildBookEpub(input: {
 export async function buildStoryTextEpub(input: {
   story: Story;
   profile?: ChildProfile;
-  coverImageUrl?: string;
 }): Promise<Buffer> {
   const { story, profile } = input;
   const zip = new JSZip();
@@ -632,7 +615,6 @@ export async function buildStoryTextEpub(input: {
   const coverAsset = await createTextCoverAsset({
     story,
     profile,
-    coverImageUrl: input.coverImageUrl,
   });
 
   zip.file("mimetype", "application/epub+zip", { compression: "STORE" });

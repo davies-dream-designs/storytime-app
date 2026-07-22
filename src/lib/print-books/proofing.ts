@@ -180,18 +180,15 @@ export function runStorycotPrintProofing(
     });
   }
 
-  // A spread has art if any of its image fields are populated (supports both per-page and legacy shared).
+  // A spread has art if its primary image is populated (supports legacy shared images).
   const spreadsMissingImages = project.spreads
     .filter(
       (spread) =>
         spread.sequence > 1 &&
         spread.title !== "Title" &&
         spread.title !== "Back Cover" &&
-        (!spread.leftPageImageUrl ||
-          !spread.rightPageImageUrl ||
-          Boolean(spread.leftPageImageError) ||
-          Boolean(spread.rightPageImageError)) &&
-        !spread.imageUrl
+        (!(spread.leftPageImageUrl ?? spread.imageUrl) ||
+          Boolean(spread.leftPageImageError))
     )
     .map((spread) => spread.sequence);
   if (spreadsMissingImages.length > 0) {

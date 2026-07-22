@@ -7,6 +7,7 @@ import {
   storyIdeaSafetyErrorResponse,
   validateStoryIdeaSafety,
 } from "@/lib/storySafety";
+import { assessStoryIdeaIp } from "@/lib/ipGuardrails";
 import type { Story } from "@/types";
 
 export async function POST(req: NextRequest) {
@@ -61,6 +62,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const ipPolicy = assessStoryIdeaIp({ theme, premise, notes });
+
   const story: Story = {
     id: randomUUID(),
     userId,
@@ -70,9 +73,10 @@ export async function POST(req: NextRequest) {
     pages: [],
     wordCount: 0,
     theme: theme ?? "a gentle adventure",
-    premise,
-    notes: notes ?? "",
+    premise: ipPolicy.originalizedPremise ?? premise,
+    notes: ipPolicy.originalizedNotes ?? notes ?? "",
     storyPreset: storyPreset ?? "moonlit-adventures",
+    ipPolicy,
     createdAt: new Date().toISOString(),
     status: "generating",
   };

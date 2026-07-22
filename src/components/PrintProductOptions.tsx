@@ -15,7 +15,7 @@ export default function PrintProductOptions({
   project: Pick<BookProject, "id" | "pageCount">;
 }) {
   const quotes = getPrintProductQuotes(project).filter(
-    (quote) => quote.key === "hardcover"
+    (quote) => quote.key === "hardcover" || quote.key === "softcover"
   );
 
   return (

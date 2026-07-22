@@ -159,15 +159,22 @@ describe("buildBookEpub", () => {
     ).resolves.toContain("Moonlight Garden - Page 1");
     expect(zip.file("OEBPS/cover.xhtml")).toBeNull();
     expect(zip.file("OEBPS/the-end.xhtml")).toBeNull();
-    expect(zip.file("OEBPS/spread-2-left.xhtml")).toBeTruthy();
+    expect(zip.file("OEBPS/spread-2-left-text.xhtml")).toBeTruthy();
+    expect(zip.file("OEBPS/spread-2-left-art.xhtml")).toBeTruthy();
     expect(zip.file("OEBPS/images/img-spread-2-left.jpg")).toBeTruthy();
     const firstStoryPage = await zip
-      .file("OEBPS/spread-2-left.xhtml")!
+      .file("OEBPS/spread-2-left-text.xhtml")!
       .async("string");
     expect(firstStoryPage).toContain("width=device-width, initial-scale=1.0");
+    expect(firstStoryPage).not.toContain("<img");
     expect(firstStoryPage).not.toContain("page-label");
     expect(firstStoryPage).not.toContain("<h1>");
     expect(firstStoryPage).not.toContain("<h1>Moonlight Garden</h1>");
+    const firstArtPage = await zip
+      .file("OEBPS/spread-2-left-art.xhtml")!
+      .async("string");
+    expect(firstArtPage).toContain("<img");
+    expect(firstArtPage).not.toContain("Mila stepped into");
 
     const coverBytes = await zip
       .file("OEBPS/images/cover.jpg")!
@@ -284,9 +291,10 @@ describe("buildBookEpub", () => {
       const zip = await JSZip.loadAsync(epub);
       expect(zip.file("OEBPS/cover.xhtml")).toBeNull();
       expect(zip.file("OEBPS/images/cover.jpg")).toBeTruthy();
-      expect(zip.file("OEBPS/spread-2-left.xhtml")).toBeTruthy();
+      expect(zip.file("OEBPS/spread-2-left-text.xhtml")).toBeTruthy();
+      expect(zip.file("OEBPS/spread-2-left-art.xhtml")).toBeNull();
       await expect(
-        zip.file("OEBPS/spread-2-left.xhtml")?.async("string")
+        zip.file("OEBPS/spread-2-left-text.xhtml")?.async("string")
       ).resolves.toContain("Mila stepped into the moonlight garden.");
     } finally {
       vi.unstubAllGlobals();

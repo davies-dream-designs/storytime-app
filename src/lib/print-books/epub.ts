@@ -259,7 +259,7 @@ function renderPageXhtml(input: {
   imageHref?: string;
   body: string;
   pageLabel?: string;
-  variant?: "cover" | "story" | "closing";
+  variant?: "cover" | "story" | "image" | "closing";
 }): string {
   const {
     title,
@@ -270,12 +270,15 @@ function renderPageXhtml(input: {
     variant = "story",
   } = input;
   const isCover = variant === "cover";
+  const isImage = variant === "image";
   const isClosing = variant === "closing";
   const sectionClass = isCover
     ? "cover-page"
-    : isClosing
-      ? "closing-page"
-      : "page";
+    : isImage
+      ? "image-page"
+      : isClosing
+        ? "closing-page"
+        : "page";
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
@@ -339,7 +342,14 @@ body {
 
 .page {
   box-sizing: border-box;
+  padding: 3rem 2rem;
+  page-break-after: always;
+}
+
+.image-page {
+  box-sizing: border-box;
   padding: 0;
+  page-break-after: always;
 }
 
 .cover-page {
@@ -400,7 +410,7 @@ h1 {
 .illustration {
   display: block;
   height: auto;
-  margin: 0 auto 1.5rem;
+  margin: 0 auto;
   max-width: 100%;
 }
 
@@ -505,35 +515,43 @@ export async function buildBookEpub(input: {
       getImageSource(spread, "right")
     );
 
-    const leftBody = spread.leftPageText;
-    const rightBody = spread.rightPageText;
+    const pageEntries: Array<{
+      side: "left" | "right";
+      body: string;
+      imageHref?: string;
+    }> = [
+      { side: "left", body: spread.leftPageText, imageHref: leftImageHref },
+      { side: "right", body: spread.rightPageText, imageHref: rightImageHref },
+    ];
 
-    if (leftBody || leftImageHref) {
-      pages.push({
-        id: `spread-${spread.sequence}-left`,
-        href: `spread-${spread.sequence}-left.xhtml`,
-        title: `${title} - Page ${readingPageNumber}`,
-        content: renderPageXhtml({
-          title,
-          imageHref: leftImageHref,
-          body: leftBody,
-        }),
-      });
-      readingPageNumber += 1;
-    }
+    for (const entry of pageEntries) {
+      if (entry.body) {
+        pages.push({
+          id: `spread-${spread.sequence}-${entry.side}-text`,
+          href: `spread-${spread.sequence}-${entry.side}-text.xhtml`,
+          title: `${title} - Page ${readingPageNumber}`,
+          content: renderPageXhtml({
+            title,
+            body: entry.body,
+          }),
+        });
+        readingPageNumber += 1;
+      }
 
-    if (rightBody || rightImageHref) {
-      pages.push({
-        id: `spread-${spread.sequence}-right`,
-        href: `spread-${spread.sequence}-right.xhtml`,
-        title: `${title} - Page ${readingPageNumber}`,
-        content: renderPageXhtml({
-          title,
-          imageHref: rightImageHref,
-          body: rightBody,
-        }),
-      });
-      readingPageNumber += 1;
+      if (entry.imageHref) {
+        pages.push({
+          id: `spread-${spread.sequence}-${entry.side}-art`,
+          href: `spread-${spread.sequence}-${entry.side}-art.xhtml`,
+          title: `${title} - Illustration ${readingPageNumber}`,
+          content: renderPageXhtml({
+            title,
+            imageHref: entry.imageHref,
+            body: "",
+            variant: "image",
+          }),
+        });
+        readingPageNumber += 1;
+      }
     }
   }
 

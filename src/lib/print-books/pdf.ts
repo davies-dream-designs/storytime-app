@@ -1199,7 +1199,7 @@ async function buildPrintPdf(input: {
   geometry?: PdfPageGeometry;
   minPageCount?: number;
   includeCoverFrontMatter?: boolean;
-  luluTextArtInterior?: boolean;
+  textArtInterior?: boolean;
 }): Promise<Uint8Array> {
   const geometry = input.geometry ?? STORYCOT_PDF_GEOMETRY;
   const { pageWidth, pageHeight, textSafeMargin } = geometry;
@@ -1290,7 +1290,7 @@ async function buildPrintPdf(input: {
       continue;
     }
 
-    if (input.luluTextArtInterior) {
+    if (input.textArtInterior) {
       const textPage = pdfDoc.addPage([pageWidth, pageHeight]);
       await drawLuluTextPage({
         pdfDoc,
@@ -1666,7 +1666,11 @@ export async function generateBookPdfs(input: {
 }> {
   const coverSpine = getBookSpineWidthIn(input.project.pageCount);
   const coverBytes = await buildCoverPdf(input);
-  const printBytes = await buildPrintPdf(input);
+  const printBytes = await buildPrintPdf({
+    ...input,
+    includeCoverFrontMatter: false,
+    textArtInterior: true,
+  });
   const shouldGenerateLuluPdfs = process.env.STORYCOT_PRINT_PROVIDER === "lulu";
   const luluPrintBytes = shouldGenerateLuluPdfs
     ? await buildPrintPdf({
@@ -1674,7 +1678,7 @@ export async function generateBookPdfs(input: {
         geometry: LULU_PDF_GEOMETRY,
         minPageCount: LULU_HARDCOVER_MIN_PAGES,
         includeCoverFrontMatter: false,
-        luluTextArtInterior: true,
+        textArtInterior: true,
       })
     : undefined;
   const luluPrintPdfPageCount = luluPrintBytes

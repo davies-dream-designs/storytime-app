@@ -1,10 +1,92 @@
 # Storycot - Handover Document
 
-**Last updated:** 2026-07-17  
-**Branch:** `main`  
+**Last updated:** 2026-07-22  
+**Branch:** `main` / `dev` synced  
 **Live URL:** https://storycot.com  
 **Preview URL:** https://dev.storycot.com  
-**Latest production merge:** `c1f56bc Merge pull request #27 from davies-dream-designs/feat/ui-consistency-pass`
+**Latest production merge:** `1fedd47 Merge pull request #69 from davies-dream-designs/dev`
+
+---
+
+## Current Handoff - 2026-07-22 - Lulu Print, PDF Layout, IP Guardrails
+
+`origin/main`, `origin/dev`, local `main`, and local `dev` have been synced to production code at `1fedd47` before this handover update. Production Vercel for `1fedd47` reported success.
+
+### What Changed
+
+- Lulu print fulfillment groundwork:
+  - Added Lulu provider support and Lulu-specific interior/cover PDF exports.
+  - Public paid print ordering is gated as **Coming soon** in production.
+  - Admins can still test real print checkout in production.
+  - Non-admin production checkout POSTs for print books are blocked server-side.
+  - Public options are hardcover and softcover only; layflat remains unavailable.
+- PDF/EPUB layout:
+  - Regular PDF, Lulu interior, and illustrated EPUB use cleaner text/art layout.
+  - Text pages sit separately from illustration pages for print readability.
+  - End-matter no longer creates decorative placeholder art pages.
+  - Lulu minimum page padding is plain blank pages at the back only.
+  - EPUB no longer uses placeholder image references for text-only stories.
+- Book generation and exports:
+  - Admin Lulu interior/cover download buttons are available on book pages.
+  - Download buttons use a consistent file-download/share flow.
+  - Duplicate “book ready” email sends were deduped.
+  - Image regeneration/retry and PDF refresh flows were tightened.
+- IP/legal guardrails:
+  - Protected-source prompts are rewritten into original Storycot-safe ideas before generation.
+  - Stored rewritten prompts redact protected names so clean generated stories are not falsely print-blocked.
+  - Generated final story title/text/illustration prompts are still scanned; surviving protected names or source/style references block print fulfillment.
+  - New-story UI warns that recognisable protected franchises/characters cannot be printed through Storycot.
+- Retention:
+  - Downloadable book files now have retention/archive scaffolding.
+  - Admin archive endpoint exists for high-resolution book files.
+- Automation:
+  - Daily AgentHub/OpenHands automation created: `Daily Storycot Improvement Ideas`.
+  - Automation ID: `6afe3108-3e9b-4397-9033-c0a1e42d43a4`.
+  - Schedule: 9:00 AM Australia/Sydney.
+  - Ledger issue: https://github.com/davies-dream-designs/storytime-app/issues/66.
+  - Reject ideas in that issue with `reject: IDEA-YYYYMMDD-1`, `decline IDEA-YYYYMMDD-2`, or `not now: IDEA-YYYYMMDD-3`.
+
+### Latest Production PRs
+
+- PR #65: promoted Lulu/print/export/IP work to production.
+- PR #67: gated paid print ordering as Coming soon for public production users.
+- PR #68: removed decorative placeholder art pages from PDF endings.
+- PR #69: fixed false print restrictions after safe IP rewrite.
+
+### Validation Run
+
+Latest code changes were validated before production promotion with:
+
+```
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
+
+Known warnings still present:
+
+- `src/app/[locale]/books/[id]/BookStatusPanel.tsx` uses `<img>` in two places.
+- `src/lib/print-books/pdf.ts` has unused helpers `getWordmarkWidth` and `drawCenteredText`.
+
+### Current Product State
+
+- Users can create stories and illustrated books.
+- Users can download PDF/EPUB exports.
+- Paid physical print ordering is not public yet.
+- Admin users can test print checkout and Lulu files in production.
+- For admin status, Clerk private metadata must contain `isAdmin: true`.
+
+### QA Still Worth Doing
+
+- Create a fresh original story on `dev.storycot.com`, generate an illustrated book, refresh PDFs, and confirm:
+  - no decorative placeholder page appears after “The End”;
+  - Lulu interior has only blank padding at the back if padding is needed;
+  - Lulu cover/interior admin download buttons appear for an admin user.
+- Create a protected-source test prompt such as “Superman”, confirm the generated story is originalised, then confirm print is not blocked if the final generated text/art prompts are clean.
+- Confirm a non-admin production user sees **Coming soon** and cannot start print checkout.
+- Confirm an admin production user can still start a test print checkout.
+- Before public launch of print ordering, review final Lulu AU quote/margin for hardcover and softcover and set the launch env flag intentionally.
 
 ---
 

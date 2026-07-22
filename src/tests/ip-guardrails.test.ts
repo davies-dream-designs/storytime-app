@@ -30,7 +30,35 @@ describe("IP guardrails", () => {
     expect(result.originalizedPremise).toContain(
       "Replace any named source material"
     );
-    expect(result.originalizedPremise).toContain("Toy Story");
+    expect(result.originalizedPremise).toContain(
+      "an original toy-room adventure"
+    );
+    expect(result.originalizedPremise).not.toContain("Toy Story");
+    expect(result.originalizedPremise).not.toContain("Woody");
+  });
+
+  it("allows clean generated stories after the protected premise was safely rewritten", () => {
+    const result = assessGeneratedStoryIp({
+      title: "Bailey and the Blanket Hero",
+      theme: "bravery",
+      premise: originalizeStoryIdeaText(
+        "A Superman story where Bailey learns to help."
+      ),
+      notes: "",
+      pages: [
+        {
+          pageNumber: 1,
+          text: "Bailey met a brave flying helper with a starry blanket cape.",
+          illustrationPrompt:
+            "An original child-safe bedtime hero with a starry blanket cape in a cosy bedroom.",
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      riskLevel: "clear",
+      printAllowed: true,
+    });
   });
 
   it("marks generated stories as print restricted if protected references survive", () => {

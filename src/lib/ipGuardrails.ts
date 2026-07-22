@@ -47,9 +47,44 @@ const PROTECTED_REFERENCE_PATTERNS = [
   /\bwinnie[- ]?the[- ]?pooh\b/i,
 ];
 
+const PROTECTED_REFERENCE_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\btoy story\b/gi, "an original toy-room adventure"],
+  [/\bwoody\b/gi, "an original friendly toy"],
+  [/\bbuzz lightyear\b/gi, "an original space-themed toy"],
+  [/\bbluey\b/gi, "an original playful puppy friend"],
+  [/\bbingo\b/gi, "an original little puppy friend"],
+  [/\bdisney\b/gi, "a classic-feeling original story"],
+  [/\bpixar\b/gi, "a warm original animated-story feeling"],
+  [/\bmarvel\b/gi, "an original hero adventure"],
+  [/\bspider[- ]?man\b/gi, "an original agile helper"],
+  [/\bbatman\b/gi, "an original night-time helper"],
+  [/\bsuperman\b/gi, "an original brave flying helper"],
+  [/\bpok[eé]mon\b/gi, "original magical creature friends"],
+  [/\bpikachu\b/gi, "an original cheerful creature friend"],
+  [/\bmario\b/gi, "an original jumping adventurer"],
+  [/\bharry potter\b/gi, "an original young magic-helper"],
+  [/\bhogwarts\b/gi, "an original cosy magic school"],
+  [/\bstar wars\b/gi, "an original space adventure"],
+  [/\bdarth vader\b/gi, "an original shadowy space character"],
+  [/\bfrozen\b/gi, "an original snowy adventure"],
+  [/\belsa\b/gi, "an original snow-magic character"],
+  [/\bminions?\b/gi, "original silly helpers"],
+  [/\bpeppa pig\b/gi, "an original piglet friend"],
+  [/\bpaw patrol\b/gi, "an original helpful animal team"],
+  [/\bspongebob\b/gi, "an original cheerful sea friend"],
+  [/\bsonic\b/gi, "an original speedy adventurer"],
+  [/\bbarbie\b/gi, "an original stylish doll friend"],
+  [/\bmickey mouse\b/gi, "an original cheerful mouse friend"],
+  [/\bwinnie[- ]?the[- ]?pooh\b/gi, "an original gentle bear friend"],
+];
+
 const SOURCE_REFERENCE_PATTERNS = [
   /\b(in the style of|drawn like|looks like|from the movie|from the show|from the book|official character|franchise|brand|logo)\b/i,
   /\b(with|and|meets|meeting|adventure with)\s+(?:the\s+)?[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3}\b/,
+];
+
+const GENERATED_SOURCE_REFERENCE_PATTERNS = [
+  /\b(in the style of|drawn like|looks like|from the movie|from the show|from the book|official character|franchise|brand|logo)\b/i,
 ];
 
 function normalizeInput(input: StoryIdeaInput): string {
@@ -65,6 +100,26 @@ function hasProtectedReference(text: string): boolean {
 
 function hasSourceReference(text: string): boolean {
   return SOURCE_REFERENCE_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+function hasGeneratedSourceReference(text: string): boolean {
+  return GENERATED_SOURCE_REFERENCE_PATTERNS.some((pattern) =>
+    pattern.test(text)
+  );
+}
+
+function redactProtectedReferences(value: string): string {
+  let redacted = value;
+  for (const [pattern, replacement] of PROTECTED_REFERENCE_REPLACEMENTS) {
+    redacted = redacted.replace(pattern, replacement);
+  }
+  return redacted
+    .replace(
+      /\b(in the style of|drawn like|looks like|from the movie|from the show|from the book|official character|franchise|brand|logo)\b/gi,
+      "as an original Storycot design"
+    )
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function assessStoryIdeaIp(input: StoryIdeaInput): StoryIpPolicy {
@@ -104,7 +159,7 @@ export function originalizeStoryIdeaText(value: string): string {
     "Create an original Storycot adventure inspired only by the broad feeling of this idea.",
     "Do not use any existing franchise, brand, celebrity, copyrighted character, trademarked world, logos, catchphrases, or recognisable visual likeness.",
     "Replace any named source material with new Storycot-original characters, settings, toys, creatures, and story details.",
-    `Original user idea to reinterpret safely: ${trimmed}`,
+    `Safely reinterpreted broad idea: ${redactProtectedReferences(trimmed)}`,
   ].join(" ");
 }
 
@@ -124,11 +179,11 @@ export function assessGeneratedStoryIp(
   const pageText = story.pages
     .map((page: StoryPage) => `${page.text} ${page.illustrationPrompt}`)
     .join("\n");
-  const text = [story.title, story.theme, story.premise, story.notes, pageText]
+  const text = [story.title, story.theme, pageText]
     .filter((value): value is string => Boolean(value?.trim()))
     .join("\n");
 
-  if (!hasProtectedReference(text) && !hasSourceReference(text)) {
+  if (!hasProtectedReference(text) && !hasGeneratedSourceReference(text)) {
     return { riskLevel: "clear", printAllowed: true, reasons: [] };
   }
 
@@ -137,7 +192,7 @@ export function assessGeneratedStoryIp(
     printAllowed: false,
     reasons: [
       hasProtectedReference(text) ? "protected_reference" : "",
-      hasSourceReference(text) ? "source_or_style_reference" : "",
+      hasGeneratedSourceReference(text) ? "source_or_style_reference" : "",
     ].filter(Boolean),
   };
 }

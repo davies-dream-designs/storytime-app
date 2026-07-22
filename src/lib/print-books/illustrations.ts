@@ -954,11 +954,14 @@ export function applySpreadIllustration(
 
 function shouldGenerateInteriorIllustration(spread: BookSpread): boolean {
   return (
-    spread.sequence !== 1 &&
-    spread.title !== "Cover" &&
-    spread.title !== "Title" &&
-    spread.title !== "Back Cover"
+    spread.layoutType === "text_art" ||
+    spread.layoutType === "hero" ||
+    spread.layoutType === "quiet"
   );
+}
+
+export function isBookStoryIllustrationSpread(spread: BookSpread): boolean {
+  return shouldGenerateInteriorIllustration(spread);
 }
 
 // ---------------------------------------------------------------------------

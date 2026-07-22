@@ -162,6 +162,32 @@ describe("composePrintBookSpreads", () => {
     expect(spreads.at(-1)?.pageEnd).toBe(32);
   });
 
+  it("composes Epic Sagas with twelve image-bearing story spreads plus a cover", () => {
+    const story = createStory(9);
+    const spreads = composePrintBookSpreads({
+      bookProjectId: "book-1",
+      story,
+      profile: createProfile(7),
+      ageBand: "6-8",
+      beats: deriveBeatsFromStory(story),
+    });
+
+    const coverSpreads = spreads.filter((spread) => spread.title === "Cover");
+    const storyArtSpreads = spreads.filter(
+      (spread) =>
+        spread.layoutType === "text_art" ||
+        spread.layoutType === "hero" ||
+        spread.layoutType === "quiet"
+    );
+
+    expect(spreads).toHaveLength(16);
+    expect(coverSpreads).toHaveLength(1);
+    expect(storyArtSpreads).toHaveLength(12);
+    expect(storyArtSpreads.at(-1)?.pageEnd).toBe(28);
+    expect(spreads.at(-2)?.title).toBe("The End");
+    expect(spreads.at(-1)?.title).toBe("Back Cover");
+  });
+
   it("derives extra interior spreads from the story instead of using only generic filler", () => {
     const story = createStory(4);
     const spreads = composePrintBookSpreads({

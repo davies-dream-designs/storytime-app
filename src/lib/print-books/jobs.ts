@@ -12,6 +12,7 @@ import {
   generateCoverIllustration,
   generateSpreadPageIllustration,
   generateSpreadIllustration,
+  isBookStoryIllustrationSpread,
   isGeneratedIllustrationConfigured,
   retrieveBookImageBatch,
   shouldUseImageBatch,
@@ -333,9 +334,7 @@ async function regenerateProjectArt(input: {
     });
   }
 
-  // Title uses a branded PDF design; Back Cover falls back to a plain panel
-  // when no image is present. Neither needs a generated illustration.
-  if (spread.title === "Title" || spread.title === "Back Cover") {
+  if (!isBookStoryIllustrationSpread(spread)) {
     return db.bookProjects.update(input.id, {
       status: "illustrating",
       currentStageLabel: "Generating final art...",

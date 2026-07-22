@@ -181,16 +181,7 @@ function createBrandedCoverSvg(input: {
 async function createTextCoverAsset(input: {
   story: Story;
   profile?: ChildProfile;
-  coverImageUrl?: string;
 }): Promise<EpubImageAsset> {
-  if (input.coverImageUrl) {
-    const cover = await loadImageAsset({
-      id: "cover",
-      url: input.coverImageUrl,
-    });
-    if (cover) return cover;
-  }
-
   const cover = await sharp(Buffer.from(createBrandedCoverSvg(input)))
     .resize(EPUB_COVER_WIDTH, EPUB_COVER_HEIGHT, { fit: "fill" })
     .flatten({ background: "#2b1b5d" })
@@ -613,7 +604,6 @@ export async function buildBookEpub(input: {
 export async function buildStoryTextEpub(input: {
   story: Story;
   profile?: ChildProfile;
-  coverImageUrl?: string;
 }): Promise<Buffer> {
   const { story, profile } = input;
   const zip = new JSZip();
@@ -625,7 +615,6 @@ export async function buildStoryTextEpub(input: {
   const coverAsset = await createTextCoverAsset({
     story,
     profile,
-    coverImageUrl: input.coverImageUrl,
   });
 
   zip.file("mimetype", "application/epub+zip", { compression: "STORE" });

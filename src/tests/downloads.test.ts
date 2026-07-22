@@ -229,7 +229,11 @@ describe("download routes", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("application/epub+zip");
-    expect(mockDb.bookProjects.getByStoryId).toHaveBeenCalledWith("story-1");
-    expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(100);
+    expect(mockDb.bookProjects.getByStoryId).not.toHaveBeenCalled();
+    const epub = Buffer.from(await res.arrayBuffer());
+    const zip = await JSZip.loadAsync(epub);
+    expect(zip.file("OEBPS/images/cover.jpg")).toBeTruthy();
+    expect(zip.file("OEBPS/images/img-spread-2.jpg")).toBeNull();
+    expect(epub.byteLength).toBeGreaterThan(100);
   });
 });

@@ -188,9 +188,45 @@ describe("generateCoverIllustration", () => {
       title: "Page",
       illustrationPrompt: "A gentle story-page illustration.",
     };
+    const titleSpread = {
+      ...project.spreads[0]!,
+      id: "book-1:spread:title",
+      sequence: 3,
+      pageStart: 5,
+      pageEnd: 6,
+      layoutType: "front_matter" as const,
+      title: "Title",
+    };
+    const endSpread = {
+      ...project.spreads[0]!,
+      id: "book-1:spread:end",
+      sequence: 4,
+      pageStart: 7,
+      pageEnd: 8,
+      layoutType: "end_matter" as const,
+      title: "The End",
+    };
+    const backCoverSpread = {
+      ...project.spreads[0]!,
+      id: "book-1:spread:back",
+      sequence: 5,
+      pageStart: 9,
+      pageEnd: 10,
+      layoutType: "end_matter" as const,
+      title: "Back Cover",
+    };
 
     const requests = buildBookImageBatchRequests({
-      project: { ...project, spreads: [...project.spreads, spread] },
+      project: {
+        ...project,
+        spreads: [
+          ...project.spreads,
+          titleSpread,
+          spread,
+          endSpread,
+          backCoverSpread,
+        ],
+      },
       story: createStory(),
       profile: createProfile(),
       characterBible: createCharacterBible(),

@@ -52,6 +52,7 @@ export default function FileDownloadButton({
   const [prefetchReady, setPrefetchReady] = useState(!shareWhenAvailable);
   const [error, setError] = useState<string | null>(null);
   const cachedFile = useRef<{ blob: Blob; filename: string } | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!shareWhenAvailable) return;
@@ -87,6 +88,12 @@ export default function FileDownloadButton({
       cancelled = true;
     };
   }, [href, shareWhenAvailable]);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   async function fetchFile() {
     const res = await fetch(href, { credentials: "same-origin" });
@@ -133,6 +140,29 @@ export default function FileDownloadButton({
     } finally {
       setPending(false);
     }
+  }
+
+  if (!shareWhenAvailable) {
+    return (
+      <a
+        href={href}
+        aria-busy={pending}
+        className={`${className ?? ""} inline-flex items-center justify-center gap-2`}
+        onClick={() => {
+          setPending(true);
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          timeoutRef.current = setTimeout(() => setPending(false), 4500);
+        }}
+      >
+        <span
+          className={`h-2 w-2 rounded-full bg-current transition ${
+            pending ? "animate-pulse opacity-80" : "opacity-0"
+          }`}
+          aria-hidden="true"
+        />
+        <span>{pending ? pendingLabel : label}</span>
+      </a>
+    );
   }
 
   return (

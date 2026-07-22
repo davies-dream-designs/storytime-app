@@ -8,7 +8,10 @@ import type {
   CharacterBible,
 } from "@/types/printBook";
 import { buildIllustrationDirection } from "@/lib/print-books/characterBible";
-import { getStorycotPageCountForAgeBand } from "@/lib/print-books/printProducts";
+import {
+  getStorycotPageCountForAgeBand,
+  getStorycotStorySpreadCountForAgeBand,
+} from "@/lib/print-books/printProducts";
 
 const INTERIOR_START_PAGE = 5;
 
@@ -25,14 +28,10 @@ function getTargetStorySpreadCount(
   pageCount: number
 ): number {
   const maxInteriorSpreads = getMaxInteriorStorySpreads(pageCount);
-  switch (ageBand) {
-    case "0-2":
-      return Math.min(8, maxInteriorSpreads);
-    case "3-5":
-      return Math.min(10, maxInteriorSpreads);
-    case "6-8":
-      return Math.min(12, maxInteriorSpreads);
-  }
+  return Math.min(
+    getStorycotStorySpreadCountForAgeBand(ageBand),
+    maxInteriorSpreads
+  );
 }
 
 function getHeroSpreadSequences(ageBand: AgeBand, total: number): Set<number> {

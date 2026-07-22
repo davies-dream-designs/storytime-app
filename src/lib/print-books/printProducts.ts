@@ -90,6 +90,25 @@ export function getStorycotPageCountForAgeBand(ageBand: AgeBand): number {
   }
 }
 
+export function getStorycotStorySpreadCountForAgeBand(
+  ageBand: AgeBand
+): number {
+  switch (ageBand) {
+    case "0-2":
+      return 8;
+    case "3-5":
+      return 10;
+    case "6-8":
+      return 12;
+  }
+}
+
+export function getStorycotIllustrationCountForAgeBand(
+  ageBand: AgeBand
+): number {
+  return getStorycotStorySpreadCountForAgeBand(ageBand) + 1;
+}
+
 export function isPrintProductKey(value: unknown): value is PrintProductKey {
   return (
     typeof value === "string" &&

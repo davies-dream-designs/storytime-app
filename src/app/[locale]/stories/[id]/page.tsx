@@ -9,7 +9,10 @@ import DeleteStoryButton from "@/components/DeleteStoryButton";
 import { getDateLocale } from "@/i18n/locales";
 import { db } from "@/lib/db";
 import { inferAgeBand } from "@/lib/print-books/ageBand";
-import { getStorycotPageCountForAgeBand } from "@/lib/print-books/printProducts";
+import {
+  getStorycotIllustrationCountForAgeBand,
+  getStorycotPageCountForAgeBand,
+} from "@/lib/print-books/printProducts";
 import { estimateIllustratedBookCredits } from "@/lib/pricing";
 import { getUserCredits } from "@/lib/credits";
 import StoryReader from "./StoryReader";
@@ -31,12 +34,15 @@ export default async function StoryPage({
     await Promise.all([
       db.profiles.getById(story.profileId),
       db.bookProjects.getByStoryId(id),
-      userId ? getUserCredits(userId) : Promise.resolve({ credits: 0, isAdmin: false }),
+      userId
+        ? getUserCredits(userId)
+        : Promise.resolve({ credits: 0, isAdmin: false }),
     ]);
   const existingBook = bookProjects.find((p) => p.status !== "failed") ?? null;
   const ageBand = profile ? inferAgeBand(profile) : "3-5";
   const estimatedPageCount = getStorycotPageCountForAgeBand(ageBand);
-  const estimatedIllustrationCount = estimatedPageCount / 2;
+  const estimatedIllustrationCount =
+    getStorycotIllustrationCountForAgeBand(ageBand);
   const illustrationEstimate = estimateIllustratedBookCredits({
     ageBand,
     pageCount: estimatedPageCount,

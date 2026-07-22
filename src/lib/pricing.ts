@@ -1,4 +1,5 @@
 import type { AgeBand } from "@/types/printBook";
+import { getStorycotIllustrationCountForAgeBand } from "@/lib/print-books/printProducts";
 
 export const STORY_CREDIT_COST = 1;
 export const ILLUSTRATED_BOOK_CREDIT_COST = 8;
@@ -10,7 +11,7 @@ export function estimateIllustratedBookCredits(input: {
 }) {
   const illustrationCount =
     input.illustrationCount ??
-    (input.ageBand === "0-2" ? 10 : input.ageBand === "3-5" ? 12 : 16);
+    getStorycotIllustrationCountForAgeBand(input.ageBand);
   const baseCredits = input.ageBand === "6-8" ? 3 : 2;
   const illustrationCredits = Math.ceil(illustrationCount * 0.5);
   const complexityCredits =

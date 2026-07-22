@@ -10,6 +10,11 @@ vi.mock("@vercel/kv", () => ({
     set: vi.fn(async (key: string, value: unknown) => {
       store.set(key, value);
     }),
+    setnx: vi.fn(async (key: string, value: unknown) => {
+      if (store.has(key)) return 0;
+      store.set(key, value);
+      return 1;
+    }),
     del: vi.fn(async (key: string) => {
       store.delete(key);
     }),
@@ -49,5 +54,38 @@ describe("db delete cascades", () => {
     expect(store.has("bookProject:book-1")).toBe(false);
     expect(store.has("bookProjectByStory:story-1")).toBe(false);
     expect(store.has("bookProjectByUser:user-1")).toBe(false);
+  });
+
+  it("claims a book ready email only once", async () => {
+    const { db } = await import("@/lib/db");
+    store.set("bookProject:book-1", {
+      id: "book-1",
+      userId: "user-1",
+      sourceStoryId: "story-1",
+      assets: { proofVersion: 0 },
+      spreads: [],
+    });
+
+    const first = await db.bookProjects.claimReadyEmail(
+      "book-1",
+      "2026-07-22T00:00:00.000Z"
+    );
+    const second = await db.bookProjects.claimReadyEmail(
+      "book-1",
+      "2026-07-22T00:00:01.000Z"
+    );
+
+    expect(first?.assets.bookReadyEmailSentAt).toBe("2026-07-22T00:00:00.000Z");
+    expect(second).toBeUndefined();
+    expect(store.get("bookProjectReadyEmail:book-1")).toBe(
+      "2026-07-22T00:00:00.000Z"
+    );
+    expect(
+      (
+        store.get("bookProject:book-1") as {
+          assets: { bookReadyEmailSentAt?: string };
+        }
+      ).assets.bookReadyEmailSentAt
+    ).toBe("2026-07-22T00:00:00.000Z");
   });
 });

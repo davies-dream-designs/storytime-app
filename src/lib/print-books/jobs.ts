@@ -1066,13 +1066,18 @@ export async function processBookBuildJob(jobId: string) {
         })
       ) {
         const bookReadyEmailSentAt = getNowIso();
-        finalProject =
-          (await db.bookProjects.update(project.id, {
-            assets: {
-              ...emailProject.assets,
-              bookReadyEmailSentAt,
-            },
-          })) ?? emailProject;
+        const claimedProject = await db.bookProjects.claimReadyEmail(
+          project.id,
+          bookReadyEmailSentAt
+        );
+        if (!claimedProject) {
+          return {
+            job: updatedJob,
+            project: finalProject ?? nextProject,
+            shouldContinue: !terminalProject,
+          };
+        }
+        finalProject = claimedProject;
 
         // Fire-and-forget — email failure must never break the build.
         after(async () => {

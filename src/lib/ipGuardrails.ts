@@ -197,6 +197,38 @@ export function assessGeneratedStoryIp(
   };
 }
 
-export function isStoryPrintRestricted(story?: Pick<Story, "ipPolicy"> | null) {
-  return story?.ipPolicy?.printAllowed === false;
+type StoryPrintPolicyInput = Pick<Story, "ipPolicy"> &
+  Partial<Pick<Story, "title" | "theme" | "premise" | "notes" | "pages">>;
+
+export function getEffectiveStoryIpPolicy(
+  story?: StoryPrintPolicyInput | null
+): StoryIpPolicy | undefined {
+  if (!story?.ipPolicy) return undefined;
+  if (story.ipPolicy.printAllowed !== false) return story.ipPolicy;
+  if (!story.pages?.length || !story.title || !story.theme) {
+    return story.ipPolicy;
+  }
+
+  const generatedPolicy = assessGeneratedStoryIp({
+    title: story.title,
+    theme: story.theme,
+    premise: story.premise ?? "",
+    notes: story.notes ?? "",
+    pages: story.pages,
+  });
+
+  return generatedPolicy.riskLevel === "clear"
+    ? {
+        riskLevel:
+          story.ipPolicy.riskLevel === "originalized" ? "originalized" : "clear",
+        printAllowed: true,
+        reasons: story.ipPolicy.reasons,
+        originalizedPremise: story.ipPolicy.originalizedPremise,
+        originalizedNotes: story.ipPolicy.originalizedNotes,
+      }
+    : generatedPolicy;
+}
+
+export function isStoryPrintRestricted(story?: StoryPrintPolicyInput | null) {
+  return getEffectiveStoryIpPolicy(story)?.printAllowed === false;
 }

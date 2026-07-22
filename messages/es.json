@@ -289,17 +289,17 @@
       "tiny-tales": {
         "label": "Tiny Tales",
         "ageRange": "Ages 0–3",
-        "desc": "4–6 pages · big illustrations · one sentence per page"
+        "desc": "Short and gentle · big illustrations · simple read-aloud rhythm"
       },
       "moonlit-adventures": {
         "label": "Moonlit Adventures",
         "ageRange": "Ages 4–6",
-        "desc": "8–10 pages · balanced illustrations and text"
+        "desc": "Balanced read-aloud · rich illustrations and story"
       },
       "epic-sagas": {
         "label": "Epic Sagas",
         "ageRange": "Ages 7+",
-        "desc": "10–14 pages · more story · fewer illustrations"
+        "desc": "Longer read-aloud · richer story and detailed scenes"
       }
     }
   },
@@ -456,9 +456,9 @@
     "deleteError": "No pudimos eliminar este PDF ilustrado.",
     "estimateTitle": "Illustration estimate",
     "estimateBody": "{credits} credits for about {pages} pages and {illustrations} custom illustrations. Credits cover the digital illustrated book; print is chosen separately afterwards.",
-    "estimateBodyTinyTales": "{credits} credits · Tiny Tales — 4–6 illustrated pages, big pictures for little ones (ages 0–3). Credits cover the digital illustrated book; print is chosen separately afterwards.",
-    "estimateBodyMoonlitAdventures": "{credits} credits · Moonlit Adventures — 8–10 illustrated pages with balanced art and story (ages 4–6). Credits cover the digital illustrated book; print is chosen separately afterwards.",
-    "estimateBodyEpicSagas": "{credits} credits · Epic Sagas — 10–14 illustrated pages with rich storytelling (ages 7+). Credits cover the digital illustrated book; print is chosen separately afterwards.",
+    "estimateBodyTinyTales": "{credits} credits · Tiny Tales — a simple source story expanded into about {pages} illustrated book pages with {illustrations} custom illustrations. Print is chosen separately afterwards.",
+    "estimateBodyMoonlitAdventures": "{credits} credits · Moonlit Adventures — a balanced source story expanded into about {pages} illustrated book pages with {illustrations} custom illustrations. Print is chosen separately afterwards.",
+    "estimateBodyEpicSagas": "{credits} credits · Epic Sagas — a richer source story expanded into about {pages} illustrated book pages with {illustrations} custom illustrations. Print is chosen separately afterwards.",
     "journeyLabel": "Your book journey",
     "journeyStoryTitle": "Story",
     "journeyStoryDone": "Your personalised story is written.",

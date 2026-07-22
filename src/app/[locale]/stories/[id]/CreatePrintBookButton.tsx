@@ -72,12 +72,28 @@ export default function CreatePrintBookButton({
 
   const estimateBodyText =
     storyPreset === "tiny-tales"
-      ? t("estimateBodyTinyTales", { credits })
+      ? t("estimateBodyTinyTales", {
+          credits,
+          pages: pageCount,
+          illustrations: illustrationCount,
+        })
       : storyPreset === "moonlit-adventures"
-        ? t("estimateBodyMoonlitAdventures", { credits })
+        ? t("estimateBodyMoonlitAdventures", {
+            credits,
+            pages: pageCount,
+            illustrations: illustrationCount,
+          })
         : storyPreset === "epic-sagas"
-          ? t("estimateBodyEpicSagas", { credits })
-          : t("estimateBody", { credits, pages: pageCount, illustrations: illustrationCount });
+          ? t("estimateBodyEpicSagas", {
+              credits,
+              pages: pageCount,
+              illustrations: illustrationCount,
+            })
+          : t("estimateBody", {
+              credits,
+              pages: pageCount,
+              illustrations: illustrationCount,
+            });
 
   const estimateBox = (
     <div className="mb-3 max-w-md rounded-2xl border border-star-200 bg-star-50 px-4 py-3 text-sm text-night-600">

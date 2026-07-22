@@ -87,16 +87,15 @@ describe("POST /api/stories/start safety", () => {
     );
 
     expect(res.status).toBe(201);
-    expect(mockDb.stories.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        premise: expect.stringContaining(
-          "Create an original Storycot adventure"
-        ),
-        ipPolicy: expect.objectContaining({
-          riskLevel: "originalized",
-          printAllowed: true,
-        }),
-      })
-    );
+    const storedStory = mockDb.stories.create.mock.calls[0]?.[0];
+    expect(storedStory).toMatchObject({
+      premise: expect.stringContaining("Create an original Storycot adventure"),
+      ipPolicy: expect.objectContaining({
+        riskLevel: "originalized",
+        printAllowed: true,
+      }),
+    });
+    expect(storedStory.premise).not.toContain("Toy Story");
+    expect(storedStory.premise).not.toContain("Woody");
   });
 });

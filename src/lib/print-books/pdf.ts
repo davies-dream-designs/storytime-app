@@ -315,6 +315,18 @@ function isRasterHttpUrl(url: string): boolean {
   );
 }
 
+function getSpreadArtUrl(spread: BookSpread, side: "start" | "end" | "cover") {
+  if (side === "start") return spread.leftPageImageUrl ?? spread.imageUrl;
+  if (side === "end") return spread.rightPageImageUrl ?? spread.imageUrl;
+  return spread.imageUrl;
+}
+
+function hasPrintableArt(spread: BookSpread, side: "start" | "end" | "cover") {
+  const imageUrl = getSpreadArtUrl(spread, side);
+  if (!imageUrl) return false;
+  return isRasterDataUrl(imageUrl) || isRasterHttpUrl(imageUrl);
+}
+
 async function loadImageBytes(
   url: string
 ): Promise<{ bytes: Uint8Array; kind: "png" | "jpg" } | null> {
@@ -626,7 +638,7 @@ async function drawSpreadArtIntoRect(input: {
       : side === "end"
         ? spread.rightPageImageUrl
         : undefined;
-  const imageUrl = perPageUrl ?? spread.imageUrl;
+  const imageUrl = getSpreadArtUrl(spread, side);
   const image = await embedSpreadImage(pdfDoc, imageUrl);
 
   if (image) {
@@ -923,7 +935,7 @@ function drawBlankPaddingPage(input: {
   pageHeight: number;
 }) {
   const { page, pageWidth, pageHeight } = input;
-  drawPageBackground(page, pageWidth, pageHeight, rgb(0.98, 0.96, 0.91));
+  drawPageBackground(page, pageWidth, pageHeight);
 }
 
 function getMaxTextBoxPt(preset?: StoryPreset): number {
@@ -1304,18 +1316,20 @@ async function buildPrintPdf(input: {
         });
       }
 
-      const startArtPage = pdfDoc.addPage([pageWidth, pageHeight]);
-      await drawLuluArtPage({
-        pdfDoc,
-        page: startArtPage,
-        story: input.story,
-        spread,
-        side: "start",
-        pageWidth,
-        pageHeight,
-        pageNumber: pdfDoc.getPageCount(),
-        sans,
-      });
+      if (spread.layoutType === "text_art" && hasPrintableArt(spread, "start")) {
+        const startArtPage = pdfDoc.addPage([pageWidth, pageHeight]);
+        await drawLuluArtPage({
+          pdfDoc,
+          page: startArtPage,
+          story: input.story,
+          spread,
+          side: "start",
+          pageWidth,
+          pageHeight,
+          pageNumber: pdfDoc.getPageCount(),
+          sans,
+        });
+      }
 
       continue;
     }

@@ -525,29 +525,15 @@ export async function buildBookEpub(input: {
     ];
 
     for (const entry of pageEntries) {
-      if (entry.body) {
+      if (entry.body || entry.imageHref) {
         pages.push({
-          id: `spread-${spread.sequence}-${entry.side}-text`,
-          href: `spread-${spread.sequence}-${entry.side}-text.xhtml`,
+          id: `spread-${spread.sequence}-${entry.side}`,
+          href: `spread-${spread.sequence}-${entry.side}.xhtml`,
           title: `${title} - Page ${readingPageNumber}`,
           content: renderPageXhtml({
             title,
             body: entry.body,
-          }),
-        });
-        readingPageNumber += 1;
-      }
-
-      if (entry.imageHref) {
-        pages.push({
-          id: `spread-${spread.sequence}-${entry.side}-art`,
-          href: `spread-${spread.sequence}-${entry.side}-art.xhtml`,
-          title: `${title} - Illustration ${readingPageNumber}`,
-          content: renderPageXhtml({
-            title,
             imageHref: entry.imageHref,
-            body: "",
-            variant: "image",
           }),
         });
         readingPageNumber += 1;

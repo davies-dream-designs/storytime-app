@@ -235,7 +235,7 @@ function createEndMatterSpreads(
       pageCount - 3,
       "end_matter",
       `The End.\n\nSweet dreams, ${profile.name}.`,
-      "A Storycot story",
+      "",
       `Closing pages for ${story.title}`,
       withCharacterBiblePrompt(
         `A peaceful closing image for ${profile.name} settling into sleep.`,

@@ -1333,7 +1333,11 @@ async function buildPrintPdf(input: {
         sans,
       });
 
-      if (spread.rightPageText || spread.rightPageImageUrl) {
+      const includeRightSide =
+        spread.layoutType !== "end_matter" &&
+        (spread.rightPageText || spread.rightPageImageUrl);
+
+      if (includeRightSide) {
         const rightTextPage = pdfDoc.addPage([pageWidth, pageHeight]);
         await drawLuluTextPage({
           pdfDoc,

@@ -298,7 +298,7 @@ async function regenerateProjectArt(input: {
 
     return db.bookProjects.update(input.id, {
       status: "illustrating",
-      currentStageLabel: `Generating final art 1 of ${totalArtSteps}...`,
+      currentStageLabel: "Generating final art...",
       characterBible: input.characterBible,
       spreads: cover.spreads,
       completedSpreads: 1,
@@ -338,7 +338,7 @@ async function regenerateProjectArt(input: {
   if (spread.title === "Title" || spread.title === "Back Cover") {
     return db.bookProjects.update(input.id, {
       status: "illustrating",
-      currentStageLabel: `Generating final art ${currentCursor + 1} of ${totalArtSteps}...`,
+      currentStageLabel: "Generating final art...",
       characterBible: input.characterBible,
       spreads: input.project.spreads,
       completedSpreads: currentCursor + 1,
@@ -434,7 +434,7 @@ async function regenerateProjectArt(input: {
 
   return db.bookProjects.update(input.id, {
     status: "illustrating",
-    currentStageLabel: `Generating final art ${nextCursor + 1} of ${totalArtSteps}...`,
+    currentStageLabel: "Generating final art...",
     characterBible: input.characterBible,
     spreads: illustratedSpreads,
     completedSpreads: nextCursor,

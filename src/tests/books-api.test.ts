@@ -143,7 +143,33 @@ describe("/api/books", () => {
     const body = await res.json();
     expect(body.sourceStoryId).toBe("story-1");
     expect(body.status).toBe("queued");
+    expect(body.ageBand).toBe("3-5");
     expect(mockDb.bookProjects.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses the selected story preset for the book plan", async () => {
+    mockDb.stories.getById.mockResolvedValue({
+      ...createStory(),
+      storyPreset: "epic-sagas",
+    });
+    mockDb.profiles.getById.mockResolvedValue({
+      ...createProfile(),
+      age: 2,
+    });
+
+    const { POST } = await import("@/app/api/books/route");
+    const req = new NextRequest("http://localhost/api/books", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sourceStoryId: "story-1" }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.ageBand).toBe("6-8");
+    expect(body.pageCount).toBe(32);
+    expect(body.spreadCount).toBe(16);
   });
 
   it("returns the existing book project for the same story instead of creating another", async () => {

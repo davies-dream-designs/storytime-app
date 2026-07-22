@@ -15,7 +15,7 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const project = await db.bookProjects.getById(id);
+  let project = await db.bookProjects.getById(id);
   if (!project || project.userId !== userId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -27,6 +27,7 @@ export async function GET(
   if (activeJob && activeJob.projectId === project.id) {
     if (activeJob.status === "queued") {
       await dispatchBookBuildJob(activeJob);
+      project = (await db.bookProjects.getById(id)) ?? project;
     } else if (isBookBuildJobStale(activeJob)) {
       after(async () => {
         await dispatchBookBuildJob(activeJob);

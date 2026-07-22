@@ -8,7 +8,7 @@ import FileDownloadButton from "@/components/FileDownloadButton";
 import DeleteStoryButton from "@/components/DeleteStoryButton";
 import { getDateLocale } from "@/i18n/locales";
 import { db } from "@/lib/db";
-import { inferAgeBand } from "@/lib/print-books/ageBand";
+import { inferBookAgeBand } from "@/lib/print-books/ageBand";
 import {
   getStorycotIllustrationCountForAgeBand,
   getStorycotPageCountForAgeBand,
@@ -39,7 +39,9 @@ export default async function StoryPage({
         : Promise.resolve({ credits: 0, isAdmin: false }),
     ]);
   const existingBook = bookProjects.find((p) => p.status !== "failed") ?? null;
-  const ageBand = profile ? inferAgeBand(profile) : "3-5";
+  const ageBand = profile
+    ? inferBookAgeBand({ profile, storyPreset: story.storyPreset })
+    : "3-5";
   const estimatedPageCount = getStorycotPageCountForAgeBand(ageBand);
   const estimatedIllustrationCount =
     getStorycotIllustrationCountForAgeBand(ageBand);

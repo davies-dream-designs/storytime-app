@@ -139,6 +139,9 @@ export default function BookStatusPanel({
   const [pollUntil, setPollUntil] = useState(0);
   const [startingBuild, setStartingBuild] = useState(false);
   const buildStartedRef = useRef(false);
+  const latestProjectUpdatedAtRef = useRef(
+    Date.parse(initialProject.updatedAt)
+  );
   const activeJobStatus = project.assets.activeJobStatus;
   const artworkPreviews: ArtworkPreview[] = useMemo(
     () =>
@@ -239,6 +242,17 @@ export default function BookStatusPanel({
         });
         if (!res.ok) return;
         const next = (await res.json()) as BookStatusPayload;
+        const nextUpdatedAt = Date.parse(next.updatedAt);
+        if (
+          Number.isFinite(nextUpdatedAt) &&
+          Number.isFinite(latestProjectUpdatedAtRef.current) &&
+          nextUpdatedAt < latestProjectUpdatedAtRef.current
+        ) {
+          return;
+        }
+        if (Number.isFinite(nextUpdatedAt)) {
+          latestProjectUpdatedAtRef.current = nextUpdatedAt;
+        }
         setProject((current) => ({ ...current, ...next }));
         if (next.spreadPreviews) {
           setSpreadPreviews(

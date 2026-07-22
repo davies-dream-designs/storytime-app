@@ -99,10 +99,10 @@ function createBookProject(): BookProject {
     ageBand: "3-5",
     status: "queued",
     trimSize: "storycot-dynamic-square",
-    pageCount: 32,
-    spreadCount: 16,
+    pageCount: 28,
+    spreadCount: 14,
     completedSpreads: 0,
-    totalSpreads: 16,
+    totalSpreads: 14,
     currentStageLabel: "Dreaming up the adventure...",
     beats: [],
     spreads: [],
@@ -191,6 +191,41 @@ describe("/api/books", () => {
     expect(mockDb.bookProjects.create).not.toHaveBeenCalled();
   });
 
+  it("creates a new project when an existing project does not match the selected preset plan", async () => {
+    mockDb.stories.getById.mockResolvedValue({
+      ...createStory(),
+      storyPreset: "epic-sagas",
+    });
+    mockDb.profiles.getById.mockResolvedValue({
+      ...createProfile(),
+      age: 2,
+    });
+    mockDb.bookProjects.getByStoryId.mockResolvedValue([
+      {
+        ...createBookProject(),
+        ageBand: "0-2",
+        pageCount: 24,
+        spreadCount: 12,
+        totalSpreads: 12,
+      },
+    ]);
+
+    const { POST } = await import("@/app/api/books/route");
+    const req = new NextRequest("http://localhost/api/books", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sourceStoryId: "story-1" }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.ageBand).toBe("6-8");
+    expect(body.pageCount).toBe(32);
+    expect(body.spreadCount).toBe(16);
+    expect(mockDb.bookProjects.create).toHaveBeenCalledTimes(1);
+  });
+
   it("lists book projects for the current user", async () => {
     const project = createBookProject();
     mockDb.bookProjects.getByUserId.mockResolvedValue([project]);
@@ -261,7 +296,7 @@ describe("/api/books/[id] and /status", () => {
       id: "book-1",
       status: "queued",
       completedSpreads: 0,
-      totalSpreads: 16,
+      totalSpreads: 14,
     });
   });
 

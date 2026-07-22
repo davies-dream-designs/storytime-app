@@ -4,6 +4,27 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { createEmptyBookProject } from "@/lib/print-books/composer";
 import { inferBookAgeBand } from "@/lib/print-books/ageBand";
+import { getStorycotPageCountForAgeBand } from "@/lib/print-books/printProducts";
+import type { AgeBand, BookProject } from "@/types/printBook";
+
+function hasPrintCommitment(project: BookProject): boolean {
+  return Boolean(
+    project.printOrder && project.printOrder.status !== "refunded"
+  );
+}
+
+function matchesExpectedPlan(
+  project: BookProject,
+  expectedAgeBand: AgeBand
+): boolean {
+  const expectedPageCount = getStorycotPageCountForAgeBand(expectedAgeBand);
+  return (
+    project.ageBand === expectedAgeBand &&
+    project.pageCount === expectedPageCount &&
+    project.spreadCount === expectedPageCount / 2 &&
+    project.totalSpreads === expectedPageCount / 2
+  );
+}
 
 export async function GET() {
   const { userId } = await auth();
@@ -44,9 +65,20 @@ export async function POST(req: NextRequest) {
     .filter((project) => project.userId === userId)
     .sort((a, b) => (a.updatedAt > b.updatedAt ? -1 : 1));
 
+  const expectedAgeBand = inferBookAgeBand({
+    profile,
+    storyPreset: story.storyPreset,
+  });
   const existingProject =
-    existingProjects.find((project) => project.status !== "failed") ??
-    existingProjects[0];
+    existingProjects.find(
+      (project) =>
+        project.status !== "failed" &&
+        (matchesExpectedPlan(project, expectedAgeBand) ||
+          hasPrintCommitment(project))
+    ) ??
+    existingProjects.find((project) =>
+      matchesExpectedPlan(project, expectedAgeBand)
+    );
 
   if (existingProject) {
     return NextResponse.json(existingProject, { status: 200 });
@@ -57,7 +89,7 @@ export async function POST(req: NextRequest) {
     userId,
     sourceStoryId: story.id,
     profileId: profile.id,
-    ageBand: inferBookAgeBand({ profile, storyPreset: story.storyPreset }),
+    ageBand: expectedAgeBand,
   });
 
   await db.bookProjects.create(project);

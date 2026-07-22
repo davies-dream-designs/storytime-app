@@ -1070,9 +1070,11 @@ async function buildPrintPdf(input: {
   profile: ChildProfile;
   geometry?: PdfPageGeometry;
   minPageCount?: number;
+  includeCoverFrontMatter?: boolean;
 }): Promise<Uint8Array> {
   const geometry = input.geometry ?? STORYCOT_PDF_GEOMETRY;
   const { pageWidth, pageHeight, textSafeMargin } = geometry;
+  const includeCoverFrontMatter = input.includeCoverFrontMatter ?? true;
   const pdfDoc = await PDFDocument.create();
   const serif = await pdfDoc.embedFont(StandardFonts.TimesRoman);
   const serifBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
@@ -1082,6 +1084,8 @@ async function buildPrintPdf(input: {
 
   for (const spread of input.project.spreads) {
     if (spread.title === "Cover") {
+      if (!includeCoverFrontMatter) continue;
+
       const halfTitlePage = pdfDoc.addPage([pageWidth, pageHeight]);
       await drawHalfTitlePage({
         pdfDoc,
@@ -1504,6 +1508,7 @@ export async function generateBookPdfs(input: {
             ...input,
             geometry: LULU_PDF_GEOMETRY,
             minPageCount: LULU_HARDCOVER_MIN_PAGES,
+            includeCoverFrontMatter: false,
           })
         ),
         contentType: "application/pdf",

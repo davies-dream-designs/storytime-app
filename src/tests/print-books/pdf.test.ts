@@ -327,6 +327,12 @@ describe("generateBookPdfs", () => {
       new Uint8Array(luluPrintPdfBody)
     );
     expect(luluPrintPdf.getPageCount()).toBe(24);
+
+    const standardPrintPdfBody = mockStoreBookAsset.mock.calls[1]?.[0]?.body;
+    const standardPrintPdf = await PDFDocument.load(
+      new Uint8Array(standardPrintPdfBody)
+    );
+    expect(standardPrintPdf.getPageCount()).toBe(10);
   });
 
   it("fits long story text inside the printable text panel", async () => {

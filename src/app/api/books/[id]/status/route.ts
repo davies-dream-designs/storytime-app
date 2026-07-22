@@ -58,9 +58,9 @@ export async function GET(
         layoutType: s.layoutType,
         thumbnailUrl: s.thumbnailUrl ?? s.imageUrl ?? undefined,
         leftPageImageUrl: s.leftPageImageUrl ?? s.imageUrl ?? undefined,
-        rightPageImageUrl: s.rightPageImageUrl ?? s.imageUrl ?? undefined,
+        rightPageImageUrl: undefined,
         leftPageImageError: s.leftPageImageError,
-        rightPageImageError: s.rightPageImageError,
+        rightPageImageError: undefined,
       })),
     assets: {
       lastBuildMode: project.assets.lastBuildMode,

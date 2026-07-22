@@ -53,34 +53,18 @@ type BookStatusPayload = Pick<
 > & { spreadPreviews?: SpreadPreview[] };
 
 function getFailedImageTargets(spreads: SpreadPreview[]): ExpandedImage[] {
-  return spreads.flatMap((preview) => {
-    const images: Array<{
-      side: "left" | "right";
-      url?: string;
-      error?: string;
-    }> = [
-      {
-        side: "left",
-        url: preview.leftPageImageUrl,
-        error: preview.leftPageImageError,
-      },
-      {
-        side: "right",
-        url: preview.rightPageImageUrl,
-        error: preview.rightPageImageError,
-      },
-    ];
-
-    return images
-      .filter(({ url, error }) => Boolean(error) || !url)
-      .map(({ side, url }) => ({
-        spreadId: preview.id,
-        sequence: preview.sequence,
-        title: preview.title,
-        side,
-        url,
-      }));
-  });
+  return spreads
+    .filter(
+      (preview) =>
+        Boolean(preview.leftPageImageError) || !preview.leftPageImageUrl
+    )
+    .map((preview) => ({
+      spreadId: preview.id,
+      sequence: preview.sequence,
+      title: preview.title,
+      side: "left",
+      url: preview.leftPageImageUrl,
+    }));
 }
 
 function isPlaceholderImageUrl(url?: string): boolean {
@@ -90,36 +74,20 @@ function isPlaceholderImageUrl(url?: string): boolean {
 }
 
 function getRepairImageTargets(spreads: SpreadPreview[]): ExpandedImage[] {
-  return spreads.flatMap((preview) => {
-    const images: Array<{
-      side: "left" | "right";
-      url?: string;
-      error?: string;
-    }> = [
-      {
-        side: "left",
-        url: preview.leftPageImageUrl,
-        error: preview.leftPageImageError,
-      },
-      {
-        side: "right",
-        url: preview.rightPageImageUrl,
-        error: preview.rightPageImageError,
-      },
-    ];
-
-    return images
-      .filter(
-        ({ url, error }) => Boolean(error) || !url || isPlaceholderImageUrl(url)
-      )
-      .map(({ side, url }) => ({
-        spreadId: preview.id,
-        sequence: preview.sequence,
-        title: preview.title,
-        side,
-        url,
-      }));
-  });
+  return spreads
+    .filter(
+      (preview) =>
+        Boolean(preview.leftPageImageError) ||
+        !preview.leftPageImageUrl ||
+        isPlaceholderImageUrl(preview.leftPageImageUrl)
+    )
+    .map((preview) => ({
+      spreadId: preview.id,
+      sequence: preview.sequence,
+      title: preview.title,
+      side: "left",
+      url: preview.leftPageImageUrl,
+    }));
 }
 
 function isTerminal(status: BookProject["status"]): boolean {
@@ -140,9 +108,9 @@ function getSpreadPreviews(project: BookProject): SpreadPreview[] {
       title: s.title,
       thumbnailUrl: s.thumbnailUrl ?? s.imageUrl,
       leftPageImageUrl: s.leftPageImageUrl ?? s.imageUrl,
-      rightPageImageUrl: s.rightPageImageUrl ?? s.imageUrl,
+      rightPageImageUrl: undefined,
       leftPageImageError: s.leftPageImageError,
-      rightPageImageError: s.rightPageImageError,
+      rightPageImageError: undefined,
     }))
     .sort((a, b) => a.sequence - b.sequence);
 }
@@ -174,29 +142,12 @@ export default function BookStatusPanel({
   const activeJobStatus = project.assets.activeJobStatus;
   const artworkPreviews: ArtworkPreview[] = useMemo(
     () =>
-      spreadPreviews.flatMap((preview) => {
-        const images: Array<{
-          side: "left" | "right";
-          url?: string;
-          error?: string;
-        }> = [
-          {
-            side: "left",
-            url: preview.leftPageImageUrl,
-            error: preview.leftPageImageError,
-          },
-          {
-            side: "right",
-            url: preview.rightPageImageUrl,
-            error: preview.rightPageImageError,
-          },
-        ];
-
-        return images.map((image) => ({
-          ...image,
-          preview,
-        }));
-      }),
+      spreadPreviews.map((preview) => ({
+        preview,
+        side: "left",
+        url: preview.leftPageImageUrl,
+        error: preview.leftPageImageError,
+      })),
     [spreadPreviews]
   );
   const completedArtworkCount = artworkPreviews.filter(
@@ -537,7 +488,9 @@ export default function BookStatusPanel({
                 >
                   <button
                     type="button"
-                    onClick={() => (url ? openArtworkPreview(index) : undefined)}
+                    onClick={() =>
+                      url ? openArtworkPreview(index) : undefined
+                    }
                     className="block aspect-square w-full overflow-hidden bg-night-100"
                     aria-label={`Open ${displayLabel}`}
                   >
@@ -577,8 +530,7 @@ export default function BookStatusPanel({
                           })
                         }
                         disabled={
-                          Boolean(regeneratingImage) ||
-                          Boolean(activeJobStatus)
+                          Boolean(regeneratingImage) || Boolean(activeJobStatus)
                         }
                         className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-night-700 shadow-sm disabled:opacity-50"
                       >

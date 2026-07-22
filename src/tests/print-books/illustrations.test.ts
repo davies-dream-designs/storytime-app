@@ -184,9 +184,9 @@ describe("generateCoverIllustration", () => {
       sequence: 2,
       pageStart: 3,
       pageEnd: 4,
-      title: "Title",
-      illustrationPrompt:
-        'A gentle title-page illustration motif for "Moonlight Garden".',
+      layoutType: "text_art" as const,
+      title: "Page",
+      illustrationPrompt: "A gentle story-page illustration.",
     };
 
     const requests = buildBookImageBatchRequests({
@@ -199,11 +199,9 @@ describe("generateCoverIllustration", () => {
     expect(requests.map((request) => request.customId)).toEqual([
       "cover",
       "spread:book-1:spread:2:left",
-      "spread:book-1:spread:2:right",
     ]);
     expect(requests[0]?.size).toBe("1024x1024");
     expect(requests[1]?.size).toBe("1024x1024");
-    expect(requests[2]?.size).toBe("1024x1024");
   });
 
   it("omits raw story prose from sequential page image prompts", async () => {
@@ -384,25 +382,17 @@ describe("generateCoverIllustration", () => {
       sequence: 2,
       pageStart: 3,
       pageEnd: 4,
-      title: "Title",
-      illustrationPrompt:
-        'A gentle title-page illustration motif for "Moonlight Garden".',
+      layoutType: "text_art" as const,
+      title: "Page",
+      illustrationPrompt: "A gentle story-page illustration.",
     };
-    // Cover + left present; the right page is missing from the batch output.
+    // Cover present; the primary spread image is missing from the batch output.
     const outputText = [
       JSON.stringify({
         custom_id: "cover",
         response: {
           body: {
             data: [{ b64_json: Buffer.from("cover").toString("base64") }],
-          },
-        },
-      }),
-      JSON.stringify({
-        custom_id: "spread:book-1:spread:2:left",
-        response: {
-          body: {
-            data: [{ b64_json: Buffer.from("left").toString("base64") }],
           },
         },
       }),
@@ -419,12 +409,13 @@ describe("generateCoverIllustration", () => {
     expect(result.provider).toBe("mixed");
     expect(result.coverImageUrl).toBe("https://example.com/image.png");
     expect(result.spreads.find((item) => item.id === spread.id)).toMatchObject({
-      leftPageImageUrl: "https://example.com/image.png",
+      leftPageImageUrl: undefined,
+      leftPageImageError: expect.stringContaining("moderation blocked"),
       rightPageImageUrl: undefined,
-      rightPageImageError: expect.stringContaining("moderation blocked"),
+      rightPageImageError: undefined,
     });
-    // Only the cover and successful left page are stored.
-    expect(mockStoreBookAsset).toHaveBeenCalledTimes(2);
+    // Only the cover is stored.
+    expect(mockStoreBookAsset).toHaveBeenCalledTimes(1);
     expect(mockStoreBookAsset).toHaveBeenCalledWith(
       expect.objectContaining({ contentType: "image/png" })
     );
@@ -444,9 +435,9 @@ describe("generateCoverIllustration", () => {
       sequence: 2,
       pageStart: 3,
       pageEnd: 4,
-      title: "Title",
-      illustrationPrompt:
-        'A gentle title-page illustration motif for "Moonlight Garden".',
+      layoutType: "text_art" as const,
+      title: "Page",
+      illustrationPrompt: "A gentle story-page illustration.",
     };
 
     const result = await generateSpreadIllustration({
@@ -461,18 +452,10 @@ describe("generateCoverIllustration", () => {
     expect(result.spread.leftPageImageUrl).toBe(
       "data:image/svg+xml;base64,cover"
     );
-    expect(result.spread.rightPageImageUrl).toBe(
-      "data:image/svg+xml;base64,cover"
-    );
+    expect(result.spread.rightPageImageUrl).toBeUndefined();
     expect(mockStoreBookAsset).toHaveBeenCalledWith(
       expect.objectContaining({
         pathname: "books/book-1/spreads/2-left.svg",
-        contentType: "image/svg+xml",
-      })
-    );
-    expect(mockStoreBookAsset).toHaveBeenCalledWith(
-      expect.objectContaining({
-        pathname: "books/book-1/spreads/2-right.svg",
         contentType: "image/svg+xml",
       })
     );

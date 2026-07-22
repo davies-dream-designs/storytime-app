@@ -192,8 +192,11 @@ describe("download routes", () => {
       zip.file("OEBPS/content.opf")?.async("string")
     ).resolves.not.toContain("fixed-layout");
     await expect(
-      zip.file("OEBPS/spread-2-left.xhtml")?.async("string")
+      zip.file("OEBPS/spread-2.xhtml")?.async("string")
     ).resolves.toContain("Mila found a lantern.");
+    await expect(
+      zip.file("OEBPS/spread-2.xhtml")?.async("string")
+    ).resolves.toContain("It glowed softly.");
   });
 
   it("creates a text EPUB for a story", async () => {

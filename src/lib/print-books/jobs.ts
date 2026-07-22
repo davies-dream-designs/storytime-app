@@ -87,10 +87,8 @@ function hasUnresolvedGeneratedPageImages(spreads: BookSpread[]) {
   return spreads.some(
     (spread) =>
       isGeneratedPageSpread(spread) &&
-      (!spread.leftPageImageUrl ||
-        !spread.rightPageImageUrl ||
-        Boolean(spread.leftPageImageError) ||
-        Boolean(spread.rightPageImageError))
+      (!(spread.leftPageImageUrl ?? spread.imageUrl) ||
+        Boolean(spread.leftPageImageError))
   );
 }
 

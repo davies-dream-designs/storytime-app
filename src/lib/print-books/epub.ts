@@ -39,12 +39,15 @@ function splitParagraphs(value: string): string[] {
     .filter(Boolean);
 }
 
-function getImageSource(
-  spread: BookSpread,
-  side: "left" | "right"
-): string | undefined {
-  if (side === "left") return spread.leftPageImageUrl ?? spread.imageUrl;
-  return spread.rightPageImageUrl ?? spread.imageUrl;
+function getPrimaryImageSource(spread: BookSpread): string | undefined {
+  return spread.leftPageImageUrl ?? spread.imageUrl;
+}
+
+function getSpreadReadingText(spread: BookSpread): string {
+  return [spread.leftPageText, spread.rightPageText]
+    .map((text) => normalizeWhitespace(text))
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 function getDataUrlAsset(
@@ -506,38 +509,24 @@ export async function buildBookEpub(input: {
     )
       continue;
 
-    const leftImageHref = await addImage(
-      `img-spread-${spread.sequence}-left`,
-      getImageSource(spread, "left")
+    const imageHref = await addImage(
+      `img-spread-${spread.sequence}`,
+      getPrimaryImageSource(spread)
     );
-    const rightImageHref = await addImage(
-      `img-spread-${spread.sequence}-right`,
-      getImageSource(spread, "right")
-    );
+    const body = getSpreadReadingText(spread);
 
-    const pageEntries: Array<{
-      side: "left" | "right";
-      body: string;
-      imageHref?: string;
-    }> = [
-      { side: "left", body: spread.leftPageText, imageHref: leftImageHref },
-      { side: "right", body: spread.rightPageText, imageHref: rightImageHref },
-    ];
-
-    for (const entry of pageEntries) {
-      if (entry.body || entry.imageHref) {
-        pages.push({
-          id: `spread-${spread.sequence}-${entry.side}`,
-          href: `spread-${spread.sequence}-${entry.side}.xhtml`,
-          title: `${title} - Page ${readingPageNumber}`,
-          content: renderPageXhtml({
-            title,
-            body: entry.body,
-            imageHref: entry.imageHref,
-          }),
-        });
-        readingPageNumber += 1;
-      }
+    if (body || imageHref) {
+      pages.push({
+        id: `spread-${spread.sequence}`,
+        href: `spread-${spread.sequence}.xhtml`,
+        title: `${title} - Page ${readingPageNumber}`,
+        content: renderPageXhtml({
+          title,
+          body,
+          imageHref,
+        }),
+      });
+      readingPageNumber += 1;
     }
   }
 

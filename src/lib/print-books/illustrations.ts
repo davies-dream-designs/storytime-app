@@ -952,12 +952,21 @@ export function applySpreadIllustration(
   return replaceSpreadImage(spreads, nextSpread);
 }
 
+function shouldGenerateInteriorIllustration(spread: BookSpread): boolean {
+  return (
+    spread.sequence !== 1 &&
+    spread.title !== "Cover" &&
+    spread.title !== "Title" &&
+    spread.title !== "Back Cover"
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Batch submission and retrieval
 // ---------------------------------------------------------------------------
 
-// Build one cover request + two per-page requests (left + right) for every
-// non-cover spread. Each interior page gets its own independent illustration.
+// Build one cover request + one primary illustration request for every
+// non-cover spread. Print exports pair each text spread with one image page.
 export function buildBookImageBatchRequests(input: {
   project: BookProject;
   story: Story;
@@ -976,37 +985,23 @@ export function buildBookImageBatchRequests(input: {
   ];
 
   for (const spread of input.project.spreads) {
-    if (spread.sequence === 1 || spread.title === "Cover") continue;
+    if (!shouldGenerateInteriorIllustration(spread)) continue;
     const base = `books/${input.project.id}/spreads/${spread.sequence}`;
-    requests.push(
-      {
-        customId: `spread:${spread.id}:left`,
-        prompt: buildPageIllustrationPrompt({
-          ...input,
-          spread,
-          side: "left",
-          // Raw story prose in an image prompt is a common moderation trigger and
-          // shouldn't be rendered into the art anyway — the scene brief and
-          // illustration direction already carry the visual intent.
-          omitPageText: true,
-        }),
-        pathname: `${base}-left.png`,
-        size: BOOK_SPEC.interiorIllustrationOpenAISize,
-        contentType: "image/png",
-      },
-      {
-        customId: `spread:${spread.id}:right`,
-        prompt: buildPageIllustrationPrompt({
-          ...input,
-          spread,
-          side: "right",
-          omitPageText: true,
-        }),
-        pathname: `${base}-right.png`,
-        size: BOOK_SPEC.interiorIllustrationOpenAISize,
-        contentType: "image/png",
-      }
-    );
+    requests.push({
+      customId: `spread:${spread.id}:left`,
+      prompt: buildPageIllustrationPrompt({
+        ...input,
+        spread,
+        side: "left",
+        // Raw story prose in an image prompt is a common moderation trigger and
+        // shouldn't be rendered into the art anyway — the scene brief and
+        // illustration direction already carry the visual intent.
+        omitPageText: true,
+      }),
+      pathname: `${base}-left.png`,
+      size: BOOK_SPEC.interiorIllustrationOpenAISize,
+      contentType: "image/png",
+    });
   }
 
   return requests;
@@ -1162,9 +1157,6 @@ export async function applyBookImageBatchOutput(input: {
 }> {
   const requests = buildBookImageBatchRequests(input);
   const images = parseOpenAIImageBatchOutput(input.outputText);
-  const spreadById = new Map(
-    input.project.spreads.map((spread) => [spread.id, spread] as const)
-  );
 
   // The batch API can silently drop individual images that hit moderation or a
   // transient error. Recover each missing image on its own; if that one image
@@ -1225,25 +1217,21 @@ export async function applyBookImageBatchOutput(input: {
   let spreads = replaceCoverSpreadImage(input.project.spreads, coverImageUrl);
 
   for (const spread of input.project.spreads) {
-    if (spread.sequence === 1 || spread.title === "Cover") continue;
+    if (!shouldGenerateInteriorIllustration(spread)) continue;
 
     const leftRequest = requests.find(
       (r) => r.customId === `spread:${spread.id}:left`
     );
-    const rightRequest = requests.find(
-      (r) => r.customId === `spread:${spread.id}:right`
-    );
-    if (!leftRequest || !rightRequest) continue;
+    if (!leftRequest) continue;
 
     const left = await storePageResolved(leftRequest);
-    const right = await storePageResolved(rightRequest);
 
     spreads = replaceSpreadImage(spreads, {
       ...spread,
       leftPageImageUrl: left.url,
-      rightPageImageUrl: right.url,
+      rightPageImageUrl: undefined,
       leftPageImageError: left.error,
-      rightPageImageError: right.error,
+      rightPageImageError: undefined,
       thumbnailUrl: left.url ?? spread.thumbnailUrl,
     });
   }
@@ -1415,9 +1403,7 @@ export async function generateSpreadIllustration(input: {
   spread: BookSpread;
 }): Promise<{ spread: BookSpread; provider: "openai" | "placeholder" }> {
   const { spread } = input;
-  // Generate left and right page images sequentially to stay within rate limits.
   const nextSpread: BookSpread = { ...spread };
-  const providers: Array<"openai" | "placeholder"> = [];
 
   try {
     const left = await generateSpreadPageIllustration({
@@ -1425,31 +1411,21 @@ export async function generateSpreadIllustration(input: {
       side: "left",
     });
     nextSpread.leftPageImageUrl = left.url;
+    nextSpread.rightPageImageUrl = undefined;
     nextSpread.thumbnailUrl = left.url;
     nextSpread.leftPageImageError = undefined;
-    providers.push(left.provider);
+    nextSpread.rightPageImageError = undefined;
+    return {
+      spread: nextSpread,
+      provider: left.provider,
+    };
   } catch (err) {
     nextSpread.leftPageImageError = getImageFailureMessage(err);
-  }
-
-  try {
-    const right = await generateSpreadPageIllustration({
-      ...input,
-      side: "right",
-    });
-    nextSpread.rightPageImageUrl = right.url;
+    nextSpread.rightPageImageUrl = undefined;
     nextSpread.rightPageImageError = undefined;
-    providers.push(right.provider);
-  } catch (err) {
-    nextSpread.rightPageImageError = getImageFailureMessage(err);
+    return {
+      spread: nextSpread,
+      provider: "placeholder",
+    };
   }
-
-  return {
-    spread: nextSpread,
-    provider:
-      providers.length === 2 &&
-      providers.every((provider) => provider === "openai")
-        ? "openai"
-        : "placeholder",
-  };
 }

@@ -27,6 +27,7 @@ type ExpandedImage = {
   title?: string;
   side: "left" | "right";
   url?: string;
+  displayLabel?: string;
 };
 
 type BookStatusPayload = Pick<
@@ -163,6 +164,32 @@ export default function BookStatusPanel({
   const [startingBuild, setStartingBuild] = useState(false);
   const buildStartedRef = useRef(false);
   const activeJobStatus = project.assets.activeJobStatus;
+  const artworkPreviews = spreadPreviews.flatMap((preview) => {
+    const images: Array<{
+      side: "left" | "right";
+      url?: string;
+      error?: string;
+    }> = [
+      {
+        side: "left",
+        url: preview.leftPageImageUrl,
+        error: preview.leftPageImageError,
+      },
+      {
+        side: "right",
+        url: preview.rightPageImageUrl,
+        error: preview.rightPageImageError,
+      },
+    ];
+
+    return images.map((image) => ({
+      ...image,
+      preview,
+    }));
+  });
+  const completedArtworkCount = artworkPreviews.filter(
+    (preview) => preview.url
+  ).length;
 
   useEffect(() => {
     if (project.status !== "queued" || buildStartedRef.current) return;
@@ -400,13 +427,8 @@ export default function BookStatusPanel({
         <div className="mt-6">
           <div className="mb-3 flex items-end justify-between gap-4">
             <p className="text-xs font-bold uppercase tracking-wide text-night-400">
-              {t("spreadProgress", {
-                completed: spreadPreviews.filter(
-                  (preview) =>
-                    preview.leftPageImageUrl && preview.rightPageImageUrl
-                ).length,
-                total: spreadPreviews.length,
-              })}
+              {completedArtworkCount} of {artworkPreviews.length} illustrations
+              planned
             </p>
             {project.status === "ready" || project.status === "failed" ? (
               <p className="text-xs font-bold text-night-400">
@@ -415,109 +437,91 @@ export default function BookStatusPanel({
             ) : null}
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-            {spreadPreviews.map((preview) => {
-              const images: Array<{
-                side: "left" | "right";
-                url?: string;
-                error?: string;
-              }> = [
-                {
-                  side: "left",
-                  url: preview.leftPageImageUrl,
-                  error: preview.leftPageImageError,
-                },
-                {
-                  side: "right",
-                  url: preview.rightPageImageUrl,
-                  error: preview.rightPageImageError,
-                },
-              ];
-
-              return images.map(({ side, url, error }) => {
-                const key = `${preview.id}:${side}`;
-                const isRegenerating = regeneratingImage === key;
-                const isEditableStatus =
-                  project.status === "ready" || project.status === "failed";
-                const isGeneratedPage =
-                  preview.title !== "Cover" &&
-                  preview.title !== "Title" &&
-                  preview.title !== "Back Cover";
-                const isFreeRetry = Boolean(error) || !url;
-                const canRegenerate =
-                  isEditableStatus && isGeneratedPage && !activeJobStatus;
-                return (
-                  <div
-                    key={key}
-                    className="overflow-hidden rounded-2xl border border-night-100 bg-night-50"
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        url
-                          ? setExpandedImage({
-                              spreadId: preview.id,
-                              sequence: preview.sequence,
-                              title: preview.title,
-                              side,
-                              url: url!,
-                            })
-                          : undefined
-                      }
-                      className="block aspect-square w-full overflow-hidden bg-night-100"
-                      aria-label={`Open spread ${preview.sequence} ${side} image`}
-                    >
-                      {url ? (
-                        <img
-                          src={url}
-                          alt={`${t("spreadNumberLabel", {
+            {artworkPreviews.map(({ preview, side, url, error }, index) => {
+              const key = `${preview.id}:${side}`;
+              const isRegenerating = regeneratingImage === key;
+              const isEditableStatus =
+                project.status === "ready" || project.status === "failed";
+              const isGeneratedPage =
+                preview.title !== "Cover" &&
+                preview.title !== "Title" &&
+                preview.title !== "Back Cover";
+              const isFreeRetry = Boolean(error) || !url;
+              const canRegenerate =
+                isEditableStatus && isGeneratedPage && !activeJobStatus;
+              const displayLabel = `Illustration ${index + 1}`;
+              return (
+                <div
+                  key={key}
+                  className="overflow-hidden rounded-2xl border border-night-100 bg-night-50"
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      url
+                        ? setExpandedImage({
+                            spreadId: preview.id,
                             sequence: preview.sequence,
-                          })} ${side}`}
-                          className="h-full w-full object-cover transition hover:scale-105"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center bg-night-100 px-3 text-center text-xs font-bold text-night-400">
-                          {error ? "Image failed" : "Waiting for image"}
-                        </div>
-                      )}
-                    </button>
-                    {error ? (
-                      <p className="px-3 pt-2 text-xs font-medium text-blush-700">
-                        {error}
-                      </p>
+                            title: preview.title,
+                            side,
+                            url: url!,
+                            displayLabel,
+                          })
+                        : undefined
+                    }
+                    className="block aspect-square w-full overflow-hidden bg-night-100"
+                    aria-label={`Open ${displayLabel}`}
+                  >
+                    {url ? (
+                      <img
+                        src={url}
+                        alt={displayLabel}
+                        className="h-full w-full object-cover transition hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-night-100 px-3 text-center text-xs font-bold text-night-400">
+                        {error ? "Image failed" : "Waiting for image"}
+                      </div>
+                    )}
+                  </button>
+                  {error ? (
+                    <p className="px-3 pt-2 text-xs font-medium text-blush-700">
+                      {error}
+                    </p>
+                  ) : null}
+                  <div className="flex items-center justify-between gap-2 px-3 py-2">
+                    <span className="text-xs font-bold uppercase tracking-wide text-night-500">
+                      {displayLabel}
+                    </span>
+                    {canRegenerate ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleRegenerateImage({
+                            spreadId: preview.id,
+                            sequence: preview.sequence,
+                            title: preview.title,
+                            side,
+                            url,
+                            displayLabel,
+                          })
+                        }
+                        disabled={
+                          Boolean(regeneratingImage) ||
+                          Boolean(activeJobStatus)
+                        }
+                        className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-night-700 shadow-sm disabled:opacity-50"
+                      >
+                        {isRegenerating
+                          ? "Working…"
+                          : isFreeRetry
+                            ? "Retry"
+                            : "Redo"}
+                      </button>
                     ) : null}
-                    <div className="flex items-center justify-between gap-2 px-3 py-2">
-                      <span className="text-xs font-bold uppercase tracking-wide text-night-500">
-                        {preview.sequence} · {side}
-                      </span>
-                      {canRegenerate ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleRegenerateImage({
-                              spreadId: preview.id,
-                              sequence: preview.sequence,
-                              title: preview.title,
-                              side,
-                              url,
-                            })
-                          }
-                          disabled={
-                            Boolean(regeneratingImage) ||
-                            Boolean(activeJobStatus)
-                          }
-                          className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-night-700 shadow-sm disabled:opacity-50"
-                        >
-                          {isRegenerating
-                            ? "Working…"
-                            : isFreeRetry
-                              ? "Retry"
-                              : "Redo"}
-                        </button>
-                      ) : null}
-                    </div>
                   </div>
-                );
-              });
+                </div>
+              );
             })}
           </div>
           {imageError ? (
@@ -633,13 +637,13 @@ export default function BookStatusPanel({
             {expandedImage.url ? (
               <img
                 src={expandedImage.url}
-                alt={`Spread ${expandedImage.sequence} ${expandedImage.side} image`}
+                alt={expandedImage.displayLabel ?? "Selected illustration"}
                 className="max-h-[76vh] w-full bg-night-100 object-contain"
               />
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
               <p className="text-sm font-bold text-night-700">
-                Spread {expandedImage.sequence} · {expandedImage.side} image
+                {expandedImage.displayLabel ?? "Selected illustration"}
               </p>
               <div className="flex items-center gap-2">
                 {(project.status === "ready" || project.status === "failed") &&

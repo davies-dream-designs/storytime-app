@@ -11,6 +11,7 @@ import { buttonClassName } from "@/components/ui/buttonStyles";
 import { choiceCardClassName, formStyles } from "@/components/ui/formStyles";
 import type { ChildProfile, StorySuggestion, StoryPreset } from "@/types";
 import { STORY_PRESETS, getDefaultPreset, getAge } from "@/types";
+import { assessStoryIdeaIp } from "@/lib/ipGuardrails";
 
 const THEME_EMOJIS: Record<string, string> = {
   kindness: "💛",
@@ -41,7 +42,8 @@ function GenerateForm() {
     useState<StorySuggestion | null>(null);
   const [customPremise, setCustomPremise] = useState("");
   const [notes, setNotes] = useState("");
-  const [storyPreset, setStoryPreset] = useState<StoryPreset>("moonlit-adventures");
+  const [storyPreset, setStoryPreset] =
+    useState<StoryPreset>("moonlit-adventures");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [profilesError, setProfilesError] = useState("");
@@ -59,7 +61,9 @@ function GenerateForm() {
       })
       .then((data) => {
         setProfiles(data);
-        const initial = defaultProfileId ? data.find(p => p.id === defaultProfileId) : data[0];
+        const initial = defaultProfileId
+          ? data.find((p) => p.id === defaultProfileId)
+          : data[0];
         if (initial) {
           setProfileId(initial.id);
           setStoryPreset(getDefaultPreset(getAge(initial)));
@@ -98,7 +102,7 @@ function GenerateForm() {
     setSuggestions([]);
     setSelectedSuggestion(null);
     setCustomPremise("");
-    const profile = profiles.find(p => p.id === pid);
+    const profile = profiles.find((p) => p.id === pid);
     if (profile) setStoryPreset(getDefaultPreset(getAge(profile)));
   }
 
@@ -149,6 +153,11 @@ function GenerateForm() {
   }
 
   const selectedProfile = profiles.find((p) => p.id === profileId);
+  const ipPolicyPreview = assessStoryIdeaIp({
+    theme: selectedSuggestion?.theme,
+    premise: selectedSuggestion?.premise ?? customPremise,
+    notes,
+  });
 
   if (loadingProfiles)
     return <p className="text-night-400">{t("loadingProfiles")}</p>;
@@ -190,7 +199,8 @@ function GenerateForm() {
   }
 
   const showIdeas = suggestions.length > 0 || loadingSuggestions;
-  const readyToGenerate = profileId && (selectedSuggestion || customPremise.trim());
+  const readyToGenerate =
+    profileId && (selectedSuggestion || customPremise.trim());
 
   return (
     <div className="space-y-8">
@@ -234,7 +244,10 @@ function GenerateForm() {
                     key={key}
                     type="button"
                     onClick={() => setStoryPreset(key)}
-                    className={choiceCardClassName(storyPreset === key, "w-full p-3.5 text-left")}
+                    className={choiceCardClassName(
+                      storyPreset === key,
+                      "w-full p-3.5 text-left"
+                    )}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div>
@@ -265,13 +278,17 @@ function GenerateForm() {
                 })}
                 className={formStyles.textarea}
               />
+              <p className="mt-2 text-xs leading-5 text-night-400">
+                Storycot creates original stories. If an idea mentions an
+                existing character, brand, show, film, game, celebrity, logo, or
+                story world, we will turn it into a new original version before
+                generation.
+              </p>
             </div>
 
             {!showIdeas && (
               <div className="space-y-2">
-                <p className="text-xs text-night-400">
-                  {t("getIdeasHint")}
-                </p>
+                <p className="text-xs text-night-400">{t("getIdeasHint")}</p>
                 <button
                   type="button"
                   onClick={() => fetchSuggestions(profileId)}
@@ -331,9 +348,7 @@ function GenerateForm() {
                 </button>
               ))}
 
-              <p className="text-xs text-night-400">
-                {t("suggestionsNote")}
-              </p>
+              <p className="text-xs text-night-400">{t("suggestionsNote")}</p>
             </div>
           )}
         </div>
@@ -353,6 +368,31 @@ function GenerateForm() {
               className={formStyles.textarea}
             />
           </div>
+
+          {ipPolicyPreview.riskLevel === "originalized" ? (
+            <div className="rounded-2xl border border-star-200 bg-star-50 px-4 py-3 text-sm leading-6 text-night-700">
+              <p className="font-bold text-night-800">
+                We’ll make this an original Storycot version
+              </p>
+              <p className="mt-1">
+                For downloads and Australian print ordering, Storycot avoids
+                protected characters, brands, logos, celebrities, and
+                recognisable source worlds. We’ll keep the broad feeling of the
+                idea but use new original characters and settings.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-night-100 bg-white/70 px-4 py-3 text-sm leading-6 text-night-500">
+              <p className="font-bold text-night-700">
+                Original stories can be printed
+              </p>
+              <p className="mt-1">
+                Lulu ordering is only available for stories made from original
+                characters, settings, images, and story details that you have
+                the right to use.
+              </p>
+            </div>
+          )}
 
           {error && <p className={formStyles.error}>{error}</p>}
 

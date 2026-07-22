@@ -11,6 +11,7 @@ import {
   hasLuluPrintAssets,
   isLuluPrintProvider,
 } from "@/lib/print-books/lulu";
+import { isStoryPrintRestricted } from "@/lib/ipGuardrails";
 
 const PACKS = {
   starter: { credits: 10, amount: 499, label: "Storycot Starter — 10 stories" },
@@ -108,6 +109,21 @@ export async function POST(req: NextRequest) {
     if (project.status !== "ready") {
       return NextResponse.json(
         { error: "This book is not ready for print checkout yet." },
+        { status: 409 }
+      );
+    }
+
+    const story = await db.stories.getById(project.sourceStoryId);
+    if (!story || story.userId !== userId) {
+      return NextResponse.json({ error: "Story not found" }, { status: 404 });
+    }
+
+    if (isStoryPrintRestricted(story)) {
+      return NextResponse.json(
+        {
+          error:
+            "This story can be downloaded for personal review, but it cannot be ordered as a printed book because it may include protected characters, brands, or source material.",
+        },
         { status: 409 }
       );
     }

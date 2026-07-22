@@ -7,6 +7,7 @@ import DeleteBookButton from "@/components/DeleteBookButton";
 import FileDownloadButton from "@/components/FileDownloadButton";
 import PrintProductOptions from "@/components/PrintProductOptions";
 import { db } from "@/lib/db";
+import { isStoryPrintRestricted } from "@/lib/ipGuardrails";
 import { getBookFileRetentionState } from "@/lib/print-books/retention";
 import BookStatusPanel from "./BookStatusPanel";
 import PrintFulfillmentResendButton from "./PrintFulfillmentResendButton";
@@ -44,6 +45,7 @@ export default async function BookProjectPage({
   const hasLuluPrintPdf = Boolean(project.assets.luluPrintPdfUrl);
   const hasLuluCoverPdf = Boolean(project.assets.luluCoverPdfUrl);
   const fileRetention = getBookFileRetentionState(project);
+  const printRestricted = isStoryPrintRestricted(story);
   const fileRetentionDate = fileRetention.availableUntil
     ? new Intl.DateTimeFormat("en-AU", {
         day: "numeric",
@@ -83,9 +85,9 @@ export default async function BookProjectPage({
                 </p>
                 {fileRetention.isArchived ? (
                   <p className="mt-1 text-sm text-night-500">
-                    High-resolution download and print files have been
-                    archived. Your story is still saved; use Refresh PDFs below
-                    to prepare fresh files.
+                    High-resolution download and print files have been archived.
+                    Your story is still saved; use Refresh PDFs below to prepare
+                    fresh files.
                   </p>
                 ) : fileRetentionDate ? (
                   <p className="mt-1 text-sm text-night-500">
@@ -293,10 +295,27 @@ export default async function BookProjectPage({
             <h2 className="font-display text-2xl font-bold text-night-800">
               {t("printOptionsTitle")}
             </h2>
-            <p className="mt-2 text-night-600">{t("printOptionsSub")}</p>
-            <div className="mt-6">
-              <PrintProductOptions project={project} />
-            </div>
+            {printRestricted ? (
+              <div className="mt-4 rounded-2xl border border-star-200 bg-star-50 p-4 text-sm leading-6 text-night-700">
+                <p className="font-bold text-night-800">
+                  Printed ordering is unavailable for this story
+                </p>
+                <p className="mt-1">
+                  You can still download the PDF or EPUB for personal review,
+                  but Storycot can only send original stories to Australian
+                  print fulfilment. Create an original version without protected
+                  characters, brands, logos, or recognisable source worlds to
+                  order through Lulu.
+                </p>
+              </div>
+            ) : (
+              <>
+                <p className="mt-2 text-night-600">{t("printOptionsSub")}</p>
+                <div className="mt-6">
+                  <PrintProductOptions project={project} />
+                </div>
+              </>
+            )}
           </section>
         ) : null}
       </main>

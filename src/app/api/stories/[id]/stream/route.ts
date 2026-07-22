@@ -4,6 +4,7 @@ import { kv } from "@vercel/kv";
 import { db } from "@/lib/db";
 import { STORY_CREDIT_COST } from "@/lib/pricing";
 import { streamStory } from "@/lib/storyGenerator";
+import { assessGeneratedStoryIp } from "@/lib/ipGuardrails";
 import type { StoryPage } from "@/types";
 
 function sendEvent(
@@ -116,8 +117,13 @@ export async function POST(
           status: "ready",
           generationError: undefined,
         } as const;
+        const generatedIpPolicy = assessGeneratedStoryIp(finalStory);
+        const storyForStorage =
+          generatedIpPolicy.riskLevel === "restricted"
+            ? { ...finalStory, ipPolicy: generatedIpPolicy }
+            : finalStory;
 
-        const updated = await db.stories.update(id, finalStory);
+        const updated = await db.stories.update(id, storyForStorage);
 
         await kv.del(`suggestions:${story.profileId}`);
 
@@ -127,7 +133,7 @@ export async function POST(
           });
         }
 
-        sendEvent(controller, "complete", updated ?? finalStory);
+        sendEvent(controller, "complete", updated ?? storyForStorage);
         controller.close();
       } catch (err) {
         const message =

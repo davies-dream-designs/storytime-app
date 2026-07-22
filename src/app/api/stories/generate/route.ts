@@ -8,6 +8,7 @@ import {
   storyIdeaSafetyErrorResponse,
   validateStoryIdeaSafety,
 } from "@/lib/storySafety";
+import { assessGeneratedStoryIp, assessStoryIdeaIp } from "@/lib/ipGuardrails";
 import { generateStory } from "@/lib/storyGenerator";
 import type { Story } from "@/types";
 
@@ -61,6 +62,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const ipPolicy = assessStoryIdeaIp({ theme, premise, notes });
+
   const [characters, recentStories] = await Promise.all([
     db.characters.getByProfileId(profileId),
     db.stories.getByProfileId(profileId),
@@ -76,8 +79,8 @@ export async function POST(req: NextRequest) {
     profile,
     characters: characters.filter((c) => c.userId === userId),
     theme: theme ?? "a gentle adventure",
-    premise,
-    notes: notes ?? "",
+    premise: ipPolicy.originalizedPremise ?? premise,
+    notes: ipPolicy.originalizedNotes ?? notes ?? "",
     recentTitles,
     locale,
   });
@@ -96,11 +99,15 @@ export async function POST(req: NextRequest) {
     pages: generated.pages,
     wordCount,
     theme: theme ?? "a gentle adventure",
-    premise,
-    notes: notes ?? "",
+    premise: ipPolicy.originalizedPremise ?? premise,
+    notes: ipPolicy.originalizedNotes ?? notes ?? "",
+    ipPolicy,
     createdAt: new Date().toISOString(),
     status: "ready",
   };
+  const generatedIpPolicy = assessGeneratedStoryIp(story);
+  story.ipPolicy =
+    generatedIpPolicy.riskLevel === "restricted" ? generatedIpPolicy : ipPolicy;
 
   await Promise.all([
     db.stories.create(story),

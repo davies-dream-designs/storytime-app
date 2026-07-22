@@ -14,6 +14,10 @@ const { mockGetBookProjectById, mockUpdateBookProject } = vi.hoisted(() => ({
   mockUpdateBookProject: vi.fn(),
 }));
 
+const { mockGetStoryById } = vi.hoisted(() => ({
+  mockGetStoryById: vi.fn(),
+}));
+
 vi.mock("@clerk/nextjs/server", () => ({
   auth: mockAuth,
 }));
@@ -30,6 +34,9 @@ vi.mock("stripe", () => ({
 
 vi.mock("@/lib/db", () => ({
   db: {
+    stories: {
+      getById: mockGetStoryById,
+    },
     bookProjects: {
       getById: mockGetBookProjectById,
       update: mockUpdateBookProject,
@@ -47,6 +54,11 @@ describe("stripe checkout", () => {
     process.env.STRIPE_SECRET_KEY = "sk_test_123";
     process.env.NEXT_PUBLIC_APP_URL = "https://storycot.com";
     mockGetBookProjectById.mockResolvedValue(undefined);
+    mockGetStoryById.mockResolvedValue({
+      id: "story-1",
+      userId: "user-1",
+      ipPolicy: { riskLevel: "clear", printAllowed: true, reasons: [] },
+    });
     mockUpdateBookProject.mockResolvedValue(undefined);
   });
 
@@ -154,6 +166,7 @@ describe("stripe checkout", () => {
       id: "book-1",
       userId: "user-1",
       status: "ready",
+      sourceStoryId: "story-1",
       pageCount: 32,
       spreadCount: 16,
       assets: {
@@ -228,6 +241,7 @@ describe("stripe checkout", () => {
       id: "book-1",
       userId: "user-1",
       status: "ready",
+      sourceStoryId: "story-1",
       pageCount: 32,
       spreadCount: 16,
       assets: {
@@ -286,6 +300,7 @@ describe("stripe checkout", () => {
       id: "book-1",
       userId: "user-1",
       status: "ready",
+      sourceStoryId: "story-1",
       pageCount: 20,
       spreadCount: 10,
       assets: {
@@ -316,6 +331,56 @@ describe("stripe checkout", () => {
     expect(res.status).toBe(409);
     await expect(res.json()).resolves.toEqual({
       error: "Lulu print files are not ready yet.",
+    });
+    expect(mockCreateSession).not.toHaveBeenCalled();
+  });
+
+  it("rejects print checkout for stories marked as print restricted by IP policy", async () => {
+    mockGetBookProjectById.mockResolvedValue({
+      id: "book-1",
+      userId: "user-1",
+      sourceStoryId: "story-1",
+      status: "ready",
+      pageCount: 32,
+      spreadCount: 16,
+      assets: {
+        coverPdfUrl: "https://example.com/cover.pdf",
+        printPdfUrl: "https://example.com/print.pdf",
+        orderabilityState: "export_ready",
+      },
+    });
+    mockGetStoryById.mockResolvedValue({
+      id: "story-1",
+      userId: "user-1",
+      ipPolicy: {
+        riskLevel: "restricted",
+        printAllowed: false,
+        reasons: ["protected_reference"],
+      },
+    });
+
+    const { POST } = await import("@/app/api/stripe/checkout/route");
+
+    const res = await POST(
+      new NextRequest("https://dev.storycot.com/api/stripe/checkout", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://dev.storycot.com",
+          referer: "https://dev.storycot.com/en/books/book-1",
+        },
+        body: JSON.stringify({
+          type: "print_book",
+          projectId: "book-1",
+          productKey: "hardcover",
+        }),
+      })
+    );
+
+    expect(res.status).toBe(409);
+    await expect(res.json()).resolves.toEqual({
+      error:
+        "This story can be downloaded for personal review, but it cannot be ordered as a printed book because it may include protected characters, brands, or source material.",
     });
     expect(mockCreateSession).not.toHaveBeenCalled();
   });

@@ -7,6 +7,10 @@ import type {
   StoryPreset,
 } from "@/types";
 import { getAge, buildChildAppearanceSummary } from "@/types";
+import {
+  assessStoryIdeaIp,
+  buildIpSafeGenerationInstruction,
+} from "@/lib/ipGuardrails";
 
 const client = new Anthropic();
 
@@ -23,9 +27,13 @@ const LOCALE_LANGUAGE: Record<string, string> = {
 };
 
 const STORY_PRESET_CONFIG = {
-  'tiny-tales':          { words: "150–250",  pages: "4–6",   sentencesPerPage: "1" },
-  'moonlit-adventures':  { words: "350–550",  pages: "8–10",  sentencesPerPage: "2–3" },
-  'epic-sagas':          { words: "600–900",  pages: "10–14", sentencesPerPage: "3–4" },
+  "tiny-tales": { words: "150–250", pages: "4–6", sentencesPerPage: "1" },
+  "moonlit-adventures": {
+    words: "350–550",
+    pages: "8–10",
+    sentencesPerPage: "2–3",
+  },
+  "epic-sagas": { words: "600–900", pages: "10–14", sentencesPerPage: "3–4" },
 } as const;
 
 interface GenerateStoryInput {
@@ -45,15 +53,30 @@ interface GeneratedStory {
 }
 
 export function buildStoryPrompt(input: GenerateStoryInput): string {
-  const { profile, characters, theme, premise, notes, storyPreset, recentTitles, locale } =
-    input;
+  const {
+    profile,
+    characters,
+    theme,
+    premise,
+    notes,
+    storyPreset,
+    recentTitles,
+    locale,
+  } = input;
   const language = LOCALE_LANGUAGE[locale ?? "en"] ?? "English";
   const len = STORY_PRESET_CONFIG[storyPreset ?? "moonlit-adventures"];
+  const originalCharacters = characters.filter((character) => {
+    const policy = assessStoryIdeaIp({
+      premise: `${character.name} ${character.description}`,
+      notes: `${character.personality} ${character.appearance}`,
+    });
+    return policy.riskLevel === "clear";
+  });
 
   const characterSection =
-    characters.length > 0
+    originalCharacters.length > 0
       ? `\n\nEstablished characters (use these exactly as described):
-${characters.map((c) => `- ${c.name}: ${c.description}. Personality: ${c.personality}. Appearance: ${c.appearance}.`).join("\n")}`
+${originalCharacters.map((c) => `- ${c.name}: ${c.description}. Personality: ${c.personality}. Appearance: ${c.appearance}.`).join("\n")}`
       : "";
 
   const premiseSection = premise
@@ -68,6 +91,7 @@ ${premise}`
       ? `\n\nRecent story titles for this child (avoid similar plots):
 ${recentTitles.map((t) => `- ${t}`).join("\n")}`
       : "";
+  const ipSection = buildIpSafeGenerationInstruction();
 
   return `You are a magical storyteller creating a personalised bedtime story for a child.
 
@@ -89,6 +113,9 @@ Write the story in ${language}. Write a warm, age-appropriate bedtime story that
 11. Keeps ${profile.name} visibly clothed, safe, comfortable, and supervised or clearly secure in every visual moment. If water appears, keep it shallow/calm and frame ${profile.name} safely on dry ground or with a trusted adult nearby.
 12. Avoids close-up descriptions of private/sensitive body areas. Do not focus illustration prompts on feet, bare skin, mud on body parts, vulnerability, fear, hiding, or being watched.
 13. Makes every illustrationPrompt image-safe: describe setting, characters, action, mood, clothing, and composition only. Do not quote story prose. Do not include wording about nudity, bare body parts, bathing, toilets, fear, injury, danger, restraint, or a child being alone near water.
+14. Follows all IP originality requirements below.
+
+${ipSection}
 
 Respond ONLY with valid JSON — no markdown, no extra text:
 {

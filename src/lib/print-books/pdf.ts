@@ -1064,6 +1064,134 @@ async function drawBookPage(input: {
   }
 }
 
+function getCombinedPageText(spread: BookSpread) {
+  return [spread.leftPageText, spread.rightPageText]
+    .map((text) => text.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+async function drawLuluTextPage(input: {
+  pdfDoc: PDFDocument;
+  page: ReturnType<PDFDocument["addPage"]>;
+  story: Story;
+  spread: BookSpread;
+  pageWidth: number;
+  pageHeight: number;
+  textSafeMargin: number;
+  serif: Awaited<ReturnType<PDFDocument["embedFont"]>>;
+  serifBold: Awaited<ReturnType<PDFDocument["embedFont"]>>;
+  sans: Awaited<ReturnType<PDFDocument["embedFont"]>>;
+  pageNumber: number;
+}) {
+  const {
+    pdfDoc,
+    page,
+    story,
+    spread,
+    pageWidth,
+    pageHeight,
+    textSafeMargin,
+    serif,
+    serifBold,
+    sans,
+    pageNumber,
+  } = input;
+  const theme = pickPlaceholderTheme(story);
+  drawPageBackground(page, pageWidth, pageHeight, theme.paper);
+
+  await drawBrandWordmark({
+    pdfDoc,
+    page,
+    variant: "dark",
+    x: textSafeMargin,
+    y: pageHeight - textSafeMargin - 30,
+    iconSize: 30,
+    font: sans,
+  });
+
+  const text = getCombinedPageText(spread);
+  const textWidth = pageWidth - textSafeMargin * 2;
+  if (spread.title) {
+    page.drawText(spread.title, {
+      x: textSafeMargin,
+      y: pageHeight - textSafeMargin - 104,
+      font: serifBold,
+      size: 18,
+      color: theme.ink,
+    });
+  }
+
+  if (text) {
+    const fittedText = fitWrappedTextToBox({
+      text,
+      font: serif,
+      maxWidth: textWidth,
+      maxHeight: pageHeight * 0.58,
+      paddingY: 0,
+      preferredSize: 19,
+      minSize: 11,
+    });
+    drawWrappedText({
+      page,
+      text,
+      x: textSafeMargin,
+      topY: pageHeight - textSafeMargin - 150,
+      maxWidth: textWidth,
+      lineHeight: fittedText.lineHeight,
+      font: serif,
+      size: fittedText.size,
+      color: theme.ink,
+      lines: fittedText.lines,
+    });
+  }
+
+  page.drawText(`${pageNumber}`, {
+    x: pageWidth - textSafeMargin,
+    y: 28,
+    font: sans,
+    size: 10,
+    color: rgb(0.42, 0.4, 0.48),
+  });
+}
+
+async function drawLuluArtPage(input: {
+  pdfDoc: PDFDocument;
+  page: ReturnType<PDFDocument["addPage"]>;
+  story: Story;
+  spread: BookSpread;
+  side: "start" | "end";
+  pageWidth: number;
+  pageHeight: number;
+  pageNumber: number;
+  sans: Awaited<ReturnType<PDFDocument["embedFont"]>>;
+}) {
+  const { pdfDoc, page, story, spread, side, pageWidth, pageHeight, sans } =
+    input;
+  drawPageBackground(
+    page,
+    pageWidth,
+    pageHeight,
+    pickPlaceholderTheme(story).paper
+  );
+  await drawSpreadArtIntoRect({
+    pdfDoc,
+    page,
+    spread,
+    side,
+    rect: { x: 0, y: 0, width: pageWidth, height: pageHeight },
+    story,
+    variantSeed: spread.sequence * 2 + (side === "end" ? 1 : 0),
+  });
+  page.drawText(`${input.pageNumber}`, {
+    x: pageWidth - 40,
+    y: 20,
+    font: sans,
+    size: 10,
+    color: rgb(0.99, 0.96, 0.88),
+  });
+}
+
 async function buildPrintPdf(input: {
   project: BookProject;
   story: Story;
@@ -1071,6 +1199,7 @@ async function buildPrintPdf(input: {
   geometry?: PdfPageGeometry;
   minPageCount?: number;
   includeCoverFrontMatter?: boolean;
+  luluTextArtInterior?: boolean;
 }): Promise<Uint8Array> {
   const geometry = input.geometry ?? STORYCOT_PDF_GEOMETRY;
   const { pageWidth, pageHeight, textSafeMargin } = geometry;
@@ -1158,6 +1287,74 @@ async function buildPrintPdf(input: {
         pageHeight,
       });
 
+      continue;
+    }
+
+    if (input.luluTextArtInterior) {
+      const textPage = pdfDoc.addPage([pageWidth, pageHeight]);
+      await drawLuluTextPage({
+        pdfDoc,
+        page: textPage,
+        story: input.story,
+        spread: {
+          ...spread,
+          rightPageText: "",
+        },
+        pageWidth,
+        pageHeight,
+        textSafeMargin,
+        serif,
+        serifBold,
+        sans,
+        pageNumber: pdfDoc.getPageCount(),
+      });
+
+      const startArtPage = pdfDoc.addPage([pageWidth, pageHeight]);
+      await drawLuluArtPage({
+        pdfDoc,
+        page: startArtPage,
+        story: input.story,
+        spread,
+        side: "start",
+        pageWidth,
+        pageHeight,
+        pageNumber: pdfDoc.getPageCount(),
+        sans,
+      });
+
+      if (spread.rightPageText || spread.rightPageImageUrl) {
+        const rightTextPage = pdfDoc.addPage([pageWidth, pageHeight]);
+        await drawLuluTextPage({
+          pdfDoc,
+          page: rightTextPage,
+          story: input.story,
+          spread: {
+            ...spread,
+            leftPageText: spread.rightPageText,
+            rightPageText: "",
+          },
+          pageWidth,
+          pageHeight,
+          textSafeMargin,
+          serif,
+          serifBold,
+          sans,
+          pageNumber: pdfDoc.getPageCount(),
+        });
+
+        const endArtPage = pdfDoc.addPage([pageWidth, pageHeight]);
+        await drawLuluArtPage({
+          pdfDoc,
+          page: endArtPage,
+          story: input.story,
+          spread,
+          side: "end",
+          pageWidth,
+          pageHeight,
+          pageNumber: pdfDoc.getPageCount(),
+          sans,
+        });
+      }
       continue;
     }
 
@@ -1471,11 +1668,21 @@ export async function generateBookPdfs(input: {
   const coverBytes = await buildCoverPdf(input);
   const printBytes = await buildPrintPdf(input);
   const shouldGenerateLuluPdfs = process.env.STORYCOT_PRINT_PROVIDER === "lulu";
-  const luluPageCount = Math.max(
-    input.project.pageCount,
-    LULU_HARDCOVER_MIN_PAGES
+  const luluPrintBytes = shouldGenerateLuluPdfs
+    ? await buildPrintPdf({
+        ...input,
+        geometry: LULU_PDF_GEOMETRY,
+        minPageCount: LULU_HARDCOVER_MIN_PAGES,
+        includeCoverFrontMatter: false,
+        luluTextArtInterior: true,
+      })
+    : undefined;
+  const luluPrintPdfPageCount = luluPrintBytes
+    ? (await PDFDocument.load(luluPrintBytes)).getPageCount()
+    : undefined;
+  const luluSpine = getBookSpineWidthIn(
+    luluPrintPdfPageCount ?? input.project.pageCount
   );
-  const luluSpine = getBookSpineWidthIn(luluPageCount);
 
   const coverPdfUrl = await storeBookAsset({
     pathname: `books/${input.project.id}/cover.pdf`,
@@ -1500,17 +1707,10 @@ export async function generateBookPdfs(input: {
         contentType: "application/pdf",
       })
     : undefined;
-  const luluPrintPdfUrl = shouldGenerateLuluPdfs
+  const luluPrintPdfUrl = luluPrintBytes
     ? await storeBookAsset({
         pathname: `books/${input.project.id}/lulu-print.pdf`,
-        body: Buffer.from(
-          await buildPrintPdf({
-            ...input,
-            geometry: LULU_PDF_GEOMETRY,
-            minPageCount: LULU_HARDCOVER_MIN_PAGES,
-            includeCoverFrontMatter: false,
-          })
-        ),
+        body: Buffer.from(luluPrintBytes),
         contentType: "application/pdf",
       })
     : undefined;
@@ -1548,7 +1748,7 @@ export async function generateBookPdfs(input: {
     luluPrintPdfPageHeightIn: shouldGenerateLuluPdfs
       ? LULU_INTERIOR_PDF_PAGE_HEIGHT_IN
       : undefined,
-    luluPrintPdfPageCount: shouldGenerateLuluPdfs ? luluPageCount : undefined,
+    luluPrintPdfPageCount,
     interiorTextSafeMarginIn: BOOK_SPEC.fullBleedTextSafeMarginIn,
     previewImages: input.project.spreads
       .map((spread) => spread.leftPageImageUrl ?? spread.imageUrl)

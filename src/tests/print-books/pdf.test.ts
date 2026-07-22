@@ -4,6 +4,8 @@ import type { ChildProfile, Story } from "@/types";
 import type { BookProject, CharacterBible } from "@/types/printBook";
 
 const mockStoreBookAsset = vi.fn();
+const pngPixel =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
 
 vi.mock("@/lib/print-books/storage", () => ({
   storeBookAsset: mockStoreBookAsset,
@@ -161,6 +163,7 @@ function createProjectWithFullBackMatter(): BookProject {
         rightPageText: "The silver lantern glowed softly.",
         sceneBrief: "The first moment in the garden",
         illustrationPrompt: "A moonlit path with Mila and the lantern.",
+        leftPageImageUrl: pngPixel,
       },
       {
         id: "book-1:spread:4",
@@ -259,7 +262,7 @@ describe("generateBookPdfs", () => {
     expect(result.coverPdfSpineSource).toBe("configured");
   });
 
-  it("exports a print PDF with clean text and art pages", async () => {
+  it("exports a print PDF without decorative end-matter art placeholders", async () => {
     mockStoreBookAsset.mockReset();
     mockStoreBookAsset
       .mockResolvedValueOnce("data:application/pdf;base64,cover")
@@ -276,10 +279,10 @@ describe("generateBookPdfs", () => {
     const printPdfBody = mockStoreBookAsset.mock.calls[1]?.[0]?.body;
     expect(printPdfBody).toBeTruthy();
     const printPdf = await PDFDocument.load(new Uint8Array(printPdfBody));
-    expect(printPdf.getPageCount()).toBe(6);
+    expect(printPdf.getPageCount()).toBe(5);
   });
 
-  it("does not add blank text pages before illustration-only pages", async () => {
+  it("does not add art pages for placeholder-only illustration slots", async () => {
     mockStoreBookAsset.mockReset();
     mockStoreBookAsset
       .mockResolvedValueOnce("data:application/pdf;base64,cover")
@@ -288,8 +291,7 @@ describe("generateBookPdfs", () => {
     const project = createProjectWithFullBackMatter();
     project.spreads[2] = {
       ...project.spreads[2]!,
-      rightPageText: "",
-      rightPageImageUrl: "data:image/svg+xml;base64,right",
+      leftPageImageUrl: "data:image/svg+xml;base64,left",
     };
 
     const { generateBookPdfs } = await import("@/lib/print-books/pdf");
@@ -302,7 +304,7 @@ describe("generateBookPdfs", () => {
     const printPdfBody = mockStoreBookAsset.mock.calls[1]?.[0]?.body;
     expect(printPdfBody).toBeTruthy();
     const printPdf = await PDFDocument.load(new Uint8Array(printPdfBody));
-    expect(printPdf.getPageCount()).toBe(6);
+    expect(printPdf.getPageCount()).toBe(4);
   });
 
   it("exports Lulu-specific PDFs with a padded 24-page interior", async () => {
@@ -358,7 +360,7 @@ describe("generateBookPdfs", () => {
     const standardPrintPdf = await PDFDocument.load(
       new Uint8Array(standardPrintPdfBody)
     );
-    expect(standardPrintPdf.getPageCount()).toBe(6);
+    expect(standardPrintPdf.getPageCount()).toBe(5);
   });
 
   it("fits long story text inside the printable text panel", async () => {

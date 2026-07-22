@@ -1,6 +1,7 @@
 import { getPrintProductQuotes } from "@/lib/print-books/printProducts";
 import type { BookProject } from "@/types/printBook";
 import PrintCheckoutButton from "@/components/PrintCheckoutButton";
+import { PRINT_ORDERING_COMING_SOON_MESSAGE } from "@/lib/print-books/launch";
 
 function formatAud(value: number) {
   return new Intl.NumberFormat("en-AU", {
@@ -11,8 +12,10 @@ function formatAud(value: number) {
 
 export default function PrintProductOptions({
   project,
+  orderingAvailable,
 }: {
   project: Pick<BookProject, "id" | "pageCount">;
+  orderingAvailable: boolean;
 }) {
   const quotes = getPrintProductQuotes(project).filter(
     (quote) => quote.key === "hardcover" || quote.key === "softcover"
@@ -73,10 +76,16 @@ export default function PrintProductOptions({
               {quote.unsupportedReason}
             </p>
           ) : null}
+          {!orderingAvailable && quote.isWithinSpecs ? (
+            <p className="mt-4 rounded-xl bg-moon-50 px-3 py-2 text-sm font-bold text-night-700">
+              {PRINT_ORDERING_COMING_SOON_MESSAGE}
+            </p>
+          ) : null}
           <PrintCheckoutButton
             projectId={project.id}
             productKey={quote.key}
-            disabled={!quote.isWithinSpecs}
+            disabled={!quote.isWithinSpecs || !orderingAvailable}
+            label={orderingAvailable ? undefined : "Coming soon"}
           />
         </article>
       ))}

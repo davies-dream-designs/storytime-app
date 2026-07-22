@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const { mockAuth, mockCreateSession } = vi.hoisted(() => ({
+const { mockAuth, mockCreateSession, mockGetUser } = vi.hoisted(() => ({
   mockAuth: vi.fn(async () => ({ userId: "user-1" })),
   mockCreateSession: vi.fn(async () => ({
     id: "cs_test_123",
     url: "https://checkout.stripe.test/session",
   })),
+  mockGetUser: vi.fn(),
 }));
 
 const { mockGetBookProjectById, mockUpdateBookProject } = vi.hoisted(() => ({
@@ -20,6 +21,11 @@ const { mockGetStoryById } = vi.hoisted(() => ({
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: mockAuth,
+  clerkClient: vi.fn(async () => ({
+    users: {
+      getUser: mockGetUser,
+    },
+  })),
 }));
 
 vi.mock("stripe", () => ({
@@ -53,6 +59,10 @@ describe("stripe checkout", () => {
     process.env = { ...previousEnv };
     process.env.STRIPE_SECRET_KEY = "sk_test_123";
     process.env.NEXT_PUBLIC_APP_URL = "https://storycot.com";
+    delete process.env.PRINT_BOOK_ORDERING_ENABLED;
+    delete process.env.NEXT_PUBLIC_PRINT_BOOK_ORDERING_ENABLED;
+    delete process.env.VERCEL_ENV;
+    mockGetUser.mockResolvedValue({ privateMetadata: { isAdmin: false } });
     mockGetBookProjectById.mockResolvedValue(undefined);
     mockGetStoryById.mockResolvedValue({
       id: "story-1",
@@ -233,6 +243,90 @@ describe("stripe checkout", () => {
         }),
       })
     );
+  });
+
+  it("blocks public print checkout in production while ordering is coming soon", async () => {
+    process.env.VERCEL_ENV = "production";
+    mockGetBookProjectById.mockResolvedValue({
+      id: "book-1",
+      userId: "user-1",
+      status: "ready",
+      sourceStoryId: "story-1",
+      pageCount: 32,
+      spreadCount: 16,
+      assets: {
+        coverPdfUrl: "https://example.com/cover.pdf",
+        printPdfUrl: "https://example.com/print.pdf",
+        orderabilityState: "export_ready",
+      },
+    });
+
+    const { POST } = await import("@/app/api/stripe/checkout/route");
+
+    const res = await POST(
+      new NextRequest("https://storycot.com/api/stripe/checkout", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://storycot.com",
+          referer: "https://storycot.com/en/books/book-1",
+        },
+        body: JSON.stringify({
+          type: "print_book",
+          projectId: "book-1",
+          productKey: "hardcover",
+        }),
+      })
+    );
+
+    expect(res.status).toBe(403);
+    await expect(res.json()).resolves.toEqual({
+      error:
+        "Printed books are coming soon. You can still create and download your PDF or EPUB today.",
+    });
+    expect(mockGetBookProjectById).not.toHaveBeenCalled();
+    expect(mockCreateSession).not.toHaveBeenCalled();
+  });
+
+  it("allows admin print checkout in production for testing", async () => {
+    process.env.VERCEL_ENV = "production";
+    mockGetUser.mockResolvedValue({ privateMetadata: { isAdmin: true } });
+    mockGetBookProjectById.mockResolvedValue({
+      id: "book-1",
+      userId: "user-1",
+      status: "ready",
+      sourceStoryId: "story-1",
+      pageCount: 32,
+      spreadCount: 16,
+      assets: {
+        coverPdfUrl: "https://example.com/cover.pdf",
+        printPdfUrl: "https://example.com/print.pdf",
+        orderabilityState: "export_ready",
+      },
+    });
+
+    const { POST } = await import("@/app/api/stripe/checkout/route");
+
+    const res = await POST(
+      new NextRequest("https://storycot.com/api/stripe/checkout", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://storycot.com",
+          referer: "https://storycot.com/en/books/book-1",
+        },
+        body: JSON.stringify({
+          type: "print_book",
+          projectId: "book-1",
+          productKey: "hardcover",
+        }),
+      })
+    );
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({
+      url: "https://checkout.stripe.test/session",
+    });
   });
 
   it("creates a Lulu softcover checkout when Lulu print files are ready", async () => {

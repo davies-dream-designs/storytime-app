@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getStripeLocale, isLocale, type Locale } from "@/i18n/locales";
 import { db } from "@/lib/db";
 import {
@@ -11,6 +11,10 @@ import {
   hasLuluPrintAssets,
   isLuluPrintProvider,
 } from "@/lib/print-books/lulu";
+import {
+  canStartPrintCheckout,
+  PRINT_ORDERING_COMING_SOON_MESSAGE,
+} from "@/lib/print-books/launch";
 import { isStoryPrintRestricted } from "@/lib/ipGuardrails";
 
 const PACKS = {
@@ -94,6 +98,17 @@ export async function POST(req: NextRequest) {
   const locale = getRequestLocale(req);
 
   if (body.type === "print_book") {
+    const client = await clerkClient();
+    const user = await client.users.getUser(userId);
+    const isAdmin = user.privateMetadata.isAdmin === true;
+
+    if (!canStartPrintCheckout(isAdmin)) {
+      return NextResponse.json(
+        { error: PRINT_ORDERING_COMING_SOON_MESSAGE },
+        { status: 403 }
+      );
+    }
+
     if (!body.projectId || !isPrintProductKey(body.productKey)) {
       return NextResponse.json(
         { error: "Invalid print book checkout" },

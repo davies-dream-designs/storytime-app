@@ -8,6 +8,10 @@ import FileDownloadButton from "@/components/FileDownloadButton";
 import PrintProductOptions from "@/components/PrintProductOptions";
 import { db } from "@/lib/db";
 import { isStoryPrintRestricted } from "@/lib/ipGuardrails";
+import {
+  canStartPrintCheckout,
+  PRINT_ORDERING_COMING_SOON_MESSAGE,
+} from "@/lib/print-books/launch";
 import { getBookFileRetentionState } from "@/lib/print-books/retention";
 import BookStatusPanel from "./BookStatusPanel";
 import PrintFulfillmentResendButton from "./PrintFulfillmentResendButton";
@@ -39,6 +43,7 @@ export default async function BookProjectPage({
   if (!story || story.userId !== userId) notFound();
   const user = await client.users.getUser(userId);
   const isAdmin = user.privateMetadata.isAdmin === true;
+  const printOrderingAvailable = canStartPrintCheckout(isAdmin);
 
   const hasPrintPdf = Boolean(project.assets.printPdfUrl);
   const hasEpub = Boolean(project.assets.epubUrl);
@@ -311,8 +316,19 @@ export default async function BookProjectPage({
             ) : (
               <>
                 <p className="mt-2 text-night-600">{t("printOptionsSub")}</p>
+                {!printOrderingAvailable ? (
+                  <div className="mt-4 rounded-2xl border border-moon-200 bg-moon-50 p-4 text-sm leading-6 text-night-700">
+                    <p className="font-bold text-night-800">
+                      Printed books are coming soon
+                    </p>
+                    <p className="mt-1">{PRINT_ORDERING_COMING_SOON_MESSAGE}</p>
+                  </div>
+                ) : null}
                 <div className="mt-6">
-                  <PrintProductOptions project={project} />
+                  <PrintProductOptions
+                    project={project}
+                    orderingAvailable={printOrderingAvailable}
+                  />
                 </div>
               </>
             )}

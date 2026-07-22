@@ -113,6 +113,15 @@ export async function POST(req: NextRequest) {
     }
 
     if (!project.assets.printPdfUrl || !project.assets.coverPdfUrl) {
+      if (project.assets.downloadableFilesArchivedAt) {
+        return NextResponse.json(
+          {
+            error:
+              "This book's print files have been archived. Refresh PDFs before checkout.",
+          },
+          { status: 409 }
+        );
+      }
       return NextResponse.json(
         { error: "Print files are not ready yet." },
         { status: 409 }

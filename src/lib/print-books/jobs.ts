@@ -503,6 +503,8 @@ async function finalizeProjectExports(input: {
     printPdfPageHeightIn: pdfAssets.printPdfPageHeightIn,
     interiorTextSafeMarginIn: pdfAssets.interiorTextSafeMarginIn,
     previewImages: pdfAssets.previewImages,
+    downloadableFilesArchivedAt: undefined,
+    downloadableFilesArchiveReason: undefined,
   };
 
   const proofingReport = runStorycotPrintProofing(

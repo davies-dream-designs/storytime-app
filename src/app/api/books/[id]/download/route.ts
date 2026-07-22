@@ -105,6 +105,15 @@ export async function GET(
 
   const url = getAsset(project, asset);
   if (!url) {
+    if (project.assets.downloadableFilesArchivedAt) {
+      return NextResponse.json(
+        {
+          error:
+            "This book's high-resolution files have been archived. Refresh PDFs to prepare fresh files.",
+        },
+        { status: 410 }
+      );
+    }
     return NextResponse.json({ error: "Asset not found" }, { status: 404 });
   }
 

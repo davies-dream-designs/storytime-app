@@ -144,6 +144,8 @@ export interface BookAsset {
   orderabilityState?: BookOrderabilityState;
   finalizedAt?: string;
   bookReadyEmailSentAt?: string;
+  downloadableFilesArchivedAt?: string;
+  downloadableFilesArchiveReason?: "retention" | "manual";
   exportProfile?: string;
   proofingPassed?: boolean;
   proofingChecks?: ProofingCheck[];

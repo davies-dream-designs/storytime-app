@@ -140,17 +140,41 @@ export function collectBookAssetUrls(project: BookProject): string[] {
   return Array.from(urls);
 }
 
-export async function deleteBookProjectAssets(
-  project: BookProject
-): Promise<number> {
-  const urls = collectBookAssetUrls(project);
-  if (urls.length === 0) return 0;
+export function collectBookDownloadableAssetUrls(project: BookProject): string[] {
+  const urls = new Set<string>();
+  const retainedUrls = new Set([project.assets.coverImageUrl]);
+  const add = (value?: string) => {
+    if (retainedUrls.has(value)) return;
+    if (isDeletableBookBlobUrl(value)) urls.add(value);
+  };
+
+  add(project.assets.coverPdfUrl);
+  add(project.assets.luluCoverPdfUrl);
+  add(project.assets.previewPdfUrl);
+  add(project.assets.printPdfUrl);
+  add(project.assets.luluPrintPdfUrl);
+  add(project.assets.epubUrl);
+  project.assets.previewImages?.forEach(add);
+
+  return Array.from(urls);
+}
+
+export async function deleteBookAssetUrls(urls: string[]): Promise<number> {
+  const deletableUrls = urls.filter(isDeletableBookBlobUrl);
+  if (deletableUrls.length === 0) return 0;
 
   const blobConfig = resolveBlobConfig();
   if (!blobConfig) {
     throw new Error("Blob storage is not configured for deleting book assets");
   }
 
-  await del(urls, getBlobCommandOptions(blobConfig));
-  return urls.length;
+  await del(deletableUrls, getBlobCommandOptions(blobConfig));
+  return deletableUrls.length;
+}
+
+export async function deleteBookProjectAssets(
+  project: BookProject
+): Promise<number> {
+  const urls = collectBookAssetUrls(project);
+  return deleteBookAssetUrls(urls);
 }

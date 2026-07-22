@@ -7,6 +7,7 @@ import DeleteBookButton from "@/components/DeleteBookButton";
 import FileDownloadButton from "@/components/FileDownloadButton";
 import PrintProductOptions from "@/components/PrintProductOptions";
 import { db } from "@/lib/db";
+import { getBookFileRetentionState } from "@/lib/print-books/retention";
 import BookStatusPanel from "./BookStatusPanel";
 import PrintFulfillmentResendButton from "./PrintFulfillmentResendButton";
 
@@ -42,6 +43,14 @@ export default async function BookProjectPage({
   const hasEpub = Boolean(project.assets.epubUrl);
   const hasLuluPrintPdf = Boolean(project.assets.luluPrintPdfUrl);
   const hasLuluCoverPdf = Boolean(project.assets.luluCoverPdfUrl);
+  const fileRetention = getBookFileRetentionState(project);
+  const fileRetentionDate = fileRetention.availableUntil
+    ? new Intl.DateTimeFormat("en-AU", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(new Date(fileRetention.availableUntil))
+    : undefined;
 
   return (
     <>
@@ -72,7 +81,19 @@ export default async function BookProjectPage({
                 <p className="text-sm font-semibold text-night-800">
                   Book files
                 </p>
-                {isAdmin && (!hasLuluPrintPdf || !hasLuluCoverPdf) ? (
+                {fileRetention.isArchived ? (
+                  <p className="mt-1 text-sm text-night-500">
+                    High-resolution download and print files have been
+                    archived. Your story is still saved; use Refresh PDFs below
+                    to prepare fresh files.
+                  </p>
+                ) : fileRetentionDate ? (
+                  <p className="mt-1 text-sm text-night-500">
+                    Download and print-ready files are kept available until{" "}
+                    {fileRetentionDate}. Your story stays in your library after
+                    that.
+                  </p>
+                ) : isAdmin && (!hasLuluPrintPdf || !hasLuluCoverPdf) ? (
                   <p className="mt-1 text-sm text-night-500">
                     Refresh the PDF exports to generate Lulu-specific print
                     files for this book.

@@ -8,10 +8,12 @@ export default function PrintCheckoutButton({
   projectId,
   productKey,
   disabled,
+  label,
 }: {
   projectId: string;
   productKey: PrintProductKey;
   disabled?: boolean;
+  label?: string;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -54,7 +56,7 @@ export default function PrintCheckoutButton({
         onClick={startCheckout}
         className="storycot-btn storycot-btn-primary w-full"
       >
-        {loading ? "Opening checkout..." : "Order this format"}
+        {loading ? "Opening checkout..." : (label ?? "Order this format")}
       </button>
       {error ? (
         <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-600">

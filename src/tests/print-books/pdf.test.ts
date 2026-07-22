@@ -276,7 +276,7 @@ describe("generateBookPdfs", () => {
     const printPdfBody = mockStoreBookAsset.mock.calls[1]?.[0]?.body;
     expect(printPdfBody).toBeTruthy();
     const printPdf = await PDFDocument.load(new Uint8Array(printPdfBody));
-    expect(printPdf.getPageCount()).toBe(7);
+    expect(printPdf.getPageCount()).toBe(6);
   });
 
   it("does not add blank text pages before illustration-only pages", async () => {
@@ -302,7 +302,7 @@ describe("generateBookPdfs", () => {
     const printPdfBody = mockStoreBookAsset.mock.calls[1]?.[0]?.body;
     expect(printPdfBody).toBeTruthy();
     const printPdf = await PDFDocument.load(new Uint8Array(printPdfBody));
-    expect(printPdf.getPageCount()).toBe(7);
+    expect(printPdf.getPageCount()).toBe(6);
   });
 
   it("exports Lulu-specific PDFs with a padded 24-page interior", async () => {
@@ -358,7 +358,7 @@ describe("generateBookPdfs", () => {
     const standardPrintPdf = await PDFDocument.load(
       new Uint8Array(standardPrintPdfBody)
     );
-    expect(standardPrintPdf.getPageCount()).toBe(7);
+    expect(standardPrintPdf.getPageCount()).toBe(6);
   });
 
   it("fits long story text inside the printable text panel", async () => {

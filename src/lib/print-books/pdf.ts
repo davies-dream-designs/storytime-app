@@ -917,38 +917,13 @@ async function drawCopyrightPage(input: {
   });
 }
 
-function drawQuietPaddingPage(input: {
+function drawBlankPaddingPage(input: {
   page: ReturnType<PDFDocument["addPage"]>;
   pageWidth: number;
   pageHeight: number;
-  sans: Awaited<ReturnType<PDFDocument["embedFont"]>>;
-  sansBold: Awaited<ReturnType<PDFDocument["embedFont"]>>;
 }) {
-  const { page, pageWidth, pageHeight, sans, sansBold } = input;
+  const { page, pageWidth, pageHeight } = input;
   drawPageBackground(page, pageWidth, pageHeight, rgb(0.98, 0.96, 0.91));
-  page.drawCircle({
-    x: pageWidth / 2,
-    y: pageHeight * 0.56,
-    size: 18,
-    color: BRAND_LILAC,
-    opacity: 0.16,
-  });
-  page.drawText("Storycot", {
-    x: pageWidth / 2 - 28,
-    y: pageHeight * 0.45,
-    font: sansBold,
-    size: 13,
-    color: BRAND_PURPLE,
-    opacity: 0.58,
-  });
-  page.drawText("Personalised bedtime stories", {
-    x: pageWidth / 2 - 67,
-    y: pageHeight * 0.45 - 22,
-    font: sans,
-    size: 9,
-    color: rgb(0.42, 0.4, 0.48),
-    opacity: 0.55,
-  });
 }
 
 function getMaxTextBoxPt(preset?: StoryPreset): number {
@@ -1312,17 +1287,13 @@ async function buildPrintPdf(input: {
     }
 
     if (input.textArtInterior) {
-      const startTextSpread = {
-        ...spread,
-        rightPageText: "",
-      };
-      if (hasTextPageContent(startTextSpread)) {
+      if (hasTextPageContent(spread)) {
         const textPage = pdfDoc.addPage([pageWidth, pageHeight]);
         await drawLuluTextPage({
           pdfDoc,
           page: textPage,
           story: input.story,
-          spread: startTextSpread,
+          spread,
           pageWidth,
           pageHeight,
           textSafeMargin,
@@ -1346,49 +1317,6 @@ async function buildPrintPdf(input: {
         sans,
       });
 
-      const includeRightSide =
-        spread.layoutType !== "end_matter" &&
-        (spread.rightPageText || spread.rightPageImageUrl);
-
-      if (includeRightSide) {
-        const rightTextSpread = {
-          ...spread,
-          title: undefined,
-          leftPageText: spread.rightPageText,
-          rightPageText: "",
-        };
-        if (hasTextPageContent(rightTextSpread)) {
-          const rightTextPage = pdfDoc.addPage([pageWidth, pageHeight]);
-          await drawLuluTextPage({
-            pdfDoc,
-            page: rightTextPage,
-            story: input.story,
-            spread: rightTextSpread,
-            pageWidth,
-            pageHeight,
-            textSafeMargin,
-            serif,
-            serifBold,
-            sans,
-            pageNumber: pdfDoc.getPageCount(),
-          });
-        }
-
-        if (spread.rightPageImageUrl) {
-          const endArtPage = pdfDoc.addPage([pageWidth, pageHeight]);
-          await drawLuluArtPage({
-            pdfDoc,
-            page: endArtPage,
-            story: input.story,
-            spread,
-            side: "end",
-            pageWidth,
-            pageHeight,
-            pageNumber: pdfDoc.getPageCount(),
-            sans,
-          });
-        }
-      }
       continue;
     }
 
@@ -1437,7 +1365,7 @@ async function buildPrintPdf(input: {
 
   while (input.minPageCount && pdfDoc.getPageCount() < input.minPageCount) {
     const page = pdfDoc.addPage([pageWidth, pageHeight]);
-    drawQuietPaddingPage({ page, pageWidth, pageHeight, sans, sansBold });
+    drawBlankPaddingPage({ page, pageWidth, pageHeight });
   }
 
   return pdfDoc.save({ useObjectStreams: false });

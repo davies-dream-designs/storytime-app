@@ -3,9 +3,8 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
-import DownloadLink from "@/components/DownloadLink";
 import DeleteBookButton from "@/components/DeleteBookButton";
-import EpubShareButton from "@/components/EpubShareButton";
+import FileDownloadButton from "@/components/FileDownloadButton";
 import PrintProductOptions from "@/components/PrintProductOptions";
 import { db } from "@/lib/db";
 import BookStatusPanel from "./BookStatusPanel";
@@ -87,35 +86,30 @@ export default async function BookProjectPage({
             </div>
             <div className="mt-3 flex flex-wrap gap-3">
               {hasPrintPdf ? (
-                <DownloadLink
+                <FileDownloadButton
                   href={`/api/books/${project.id}/download?asset=printPdf`}
-                  target="_blank"
-                  rel="noreferrer"
                   className="storycot-btn storycot-btn-primary"
+                  label={t("illustratedPdfButton")}
                   pendingLabel={t("downloadStarting")}
-                >
-                  {t("illustratedPdfButton")}
-                </DownloadLink>
+                />
               ) : null}
               {hasEpub ? (
-                <EpubShareButton
+                <FileDownloadButton
                   href={`/api/books/${project.id}/download?asset=epub`}
-                  title={story.title}
+                  shareTitle={story.title}
                   label={t("epubButton")}
                   pendingLabel={t("downloadStarting")}
                   className="storycot-btn storycot-btn-secondary"
+                  shareWhenAvailable
                 />
               ) : null}
               {isAdmin && hasLuluPrintPdf ? (
-                <DownloadLink
+                <FileDownloadButton
                   href={`/api/books/${project.id}/download?asset=luluPrintPdf`}
-                  target="_blank"
-                  rel="noreferrer"
                   className="storycot-btn storycot-btn-secondary"
+                  label="Lulu interior PDF"
                   pendingLabel={t("downloadStarting")}
-                >
-                  Lulu interior PDF
-                </DownloadLink>
+                />
               ) : null}
               {isAdmin && !hasLuluPrintPdf ? (
                 <button
@@ -127,15 +121,12 @@ export default async function BookProjectPage({
                 </button>
               ) : null}
               {isAdmin && hasLuluCoverPdf ? (
-                <DownloadLink
+                <FileDownloadButton
                   href={`/api/books/${project.id}/download?asset=luluCoverPdf`}
-                  target="_blank"
-                  rel="noreferrer"
                   className="storycot-btn storycot-btn-secondary"
+                  label="Lulu cover PDF"
                   pendingLabel={t("downloadStarting")}
-                >
-                  Lulu cover PDF
-                </DownloadLink>
+                />
               ) : null}
               {isAdmin && !hasLuluCoverPdf ? (
                 <button

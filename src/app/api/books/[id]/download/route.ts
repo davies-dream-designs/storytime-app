@@ -109,9 +109,9 @@ export async function GET(
   }
 
   if (!url.startsWith("data:")) {
-    // Proxy the blob through the API rather than redirecting. A redirect to a
-    // cross-origin blob URL can fail silently in EpubShareButton's fetch()
-    // pre-cache (which must stay same-origin for iOS navigator.share to work).
+    // Proxy the blob through the API rather than redirecting. Download/share
+    // buttons fetch same-origin files so mobile browsers keep predictable
+    // behavior.
     const blobRes = await fetch(url);
     if (!blobRes.ok) {
       return NextResponse.json(

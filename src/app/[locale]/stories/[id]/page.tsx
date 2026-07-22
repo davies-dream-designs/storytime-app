@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
 import DownloadLink from "@/components/DownloadLink";
-import EpubShareButton from "@/components/EpubShareButton";
+import FileDownloadButton from "@/components/FileDownloadButton";
 import DeleteStoryButton from "@/components/DeleteStoryButton";
 import { getDateLocale } from "@/i18n/locales";
 import { db } from "@/lib/db";
@@ -102,12 +102,13 @@ export default async function StoryPage({
                 >
                   {t("printButton")}
                 </DownloadLink>
-                <EpubShareButton
+                <FileDownloadButton
                   href={`/api/stories/${id}/epub`}
-                  title={story.title}
+                  shareTitle={story.title}
                   label={t("textEpubButton")}
                   pendingLabel={t("downloadStarting")}
                   className="storycot-btn storycot-btn-secondary"
+                  shareWhenAvailable
                 />
                 {existingBook ? (
                   <Link

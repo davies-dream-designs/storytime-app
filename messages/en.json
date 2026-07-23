@@ -468,7 +468,7 @@
     "repairArtButton": "Regenerate illustrations",
     "repairingArtButton": "Regenerating…",
     "downloadStarting": "Starting download…",
-    "deleteBook": "Delete book PDF",
+    "deleteBook": "Delete book",
     "deleteConfirm": "Delete this illustrated book project? The original story will stay in your library.",
     "deleting": "Deleting…",
     "deleteError": "We couldn't delete this book PDF."

@@ -13,6 +13,7 @@ export default function CreatePrintBookButton({
   userCredits,
   isAdmin,
   storyPreset,
+  compact = false,
 }: {
   storyId: string;
   credits: number;
@@ -21,6 +22,7 @@ export default function CreatePrintBookButton({
   userCredits: number;
   isAdmin: boolean;
   storyPreset?: string;
+  compact?: boolean;
 }) {
   const t = useTranslations("books");
   const router = useRouter();
@@ -103,6 +105,13 @@ export default function CreatePrintBookButton({
   );
 
   if (!hasEnoughCredits) {
+    if (compact) {
+      return (
+        <Link href="/account" className="storycot-btn storycot-btn-secondary border-blush-200 bg-blush-50 text-blush-700 hover:bg-blush-100">
+          Top up credits
+        </Link>
+      );
+    }
     return (
       <div className="basis-full sm:basis-auto">
         {estimateBox}
@@ -117,6 +126,25 @@ export default function CreatePrintBookButton({
           Top up credits →
         </Link>
       </div>
+    );
+  }
+
+  if (compact) {
+    return (
+      <>
+        <Button
+          variant="secondary"
+          size="compact"
+          onClick={handleCreate}
+          disabled={loading}
+          className="border-star-200 bg-star-50 text-star-700 hover:bg-star-100"
+        >
+          {loading ? t("creatingButton") : t("createButton")}
+        </Button>
+        {error ? (
+          <p className="mt-2 text-xs font-bold text-blush-600">{error}</p>
+        ) : null}
+      </>
     );
   }
 

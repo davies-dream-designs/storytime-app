@@ -98,13 +98,13 @@ export default function StoryReader({ story }: { story: Story }) {
   return (
     <div className="select-none">
       <div className="relative overflow-hidden rounded-3xl border border-night-100 bg-white shadow-xl">
-        <div className="border-b border-night-50 px-8 py-4 text-center">
+        <div className="border-b border-night-50 px-6 py-3 text-center sm:px-8 sm:py-4">
           <p className="text-xs font-bold uppercase tracking-widest text-night-300">
             {streaming ? t("streamingEyebrow") : liveStory.title}
           </p>
         </div>
 
-        <div className="min-h-60 px-8 pb-10 pt-8">
+        <div className="min-h-[8rem] px-6 pb-8 pt-6 sm:px-8 sm:pb-10 sm:pt-8">
           {currentPage ? (
             <p className="font-display text-xl font-medium leading-relaxed text-night-800 sm:text-2xl">
               {currentPage.text}
@@ -127,7 +127,7 @@ export default function StoryReader({ story }: { story: Story }) {
           )}
         </div>
 
-        <div className="border-t border-night-50 px-8 py-4 text-center">
+        <div className="border-t border-night-50 px-6 py-3 text-center sm:px-8 sm:py-4">
           <p className="text-sm text-night-300">
             {total > 0
               ? t("pageOf", { page: page + 1, total })
@@ -151,22 +151,22 @@ export default function StoryReader({ story }: { story: Story }) {
         </div>
       )}
 
-      <div className="mt-6 flex items-center justify-between">
+      <div className="mt-4 flex items-center gap-2">
         <button
           onClick={() => setPage((p) => Math.max(0, p - 1))}
           disabled={page === 0 || total === 0}
-          className="flex items-center gap-2 rounded-full border border-night-200 px-6 py-3 font-bold text-night-600 transition hover:bg-night-50 disabled:cursor-not-allowed disabled:opacity-30"
+          className="flex shrink-0 items-center gap-2 rounded-full border border-night-200 px-5 py-2.5 font-bold text-night-600 transition hover:bg-night-50 disabled:cursor-not-allowed disabled:opacity-30"
         >
           {t("prevButton")}
         </button>
 
-        <div className="flex max-w-[42%] flex-wrap justify-center gap-1.5">
+        <div className="flex min-w-0 flex-1 flex-nowrap items-center justify-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
           {liveStory.pages.map((_, i) => (
             <button
               key={i}
               onClick={() => setPage(i)}
               aria-label={t("goToPage", { page: i + 1 })}
-              className={`h-2 rounded-full transition-all ${
+              className={`h-2 shrink-0 rounded-full transition-all ${
                 i === page
                   ? "w-6 bg-night-700"
                   : "w-2 bg-night-200 hover:bg-night-400"
@@ -178,7 +178,7 @@ export default function StoryReader({ story }: { story: Story }) {
         <button
           onClick={() => setPage((p) => Math.min(total - 1, p + 1))}
           disabled={total === 0 || page === total - 1}
-          className="flex items-center gap-2 rounded-full border border-night-200 px-6 py-3 font-bold text-night-600 transition hover:bg-night-50 disabled:cursor-not-allowed disabled:opacity-30"
+          className="flex shrink-0 items-center gap-2 rounded-full border border-night-200 px-5 py-2.5 font-bold text-night-600 transition hover:bg-night-50 disabled:cursor-not-allowed disabled:opacity-30"
         >
           {t("nextButton")}
         </button>

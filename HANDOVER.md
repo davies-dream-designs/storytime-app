@@ -1,10 +1,80 @@
 # Storycot - Handover Document
 
-**Last updated:** 2026-07-22  
+**Last updated:** 2026-07-23  
 **Branch:** `main` / `dev` synced  
 **Live URL:** https://storycot.com  
 **Preview URL:** https://dev.storycot.com  
-**Latest production merge:** `1fedd47 Merge pull request #69 from davies-dream-designs/dev`
+**Latest production merge:** `feat/book-reader-and-purchase-tiers` merged → `dev` → `main` 2026-07-23
+
+---
+
+## Current Handoff - 2026-07-23 - In-App Reader + Digital Download + Hardcover Tiers + Polish
+
+`feat/book-reader-and-purchase-tiers` merged to `dev` and `main` 2026-07-23.
+
+### What Changed
+
+- **In-app illustrated book reader (`BookReader.tsx`):**
+  - Paginated card reader with fullscreen lightbox on image tap.
+  - Free for all users — the reader is the in-app "preview."
+  - Landscape fixes: card image capped at `max-h-[70vh]`; fullscreen text panel `max-h-[20vh]`; dots scroll horizontally instead of wrapping.
+  - Fullscreen + rotation bug fixed: when book was building at page load, `window.location.reload()` used instead of `router.refresh()` on completion so `BookReader` always mounts correctly.
+- **Illustrations ZIP download:**
+  - `GET /api/books/[id]/download?asset=illustrationsZip` bundles all artwork into a ZIP using JSZip.
+  - Unlocked alongside PDF/EPUB when digital download is purchased.
+- **Digital download tier ($9.95 AUD):**
+  - `DigitalDownloadSection.tsx` gates illustrated PDF, EPUB, and illustrations ZIP behind a one-time Stripe checkout.
+  - `BookAsset` has two new fields: `digitalDownloadUnlockedAt`, `digitalDownloadCheckoutSessionId`.
+  - Stripe webhook sets `digitalDownloadUnlockedAt`; also set on hardcover purchase as a bonus.
+  - Admin users always see downloads without paying.
+- **Hardcover tier ($39.95 AUD):**
+  - Existing Lulu / Stripe print checkout wired up side-by-side with digital download.
+  - Hardcover purchase automatically unlocks digital download (bonus).
+- **Book page (`BookStatusPanel.tsx`) fixes:**
+  - `handleRepairArt` now calls `router.refresh()` after starting a full art rebuild, preventing duplicate BookReader + streaming reader while rebuild is in progress.
+  - `initialIsReady` prop added so the panel can distinguish first-load state from polled state.
+  - Streaming reader (during build) and compact thumbnail grid (when ready) stay in distinct non-overlapping branches.
+- **Story page layout:**
+  - Text export buttons moved outside the `sm:flex-row` container (were incorrectly a third column on desktop).
+  - Button order: New Story → Illustrate/View Book → Share → Delete.
+  - `CreatePrintBookButton` gets a `compact` prop — hides inline estimate box in the header; estimate shown as a tidy row below instead.
+  - Navigation dots (`StoryReader`) scroll horizontally instead of wrapping in landscape.
+  - Card padding reduced on mobile; `min-h` reduced for better landscape fit.
+- **Profiles list:**
+  - Age badge now uses `dateOfBirth`-aware calculation (shows "X months old" for babies) instead of raw `profile.age` integer which showed "Age 0".
+- **Story card (`StoryCard.tsx`):**
+  - Title `h3` has `min-h` set to 2-line height so all card content (profile/date, theme pill, Read button) aligns consistently regardless of title length.
+- **Stale tests fixed:**
+  - `launch.test.ts`, `stripe-checkout.test.ts`, `printProducts.test.ts` updated.
+
+### Key Files
+
+| File | Purpose |
+|---|---|
+| `src/app/[locale]/books/[id]/BookReader.tsx` | In-app reader — landscape + fullscreen fixes |
+| `src/app/[locale]/books/[id]/BookStatusPanel.tsx` | Build progress panel — redo-art state fix, initialIsReady prop |
+| `src/app/[locale]/books/[id]/DigitalDownloadSection.tsx` | Digital download gate + unlock UI |
+| `src/app/[locale]/books/[id]/page.tsx` | Book page restructure; passes initialIsReady to panel |
+| `src/app/api/books/[id]/download/route.ts` | Added illustrationsZip handler |
+| `src/app/api/stripe/checkout/route.ts` | Added digital_download checkout type |
+| `src/app/api/stripe/webhook/route.ts` | digital_download + print_book bonus unlock |
+| `src/app/[locale]/stories/[id]/page.tsx` | Story page layout restructure |
+| `src/app/[locale]/stories/[id]/StoryReader.tsx` | Landscape card + dots fix |
+| `src/app/[locale]/stories/[id]/CreatePrintBookButton.tsx` | compact prop added |
+| `src/app/[locale]/profiles/page.tsx` | Age badge uses dateOfBirth |
+| `src/components/StoryCard.tsx` | Title min-h for card alignment symmetry |
+| `src/types/printBook.ts` | digitalDownloadUnlockedAt, digitalDownloadCheckoutSessionId on BookAsset |
+
+### QA Checklist
+
+- Generate an illustrated book → confirm `BookReader` shows spreads with prev/next and fullscreen.
+- Rotate phone to landscape while reading — confirm image doesn't overflow viewport.
+- Open fullscreen, rotate to landscape, exit — confirm reader still visible.
+- Click "Redo art" — confirm page refreshes to building state, no duplicate reader.
+- Click "Unlock digital download — $9.95" → complete test Stripe payment → confirm PDF, EPUB, and ZIP all downloadable.
+- Purchase hardcover → confirm digital download also unlocked as bonus.
+- Check profiles list — infant profile should show "X months old" not "Age 0".
+- Dashboard story cards — all cards should have Read button at same vertical position regardless of title length.
 
 ---
 
@@ -481,13 +551,13 @@ Replace `after()` chains with **Inngest** (proper job queue, rate limiting, conc
 | # | Title | Priority |
 |---|---|---|
 | #13 | Stripe test/live key separation | High |
+| #66 | Daily improvement ideas ledger | Ongoing |
 | #25 | Print book: age-based layout variations | Future |
-| #24 | Print book: per-page square illustrations — **done on `feat/print-book-preview`**, not merged | Done/pending merge |
 | #11 | Phase 5: Multilingual support — full UI + story localisation | Future |
 | #9 | storycot.com.au domain redirect | Medium |
 | #6 | Migrate KV → Postgres | Low (future) |
-| #4 | Print-on-demand physical books (Lulu integration) | Future |
-| #3 | Phase 4: AI illustration generation per story page | Future |
+| #4 | Print-on-demand physical books (Lulu integration) — Lulu integration done; digital download + hardcover purchase tiers added in PR #94 | In progress |
+| #3 | Phase 4: AI illustration generation per story page — illustrated books ship with AI art | Done |
 | #2 | Phase 3: Voice narration / audio playback | Future |
 
 ---

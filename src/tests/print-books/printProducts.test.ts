@@ -24,9 +24,9 @@ describe("print product policy", () => {
     expect(getStorycotIllustrationCountForAgeBand("6-8")).toBe(13);
   });
 
-  it("quotes the finished PDF page count without product-specific padding", () => {
+  it("pads odd page counts to even for print products", () => {
     expect(getAdjustedPageCountForProduct(20, "softcover")).toBe(20);
-    expect(getAdjustedPageCountForProduct(21, "softcover")).toBe(21);
+    expect(getAdjustedPageCountForProduct(21, "softcover")).toBe(22);
     expect(getAdjustedPageCountForProduct(20, "hardcover")).toBe(20);
   });
 
@@ -77,12 +77,11 @@ describe("print product policy", () => {
     ).toBe(false);
   });
 
-  it("marks odd page counts unavailable because print books require even pages", () => {
+  it("auto-pads odd page counts to even rather than blocking checkout", () => {
     const softcoverQuote = quotePrintProduct({ pageCount: 19 }, "softcover");
-    expect(softcoverQuote.pageCount).toBe(19);
-    expect(softcoverQuote.isWithinSpecs).toBe(false);
-    expect(softcoverQuote.unsupportedReason).toContain(
-      "requires an even number of print pages"
-    );
+    expect(softcoverQuote.pageCount).toBe(20);
+    expect(softcoverQuote.needsPadding).toBe(true);
+    expect(softcoverQuote.paddingPages).toBe(1);
+    expect(softcoverQuote.isWithinSpecs).toBe(true);
   });
 });

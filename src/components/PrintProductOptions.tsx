@@ -22,7 +22,7 @@ export default function PrintProductOptions({
   );
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="flex flex-col gap-4">
       {quotes.map((quote) => (
         <article
           key={quote.key}

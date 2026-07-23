@@ -1,7 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { BookProject, BookSpread } from "@/types/printBook";
+import {
+  DEFAULT_NARRATION_VOICE_ID,
+  NARRATION_VOICES,
+} from "@/lib/elevenlabs";
 
 type ReaderSpread = {
   id: string;
@@ -52,23 +56,41 @@ function getReaderSpreads(project: BookProject): ReaderSpread[] {
   return story;
 }
 
-
 export default function BookReader({ project }: { project: BookProject }) {
   const spreads = getReaderSpreads(project);
   const [index, setIndex] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
 
+  // Narration
+  const [narrating, setNarrating] = useState(false);
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const [selectedVoiceId, setSelectedVoiceId] = useState(
+    DEFAULT_NARRATION_VOICE_ID
+  );
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   const total = spreads.length;
   const spread = spreads[index];
 
-  const prev = useCallback(
-    () => setIndex((i) => Math.max(0, i - 1)),
-    []
-  );
-  const next = useCallback(
-    () => setIndex((i) => Math.min(total - 1, i + 1)),
-    [total]
-  );
+  function stopAudio() {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+      audioRef.current = null;
+    }
+  }
+
+  const prev = useCallback(() => {
+    setNarrating(false);
+    stopAudio();
+    setIndex((i) => Math.max(0, i - 1));
+  }, []);
+
+  const next = useCallback(() => {
+    setNarrating(false);
+    stopAudio();
+    setIndex((i) => Math.min(total - 1, i + 1));
+  }, [total]);
 
   // Keyboard navigation in fullscreen
   useEffect(() => {
@@ -82,16 +104,91 @@ export default function BookReader({ project }: { project: BookProject }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [fullscreen, next, prev]);
 
+  // Narration engine — runs whenever narrating, index, or voice changes
+  useEffect(() => {
+    if (!narrating) return;
+
+    const currentSpread = spreads[index];
+    if (!currentSpread) {
+      setNarrating(false);
+      return;
+    }
+
+    const text = [currentSpread.leftPageText, currentSpread.rightPageText]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+    // Skip pages without text (e.g. cover) and advance
+    if (!text || currentSpread.id === "cover") {
+      if (index < spreads.length - 1) {
+        setIndex((i) => i + 1);
+      } else {
+        setNarrating(false);
+      }
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingAudio(true);
+
+    const run = async () => {
+      try {
+        const url = `/api/books/${project.id}/narrate?spreadId=${encodeURIComponent(currentSpread.id)}&voiceId=${encodeURIComponent(selectedVoiceId)}`;
+        const res = await fetch(url);
+        if (!res.ok || cancelled) {
+          if (!cancelled) setNarrating(false);
+          return;
+        }
+
+        const blob = await res.blob();
+        if (cancelled) return;
+
+        const objectUrl = URL.createObjectURL(blob);
+        const audio = new Audio(objectUrl);
+        audioRef.current = audio;
+
+        audio.addEventListener("ended", () => {
+          URL.revokeObjectURL(objectUrl);
+          audioRef.current = null;
+          if (cancelled) return;
+          setIndex((i) => {
+            if (i < spreads.length - 1) return i + 1;
+            setNarrating(false);
+            return i;
+          });
+        });
+
+        await audio.play();
+      } catch {
+        if (!cancelled) setNarrating(false);
+      } finally {
+        if (!cancelled) setIsLoadingAudio(false);
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+      stopAudio();
+      setIsLoadingAudio(false);
+    };
+  }, [narrating, index, selectedVoiceId, spreads, project.id]);
+
   if (!spread || total === 0) return null;
 
   const hasImage = spread.imageUrl && !isPlaceholder(spread.imageUrl);
   const pageText = spread.leftPageText || spread.rightPageText;
+  const canNarrate = Boolean(
+    spreads.some((s) => s.leftPageText || s.rightPageText)
+  );
 
   return (
     <div className="select-none">
       {/* Main reader card */}
       <div className="overflow-hidden rounded-3xl border border-night-100 bg-white shadow-xl">
-        {/* Image panel — aspect-square avoids padding-bottom hack and any positioning conflicts */}
+        {/* Image panel */}
         {hasImage ? (
           <div className="relative aspect-square w-full overflow-hidden max-h-[70vh]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -100,7 +197,9 @@ export default function BookReader({ project }: { project: BookProject }) {
               alt={spread.title ?? `Page ${index + 1}`}
               className="pointer-events-none h-full w-full object-cover select-none"
               draggable={false}
-              style={{ userSelect: "none", WebkitUserDrag: "none" } as React.CSSProperties}
+              style={
+                { userSelect: "none", WebkitUserDrag: "none" } as React.CSSProperties
+              }
               onContextMenu={(e) => e.preventDefault()}
             />
             {/* Transparent overlay — blocks right-click/long-press, captures expand tap */}
@@ -135,7 +234,9 @@ export default function BookReader({ project }: { project: BookProject }) {
         ) : (
           <div className="flex items-center justify-center bg-moon-50 px-8 py-16">
             <div className="text-center">
-              <span className="text-5xl" aria-hidden="true">🎨</span>
+              <span className="text-5xl" aria-hidden="true">
+                🎨
+              </span>
               <p className="mt-3 text-sm font-medium text-night-400">
                 Illustration coming soon
               </p>
@@ -154,7 +255,9 @@ export default function BookReader({ project }: { project: BookProject }) {
 
         {/* Page indicator */}
         <div className="border-t border-night-50 px-7 py-3 text-center">
-          <p className="text-xs text-night-300">Page {index + 1} of {total}</p>
+          <p className="text-xs text-night-300">
+            Page {index + 1} of {total}
+          </p>
         </div>
       </div>
 
@@ -172,7 +275,11 @@ export default function BookReader({ project }: { project: BookProject }) {
           {spreads.map((_, i) => (
             <button
               key={i}
-              onClick={() => setIndex(i)}
+              onClick={() => {
+                setNarrating(false);
+                stopAudio();
+                setIndex(i);
+              }}
               aria-label={`Go to page ${i + 1}`}
               className={`h-2 rounded-full transition-all ${
                 i === index
@@ -191,6 +298,74 @@ export default function BookReader({ project }: { project: BookProject }) {
           Next →
         </button>
       </div>
+
+      {/* Narration controls */}
+      {canNarrate ? (
+        <div className="mt-4 rounded-2xl border border-night-100 bg-white/60 px-5 py-4 backdrop-blur-sm">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                if (narrating) {
+                  setNarrating(false);
+                  stopAudio();
+                } else {
+                  setNarrating(true);
+                }
+              }}
+              disabled={isLoadingAudio}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-night-800 text-white shadow-sm transition hover:bg-night-700 disabled:opacity-50"
+              aria-label={narrating ? "Pause narration" : "Listen to story"}
+            >
+              {isLoadingAudio ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              ) : narrating ? (
+                <svg
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="h-5 w-5"
+                >
+                  <rect x="4" y="3" width="4" height="14" rx="1" />
+                  <rect x="12" y="3" width="4" height="14" rx="1" />
+                </svg>
+              ) : (
+                <svg
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="h-5 w-5 translate-x-0.5"
+                >
+                  <path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                </svg>
+              )}
+            </button>
+
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-night-500">
+                {narrating
+                  ? isLoadingAudio
+                    ? "Loading…"
+                    : "Reading aloud — auto-advances each page"
+                  : "Listen to the story read aloud"}
+              </p>
+              {/* Voice picker */}
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {NARRATION_VOICES.map((voice) => (
+                  <button
+                    key={voice.id}
+                    onClick={() => setSelectedVoiceId(voice.id)}
+                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition ${
+                      selectedVoiceId === voice.id
+                        ? "bg-night-800 text-white"
+                        : "bg-night-100 text-night-500 hover:bg-night-200"
+                    }`}
+                  >
+                    {voice.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Fullscreen reader overlay */}
       {fullscreen ? (
@@ -222,7 +397,12 @@ export default function BookReader({ project }: { project: BookProject }) {
                   alt={spread.title ?? `Page ${index + 1}`}
                   className="pointer-events-none h-full w-full object-contain select-none"
                   draggable={false}
-                  style={{ userSelect: "none", WebkitUserDrag: "none" } as React.CSSProperties}
+                  style={
+                    {
+                      userSelect: "none",
+                      WebkitUserDrag: "none",
+                    } as React.CSSProperties
+                  }
                   onContextMenu={(e) => e.preventDefault()}
                 />
               </>
@@ -279,12 +459,16 @@ export default function BookReader({ project }: { project: BookProject }) {
             </div>
           ) : null}
 
-          {/* Bottom nav dots — horizontal scroll so they don't wrap in landscape */}
+          {/* Bottom nav dots */}
           <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto px-4 py-3 [&::-webkit-scrollbar]:hidden">
             {spreads.map((_, i) => (
               <button
                 key={i}
-                onClick={() => setIndex(i)}
+                onClick={() => {
+                  setNarrating(false);
+                  stopAudio();
+                  setIndex(i);
+                }}
                 aria-label={`Go to page ${i + 1}`}
                 className={`h-1.5 shrink-0 rounded-full transition-all ${
                   i === index

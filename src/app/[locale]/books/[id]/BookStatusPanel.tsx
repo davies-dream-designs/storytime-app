@@ -143,6 +143,9 @@ export default function BookStatusPanel({
     Date.parse(initialProject.updatedAt)
   );
   const activeJobStatus = project.assets.activeJobStatus;
+  const activeJobMode = project.assets.activeJobMode;
+  const isExportRefresh =
+    activeJobMode === "exports" || activeJobMode === "finalize";
   const artworkPreviews: ArtworkPreview[] = useMemo(
     () =>
       spreadPreviews.map((preview) => ({
@@ -439,7 +442,9 @@ export default function BookStatusPanel({
             {stageLabel}
           </h2>
           <p className="mt-2 text-night-500">
-            {project.status === "ready"
+            {isExportRefresh
+              ? "We’re refreshing the PDF, EPUB, and Lulu export files from the existing artwork."
+              : project.status === "ready"
               ? t("illustratedPdfReadySub")
               : project.status === "failed"
                 ? t("failedSafeSub")
@@ -582,7 +587,9 @@ export default function BookStatusPanel({
                   : t("activeTitle")}
               </p>
               <p className="mt-1 text-sm text-star-900">
-                {startingBuild && project.status === "queued"
+                {isExportRefresh
+                  ? "This should not regenerate illustrations or spend story/art credits."
+                  : startingBuild && project.status === "queued"
                   ? t("startingSub")
                   : t("activeSub")}
               </p>

@@ -630,7 +630,8 @@ export default function BookStatusPanel({
         </div>
       ) : null}
 
-      {project.status === "ready" && !activeJobStatus ? (
+      {(project.status === "ready" || project.status === "failed") &&
+      !activeJobStatus ? (
         <div className="mt-6 rounded-2xl border border-night-100 bg-night-50 p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
           <div>
             <p className="text-sm font-bold text-night-700">Export actions</p>

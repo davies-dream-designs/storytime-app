@@ -146,13 +146,19 @@ export async function generateStory(
     throw new Error("Unexpected response type from AI");
 
   const raw = content.text.trim();
+  let story: GeneratedStory;
   try {
-    return JSON.parse(raw) as GeneratedStory;
+    story = JSON.parse(raw) as GeneratedStory;
   } catch {
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) throw new Error("Could not parse story from AI response");
-    return JSON.parse(match[0]) as GeneratedStory;
+    story = JSON.parse(match[0]) as GeneratedStory;
   }
+  story.pages = story.pages.map((p) => ({
+    ...p,
+    text: p.text.replace(/\s*—\s*/g, " ").trim(),
+  }));
+  return story;
 }
 
 function parseGeneratedStory(raw: string): GeneratedStory {

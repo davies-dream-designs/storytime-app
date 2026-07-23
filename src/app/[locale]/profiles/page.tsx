@@ -7,11 +7,13 @@ import { db } from "@/lib/db";
 
 export default async function ProfilesPage() {
   const { userId } = await auth();
-  const [t, profiles, stories] = await Promise.all([
+  const [t, tCommon, profiles, stories] = await Promise.all([
     getTranslations("profiles"),
+    getTranslations("common"),
     db.profiles.getByUserId(userId!),
     db.stories.getByUserId(userId!),
   ]);
+  const now = new Date();
   const storyCounts = stories.reduce<Record<string, number>>(
     (counts, story) => {
       counts[story.profileId] = (counts[story.profileId] ?? 0) + 1;
@@ -70,7 +72,18 @@ export default async function ProfilesPage() {
                         {profile.name[0].toUpperCase()}
                       </div>
                       <span className="rounded-full bg-night-50 px-3 py-1 text-sm font-bold text-night-500">
-                        {t("ageLabel", { age: profile.age })}
+                        {(() => {
+                          if (profile.dateOfBirth) {
+                            const dob = new Date(profile.dateOfBirth);
+                            const totalMonths =
+                              (now.getFullYear() - dob.getFullYear()) * 12 +
+                              (now.getMonth() - dob.getMonth());
+                            return totalMonths < 12
+                              ? tCommon("monthsOld", { months: Math.max(totalMonths, 0) })
+                              : tCommon("yearsOld", { years: Math.floor(totalMonths / 12) });
+                          }
+                          return t("ageLabel", { age: profile.age });
+                        })()}
                       </span>
                     </div>
                     <h3 className="mt-4 font-display text-xl font-bold text-night-800 group-hover:text-night-600">

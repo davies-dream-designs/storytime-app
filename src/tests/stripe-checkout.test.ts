@@ -245,7 +245,7 @@ describe("stripe checkout", () => {
     );
   });
 
-  it("blocks public print checkout in production while ordering is coming soon", async () => {
+  it("allows public print checkout in production when ordering is enabled", async () => {
     process.env.VERCEL_ENV = "production";
     mockGetBookProjectById.mockResolvedValue({
       id: "book-1",
@@ -257,7 +257,10 @@ describe("stripe checkout", () => {
       assets: {
         coverPdfUrl: "https://example.com/cover.pdf",
         printPdfUrl: "https://example.com/print.pdf",
+        luluCoverPdfUrl: "https://example.com/lulu-cover.pdf",
+        luluPrintPdfUrl: "https://example.com/lulu-print.pdf",
         orderabilityState: "export_ready",
+        proofVersion: 1,
       },
     });
 
@@ -279,13 +282,8 @@ describe("stripe checkout", () => {
       })
     );
 
-    expect(res.status).toBe(403);
-    await expect(res.json()).resolves.toEqual({
-      error:
-        "Printed books are coming soon. You can still create and download your PDF or EPUB today.",
-    });
-    expect(mockGetBookProjectById).not.toHaveBeenCalled();
-    expect(mockCreateSession).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(mockCreateSession).toHaveBeenCalled();
   });
 
   it("allows admin print checkout in production for testing", async () => {

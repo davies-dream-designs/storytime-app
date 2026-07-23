@@ -450,7 +450,7 @@
     "repairArtButton": "Resimleri yeniden oluştur",
     "repairingArtButton": "Yenileniyor…",
     "downloadStarting": "İndirme başlatılıyor…",
-    "deleteBook": "Resimli PDF'yi sil",
+    "deleteBook": "Kitabı sil",
     "deleteConfirm": "Bu resimli PDF/kitap projesi silinsin mi? Orijinal hikaye kütüphanenizde kalacak.",
     "deleting": "Siliniyor…",
     "deleteError": "Bu resimli PDF'yi silemedik.",
@@ -468,7 +468,7 @@
     "journeyPrintTitle": "Print format",
     "journeyPrintWaiting": "Choose softcover, hardcover, or layflat after the preview is ready.",
     "journeyPrintReady": "Choose the physical format that fits your budget and occasion.",
-    "printOptionsTitle": "Choose a print format",
+    "printOptionsTitle": "Order a printed book",
     "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
     "readyLabel": "Your illustrated book is ready to order.",
     "orderedLabel": "Order placed — your book is with the printer."

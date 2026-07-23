@@ -450,7 +450,7 @@
     "repairArtButton": "イラストを再生成する",
     "repairingArtButton": "再生中…",
     "downloadStarting": "ダウンロードを開始しています…",
-    "deleteBook": "PDFのイラストを削除",
+    "deleteBook": "本を削除",
     "deleteConfirm": "このイラスト付き PDF/本のプロジェクトを削除しますか?オリジナルのストーリーはあなたのライブラリに残ります。",
     "deleting": "削除中…",
     "deleteError": "この PDF のイラストは削除できませんでした。",
@@ -468,7 +468,7 @@
     "journeyPrintTitle": "Print format",
     "journeyPrintWaiting": "Choose softcover, hardcover, or layflat after the preview is ready.",
     "journeyPrintReady": "Choose the physical format that fits your budget and occasion.",
-    "printOptionsTitle": "Choose a print format",
+    "printOptionsTitle": "Order a printed book",
     "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
     "readyLabel": "Your illustrated book is ready to order.",
     "orderedLabel": "Order placed — your book is with the printer."

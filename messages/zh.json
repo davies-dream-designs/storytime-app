@@ -450,7 +450,7 @@
     "repairArtButton": "重新生成插图",
     "repairingArtButton": "正在重新生成…",
     "downloadStarting": "正在开始下载…",
-    "deleteBook": "删除插图 PDF",
+    "deleteBook": "删除书籍",
     "deleteConfirm": "要删除这个插图 PDF/图书项目吗？原始故事会保留在资料库中。",
     "deleting": "正在删除…",
     "deleteError": "无法删除这个插图 PDF。",
@@ -468,7 +468,7 @@
     "journeyPrintTitle": "Print format",
     "journeyPrintWaiting": "Choose softcover, hardcover, or layflat after the preview is ready.",
     "journeyPrintReady": "Choose the physical format that fits your budget and occasion.",
-    "printOptionsTitle": "Choose a print format",
+    "printOptionsTitle": "Order a printed book",
     "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
     "readyLabel": "Your illustrated book is ready to order.",
     "orderedLabel": "Order placed — your book is with the printer."

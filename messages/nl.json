@@ -450,7 +450,7 @@
     "repairArtButton": "Illustraties opnieuw genereren",
     "repairingArtButton": "Herstellend",
     "downloadStarting": "Start download",
-    "deleteBook": "Geïllustreerde PDF verwijderen",
+    "deleteBook": "Boek verwijderen",
     "deleteConfirm": "Dit geïllustreerde PDF/boekproject verwijderen? Het originele verhaal blijft in je bibliotheek staan.",
     "deleting": "Bezig met verwijderen",
     "deleteError": "We konden deze geïllustreerde PDF niet verwijderen.",
@@ -468,7 +468,7 @@
     "journeyPrintTitle": "Print format",
     "journeyPrintWaiting": "Choose softcover, hardcover, or layflat after the preview is ready.",
     "journeyPrintReady": "Choose the physical format that fits your budget and occasion.",
-    "printOptionsTitle": "Choose a print format",
+    "printOptionsTitle": "Order a printed book",
     "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
     "readyLabel": "Your illustrated book is ready to order.",
     "orderedLabel": "Order placed — your book is with the printer."

@@ -450,7 +450,7 @@
     "repairArtButton": "Buat ulang ilustrasi",
     "repairingArtButton": "Regenerasi…",
     "downloadStarting": "Mulai mengunduh…",
-    "deleteBook": "Hapus PDF yang diilustrasikan",
+    "deleteBook": "Hapus buku",
     "deleteConfirm": "Hapus proyek PDF/buku bergambar ini? Cerita aslinya akan tetap ada di perpustakaan Anda.",
     "deleting": "Menghapus…",
     "deleteError": "Kami tidak dapat menghapus PDF bergambar ini.",
@@ -468,7 +468,7 @@
     "journeyPrintTitle": "Print format",
     "journeyPrintWaiting": "Choose softcover, hardcover, or layflat after the preview is ready.",
     "journeyPrintReady": "Choose the physical format that fits your budget and occasion.",
-    "printOptionsTitle": "Choose a print format",
+    "printOptionsTitle": "Order a printed book",
     "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
     "readyLabel": "Your illustrated book is ready to order.",
     "orderedLabel": "Order placed — your book is with the printer."

@@ -1,10 +1,62 @@
 # Storycot - Handover Document
 
-**Last updated:** 2026-07-22  
+**Last updated:** 2026-07-23  
 **Branch:** `main` / `dev` synced  
 **Live URL:** https://storycot.com  
 **Preview URL:** https://dev.storycot.com  
 **Latest production merge:** `1fedd47 Merge pull request #69 from davies-dream-designs/dev`
+
+---
+
+## Current Handoff - 2026-07-23 - In-App Reader + Digital Download + Hardcover Tiers
+
+`feat/book-reader-and-purchase-tiers` branch is open as PR #94 against `dev`.
+
+### What Changed
+
+- **In-app illustrated book reader:**
+  - `BookReader.tsx` renders each illustrated spread with its image and text in a paginated viewer on the book page.
+  - Tapping an image opens a fullscreen lightbox.
+  - Free for all users who've generated a book with credits — the reader is the "preview."
+- **Digital download tier ($9.95 AUD):**
+  - `DigitalDownloadSection.tsx` gates illustrated PDF + EPUB downloads behind a one-time Stripe checkout.
+  - `BookAsset` has two new fields: `digitalDownloadUnlockedAt` and `digitalDownloadCheckoutSessionId`.
+  - Stripe checkout route handles `type: "digital_download"` → $9.95 AUD session.
+  - Stripe webhook (`checkoutType === "digital_download"`) sets `digitalDownloadUnlockedAt` on the project.
+  - `download_success` / `download_canceled` query params handled on book page.
+  - Admin users always see downloads without needing to pay.
+- **Hardcover tier ($39.95 AUD):**
+  - Existing Lulu / Stripe print checkout wired up side-by-side with digital download in a 2-column grid.
+  - Book page now presents both tiers under a clear "Get your book" heading.
+- **Book page restructure:**
+  - Header simplified (title + delete button in flex row).
+  - `BookReader` sits above `BookStatusPanel`.
+  - Purchase tiers sit below when `effectiveProjectStatus === "ready"`.
+  - Admin Lulu tools moved to a separate collapsible admin section at the bottom.
+- **Stale tests fixed:**
+  - `launch.test.ts`, `stripe-checkout.test.ts`, `printProducts.test.ts` updated to match current `canStartPrintCheckout` (always true) and auto-pad-odd-pages behaviour that were changed in prior PRs but tests not updated.
+
+### Key Files
+
+| File | Purpose |
+|---|---|
+| `src/app/[locale]/books/[id]/BookReader.tsx` | In-app illustrated spread reader (new) |
+| `src/app/[locale]/books/[id]/DigitalDownloadSection.tsx` | Digital download gate + unlock UI (new) |
+| `src/app/[locale]/books/[id]/page.tsx` | Book page — restructured with reader + purchase tiers |
+| `src/app/api/stripe/checkout/route.ts` | Added `digital_download` checkout type |
+| `src/app/api/stripe/webhook/route.ts` | Added `digital_download` webhook handler |
+| `src/types/printBook.ts` | Added `digitalDownloadUnlockedAt`, `digitalDownloadCheckoutSessionId` to `BookAsset` |
+
+### QA Still Worth Doing
+
+- On `dev.storycot.com`, generate an illustrated book and confirm `BookReader` shows spreads with images and prev/next navigation.
+- Tap an illustration — confirm lightbox opens and closes.
+- Click "Unlock digital download — $9.95" — confirm Stripe checkout opens at $9.95 AUD.
+- Complete a test Stripe payment — confirm banner and download buttons appear on return.
+- Cancel checkout — confirm cancel banner appears, no charge.
+- Confirm admin user on a ready book sees downloads without paying.
+- Confirm hardcover card shows $39.95 and checkout button side-by-side with digital download.
+- Confirm print-restricted stories show the restriction message in the hardcover tile.
 
 ---
 
@@ -481,13 +533,13 @@ Replace `after()` chains with **Inngest** (proper job queue, rate limiting, conc
 | # | Title | Priority |
 |---|---|---|
 | #13 | Stripe test/live key separation | High |
+| #66 | Daily improvement ideas ledger | Ongoing |
 | #25 | Print book: age-based layout variations | Future |
-| #24 | Print book: per-page square illustrations — **done on `feat/print-book-preview`**, not merged | Done/pending merge |
 | #11 | Phase 5: Multilingual support — full UI + story localisation | Future |
 | #9 | storycot.com.au domain redirect | Medium |
 | #6 | Migrate KV → Postgres | Low (future) |
-| #4 | Print-on-demand physical books (Lulu integration) | Future |
-| #3 | Phase 4: AI illustration generation per story page | Future |
+| #4 | Print-on-demand physical books (Lulu integration) — Lulu integration done; digital download + hardcover purchase tiers added in PR #94 | In progress |
+| #3 | Phase 4: AI illustration generation per story page — illustrated books ship with AI art | Done |
 | #2 | Phase 3: Voice narration / audio playback | Future |
 
 ---

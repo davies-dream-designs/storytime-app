@@ -52,45 +52,6 @@ function getReaderSpreads(project: BookProject): ReaderSpread[] {
   return story;
 }
 
-function ImageProtected({
-  src,
-  alt,
-  className,
-  onClick,
-}: {
-  src: string;
-  alt: string;
-  className?: string;
-  onClick?: () => void;
-}) {
-  return (
-    <div
-      className={`relative select-none overflow-hidden ${className ?? ""}`}
-      style={{ WebkitTouchCallout: "none" } as React.CSSProperties}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt={alt}
-        draggable={false}
-        className="pointer-events-none h-full w-full object-cover"
-        style={{ userSelect: "none", WebkitUserDrag: "none" } as React.CSSProperties}
-      />
-      {/* Transparent overlay — blocks right-click / long-press save, captures click */}
-      <div
-        className="absolute inset-0 cursor-pointer"
-        onClick={onClick}
-        onContextMenu={(e) => e.preventDefault()}
-        aria-label="View full screen"
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") onClick?.();
-        }}
-      />
-    </div>
-  );
-}
 
 export default function BookReader({ project }: { project: BookProject }) {
   const spreads = getReaderSpreads(project);
@@ -130,21 +91,30 @@ export default function BookReader({ project }: { project: BookProject }) {
     <div className="select-none">
       {/* Main reader card */}
       <div className="overflow-hidden rounded-3xl border border-night-100 bg-white shadow-xl">
-        {/* Image panel */}
+        {/* Image panel — aspect-square avoids padding-bottom hack and any positioning conflicts */}
         {hasImage ? (
-          <div
-            className="relative w-full bg-night-50"
-            style={{ paddingBottom: "100%" }}
-          >
-            {/* Wrapper div handles absolute fill — avoids relative/absolute conflict on ImageProtected */}
-            <div className="absolute inset-0">
-              <ImageProtected
-                src={spread.imageUrl!}
-                alt={spread.title ?? `Page ${index + 1}`}
-                className="h-full w-full"
-                onClick={() => setFullscreen(true)}
-              />
-            </div>
+          <div className="relative aspect-square w-full overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={spread.imageUrl!}
+              alt={spread.title ?? `Page ${index + 1}`}
+              className="pointer-events-none h-full w-full object-cover select-none"
+              draggable={false}
+              style={{ userSelect: "none", WebkitUserDrag: "none" } as React.CSSProperties}
+              onContextMenu={(e) => e.preventDefault()}
+            />
+            {/* Transparent overlay — blocks right-click/long-press, captures expand tap */}
+            <div
+              className="absolute inset-0 cursor-pointer"
+              onClick={() => setFullscreen(true)}
+              onContextMenu={(e) => e.preventDefault()}
+              role="button"
+              tabIndex={0}
+              aria-label="View full screen"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") setFullscreen(true);
+              }}
+            />
             {/* Gradient + title overlay */}
             <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-6 pb-5 pt-10">
               {spread.title ? (
@@ -245,11 +215,17 @@ export default function BookReader({ project }: { project: BookProject }) {
           {/* Image */}
           <div className="relative min-h-0 flex-1">
             {hasImage ? (
-              <ImageProtected
-                src={spread.imageUrl!}
-                alt={spread.title ?? `Page ${index + 1}`}
-                className="h-full w-full"
-              />
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={spread.imageUrl!}
+                  alt={spread.title ?? `Page ${index + 1}`}
+                  className="pointer-events-none h-full w-full object-contain select-none"
+                  draggable={false}
+                  style={{ userSelect: "none", WebkitUserDrag: "none" } as React.CSSProperties}
+                  onContextMenu={(e) => e.preventDefault()}
+                />
+              </>
             ) : (
               <div className="flex h-full items-center justify-center">
                 <p className="text-white/40">No illustration for this page</p>

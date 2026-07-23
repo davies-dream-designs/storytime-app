@@ -307,6 +307,62 @@ describe("generateBookPdfs", () => {
     expect(printPdf.getPageCount()).toBe(4);
   });
 
+  it("exports art pages for hero, quiet, and text-art story spreads", async () => {
+    mockStoreBookAsset.mockReset();
+    mockStoreBookAsset
+      .mockResolvedValueOnce("data:application/pdf;base64,cover")
+      .mockResolvedValueOnce("data:application/pdf;base64,print");
+
+    const project = createProjectWithFullBackMatter();
+    project.spreads = [
+      ...project.spreads.slice(0, 3),
+      {
+        id: "book-1:spread:4",
+        bookProjectId: "book-1",
+        sequence: 4,
+        pageStart: 7,
+        pageEnd: 8,
+        layoutType: "hero",
+        title: "Lantern",
+        leftPageText: "The lantern made the garden feel wide and bright.",
+        rightPageText: "",
+        sceneBrief: "A wide garden moment",
+        illustrationPrompt: "Mila holding a silver lantern in a wide garden.",
+        leftPageImageUrl: pngPixel,
+      },
+      {
+        id: "book-1:spread:5",
+        bookProjectId: "book-1",
+        sequence: 5,
+        pageStart: 9,
+        pageEnd: 10,
+        layoutType: "quiet",
+        title: "Fox",
+        leftPageText: "A sleepy fox blinked kindly from under the leaves.",
+        rightPageText: "",
+        sceneBrief: "A quiet fox moment",
+        illustrationPrompt: "A sleepy fox beneath moonlit leaves.",
+        leftPageImageUrl: pngPixel,
+      },
+      ...project.spreads.slice(3).map((spread, index) => ({
+        ...spread,
+        sequence: index + 6,
+      })),
+    ];
+
+    const { generateBookPdfs } = await import("@/lib/print-books/pdf");
+    await generateBookPdfs({
+      project,
+      story: createStory(),
+      profile: createProfile(),
+    });
+
+    const printPdfBody = mockStoreBookAsset.mock.calls[1]?.[0]?.body;
+    expect(printPdfBody).toBeTruthy();
+    const printPdf = await PDFDocument.load(new Uint8Array(printPdfBody));
+    expect(printPdf.getPageCount()).toBe(9);
+  });
+
   it("exports Lulu-specific PDFs with a padded 24-page interior", async () => {
     process.env.STORYCOT_PRINT_PROVIDER = "lulu";
     mockStoreBookAsset.mockReset();

@@ -105,4 +105,20 @@ describe("getBookProjectDisplayStageLabel", () => {
       )
     ).toBe("Waiting for final art batch...");
   });
+
+  it("shows live export refresh labels for ready books", () => {
+    expect(
+      getBookProjectDisplayStageLabel(
+        project({
+          status: "ready",
+          currentStageLabel: "Queued to refresh export files...",
+          assets: {
+            proofVersion: 1,
+            activeJobMode: "exports",
+            activeJobStatus: "queued",
+          },
+        })
+      )
+    ).toBe("Queued to refresh export files...");
+  });
 });

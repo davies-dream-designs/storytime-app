@@ -110,6 +110,14 @@ export function getBookProjectProgress(project: BookProjectStatusView): number {
 export function getBookProjectDisplayStageLabel(
   project: BookProjectStatusView
 ): string {
+  if (
+    project.assets.activeJobStatus &&
+    (project.assets.activeJobMode === "exports" ||
+      project.assets.activeJobMode === "finalize")
+  ) {
+    return project.currentStageLabel || getBookProjectStageLabel(project.status);
+  }
+
   // For terminal states use the live label so copy changes apply without a rebuild
   if (project.status === "ready" || project.status === "failed") {
     return getBookProjectStageLabel(project.status);

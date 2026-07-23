@@ -184,7 +184,7 @@ export default async function BookProjectPage({
                 return (
                   <div className="mt-5 space-y-3">
                     <p className="leading-7 text-night-600">
-                      Your book is with the printer. Prodigi will send you a
+                      Your book is with the printer. Lulu will send you a
                       dispatch email with tracking once it ships — check the
                       inbox you used at checkout.
                     </p>

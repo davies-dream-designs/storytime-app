@@ -196,7 +196,7 @@ export interface PrintShippingAddress {
 }
 
 export interface PrintFulfillment {
-  provider: "prodigi" | "peecho" | "lulu";
+  provider: "peecho" | "lulu";
   status: "not_configured" | "ready_for_manual_review" | "submitted" | "failed";
   preparedAt?: string;
   submittedAt?: string;

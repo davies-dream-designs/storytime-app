@@ -146,6 +146,12 @@ export async function POST(req: NextRequest) {
               ...printOrder,
               fulfillment,
             },
+            assets: {
+              ...project.assets,
+              ...(project.assets.digitalDownloadUnlockedAt
+                ? {}
+                : { digitalDownloadUnlockedAt: new Date().toISOString() }),
+            },
           });
         }
       }

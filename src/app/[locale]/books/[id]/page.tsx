@@ -54,6 +54,15 @@ export default async function BookProjectPage({
   const hasLuluPrintPdf = Boolean(project.assets.luluPrintPdfUrl);
   const hasLuluCoverPdf = Boolean(project.assets.luluCoverPdfUrl);
   const hasDigitalDownload = Boolean(project.assets.digitalDownloadUnlockedAt);
+  const hasIllustrationsZip = project.spreads.some(
+    (s) =>
+      (s.layoutType === "text_art" ||
+        s.layoutType === "hero" ||
+        s.layoutType === "quiet") &&
+      s.leftPageImageUrl &&
+      !s.leftPageImageUrl.endsWith(".svg") &&
+      !s.leftPageImageUrl.startsWith("data:image/svg")
+  );
   const fileRetention = getBookFileRetentionState(project);
   const printRestricted = isStoryPrintRestricted(story);
   const isReady = effectiveProjectStatus === "ready";
@@ -268,6 +277,7 @@ export default async function BookProjectPage({
                   hasDigitalDownload={hasDigitalDownload || isAdmin}
                   hasPrintPdf={hasPrintPdf}
                   hasEpub={hasEpub}
+                  hasIllustrationsZip={hasIllustrationsZip}
                   storyTitle={story.title}
                 />
               ) : (

@@ -9,12 +9,14 @@ export default function DigitalDownloadSection({
   hasDigitalDownload,
   hasPrintPdf,
   hasEpub,
+  hasIllustrationsZip,
   storyTitle,
 }: {
   projectId: string;
   hasDigitalDownload: boolean;
   hasPrintPdf: boolean;
   hasEpub: boolean;
+  hasIllustrationsZip: boolean;
   storyTitle: string;
 }) {
   const t = useTranslations("books");
@@ -74,6 +76,14 @@ export default function DigitalDownloadSection({
               shareWhenAvailable
             />
           ) : null}
+          {hasIllustrationsZip ? (
+            <FileDownloadButton
+              href={`/api/books/${projectId}/download?asset=illustrationsZip`}
+              label="Illustrations (ZIP)"
+              pendingLabel={t("downloadStarting")}
+              className="storycot-btn storycot-btn-secondary"
+            />
+          ) : null}
         </div>
         {hasEpub ? (
           <p className="mt-3 text-sm leading-6 text-night-500">{t("epubHelp")}</p>
@@ -93,8 +103,7 @@ export default function DigitalDownloadSection({
       </div>
       <p className="mt-2 text-sm leading-6 text-night-500">
         Download your illustrated book as a high-quality PDF and EPUB — read on
-        any device, keep forever. Includes all{" "}
-        {hasPrintPdf && hasEpub ? "both file formats" : "files"}.
+        any device, keep forever.
       </p>
       <ul className="mt-3 space-y-1.5 text-sm text-night-600">
         <li className="flex items-center gap-2">
@@ -104,6 +113,10 @@ export default function DigitalDownloadSection({
         <li className="flex items-center gap-2">
           <span className="text-green-500" aria-hidden="true">✓</span>
           EPUB — for Kindle, Apple Books, or any e-reader
+        </li>
+        <li className="flex items-center gap-2">
+          <span className="text-green-500" aria-hidden="true">✓</span>
+          Illustrations ZIP — all artwork to print or share
         </li>
         <li className="flex items-center gap-2">
           <span className="text-green-500" aria-hidden="true">✓</span>

@@ -141,6 +141,8 @@ export default function BookStatusPanel({
   );
   const [pollUntil, setPollUntil] = useState(0);
   const [startingBuild, setStartingBuild] = useState(false);
+  const [readerIndex, setReaderIndex] = useState(0);
+  const prevCompletedCount = useRef(0);
   const buildStartedRef = useRef(false);
   const latestProjectUpdatedAtRef = useRef(
     Date.parse(initialProject.updatedAt)
@@ -162,6 +164,16 @@ export default function BookStatusPanel({
   const completedArtworkCount = artworkPreviews.filter(
     (preview) => preview.url
   ).length;
+
+  // Text from initial project — doesn't change during build
+  const spreadTextMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const s of initialProject.spreads) {
+      const text = s.leftPageText || s.rightPageText;
+      if (text) map.set(s.id, text);
+    }
+    return map;
+  }, [initialProject]);
 
   const getExpandedImageFromArtwork = useCallback(
     (index: number): ExpandedImage | null => {
@@ -475,6 +487,20 @@ export default function BookStatusPanel({
   const isActiveBuild =
     (displayStatus !== "ready" && displayStatus !== "failed") ||
     Boolean(activeJobStatus);
+
+  // Auto-advance reader to latest completed illustration during active builds
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!isActiveBuild) return;
+    if (completedArtworkCount <= prevCompletedCount.current) return;
+    prevCompletedCount.current = completedArtworkCount;
+    const lastIdx = artworkPreviews.reduce(
+      (last, a, i) => (a.url ? i : last),
+      0
+    );
+    setReaderIndex(lastIdx);
+  }, [completedArtworkCount, isActiveBuild, artworkPreviews]);
+
   const hasMixedArt =
     displayStatus === "ready" && project.assets.artMode === "mixed";
   const hasImageGenerationFailure =
@@ -484,10 +510,6 @@ export default function BookStatusPanel({
     displayStatus === "failed" &&
     (project.errorCode !== "illustrating:image_failed" ||
       failedImageTargets.length > 0);
-  const showSpreadGrid =
-    displayStatus === "illustrating" ||
-    displayStatus === "failed" ||
-    spreadPreviews.some((p) => p.thumbnailUrl);
   const lastUpdated = project.updatedAt
     ? new Intl.DateTimeFormat(undefined, {
         month: "short",
@@ -539,103 +561,191 @@ export default function BookStatusPanel({
         />
       </div>
 
-      {showSpreadGrid && spreadPreviews.length > 0 ? (
+      {artworkPreviews.length > 0 ? (
         <div className="mt-6">
-          <div className="mb-3 flex items-end justify-between gap-4">
+          {/* Progress header */}
+          <div className="mb-3 flex items-center justify-between gap-4">
             <p className="text-xs font-bold uppercase tracking-wide text-night-400">
               {completedArtworkCount} of {artworkPreviews.length} illustrations
-              planned
+              {isActiveBuild ? " loading…" : " complete"}
             </p>
-            {displayStatus === "ready" || displayStatus === "failed" ? (
+            {!isActiveBuild ? (
               <p className="text-xs font-bold text-night-400">
-                Retry failed images free · Redo finished images: 1 credit
+                Retry free · Redo finished: 1 credit
               </p>
             ) : null}
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-            {artworkPreviews.map(({ preview, side, url, error }, index) => {
-              const key = `${preview.id}:${side}`;
-              const isRegenerating = regeneratingImage === key;
-              const isEditableStatus =
-                displayStatus === "ready" || displayStatus === "failed";
-              const isGeneratedPage =
-                preview.title !== "Cover" &&
-                preview.title !== "Title" &&
-                preview.title !== "Back Cover";
-              const isFreeRetry = Boolean(error) || !url;
-              const canRegenerate =
-                isEditableStatus && isGeneratedPage && !activeJobStatus;
-              const displayLabel = `Illustration ${index + 1}`;
-              return (
+
+          {/* Streaming reader card */}
+          {(() => {
+            const artwork = artworkPreviews[readerIndex];
+            if (!artwork) return null;
+            const imgKey = `${artwork.preview.id}:${artwork.side}`;
+            const isRegeneratingThis = regeneratingImage === imgKey;
+            const isFreeRetry = !artwork.url || Boolean(artwork.error);
+            const canRegenerate =
+              !isActiveBuild &&
+              !activeJobStatus &&
+              artwork.preview.title !== "Cover" &&
+              artwork.preview.title !== "Title" &&
+              artwork.preview.title !== "Back Cover";
+            const pageText = spreadTextMap.get(artwork.preview.id) ?? "";
+
+            return (
+              <div className="overflow-hidden rounded-2xl border border-night-100 bg-white shadow-sm">
+                {/* Image */}
                 <div
-                  key={key}
-                  className="overflow-hidden rounded-2xl border border-night-100 bg-night-50"
+                  className="relative w-full bg-night-50"
+                  style={{ paddingBottom: "100%" }}
                 >
-                  <button
-                    type="button"
-                    onClick={() =>
-                      url ? openArtworkPreview(index) : undefined
-                    }
-                    className="block aspect-square w-full overflow-hidden bg-night-100"
-                    aria-label={`Open ${displayLabel}`}
-                  >
-                    {url ? (
+                  {artwork.url ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={url}
-                        alt={displayLabel}
-                        className="h-full w-full object-cover transition hover:scale-105"
+                        src={artwork.url}
+                        alt={`Illustration ${readerIndex + 1}`}
+                        className="absolute inset-0 h-full w-full cursor-pointer object-cover"
+                        draggable={false}
+                        onContextMenu={(e) => e.preventDefault()}
+                        onClick={() => openArtworkPreview(readerIndex)}
                       />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-night-100 px-3 text-center text-xs font-bold text-night-400">
-                        {error ? "Image failed" : "Waiting for image"}
+                      <div className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/30 px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm">
+                        {readerIndex + 1} / {artworkPreviews.length}
                       </div>
-                    )}
-                  </button>
-                  {error ? (
-                    <p className="px-3 pt-2 text-xs font-medium text-blush-700">
-                      {error}
+                      {artwork.preview.title ? (
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-5 pb-4 pt-10">
+                          <p className="font-display text-base font-bold text-white">
+                            {artwork.preview.title}
+                          </p>
+                        </div>
+                      ) : null}
+                    </>
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center px-6">
+                        {isActiveBuild ? (
+                          <>
+                            <div
+                              className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-night-200 border-t-star-500"
+                              aria-hidden="true"
+                            />
+                            <p className="mt-3 text-sm font-medium text-night-400">
+                              Illustration {readerIndex + 1} in progress…
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-4xl" aria-hidden="true">🎨</span>
+                            <p className="mt-2 text-sm font-medium text-night-400">
+                              {artwork.error ?? "Illustration pending"}
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Story text */}
+                {pageText ? (
+                  <div className="border-t border-night-50 px-6 py-5">
+                    <p className="font-display text-lg font-medium leading-relaxed text-night-800">
+                      {pageText}
                     </p>
-                  ) : null}
-                  <div className="flex items-center justify-between gap-2 px-3 py-2">
-                    <span className="text-xs font-bold uppercase tracking-wide text-night-500">
-                      {displayLabel}
-                    </span>
+                  </div>
+                ) : null}
+
+                {/* Redo row */}
+                {(artwork.error || canRegenerate) ? (
+                  <div className="flex items-center justify-between gap-3 border-t border-night-50 px-5 py-3">
+                    {artwork.error ? (
+                      <p className="flex-1 text-xs font-medium text-blush-700">
+                        {artwork.error}
+                      </p>
+                    ) : (
+                      <span />
+                    )}
                     {canRegenerate ? (
                       <button
                         type="button"
                         onClick={() =>
                           openRedoPrompt({
-                            spreadId: preview.id,
-                            sequence: preview.sequence,
-                            title: preview.title,
-                            side,
-                            url,
-                            displayLabel,
-                            index,
+                            spreadId: artwork.preview.id,
+                            sequence: artwork.preview.sequence,
+                            title: artwork.preview.title,
+                            side: artwork.side,
+                            url: artwork.url,
+                            displayLabel: `Illustration ${readerIndex + 1}`,
+                            index: readerIndex,
                           })
                         }
                         disabled={
                           Boolean(regeneratingImage) || Boolean(activeJobStatus)
                         }
-                        className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-night-700 shadow-sm disabled:opacity-50"
+                        className="shrink-0 rounded-full bg-night-100 px-3 py-1.5 text-xs font-bold text-night-700 hover:bg-night-200 disabled:opacity-50"
                       >
-                        {isRegenerating
+                        {isRegeneratingThis
                           ? "Working…"
                           : isFreeRetry
-                            ? "Retry"
-                            : "Redo"}
+                            ? "Retry free"
+                            : "Redo — 1 credit"}
                       </button>
                     ) : null}
                   </div>
-                </div>
-              );
-            })}
+                ) : null}
+              </div>
+            );
+          })()}
+
+          {/* Navigation */}
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setReaderIndex((i) => Math.max(0, i - 1))}
+              disabled={readerIndex === 0}
+              className="flex items-center gap-1.5 rounded-full border border-night-200 px-5 py-2.5 text-sm font-bold text-night-600 transition hover:bg-night-50 disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              ← Prev
+            </button>
+
+            <div className="flex max-w-[40%] flex-wrap justify-center gap-1">
+              {artworkPreviews.map((a, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setReaderIndex(i)}
+                  aria-label={`Illustration ${i + 1}`}
+                  className={`h-2 rounded-full transition-all ${
+                    i === readerIndex
+                      ? "w-5 bg-night-700"
+                      : a.url
+                        ? "w-2 bg-night-300 hover:bg-night-500"
+                        : "w-2 bg-night-100"
+                  }`}
+                />
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setReaderIndex((i) =>
+                  Math.min(artworkPreviews.length - 1, i + 1)
+                )
+              }
+              disabled={readerIndex === artworkPreviews.length - 1}
+              className="flex items-center gap-1.5 rounded-full border border-night-200 px-5 py-2.5 text-sm font-bold text-night-600 transition hover:bg-night-50 disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              Next →
+            </button>
           </div>
+
           {imageError ? (
             <p className="mt-4 rounded-xl bg-blush-100 px-4 py-3 text-sm font-bold text-blush-700">
               {imageError}
             </p>
           ) : null}
+
           {redoTarget ? (
             <div className="fixed inset-0 z-50 flex items-end bg-night-900/50 px-4 pb-4 sm:items-center sm:justify-center sm:p-6">
               <div className="w-full max-w-lg rounded-3xl bg-white p-5 shadow-xl">

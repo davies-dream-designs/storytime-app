@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { buildBookEpub } from "@/lib/print-books/epub";
+import JSZip from "jszip";
 
-type AssetKey = "printPdf" | "epub" | "luluPrintPdf" | "luluCoverPdf";
+type AssetKey = "printPdf" | "epub" | "luluPrintPdf" | "luluCoverPdf" | "illustrationsZip";
 
 function getAsset(
   project: Awaited<ReturnType<typeof db.bookProjects.getById>>,
@@ -75,7 +76,8 @@ export async function GET(
     asset !== "printPdf" &&
     asset !== "epub" &&
     asset !== "luluPrintPdf" &&
-    asset !== "luluCoverPdf"
+    asset !== "luluCoverPdf" &&
+    asset !== "illustrationsZip"
   ) {
     return NextResponse.json({ error: "Invalid asset" }, { status: 400 });
   }
@@ -88,6 +90,50 @@ export async function GET(
 
   const story = await db.stories.getById(project.sourceStoryId);
   const filename = getFilename(asset, story?.title);
+
+  if (asset === "illustrationsZip") {
+    const zip = new JSZip();
+    const folder = zip.folder("illustrations") ?? zip;
+
+    const coverUrl = project.assets.coverImageUrl;
+    if (coverUrl && !coverUrl.endsWith(".svg") && !coverUrl.startsWith("data:image/svg")) {
+      const r = await fetch(coverUrl);
+      if (r.ok) folder.file("cover.jpg", r.arrayBuffer());
+    }
+
+    const spreads = project.spreads
+      .filter(
+        (s) =>
+          s.layoutType === "text_art" ||
+          s.layoutType === "hero" ||
+          s.layoutType === "quiet"
+      )
+      .sort((a, b) => a.sequence - b.sequence);
+
+    await Promise.all(
+      spreads.map(async (s, i) => {
+        const url = s.leftPageImageUrl ?? s.imageUrl;
+        if (!url || url.endsWith(".svg") || url.startsWith("data:image/svg")) return;
+        const r = await fetch(url);
+        if (!r.ok) return;
+        const pad = String(i + 1).padStart(2, "0");
+        folder.file(`illustration-${pad}.jpg`, r.arrayBuffer());
+      })
+    );
+
+    const nodeBuf = await zip.generateAsync({ type: "nodebuffer" });
+    const buf = new Uint8Array(nodeBuf);
+    const zipName = story?.title
+      ? safeFilename(story.title, "zip").replace(/\.zip$/, "-illustrations.zip")
+      : "storycot-illustrations.zip";
+    return new NextResponse(buf, {
+      headers: {
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="${zipName}"`,
+        "Cache-Control": "private, no-store",
+      },
+    });
+  }
 
   if (asset === "epub" && story) {
     const profile = await db.profiles.getById(project.profileId);

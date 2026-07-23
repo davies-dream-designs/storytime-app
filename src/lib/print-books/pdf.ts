@@ -1666,10 +1666,12 @@ async function buildCoverPdf(input: {
 
   const titleBandTop = pageHeight - coverSafeY - 86;
   const titleBandHeight = 148;
+  // Pull the band 36pt inside the right safe edge so there's visual breathing room
+  const titleBandWidth = frontSafeWidth - 28;
   page.drawRectangle({
     x: frontSafeX - 8,
     y: titleBandTop - titleBandHeight,
-    width: frontSafeWidth + 8,
+    width: titleBandWidth,
     height: titleBandHeight,
     color: BRAND_PURPLE,
     opacity: image ? 0.48 : 0.82,

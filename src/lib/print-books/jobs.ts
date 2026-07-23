@@ -88,9 +88,22 @@ function hasUnresolvedGeneratedPageImages(spreads: BookSpread[]) {
   return spreads.some(
     (spread) =>
       isGeneratedPageSpread(spread) &&
-      (!(spread.leftPageImageUrl ?? spread.imageUrl) ||
-        Boolean(spread.leftPageImageError))
+      !(spread.leftPageImageUrl ?? spread.imageUrl)
   );
+}
+
+function clearResolvedGeneratedPageImageErrors(spreads: BookSpread[]) {
+  return spreads.map((spread) => {
+    if (!isGeneratedPageSpread(spread)) return spread;
+    if (!(spread.leftPageImageUrl ?? spread.imageUrl)) return spread;
+    if (!spread.leftPageImageError && !spread.rightPageImageError) return spread;
+
+    return {
+      ...spread,
+      leftPageImageError: undefined,
+      rightPageImageError: undefined,
+    };
+  });
 }
 
 export function isBookBuildJobStale(job: BookBuildJob, now = Date.now()) {
@@ -557,6 +570,7 @@ async function finalizeProjectExports(input: {
       input.buildMode === "finalize"
         ? "Finalizing the order package..."
         : getBookProjectStageLabel("proofing"),
+    spreads: input.project.spreads,
     assets: {
       ...proofingAssets,
       exportVersion: nextProofVersion,
@@ -718,9 +732,14 @@ async function advanceExportBuild(
     );
   }
 
+  const projectForExport: BookProject = {
+    ...project,
+    spreads: clearResolvedGeneratedPageImageErrors(project.spreads),
+  };
+
   return finalizeProjectExports({
     id: project.id,
-    project,
+    project: projectForExport,
     story: context.story,
     profile: context.profile,
     buildMode: mode,

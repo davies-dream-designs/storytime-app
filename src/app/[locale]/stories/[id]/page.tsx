@@ -101,23 +101,6 @@ export default async function StoryPage({
             {isReady && (
               <>
                 <ShareButton storyId={id} />
-                <DownloadLink
-                  href={`/stories/${id}/print`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="storycot-btn storycot-btn-secondary"
-                  pendingLabel={t("downloadStarting")}
-                >
-                  {t("printButton")}
-                </DownloadLink>
-                <FileDownloadButton
-                  href={`/api/stories/${id}/epub`}
-                  shareTitle={story.title}
-                  label={t("textEpubButton")}
-                  pendingLabel={t("downloadStarting")}
-                  className="storycot-btn storycot-btn-secondary"
-                  shareWhenAvailable
-                />
                 {existingBook ? (
                   <Link
                     href={`/books/${existingBook.id}` as string}
@@ -147,12 +130,29 @@ export default async function StoryPage({
             {isReady && (
               <DeleteStoryButton storyId={id} redirectTo="/stories" />
             )}
-            {isReady && (
-              <p className="basis-full text-xs leading-5 text-night-400 sm:max-w-md">
-                {t("epubHelp")}
-              </p>
-            )}
           </div>
+          {/* Text exports — secondary, collapsed below primary actions */}
+          {isReady && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <DownloadLink
+                href={`/stories/${id}/print`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="storycot-btn storycot-btn-secondary text-sm"
+                pendingLabel={t("downloadStarting")}
+              >
+                {t("printButton")}
+              </DownloadLink>
+              <FileDownloadButton
+                href={`/api/stories/${id}/epub`}
+                shareTitle={story.title}
+                label={t("textEpubButton")}
+                pendingLabel={t("downloadStarting")}
+                className="storycot-btn storycot-btn-secondary text-sm"
+                shareWhenAvailable
+              />
+            </div>
+          )}
         </div>
         <StoryReader story={story} />
       </main>

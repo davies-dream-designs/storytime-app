@@ -390,6 +390,8 @@ describe("generateBookPdfs", () => {
     expect(result.luluPrintPdfPageWidthIn).toBe(8.75);
     expect(result.luluPrintPdfPageHeightIn).toBe(8.75);
     expect(result.luluPrintPdfPageCount).toBe(24);
+    expect(result.luluCoverPdfPageWidthIn).toBe(18.68);
+    expect(result.luluCoverPdfPageHeightIn).toBe(10);
     expect(mockStoreBookAsset).toHaveBeenNthCalledWith(
       3,
       expect.objectContaining({
@@ -404,6 +406,15 @@ describe("generateBookPdfs", () => {
         contentType: "application/pdf",
       })
     );
+
+    const luluCoverPdfBody = mockStoreBookAsset.mock.calls[2]?.[0]?.body;
+    expect(luluCoverPdfBody).toBeTruthy();
+    const luluCoverPdf = await PDFDocument.load(
+      new Uint8Array(luluCoverPdfBody)
+    );
+    const luluCoverPageSize = luluCoverPdf.getPage(0).getSize();
+    expect(luluCoverPageSize.width / 72).toBeCloseTo(18.68, 2);
+    expect(luluCoverPageSize.height / 72).toBeCloseTo(10, 2);
 
     const luluPrintPdfBody = mockStoreBookAsset.mock.calls[3]?.[0]?.body;
     expect(luluPrintPdfBody).toBeTruthy();

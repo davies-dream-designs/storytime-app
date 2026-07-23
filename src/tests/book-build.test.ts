@@ -202,6 +202,22 @@ describe("POST /api/books/[id]/build", () => {
       ...createBookProject(),
       status: "failed",
       errorCode: "illustrating:image_failed",
+      spreads: [
+        {
+          id: "spread-1",
+          bookProjectId: "book-1",
+          sequence: 2,
+          pageStart: 3,
+          pageEnd: 4,
+          layoutType: "text_art",
+          title: "Page 1",
+          leftPageText: "Once upon a time.",
+          rightPageText: "",
+          sceneBrief: "A sunny garden.",
+          illustrationPrompt: "A sunny garden.",
+          leftPageImageError: "Previous image failure",
+        },
+      ],
     });
 
     const { POST } = await import("@/app/api/books/[id]/build/route");
@@ -217,6 +233,50 @@ describe("POST /api/books/[id]/build", () => {
       error: "Retry only the failed image from the spread review.",
     });
     expect(mockEnqueueBookBuildJob).not.toHaveBeenCalled();
+  });
+
+  it("defaults repaired image-failed books to export refresh", async () => {
+    mockDb.bookProjects.getById.mockResolvedValue({
+      ...createBookProject(),
+      status: "failed",
+      errorCode: "illustrating:image_failed",
+      spreads: [
+        {
+          id: "spread-1",
+          bookProjectId: "book-1",
+          sequence: 2,
+          pageStart: 3,
+          pageEnd: 4,
+          layoutType: "text_art",
+          title: "Page 1",
+          leftPageText: "Once upon a time.",
+          rightPageText: "",
+          sceneBrief: "A sunny garden.",
+          illustrationPrompt: "A sunny garden.",
+          leftPageImageUrl: "https://example.com/spread.png",
+          leftPageImageError: "Previous image failure",
+        },
+      ],
+    });
+
+    const { POST } = await import("@/app/api/books/[id]/build/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/books/book-1/build", {
+        method: "POST",
+      }),
+      { params: Promise.resolve({ id: "book-1" }) }
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockEnqueueBookBuildJob).toHaveBeenCalledWith({
+      project: expect.objectContaining({
+        id: "book-1",
+        status: "failed",
+        errorCode: "illustrating:image_failed",
+      }),
+      mode: "exports",
+      baseUrl: "http://localhost",
+    });
   });
 
   it("returns 409 when another job is already running", async () => {

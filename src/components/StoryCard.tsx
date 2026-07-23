@@ -44,7 +44,7 @@ export default function StoryCard({
             <h3
               className={joinClasses(
                 "font-display font-bold text-night-800 line-clamp-2",
-                compact ? "text-lg" : "text-xl"
+                compact ? "min-h-[2.75rem] text-lg" : "min-h-[3.5rem] text-xl"
               )}
             >
               {story.title}

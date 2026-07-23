@@ -20,6 +20,8 @@ import {
   getBookSpineWidthIn,
 } from "@/lib/print-books/bookConfig";
 import {
+  LULU_HARDCOVER_COVER_PAGE_HEIGHT_IN,
+  LULU_HARDCOVER_COVER_PANEL_WIDTH_IN,
   LULU_HARDCOVER_MIN_PAGES,
   LULU_INTERIOR_PDF_PAGE_HEIGHT_IN,
   LULU_INTERIOR_PDF_PAGE_WIDTH_IN,
@@ -50,6 +52,12 @@ const STORYCOT_PDF_GEOMETRY: PdfPageGeometry = {
 const LULU_PDF_GEOMETRY: PdfPageGeometry = {
   pageWidth: LULU_INTERIOR_PDF_PAGE_WIDTH_IN * POINTS_PER_INCH,
   pageHeight: LULU_INTERIOR_PDF_PAGE_HEIGHT_IN * POINTS_PER_INCH,
+  textSafeMargin: FULL_BLEED_TEXT_SAFE_MARGIN,
+};
+
+const LULU_COVER_PDF_GEOMETRY: PdfPageGeometry = {
+  pageWidth: LULU_HARDCOVER_COVER_PANEL_WIDTH_IN * POINTS_PER_INCH,
+  pageHeight: LULU_HARDCOVER_COVER_PAGE_HEIGHT_IN * POINTS_PER_INCH,
   textSafeMargin: FULL_BLEED_TEXT_SAFE_MARGIN,
 };
 
@@ -1685,7 +1693,7 @@ export async function generateBookPdfs(input: {
         body: Buffer.from(
           await buildCoverPdf({
             ...input,
-            geometry: LULU_PDF_GEOMETRY,
+            geometry: LULU_COVER_PDF_GEOMETRY,
             spineWidthIn: luluSpine.widthIn,
           })
         ),
@@ -1717,11 +1725,14 @@ export async function generateBookPdfs(input: {
     luluCoverPdfUrl,
     luluCoverPdfPageWidthIn: shouldGenerateLuluPdfs
       ? Number(
-          (LULU_INTERIOR_PDF_PAGE_WIDTH_IN * 2 + luluSpine.widthIn).toFixed(3)
+          (
+            LULU_HARDCOVER_COVER_PANEL_WIDTH_IN * 2 +
+            luluSpine.widthIn
+          ).toFixed(3)
         )
       : undefined,
     luluCoverPdfPageHeightIn: shouldGenerateLuluPdfs
-      ? LULU_INTERIOR_PDF_PAGE_HEIGHT_IN
+      ? LULU_HARDCOVER_COVER_PAGE_HEIGHT_IN
       : undefined,
     luluCoverPdfSpineWidthIn: shouldGenerateLuluPdfs
       ? luluSpine.widthIn

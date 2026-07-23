@@ -93,7 +93,7 @@ export default function BookReader({ project }: { project: BookProject }) {
       <div className="overflow-hidden rounded-3xl border border-night-100 bg-white shadow-xl">
         {/* Image panel — aspect-square avoids padding-bottom hack and any positioning conflicts */}
         {hasImage ? (
-          <div className="relative aspect-square w-full overflow-hidden">
+          <div className="relative aspect-square w-full overflow-hidden max-h-[70vh]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={spread.imageUrl!}
@@ -270,7 +270,7 @@ export default function BookReader({ project }: { project: BookProject }) {
           {/* Story text */}
           {pageText ? (
             <div
-              className="max-h-40 overflow-y-auto border-t border-white/10 bg-black/80 px-5 py-4 backdrop-blur-sm"
+              className="max-h-[20vh] overflow-y-auto border-t border-white/10 bg-black/80 px-5 py-4 backdrop-blur-sm"
               onContextMenu={(e) => e.preventDefault()}
             >
               <p className="font-display text-base leading-relaxed text-white/90">
@@ -279,14 +279,14 @@ export default function BookReader({ project }: { project: BookProject }) {
             </div>
           ) : null}
 
-          {/* Bottom nav dots */}
-          <div className="flex items-center justify-center gap-1.5 py-3">
+          {/* Bottom nav dots — horizontal scroll so they don't wrap in landscape */}
+          <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto px-4 py-3 [&::-webkit-scrollbar]:hidden">
             {spreads.map((_, i) => (
               <button
                 key={i}
                 onClick={() => setIndex(i)}
                 aria-label={`Go to page ${i + 1}`}
-                className={`h-1.5 rounded-full transition-all ${
+                className={`h-1.5 shrink-0 rounded-full transition-all ${
                   i === index
                     ? "w-5 bg-white"
                     : "w-1.5 bg-white/30 hover:bg-white/50"

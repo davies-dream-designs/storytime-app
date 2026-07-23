@@ -118,8 +118,10 @@ function getSpreadPreviews(project: BookProject): SpreadPreview[] {
 
 export default function BookStatusPanel({
   initialProject,
+  initialIsReady = false,
 }: {
   initialProject: BookProject;
+  initialIsReady?: boolean;
 }) {
   const t = useTranslations("books");
   const router = useRouter();
@@ -282,6 +284,13 @@ export default function BookStatusPanel({
           (next.status === "ready" || next.status === "failed") &&
           !next.assets.activeJobStatus
         ) {
+          if (!initialIsReady) {
+            // Hard reload so the server-rendered BookReader section mounts
+            // correctly — soft refresh can leave isReady stale, especially
+            // when the orientation changes during the transition.
+            window.location.reload();
+            return;
+          }
           router.refresh();
           if (Date.now() >= pollUntil) {
             window.clearInterval(interval);

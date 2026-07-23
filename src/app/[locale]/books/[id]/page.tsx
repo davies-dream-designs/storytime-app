@@ -257,7 +257,7 @@ export default async function BookProjectPage({
         ) : null}
 
         {/* Build progress panel */}
-        <BookStatusPanel initialProject={project} />
+        <BookStatusPanel initialProject={project} initialIsReady={isReady} />
 
         {/* Purchase tiers — shown when book is ready */}
         {isReady ? (

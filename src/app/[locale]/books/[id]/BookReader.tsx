@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { BookProject, BookSpread } from "@/types/printBook";
 import {
   DEFAULT_NARRATION_VOICE_ID,
@@ -57,7 +57,7 @@ function getReaderSpreads(project: BookProject): ReaderSpread[] {
 }
 
 export default function BookReader({ project }: { project: BookProject }) {
-  const spreads = getReaderSpreads(project);
+  const spreads = useMemo(() => getReaderSpreads(project), [project]);
   const [index, setIndex] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
 
@@ -378,13 +378,43 @@ export default function BookReader({ project }: { project: BookProject }) {
             <p className="text-sm font-bold text-white/60">
               {index + 1} / {total}
             </p>
-            <button
-              onClick={() => setFullscreen(false)}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
-              aria-label="Close"
-            >
-              ✕
-            </button>
+            <div className="flex items-center gap-2">
+              {canNarrate ? (
+                <button
+                  onClick={() => {
+                    if (narrating) {
+                      setNarrating(false);
+                      stopAudio();
+                    } else {
+                      setNarrating(true);
+                    }
+                  }}
+                  disabled={isLoadingAudio}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-50"
+                  aria-label={narrating ? "Pause narration" : "Listen"}
+                >
+                  {isLoadingAudio ? (
+                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : narrating ? (
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                      <rect x="4" y="3" width="4" height="14" rx="1" />
+                      <rect x="12" y="3" width="4" height="14" rx="1" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 translate-x-0.5">
+                      <path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                    </svg>
+                  )}
+                </button>
+              ) : null}
+              <button
+                onClick={() => setFullscreen(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
           {/* Image */}
@@ -456,6 +486,31 @@ export default function BookReader({ project }: { project: BookProject }) {
               <p className="font-display text-base leading-relaxed text-white/90">
                 {pageText}
               </p>
+            </div>
+          ) : null}
+
+          {/* Voice picker (fullscreen) */}
+          {canNarrate ? (
+            <div className="flex items-center gap-2 overflow-x-auto px-4 pb-1 [&::-webkit-scrollbar]:hidden">
+              {NARRATION_VOICES.map((v) => (
+                <button
+                  key={v.id}
+                  onClick={() => {
+                    setSelectedVoiceId(v.id);
+                    if (narrating) {
+                      stopAudio();
+                      setNarrating(true);
+                    }
+                  }}
+                  className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    selectedVoiceId === v.id
+                      ? "bg-white text-black"
+                      : "bg-white/10 text-white hover:bg-white/20"
+                  }`}
+                >
+                  {v.label}
+                </button>
+              ))}
             </div>
           ) : null}
 

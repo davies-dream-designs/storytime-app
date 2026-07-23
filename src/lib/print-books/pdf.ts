@@ -1,6 +1,7 @@
 import { readFile } from "fs/promises";
 import path from "path";
 import fontkit from "@pdf-lib/fontkit";
+import sharp from "sharp";
 import {
   PDFDocument,
   clip,
@@ -38,6 +39,7 @@ const FULL_BLEED_TEXT_SAFE_MARGIN =
   BOOK_SPEC.fullBleedTextSafeMarginIn * POINTS_PER_INCH;
 const BRAND_PURPLE = rgb(0.17, 0.13, 0.39);
 const BRAND_LILAC = rgb(0.53, 0.46, 0.9);
+const PDF_MAX_RASTER_PPI = 450;
 
 type PdfPageGeometry = {
   pageWidth: number;
@@ -413,13 +415,66 @@ async function loadImageBytes(
   };
 }
 
-async function embedSpreadImage(pdfDoc: PDFDocument, imageUrl?: string) {
+async function resizeRasterForPdf(input: {
+  bytes: Uint8Array;
+  kind: "png" | "jpg";
+  maxDrawWidthPt: number;
+  maxDrawHeightPt: number;
+}): Promise<{ bytes: Uint8Array; kind: "png" | "jpg" }> {
+  const { bytes, kind, maxDrawWidthPt, maxDrawHeightPt } = input;
+  const maxWidth = Math.max(
+    1,
+    Math.floor((maxDrawWidthPt / POINTS_PER_INCH) * PDF_MAX_RASTER_PPI)
+  );
+  const maxHeight = Math.max(
+    1,
+    Math.floor((maxDrawHeightPt / POINTS_PER_INCH) * PDF_MAX_RASTER_PPI)
+  );
+  const metadata = await sharp(bytes).metadata();
+  if (
+    !metadata.width ||
+    !metadata.height ||
+    (metadata.width <= maxWidth && metadata.height <= maxHeight)
+  ) {
+    return input;
+  }
+
+  const resized = sharp(bytes).resize({
+    width: maxWidth,
+    height: maxHeight,
+    fit: "inside",
+    withoutEnlargement: true,
+  });
+  const output =
+    kind === "png"
+      ? await resized.png().toBuffer()
+      : await resized.jpeg({ quality: 92, mozjpeg: true }).toBuffer();
+
+  return { bytes: Uint8Array.from(output), kind };
+}
+
+async function embedRasterImage(
+  pdfDoc: PDFDocument,
+  imageSource: { bytes: Uint8Array; kind: "png" | "jpg" },
+  maxDrawSize?: { maxDrawWidthPt: number; maxDrawHeightPt: number }
+) {
+  const source = maxDrawSize
+    ? await resizeRasterForPdf({ ...imageSource, ...maxDrawSize })
+    : imageSource;
+  return source.kind === "png"
+    ? pdfDoc.embedPng(source.bytes)
+    : pdfDoc.embedJpg(source.bytes);
+}
+
+async function embedSpreadImage(
+  pdfDoc: PDFDocument,
+  imageUrl?: string,
+  maxDrawSize?: { maxDrawWidthPt: number; maxDrawHeightPt: number }
+) {
   if (!imageUrl) return null;
   const imageSource = await loadImageBytes(imageUrl);
   if (!imageSource) return null;
-  return imageSource.kind === "png"
-    ? pdfDoc.embedPng(imageSource.bytes)
-    : pdfDoc.embedJpg(imageSource.bytes);
+  return embedRasterImage(pdfDoc, imageSource, maxDrawSize);
 }
 
 async function getBrandLogoBytes(variant: "light" | "dark") {
@@ -451,7 +506,11 @@ async function drawBrandWordmark(input: {
 }) {
   const { pdfDoc, page, variant, x, y, iconSize, font } = input;
   const bytes = await getBrandLogoBytes(variant);
-  const image = await pdfDoc.embedPng(bytes);
+  const image = await embedRasterImage(
+    pdfDoc,
+    { bytes, kind: "png" },
+    { maxDrawWidthPt: iconSize, maxDrawHeightPt: iconSize }
+  );
   const iconHeight = iconSize * (image.height / image.width);
   page.drawImage(image, { x, y, width: iconSize, height: iconHeight });
   const fontSize = Math.round(iconSize * 0.56);
@@ -701,7 +760,11 @@ async function drawSpreadArtIntoRect(input: {
         ? spread.rightPageImageUrl
         : undefined;
   const imageUrl = getSpreadArtUrl(spread, side);
-  const image = await embedSpreadImage(pdfDoc, imageUrl);
+  const image = await embedSpreadImage(pdfDoc, imageUrl, {
+    maxDrawWidthPt:
+      perPageUrl || side === "cover" ? rect.width : rect.width * 2,
+    maxDrawHeightPt: rect.height,
+  });
 
   if (image) {
     if (perPageUrl || side === "cover") {
@@ -1473,7 +1536,8 @@ async function buildCoverPdf(input: {
   );
   const image = await embedSpreadImage(
     pdfDoc,
-    input.project.assets.coverImageUrl || coverSpread?.imageUrl
+    input.project.assets.coverImageUrl || coverSpread?.imageUrl,
+    { maxDrawWidthPt: pageWidth, maxDrawHeightPt: pageHeight }
   );
   const backCoverX = 0;
   const spineX = pageWidth;
@@ -1513,7 +1577,8 @@ async function buildCoverPdf(input: {
     pdfDoc,
     backCoverSpread?.leftPageImageUrl ??
       backCoverSpread?.rightPageImageUrl ??
-      backCoverSpread?.imageUrl
+      backCoverSpread?.imageUrl,
+    { maxDrawWidthPt: pageWidth, maxDrawHeightPt: pageHeight }
   );
   if (backImage) {
     const backScale = Math.max(

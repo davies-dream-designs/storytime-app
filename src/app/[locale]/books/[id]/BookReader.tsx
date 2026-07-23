@@ -133,15 +133,18 @@ export default function BookReader({ project }: { project: BookProject }) {
         {/* Image panel */}
         {hasImage ? (
           <div
-            className="relative w-full bg-night-900"
+            className="relative w-full bg-night-50"
             style={{ paddingBottom: "100%" }}
           >
-            <ImageProtected
-              src={spread.imageUrl!}
-              alt={spread.title ?? `Page ${index + 1}`}
-              className="absolute inset-0 h-full w-full"
-              onClick={() => setFullscreen(true)}
-            />
+            {/* Wrapper div handles absolute fill — avoids relative/absolute conflict on ImageProtected */}
+            <div className="absolute inset-0">
+              <ImageProtected
+                src={spread.imageUrl!}
+                alt={spread.title ?? `Page ${index + 1}`}
+                className="h-full w-full"
+                onClick={() => setFullscreen(true)}
+              />
+            </div>
             {/* Gradient + title overlay */}
             <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-6 pb-5 pt-10">
               {spread.title ? (

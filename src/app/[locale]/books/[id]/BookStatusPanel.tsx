@@ -561,7 +561,134 @@ export default function BookStatusPanel({
         />
       </div>
 
-      {artworkPreviews.length > 0 ? (
+      {artworkPreviews.length > 0 && displayStatus === "ready" ? (
+        /* Compact thumbnail grid — shown when ready (BookReader handles reading above) */
+        <div className="mt-6">
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-night-400">
+              {completedArtworkCount} of {artworkPreviews.length} illustrations
+            </p>
+            <p className="text-xs font-bold text-night-400">
+              Retry free · Redo finished: 1 credit
+            </p>
+          </div>
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+            {artworkPreviews.map(({ preview, side, url, error }, index) => {
+              const key = `${preview.id}:${side}`;
+              const isRegenerating = regeneratingImage === key;
+              const canRegenerate =
+                !activeJobStatus &&
+                preview.title !== "Cover" &&
+                preview.title !== "Title" &&
+                preview.title !== "Back Cover";
+              const isFreeRetry = Boolean(error) || !url;
+              const displayLabel = `Illustration ${index + 1}`;
+              return (
+                <div
+                  key={key}
+                  className="overflow-hidden rounded-xl border border-night-100 bg-night-50"
+                >
+                  <button
+                    type="button"
+                    onClick={() => (url ? openArtworkPreview(index) : undefined)}
+                    className="block aspect-square w-full overflow-hidden bg-night-100"
+                    aria-label={`Open ${displayLabel}`}
+                  >
+                    {url ? (
+                      <img
+                        src={url}
+                        alt={displayLabel}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-night-100 text-center text-xs font-bold text-night-400">
+                        {error ? "!" : "…"}
+                      </div>
+                    )}
+                  </button>
+                  {canRegenerate ? (
+                    <div className="px-1 py-1.5 text-center">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openRedoPrompt({
+                            spreadId: preview.id,
+                            sequence: preview.sequence,
+                            title: preview.title,
+                            side,
+                            url,
+                            displayLabel,
+                            index,
+                          })
+                        }
+                        disabled={
+                          Boolean(regeneratingImage) || Boolean(activeJobStatus)
+                        }
+                        className="w-full rounded-full bg-white px-1 py-0.5 text-xs font-bold text-night-600 shadow-sm disabled:opacity-50"
+                      >
+                        {isRegenerating
+                          ? "…"
+                          : isFreeRetry
+                            ? "Retry"
+                            : "Redo"}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+          {imageError ? (
+            <p className="mt-3 rounded-xl bg-blush-100 px-4 py-3 text-sm font-bold text-blush-700">
+              {imageError}
+            </p>
+          ) : null}
+          {redoTarget ? (
+            <div className="fixed inset-0 z-50 flex items-end bg-night-900/50 px-4 pb-4 sm:items-center sm:justify-center sm:p-6">
+              <div className="w-full max-w-lg rounded-3xl bg-white p-5 shadow-xl">
+                <h3 className="text-xl font-black text-night-900">
+                  What should change?
+                </h3>
+                <p className="mt-2 text-sm font-medium text-night-500">
+                  We will keep the same story moment, character details, and
+                  style, then add your correction to the redo prompt.
+                </p>
+                <textarea
+                  value={redoCorrectionNote}
+                  onChange={(event) =>
+                    setRedoCorrectionNote(event.target.value.slice(0, 500))
+                  }
+                  rows={4}
+                  className="mt-4 w-full rounded-2xl border border-night-200 px-4 py-3 text-base font-medium text-night-900 outline-none focus:border-lilac-500"
+                  placeholder="e.g. Make the cape blue, show both boots, remove the extra toy, make Bailey face the bird..."
+                />
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRedoTarget(null);
+                      setRedoCorrectionNote("");
+                    }}
+                    className="rounded-full border border-night-200 bg-white px-5 py-3 text-sm font-bold text-night-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={submitRedoPrompt}
+                    disabled={Boolean(regeneratingImage)}
+                    className="rounded-full bg-night-800 px-5 py-3 text-sm font-bold text-cream-50 disabled:opacity-50"
+                  >
+                    Redo image
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {artworkPreviews.length > 0 && displayStatus !== "ready" ? (
         <div className="mt-6">
           {/* Progress header */}
           <div className="mb-3 flex items-center justify-between gap-4">

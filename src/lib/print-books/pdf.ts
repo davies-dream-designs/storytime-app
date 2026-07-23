@@ -21,7 +21,9 @@ import {
 } from "@/lib/print-books/bookConfig";
 import {
   LULU_HARDCOVER_COVER_PAGE_HEIGHT_IN,
+  LULU_HARDCOVER_COVER_PAGE_WIDTH_IN,
   LULU_HARDCOVER_COVER_PANEL_WIDTH_IN,
+  LULU_HARDCOVER_COVER_SPINE_WIDTH_IN,
   LULU_HARDCOVER_MIN_PAGES,
   LULU_INTERIOR_PDF_PAGE_HEIGHT_IN,
   LULU_INTERIOR_PDF_PAGE_WIDTH_IN,
@@ -1673,9 +1675,7 @@ export async function generateBookPdfs(input: {
   const luluPrintPdfPageCount = luluPrintBytes
     ? (await PDFDocument.load(luluPrintBytes)).getPageCount()
     : undefined;
-  const luluSpine = getBookSpineWidthIn(
-    luluPrintPdfPageCount ?? input.project.pageCount
-  );
+  const luluSpineWidthIn = LULU_HARDCOVER_COVER_SPINE_WIDTH_IN;
 
   const coverPdfUrl = await storeBookAsset({
     pathname: `books/${input.project.id}/cover.pdf`,
@@ -1694,7 +1694,7 @@ export async function generateBookPdfs(input: {
           await buildCoverPdf({
             ...input,
             geometry: LULU_COVER_PDF_GEOMETRY,
-            spineWidthIn: luluSpine.widthIn,
+            spineWidthIn: luluSpineWidthIn,
           })
         ),
         contentType: "application/pdf",
@@ -1724,18 +1724,13 @@ export async function generateBookPdfs(input: {
     printPdfPageHeightIn: BOOK_PDF_PAGE_HEIGHT_IN,
     luluCoverPdfUrl,
     luluCoverPdfPageWidthIn: shouldGenerateLuluPdfs
-      ? Number(
-          (
-            LULU_HARDCOVER_COVER_PANEL_WIDTH_IN * 2 +
-            luluSpine.widthIn
-          ).toFixed(3)
-        )
+      ? LULU_HARDCOVER_COVER_PAGE_WIDTH_IN
       : undefined,
     luluCoverPdfPageHeightIn: shouldGenerateLuluPdfs
       ? LULU_HARDCOVER_COVER_PAGE_HEIGHT_IN
       : undefined,
     luluCoverPdfSpineWidthIn: shouldGenerateLuluPdfs
-      ? luluSpine.widthIn
+      ? luluSpineWidthIn
       : undefined,
     luluPrintPdfUrl,
     luluPrintPdfPageWidthIn: shouldGenerateLuluPdfs

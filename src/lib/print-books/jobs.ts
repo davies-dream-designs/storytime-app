@@ -97,7 +97,8 @@ function clearResolvedGeneratedPageImageErrors(spreads: BookSpread[]) {
   return spreads.map((spread) => {
     if (!isGeneratedPageSpread(spread)) return spread;
     if (!(spread.leftPageImageUrl ?? spread.imageUrl)) return spread;
-    if (!spread.leftPageImageError && !spread.rightPageImageError) return spread;
+    if (!spread.leftPageImageError && !spread.rightPageImageError)
+      return spread;
 
     return {
       ...spread,
@@ -746,6 +747,7 @@ export async function regenerateBookSpreadPageImage(input: {
   userId: string;
   spreadId: string;
   side: "left" | "right";
+  correctionNote?: string;
 }) {
   const project = await db.bookProjects.getById(input.projectId);
   if (!project || project.userId !== input.userId) {
@@ -786,6 +788,7 @@ export async function regenerateBookSpreadPageImage(input: {
       characterBible: project.characterBible,
       spread,
       side: input.side,
+      correctionNote: input.correctionNote,
     });
   } catch (err) {
     const failedSpread: BookSpread = {
@@ -803,12 +806,18 @@ export async function regenerateBookSpreadPageImage(input: {
             : "Image generation failed."
           : spread.rightPageImageError,
     };
+    const failedImagePatch =
+      project.status === "failed"
+        ? {
+            status: "failed" as const,
+            currentStageLabel: "One or more images need to be retried.",
+            errorCode: "illustrating:image_failed",
+            errorMessage:
+              "One or more images failed to generate. Retry only the failed image from the spread review.",
+          }
+        : {};
     await db.bookProjects.update(project.id, {
-      status: "failed",
-      currentStageLabel: "One or more images need to be retried.",
-      errorCode: "illustrating:image_failed",
-      errorMessage:
-        "One or more images failed to generate. Retry only the failed image from the spread review.",
+      ...failedImagePatch,
       spreads: applySpreadIllustration(project.spreads, failedSpread),
     });
     throw err;

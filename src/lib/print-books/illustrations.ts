@@ -792,8 +792,9 @@ function buildRecrartPagePrompt(input: {
   characterBible: CharacterBible;
   spread: BookSpread;
   side: "left" | "right";
+  correctionNote?: string;
 }): string {
-  const { profile, characterBible, spread, side } = input;
+  const { profile, characterBible, spread, side, correctionNote } = input;
 
   const compositionVariants = [
     "wide establishing shot",
@@ -827,6 +828,7 @@ function buildRecrartPagePrompt(input: {
     companions ? `With: ${companions}.` : "",
     `Palette: ${characterBible.palette.slice(0, 60)}.`,
     `Composition: ${compositionHint}.`,
+    correctionNote ? `Correction: ${correctionNote.slice(0, 180)}.` : "",
     "Warm children's picture book. No text in image.",
   ];
 
@@ -868,6 +870,7 @@ function buildPageIllustrationPrompt(input: {
   spread: BookSpread;
   side: "left" | "right";
   omitPageText?: boolean;
+  correctionNote?: string;
 }): string {
   if (getImageProvider() === "recraft") {
     return buildRecrartPagePrompt(input);
@@ -881,6 +884,7 @@ function buildPageIllustrationPrompt(input: {
     spread,
     side,
     omitPageText = true,
+    correctionNote,
   } = input;
   const pageText = side === "left" ? spread.leftPageText : spread.rightPageText;
 
@@ -912,6 +916,11 @@ function buildPageIllustrationPrompt(input: {
     `Main child: ${profile.name}.`,
     `Age band: ${project.ageBand}.`,
     `Spread sequence: ${spread.sequence}, ${side} page.`,
+    ...(correctionNote
+      ? [
+          `User correction for this redo: ${correctionNote}. Apply this correction while preserving the character bible, story moment, and art style.`,
+        ]
+      : []),
     // Variation is the critical instruction — stated explicitly.
     "Illustrate this specific story moment. The depicted scene, character action, setting detail, and emotional tone must match the illustration direction above. This image must look meaningfully different from every other page in the book. Keep only the child's face shape, hair colour, skin tone, and core outfit exactly consistent. No text, lettering, or page numbers inside the art.",
   ].join(" ");
@@ -1321,6 +1330,7 @@ export async function generateSpreadPageIllustration(input: {
   characterBible: CharacterBible;
   spread: BookSpread;
   side: "left" | "right";
+  correctionNote?: string;
 }): Promise<{ url: string; provider: "openai" | "placeholder" }> {
   const { project, spread, side } = input;
   const suffix = side === "left" ? "-left" : "-right";

@@ -14,6 +14,7 @@ import type { BookProject } from "@/types/printBook";
 type RegenerateImagePayload = {
   spreadId?: string;
   side?: "left" | "right";
+  correctionNote?: string;
 };
 
 function isPlaceholderImageUrl(url?: string): boolean {
@@ -44,6 +45,10 @@ export async function POST(
       { status: 400 }
     );
   }
+  const correctionNote =
+    typeof payload.correctionNote === "string"
+      ? payload.correctionNote.trim().slice(0, 500)
+      : undefined;
 
   let charged = false;
   let reservedBookCharge = false;
@@ -86,12 +91,14 @@ export async function POST(
       reservedBookCharge = true;
     }
 
-    const project = await regenerateBookSpreadPageImage({
+    const regenerateInput = {
       projectId: id,
       userId,
       spreadId: payload.spreadId,
       side,
-    });
+      ...(correctionNote ? { correctionNote } : {}),
+    };
+    const project = await regenerateBookSpreadPageImage(regenerateInput);
     if (!project) throw new Error("Book project not found");
 
     if (project.billing?.status === "reserved" && project.status === "ready") {

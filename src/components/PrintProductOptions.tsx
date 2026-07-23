@@ -14,12 +14,14 @@ export default function PrintProductOptions({
   project,
   orderingAvailable,
 }: {
-  project: Pick<BookProject, "id" | "pageCount">;
+  project: Pick<BookProject, "id" | "pageCount" | "assets">;
   orderingAvailable: boolean;
 }) {
-  const quotes = getPrintProductQuotes(project).filter(
-    (quote) => quote.key === "hardcover"
-  );
+  const effectivePageCount =
+    project.assets.luluPrintPdfPageCount ?? project.pageCount;
+  const quotes = getPrintProductQuotes({
+    pageCount: effectivePageCount,
+  }).filter((quote) => quote.key === "hardcover");
 
   return (
     <div className="flex flex-col gap-4">

@@ -1557,6 +1557,11 @@ async function buildCoverPdf(input: {
   const coverSafeY = wrap + 45; // 45pt safety from the fold line
   const coverSafeX = wrap + 45; // same margin applies horizontally
 
+  // Horizontal safe edge for content: outer left (back) and outer right (front)
+  const backSafeX = backCoverX + coverSafeX;
+  const frontSafeX = frontCoverX + coverSafeX;
+  const frontSafeWidth = pageWidth - coverSafeX * 2;
+
   page.drawRectangle({
     x: 0,
     y: 0,
@@ -1648,11 +1653,6 @@ async function buildCoverPdf(input: {
       variant: 1,
     });
   }
-
-  // Horizontal safe edge for content: outer left (back) and outer right (front)
-  const backSafeX = backCoverX + coverSafeX;
-  const frontSafeX = frontCoverX + coverSafeX;
-  const frontSafeWidth = pageWidth - coverSafeX * 2;
 
   await drawBrandWordmark({
     pdfDoc,

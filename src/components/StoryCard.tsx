@@ -83,6 +83,7 @@ export default function StoryCard({
               size: "compact",
               className: "flex-1",
             })}
+            style={{ backgroundColor: theme.accent }}
           >
             {labels.read}
           </Link>

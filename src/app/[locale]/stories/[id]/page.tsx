@@ -58,80 +58,97 @@ export default async function StoryPage({
     <>
       <Nav />
       <main className="mx-auto max-w-4xl px-5 py-10">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <Link
-                href="/stories"
-                className="text-sm text-night-400 hover:text-night-600"
-              >
-                {t("backToLibrary")}
-              </Link>
-              <span className="text-night-300">·</span>
-              {profile && (
+        <div className="mb-6">
+          {/* Title row + action buttons */}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
                 <Link
-                  href={`/profiles/${profile.id}` as string}
-                  className="text-sm text-star-500 hover:text-star-600"
+                  href="/stories"
+                  className="text-sm text-night-400 hover:text-night-600"
                 >
-                  {story.profileName}
+                  {t("backToLibrary")}
                 </Link>
+                <span className="text-night-300">·</span>
+                {profile && (
+                  <Link
+                    href={`/profiles/${profile.id}` as string}
+                    className="text-sm text-star-500 hover:text-star-600"
+                  >
+                    {story.profileName}
+                  </Link>
+                )}
+              </div>
+              <h1 className="font-display text-3xl font-bold text-night-800 sm:text-4xl">
+                {isReady ? story.title : t("streamingTitle")}
+              </h1>
+              <p className="mt-1 text-night-400">
+                {story.theme} ·{" "}
+                {isReady
+                  ? `${t("wordsCount", { count: story.wordCount })} · ${t(
+                      "pagesCount",
+                      { count: story.pages.length }
+                    )} · `
+                  : isFailed
+                    ? `${t("streamingFailed")} · `
+                    : `${t("streamingInProgress")} · `}
+                {new Date(story.createdAt).toLocaleDateString(dateLocale, {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </p>
+            </div>
+
+            {/* Primary actions — compact, no inline estimate boxes */}
+            <div className="flex shrink-0 flex-wrap items-start gap-2">
+              <Link
+                href={`/stories/new?profileId=${story.profileId}` as string}
+                className="storycot-btn storycot-btn-primary"
+              >
+                {t("newStoryButton")}
+              </Link>
+              {isReady && (
+                <>
+                  {existingBook ? (
+                    <Link
+                      href={`/books/${existingBook.id}` as string}
+                      className="storycot-btn storycot-btn-secondary"
+                    >
+                      {t("viewBookButton")}
+                    </Link>
+                  ) : (
+                    <CreatePrintBookButton
+                      storyId={id}
+                      credits={illustrationEstimate.credits}
+                      pageCount={estimatedPageCount}
+                      illustrationCount={estimatedIllustrationCount}
+                      userCredits={userCredits}
+                      isAdmin={isAdmin}
+                      storyPreset={story.storyPreset}
+                      compact
+                    />
+                  )}
+                  <ShareButton storyId={id} />
+                  <DeleteStoryButton storyId={id} redirectTo="/stories" />
+                </>
               )}
             </div>
-            <h1 className="font-display text-3xl font-bold text-night-800 sm:text-4xl">
-              {isReady ? story.title : t("streamingTitle")}
-            </h1>
-            <p className="mt-1 text-night-400">
-              {story.theme} ·{" "}
-              {isReady
-                ? `${t("wordsCount", { count: story.wordCount })} · ${t(
-                    "pagesCount",
-                    { count: story.pages.length }
-                  )} · `
-                : isFailed
-                  ? `${t("streamingFailed")} · `
-                  : `${t("streamingInProgress")} · `}
-              {new Date(story.createdAt).toLocaleDateString(dateLocale, {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
-            </p>
           </div>
-          <div className="flex flex-shrink-0 flex-wrap gap-2">
-            {isReady && (
-              <>
-                <ShareButton storyId={id} />
-                {existingBook ? (
-                  <Link
-                    href={`/books/${existingBook.id}` as string}
-                    className="storycot-btn storycot-btn-secondary"
-                  >
-                    {t("viewBookButton")}
-                  </Link>
-                ) : (
-                  <CreatePrintBookButton
-                    storyId={id}
-                    credits={illustrationEstimate.credits}
-                    pageCount={estimatedPageCount}
-                    illustrationCount={estimatedIllustrationCount}
-                    userCredits={userCredits}
-                    isAdmin={isAdmin}
-                    storyPreset={story.storyPreset}
-                  />
-                )}
-              </>
-            )}
-            <Link
-              href={`/stories/new?profileId=${story.profileId}` as string}
-              className="storycot-btn storycot-btn-primary"
-            >
-              {t("newStoryButton")}
-            </Link>
-            {isReady && (
-              <DeleteStoryButton storyId={id} redirectTo="/stories" />
-            )}
-          </div>
-          {/* Text exports — secondary, collapsed below primary actions */}
+
+          {/* Estimate info — shown below when creating a new book */}
+          {isReady && !existingBook && (
+            <div className="mt-3 max-w-md rounded-2xl border border-star-200 bg-star-50 px-4 py-3 text-sm text-night-600">
+              <p className="font-bold text-night-800">Illustration estimate</p>
+              <p className="mt-1">
+                {illustrationEstimate.credits} credits ·{" "}
+                {estimatedPageCount} pages · {estimatedIllustrationCount}{" "}
+                illustrations
+              </p>
+            </div>
+          )}
+
+          {/* Text exports — secondary row, always below the title row */}
           {isReady && (
             <div className="mt-3 flex flex-wrap gap-2">
               <DownloadLink

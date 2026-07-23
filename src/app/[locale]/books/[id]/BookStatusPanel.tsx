@@ -468,6 +468,9 @@ export default function BookStatusPanel({
     if (res.ok) {
       const next = (await res.json()) as BookProject;
       setProject(next);
+      // Refresh server render so page.tsx picks up the new non-ready status,
+      // which hides BookReader and avoids the duplicate-reader state during rebuild.
+      router.refresh();
     }
     setRepairingArt(false);
   }

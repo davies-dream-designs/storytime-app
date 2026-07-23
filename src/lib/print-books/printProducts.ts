@@ -122,7 +122,10 @@ export function getAdjustedPageCountForProduct(
   pageCount: number,
   productKey: PrintProductKey
 ): number {
-  void productKey;
+  const product = PRINT_PRODUCTS[productKey];
+  if (pageCount % product.pageStep !== 0) {
+    return pageCount + (product.pageStep - (pageCount % product.pageStep));
+  }
   return pageCount;
 }
 
@@ -130,10 +133,6 @@ function getUnsupportedReason(pageCount: number, productKey: PrintProductKey) {
   const product = PRINT_PRODUCTS[productKey];
   if (productKey === "layflat") {
     return "Layflat is temporarily unavailable in Australia while we source a local print route.";
-  }
-
-  if (pageCount % product.pageStep !== 0) {
-    return `${product.label} requires an even number of print pages. This story has ${pageCount}.`;
   }
 
   if (pageCount < product.minPageCount) {

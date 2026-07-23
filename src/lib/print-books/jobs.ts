@@ -120,6 +120,8 @@ function userMessageForErrorCode(errorCode: string): string {
     return "The character setup didn't finish. Retry to pick up where it left off.";
   if (errorCode.startsWith("illustrating"))
     return "Illustrations didn't finish generating. Retry and we'll pick up from where it stopped.";
+  if (errorCode.startsWith("proofing"))
+    return "Export refresh didn't finish. Your book is still available; refresh the PDFs again to retry.";
   return "The illustrated book didn't finish. Your credits have been refunded. Hit retry to try again.";
 }
 
@@ -154,6 +156,37 @@ async function markJobProjectFailure(
     }),
     db.bookProjects.addToFailedIndex(project.id),
   ]);
+}
+
+async function markExportJobFailure(
+  project: BookProject,
+  jobId: string,
+  errorCode: string,
+  message: string
+) {
+  await db.bookProjects.update(project.id, {
+    status: project.status,
+    currentStageLabel:
+      project.status === "ready"
+        ? getBookProjectStageLabel("ready")
+        : project.currentStageLabel,
+    errorCode,
+    errorMessage: userMessageForErrorCode(errorCode),
+    rawError: message,
+    assets: {
+      ...project.assets,
+      activeJobId: undefined,
+      activeJobMode: undefined,
+      activeJobStatus: undefined,
+      activeJobUpdatedAt: undefined,
+    },
+  });
+
+  await db.bookBuildJobs.update(jobId, {
+    status: "failed",
+    errorMessage: message,
+    completedAt: getNowIso(),
+  });
 }
 
 async function loadBuildContext(project: BookProject) {
@@ -927,7 +960,9 @@ export async function enqueueBookBuildJob(input: {
           ? "illustrating"
           : input.mode === "finalize"
             ? "proofing"
-            : "composing",
+            : input.mode === "exports"
+              ? billableProject.status
+              : "composing",
     currentStageLabel: getQueuedStageLabel(input.mode, billableProject),
     errorCode: undefined,
     errorMessage: undefined,
@@ -1137,7 +1172,11 @@ export async function processBookBuildJob(jobId: string) {
                 ? "illustrating_failed"
                 : "proofing_failed";
 
-    await markJobProjectFailure(project, job.id, failureCode, message);
+    if (runningJob.mode === "finalize" || runningJob.mode === "exports") {
+      await markExportJobFailure(project, job.id, failureCode, message);
+    } else {
+      await markJobProjectFailure(project, job.id, failureCode, message);
+    }
     throw error;
   }
 }

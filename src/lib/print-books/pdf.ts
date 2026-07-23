@@ -135,7 +135,7 @@ type PlaceholderTheme = {
 type PlaceholderVariant = 0 | 1 | 2;
 
 function sanitizeText(value: string): string {
-  return value.replace(/\s+/g, " ").trim();
+  return value.replace(/\s*—\s*/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function clampText(value: string, maxLength: number): string {
@@ -208,7 +208,7 @@ export function fitWrappedTextToBox(input: {
   }
 
   for (const size of sizes) {
-    const lineHeight = Math.ceil(size * 1.28);
+    const lineHeight = Math.ceil(size * 1.5);
     const lines = wrapTextToWidth({ text, font, size, maxWidth });
     if (lines.length * lineHeight + paddingY <= maxHeight) {
       return { lines, size, lineHeight, truncated: false };
@@ -216,7 +216,7 @@ export function fitWrappedTextToBox(input: {
   }
 
   const size = minSize;
-  const lineHeight = Math.ceil(size * 1.28);
+  const lineHeight = Math.ceil(size * 1.5);
   const maxLines = Math.max(1, Math.floor((maxHeight - paddingY) / lineHeight));
   const lines = wrapTextToWidth({ text, font, size, maxWidth }).slice(
     0,
@@ -1247,43 +1247,44 @@ async function drawLuluTextPage(input: {
   const theme = pickPlaceholderTheme(story);
   drawPageBackground(page, pageWidth, pageHeight, theme.paper);
 
+  const brandIconSize = 28;
   await drawBrandWordmark({
     pdfDoc,
     page,
     variant: "dark",
     x: textSafeMargin,
-    y: pageHeight - textSafeMargin - 30,
-    iconSize: 30,
+    y: pageHeight - textSafeMargin - brandIconSize,
+    iconSize: brandIconSize,
     font: sans,
   });
 
   const text = getTextPageDisplayText(spread);
   const textWidth = pageWidth - textSafeMargin * 2;
-  if (spread.title) {
-    page.drawText(spread.title, {
-      x: textSafeMargin,
-      y: pageHeight - textSafeMargin - 104,
-      font: serifBold,
-      size: 18,
-      color: theme.ink,
-    });
-  }
 
   if (text) {
+    const availableTop = pageHeight - textSafeMargin - brandIconSize - 24;
+    const availableBottom = textSafeMargin + 28;
+    const availableHeight = availableTop - availableBottom;
+
     const fittedText = fitWrappedTextToBox({
       text,
       font: serif,
       maxWidth: textWidth,
-      maxHeight: pageHeight * 0.66,
+      maxHeight: availableHeight,
       paddingY: 0,
-      preferredSize: 20,
-      minSize: 11,
+      preferredSize: 26,
+      minSize: 16,
     });
+
+    const textBlockHeight = fittedText.lines.length * fittedText.lineHeight;
+    const centeredTopY =
+      availableBottom + (availableHeight + textBlockHeight) / 2;
+
     drawWrappedText({
       page,
       text,
       x: textSafeMargin,
-      topY: pageHeight - textSafeMargin - 134,
+      topY: centeredTopY,
       maxWidth: textWidth,
       lineHeight: fittedText.lineHeight,
       font: serif,
@@ -1543,6 +1544,13 @@ async function buildCoverPdf(input: {
   const spineX = pageWidth;
   const frontCoverX = pageWidth + coverSpineWidth;
 
+  // For Lulu hardcover casewrap, the cover sheet is taller than the trim to
+  // allow the paper to fold over the board edges. Anything closer to the edge
+  // than this wrapSafeY will be folded out of sight or distorted.
+  const trimHeightPt = BOOK_SPEC.trimHeightIn * POINTS_PER_INCH;
+  const wrapY = Math.max(0, (pageHeight - trimHeightPt) / 2);
+  const coverSafeY = wrapY + 45; // 45pt safety from the fold line
+
   page.drawRectangle({
     x: 0,
     y: 0,
@@ -1640,36 +1648,40 @@ async function buildCoverPdf(input: {
     page,
     variant: "light",
     x: frontCoverX + BLEED + 30,
-    y: pageHeight - 62,
+    y: pageHeight - coverSafeY - 36,
     iconSize: 36,
     font: sansBold,
   });
+
+  const titleBandTop = pageHeight - coverSafeY - 86;
+  const titleBandHeight = 148;
   page.drawRectangle({
     x: frontCoverX + BLEED + 24,
-    y: pageHeight - 232,
+    y: titleBandTop - titleBandHeight,
     width: pageWidth - (BLEED + 24) * 2,
-    height: 148,
+    height: titleBandHeight,
     color: BRAND_PURPLE,
     opacity: image ? 0.48 : 0.82,
   });
   page.drawText(input.story.title, {
     x: frontCoverX + BLEED + 42,
-    y: pageHeight - 148,
+    y: titleBandTop - 66,
     font: serifBold,
     size: 28,
     color: rgb(0.99, 0.96, 0.88),
   });
   page.drawText(`Created for ${input.profile.name}`, {
     x: frontCoverX + BLEED + 42,
-    y: pageHeight - 184,
+    y: titleBandTop - 102,
     font: serif,
     size: 16,
     color: rgb(0.97, 0.92, 0.82),
   });
 
+  const backBlurbTop = pageHeight - coverSafeY - 116;
   page.drawText("A personalised story from Storycot", {
     x: backCoverX + BLEED + 42,
-    y: pageHeight - 116,
+    y: backBlurbTop,
     font: sansBold,
     size: 13,
     color: theme.ink,
@@ -1681,7 +1693,7 @@ async function buildCoverPdf(input: {
       360
     ),
     x: backCoverX + BLEED + 42,
-    topY: pageHeight - 148,
+    topY: backBlurbTop - 32,
     maxWidth: pageWidth * 0.56,
     lineHeight: 18,
     font: serif,
@@ -1689,9 +1701,10 @@ async function buildCoverPdf(input: {
     color: rgb(0.24, 0.26, 0.32),
   });
 
+  const footerY = coverSafeY + 56;
   page.drawRectangle({
     x: backCoverX + BLEED + 42,
-    y: 56,
+    y: footerY,
     width: pageWidth - (BLEED + 42) * 2,
     height: 110,
     color: rgb(1, 1, 1),
@@ -1699,21 +1712,21 @@ async function buildCoverPdf(input: {
   });
   page.drawText("Personalised for bedtime reading", {
     x: backCoverX + BLEED + 58,
-    y: 138,
+    y: footerY + 82,
     font: sansBold,
     size: 11,
     color: theme.skyAccent,
   });
   page.drawText(BOOK_SPEC.trimLabel, {
     x: backCoverX + BLEED + 58,
-    y: 118,
+    y: footerY + 62,
     font: sans,
     size: 10,
     color: rgb(0.34, 0.35, 0.4),
   });
   page.drawText("Create your own at storycot.com", {
     x: backCoverX + BLEED + 58,
-    y: 96,
+    y: footerY + 40,
     font: sansBold,
     size: 10,
     color: BRAND_LILAC,

@@ -1,4 +1,4 @@
-import { del, put } from "@vercel/blob";
+import { del, list, put } from "@vercel/blob";
 import type { BookProject } from "@/types/printBook";
 
 type ResolvedBlobConfig =
@@ -95,6 +95,22 @@ export async function storeBookAsset(input: {
   });
 
   return blob.url;
+}
+
+// Returns the public URL if a blob already exists at pathname, null otherwise.
+export async function findBookAsset(pathname: string): Promise<string | null> {
+  const blobConfig = resolveBlobConfig();
+  if (!blobConfig) return null;
+  try {
+    const { blobs } = await list({
+      prefix: pathname,
+      limit: 1,
+      ...getBlobCommandOptions(blobConfig),
+    });
+    return blobs[0]?.url ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function getBlobCommandOptions(blobConfig: Exclude<ResolvedBlobConfig, null>) {

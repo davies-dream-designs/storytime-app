@@ -7,6 +7,10 @@ import {
   generateNarration,
   isNarrationConfigured,
 } from "@/lib/elevenlabs";
+import {
+  findBookAsset,
+  storeBookAsset,
+} from "@/lib/print-books/storage";
 
 export async function GET(
   req: NextRequest,
@@ -51,13 +55,21 @@ export async function GET(
       { status: 400 }
     );
 
-  const audio = await generateNarration(text, voiceId);
+  const pathname = `books/${id}/audio/${spreadId}-${voiceId}.mp3`;
 
-  return new NextResponse(audio.buffer as ArrayBuffer, {
-    headers: {
-      "Content-Type": "audio/mpeg",
-      "Cache-Control": "public, max-age=86400, immutable",
-      "Content-Length": String(audio.length),
-    },
+  // Return cached blob if it already exists
+  const cached = await findBookAsset(pathname);
+  if (cached) {
+    return NextResponse.redirect(cached, { status: 302 });
+  }
+
+  // Generate and cache
+  const audio = await generateNarration(text, voiceId);
+  const audioUrl = await storeBookAsset({
+    pathname,
+    body: audio,
+    contentType: "audio/mpeg",
   });
+
+  return NextResponse.redirect(audioUrl, { status: 302 });
 }

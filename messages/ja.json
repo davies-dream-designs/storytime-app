@@ -450,7 +450,7 @@
     "repairArtButton": "イラストを再生成する",
     "repairingArtButton": "再生中…",
     "downloadStarting": "ダウンロードを開始しています…",
-    "deleteBook": "PDFのイラストを削除",
+    "deleteBook": "本を削除",
     "deleteConfirm": "このイラスト付き PDF/本のプロジェクトを削除しますか?オリジナルのストーリーはあなたのライブラリに残ります。",
     "deleting": "削除中…",
     "deleteError": "この PDF のイラストは削除できませんでした。",

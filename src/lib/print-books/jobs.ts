@@ -27,6 +27,7 @@ import {
 } from "@/lib/credits";
 import { runStorycotPrintProofing } from "@/lib/print-books/proofing";
 import { BOOK_SPEC } from "@/lib/print-books/bookConfig";
+import { getEffectiveBookProjectStatus } from "@/lib/print-books/readiness";
 import { getBookProjectStageLabel } from "@/lib/print-books/status";
 import { sendBookReadyEmail } from "@/lib/email";
 import type {
@@ -977,6 +978,7 @@ export async function enqueueBookBuildJob(input: {
 
   await db.bookBuildJobs.create(job);
 
+  const effectiveProjectStatus = getEffectiveBookProjectStatus(billableProject);
   const updatedProject = await db.bookProjects.update(billableProject.id, {
     status:
       input.mode === "full"
@@ -986,7 +988,7 @@ export async function enqueueBookBuildJob(input: {
           : input.mode === "finalize"
             ? "proofing"
             : input.mode === "exports"
-              ? billableProject.status
+              ? effectiveProjectStatus
               : "composing",
     currentStageLabel: getQueuedStageLabel(input.mode, billableProject),
     errorCode: undefined,

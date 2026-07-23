@@ -8,6 +8,7 @@ import {
   getBookProjectDisplayStageLabel,
   getBookProjectProgress,
 } from "@/lib/print-books/status";
+import { hasResolvedImageFailure } from "@/lib/print-books/readiness";
 import type { BookProject } from "@/types/printBook";
 
 type SpreadPreview = {
@@ -450,15 +451,17 @@ export default function BookStatusPanel({
     setRepairingArt(false);
   }
 
-  const progress = getBookProjectProgress(project);
   const failedImageTargets = getFailedImageTargets(spreadPreviews);
-  const hasResolvedImageFailure =
-    project.status === "failed" &&
-    project.errorCode === "illustrating:image_failed" &&
-    failedImageTargets.length === 0 &&
-    artworkPreviews.every((preview) => preview.url);
-  const displayStatus = hasResolvedImageFailure ? "ready" : project.status;
-  const displayProject = hasResolvedImageFailure
+  const hasLocallyResolvedImageFailure =
+    hasResolvedImageFailure(project) ||
+    (project.status === "failed" &&
+      project.errorCode === "illustrating:image_failed" &&
+      failedImageTargets.length === 0 &&
+      artworkPreviews.every((preview) => preview.url));
+  const displayStatus = hasLocallyResolvedImageFailure
+    ? "ready"
+    : project.status;
+  const displayProject = hasLocallyResolvedImageFailure
     ? ({
         ...project,
         status: "ready",
@@ -467,6 +470,7 @@ export default function BookStatusPanel({
         errorMessage: undefined,
       } as BookProject)
     : project;
+  const progress = getBookProjectProgress(displayProject);
   const stageLabel = getBookProjectDisplayStageLabel(displayProject);
   const isActiveBuild =
     (displayStatus !== "ready" && displayStatus !== "failed") ||

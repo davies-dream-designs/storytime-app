@@ -12,6 +12,7 @@ import {
   canStartPrintCheckout,
   PRINT_ORDERING_COMING_SOON_MESSAGE,
 } from "@/lib/print-books/launch";
+import { getEffectiveBookProjectStatus } from "@/lib/print-books/readiness";
 import { getBookFileRetentionState } from "@/lib/print-books/retention";
 import BookStatusPanel from "./BookStatusPanel";
 import PrintFulfillmentResendButton from "./PrintFulfillmentResendButton";
@@ -44,6 +45,7 @@ export default async function BookProjectPage({
   const user = await client.users.getUser(userId);
   const isAdmin = user.privateMetadata.isAdmin === true;
   const printOrderingAvailable = canStartPrintCheckout(isAdmin);
+  const effectiveProjectStatus = getEffectiveBookProjectStatus(project);
 
   const hasPrintPdf = Boolean(project.assets.printPdfUrl);
   const hasEpub = Boolean(project.assets.epubUrl);
@@ -73,12 +75,12 @@ export default async function BookProjectPage({
             </Link>
           </div>
           <h1 className="font-display text-4xl font-bold text-night-800">
-            {project.status === "ready"
+            {effectiveProjectStatus === "ready"
               ? t("illustratedPdfReadyTitle")
               : t("illustratedPdfTitle")}
           </h1>
           <p className="mt-2 text-night-500">
-            {project.status === "ready"
+            {effectiveProjectStatus === "ready"
               ? t("illustratedPdfReadyPageSub", { title: story.title })
               : t("illustratedPdfPageSub", { title: story.title })}
           </p>
@@ -295,7 +297,7 @@ export default async function BookProjectPage({
 
         <BookStatusPanel initialProject={project} />
 
-        {project.status === "ready" ? (
+        {effectiveProjectStatus === "ready" ? (
           <section className="mt-8 rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
             <h2 className="font-display text-2xl font-bold text-night-800">
               {t("printOptionsTitle")}

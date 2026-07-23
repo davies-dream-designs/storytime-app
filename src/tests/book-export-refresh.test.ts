@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BookBuildJob, BookProject } from "@/types/printBook";
 
-const { store, mockGenerateBookEpub, mockGenerateBookPdfs } = vi.hoisted(() => ({
-  store: new Map<string, unknown>(),
-  mockGenerateBookEpub: vi.fn(),
-  mockGenerateBookPdfs: vi.fn(),
-}));
+const { store, mockGenerateBookEpub, mockGenerateBookPdfs } = vi.hoisted(
+  () => ({
+    store: new Map<string, unknown>(),
+    mockGenerateBookEpub: vi.fn(),
+    mockGenerateBookPdfs: vi.fn(),
+  })
+);
 
 vi.mock("@vercel/kv", () => ({
   kv: {
@@ -152,6 +154,36 @@ describe("book export refresh jobs", () => {
     expect(result.project.currentStageLabel).toBe(
       "Queued to refresh export files..."
     );
+    expect(result.project.assets.activeJobMode).toBe("exports");
+    expect(result.project.assets.activeJobStatus).toBe("queued");
+  });
+
+  it("normalizes repaired image-failed books while export refresh is queued", async () => {
+    const { db } = await import("@/lib/db");
+    const { enqueueBookBuildJob } = await import("@/lib/print-books/jobs");
+    const project = {
+      ...createReadyProject(),
+      status: "failed" as const,
+      errorCode: "illustrating:image_failed",
+      currentStageLabel: "One or more images need to be retried.",
+      spreads: createReadyProject().spreads.map((spread) => ({
+        ...spread,
+        leftPageImageError: "Previous transient image error",
+      })),
+    };
+    await db.bookProjects.create(project);
+
+    const result = await enqueueBookBuildJob({
+      project,
+      mode: "exports",
+      baseUrl: "http://localhost",
+    });
+
+    expect(result.project.status).toBe("ready");
+    expect(result.project.currentStageLabel).toBe(
+      "Queued to refresh export files..."
+    );
+    expect(result.project.errorCode).toBeUndefined();
     expect(result.project.assets.activeJobMode).toBe("exports");
     expect(result.project.assets.activeJobStatus).toBe("queued");
   });

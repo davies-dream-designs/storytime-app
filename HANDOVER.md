@@ -4,59 +4,77 @@
 **Branch:** `main` / `dev` synced  
 **Live URL:** https://storycot.com  
 **Preview URL:** https://dev.storycot.com  
-**Latest production merge:** `1fedd47 Merge pull request #69 from davies-dream-designs/dev`
+**Latest production merge:** `feat/book-reader-and-purchase-tiers` merged → `dev` → `main` 2026-07-23
 
 ---
 
-## Current Handoff - 2026-07-23 - In-App Reader + Digital Download + Hardcover Tiers
+## Current Handoff - 2026-07-23 - In-App Reader + Digital Download + Hardcover Tiers + Polish
 
-`feat/book-reader-and-purchase-tiers` branch is open as PR #94 against `dev`.
+`feat/book-reader-and-purchase-tiers` merged to `dev` and `main` 2026-07-23.
 
 ### What Changed
 
-- **In-app illustrated book reader:**
-  - `BookReader.tsx` renders each illustrated spread with its image and text in a paginated viewer on the book page.
-  - Tapping an image opens a fullscreen lightbox.
-  - Free for all users who've generated a book with credits — the reader is the "preview."
+- **In-app illustrated book reader (`BookReader.tsx`):**
+  - Paginated card reader with fullscreen lightbox on image tap.
+  - Free for all users — the reader is the in-app "preview."
+  - Landscape fixes: card image capped at `max-h-[70vh]`; fullscreen text panel `max-h-[20vh]`; dots scroll horizontally instead of wrapping.
+  - Fullscreen + rotation bug fixed: when book was building at page load, `window.location.reload()` used instead of `router.refresh()` on completion so `BookReader` always mounts correctly.
+- **Illustrations ZIP download:**
+  - `GET /api/books/[id]/download?asset=illustrationsZip` bundles all artwork into a ZIP using JSZip.
+  - Unlocked alongside PDF/EPUB when digital download is purchased.
 - **Digital download tier ($9.95 AUD):**
-  - `DigitalDownloadSection.tsx` gates illustrated PDF + EPUB downloads behind a one-time Stripe checkout.
-  - `BookAsset` has two new fields: `digitalDownloadUnlockedAt` and `digitalDownloadCheckoutSessionId`.
-  - Stripe checkout route handles `type: "digital_download"` → $9.95 AUD session.
-  - Stripe webhook (`checkoutType === "digital_download"`) sets `digitalDownloadUnlockedAt` on the project.
-  - `download_success` / `download_canceled` query params handled on book page.
-  - Admin users always see downloads without needing to pay.
+  - `DigitalDownloadSection.tsx` gates illustrated PDF, EPUB, and illustrations ZIP behind a one-time Stripe checkout.
+  - `BookAsset` has two new fields: `digitalDownloadUnlockedAt`, `digitalDownloadCheckoutSessionId`.
+  - Stripe webhook sets `digitalDownloadUnlockedAt`; also set on hardcover purchase as a bonus.
+  - Admin users always see downloads without paying.
 - **Hardcover tier ($39.95 AUD):**
-  - Existing Lulu / Stripe print checkout wired up side-by-side with digital download in a 2-column grid.
-  - Book page now presents both tiers under a clear "Get your book" heading.
-- **Book page restructure:**
-  - Header simplified (title + delete button in flex row).
-  - `BookReader` sits above `BookStatusPanel`.
-  - Purchase tiers sit below when `effectiveProjectStatus === "ready"`.
-  - Admin Lulu tools moved to a separate collapsible admin section at the bottom.
+  - Existing Lulu / Stripe print checkout wired up side-by-side with digital download.
+  - Hardcover purchase automatically unlocks digital download (bonus).
+- **Book page (`BookStatusPanel.tsx`) fixes:**
+  - `handleRepairArt` now calls `router.refresh()` after starting a full art rebuild, preventing duplicate BookReader + streaming reader while rebuild is in progress.
+  - `initialIsReady` prop added so the panel can distinguish first-load state from polled state.
+  - Streaming reader (during build) and compact thumbnail grid (when ready) stay in distinct non-overlapping branches.
+- **Story page layout:**
+  - Text export buttons moved outside the `sm:flex-row` container (were incorrectly a third column on desktop).
+  - Button order: New Story → Illustrate/View Book → Share → Delete.
+  - `CreatePrintBookButton` gets a `compact` prop — hides inline estimate box in the header; estimate shown as a tidy row below instead.
+  - Navigation dots (`StoryReader`) scroll horizontally instead of wrapping in landscape.
+  - Card padding reduced on mobile; `min-h` reduced for better landscape fit.
+- **Profiles list:**
+  - Age badge now uses `dateOfBirth`-aware calculation (shows "X months old" for babies) instead of raw `profile.age` integer which showed "Age 0".
+- **Story card (`StoryCard.tsx`):**
+  - Title `h3` has `min-h` set to 2-line height so all card content (profile/date, theme pill, Read button) aligns consistently regardless of title length.
 - **Stale tests fixed:**
-  - `launch.test.ts`, `stripe-checkout.test.ts`, `printProducts.test.ts` updated to match current `canStartPrintCheckout` (always true) and auto-pad-odd-pages behaviour that were changed in prior PRs but tests not updated.
+  - `launch.test.ts`, `stripe-checkout.test.ts`, `printProducts.test.ts` updated.
 
 ### Key Files
 
 | File | Purpose |
 |---|---|
-| `src/app/[locale]/books/[id]/BookReader.tsx` | In-app illustrated spread reader (new) |
-| `src/app/[locale]/books/[id]/DigitalDownloadSection.tsx` | Digital download gate + unlock UI (new) |
-| `src/app/[locale]/books/[id]/page.tsx` | Book page — restructured with reader + purchase tiers |
-| `src/app/api/stripe/checkout/route.ts` | Added `digital_download` checkout type |
-| `src/app/api/stripe/webhook/route.ts` | Added `digital_download` webhook handler |
-| `src/types/printBook.ts` | Added `digitalDownloadUnlockedAt`, `digitalDownloadCheckoutSessionId` to `BookAsset` |
+| `src/app/[locale]/books/[id]/BookReader.tsx` | In-app reader — landscape + fullscreen fixes |
+| `src/app/[locale]/books/[id]/BookStatusPanel.tsx` | Build progress panel — redo-art state fix, initialIsReady prop |
+| `src/app/[locale]/books/[id]/DigitalDownloadSection.tsx` | Digital download gate + unlock UI |
+| `src/app/[locale]/books/[id]/page.tsx` | Book page restructure; passes initialIsReady to panel |
+| `src/app/api/books/[id]/download/route.ts` | Added illustrationsZip handler |
+| `src/app/api/stripe/checkout/route.ts` | Added digital_download checkout type |
+| `src/app/api/stripe/webhook/route.ts` | digital_download + print_book bonus unlock |
+| `src/app/[locale]/stories/[id]/page.tsx` | Story page layout restructure |
+| `src/app/[locale]/stories/[id]/StoryReader.tsx` | Landscape card + dots fix |
+| `src/app/[locale]/stories/[id]/CreatePrintBookButton.tsx` | compact prop added |
+| `src/app/[locale]/profiles/page.tsx` | Age badge uses dateOfBirth |
+| `src/components/StoryCard.tsx` | Title min-h for card alignment symmetry |
+| `src/types/printBook.ts` | digitalDownloadUnlockedAt, digitalDownloadCheckoutSessionId on BookAsset |
 
-### QA Still Worth Doing
+### QA Checklist
 
-- On `dev.storycot.com`, generate an illustrated book and confirm `BookReader` shows spreads with images and prev/next navigation.
-- Tap an illustration — confirm lightbox opens and closes.
-- Click "Unlock digital download — $9.95" — confirm Stripe checkout opens at $9.95 AUD.
-- Complete a test Stripe payment — confirm banner and download buttons appear on return.
-- Cancel checkout — confirm cancel banner appears, no charge.
-- Confirm admin user on a ready book sees downloads without paying.
-- Confirm hardcover card shows $39.95 and checkout button side-by-side with digital download.
-- Confirm print-restricted stories show the restriction message in the hardcover tile.
+- Generate an illustrated book → confirm `BookReader` shows spreads with prev/next and fullscreen.
+- Rotate phone to landscape while reading — confirm image doesn't overflow viewport.
+- Open fullscreen, rotate to landscape, exit — confirm reader still visible.
+- Click "Redo art" — confirm page refreshes to building state, no duplicate reader.
+- Click "Unlock digital download — $9.95" → complete test Stripe payment → confirm PDF, EPUB, and ZIP all downloadable.
+- Purchase hardcover → confirm digital download also unlocked as bonus.
+- Check profiles list — infant profile should show "X months old" not "Age 0".
+- Dashboard story cards — all cards should have Read button at same vertical position regardless of title length.
 
 ---
 

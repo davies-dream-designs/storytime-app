@@ -88,7 +88,7 @@ function createPaidProject(): BookProject {
         countryCode: "AU",
       },
       fulfillment: {
-        provider: "prodigi",
+        provider: "lulu",
         status: "failed",
         message: "Previous submission failed",
       },
@@ -111,7 +111,7 @@ describe("POST /api/admin/print-orders/[id]/resend", () => {
       ...updates,
     }));
     mockSubmitPrintFulfillment.mockResolvedValue({
-      provider: "prodigi",
+      provider: "lulu",
       status: "submitted",
       externalOrderId: "ord_123",
       externalStatus: "received",
@@ -214,7 +214,7 @@ describe("POST /api/admin/print-orders/[id]/resend", () => {
       printOrder: {
         ...createPaidProject().printOrder!,
         fulfillment: {
-          provider: "prodigi",
+          provider: "lulu",
           status: "submitted",
           externalOrderId: "ord_existing",
         },

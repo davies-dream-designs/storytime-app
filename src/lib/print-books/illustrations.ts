@@ -18,33 +18,17 @@ import {
 // Provider selection
 // ---------------------------------------------------------------------------
 
-export type ImageProvider = "openai" | "flux" | "recraft";
-
-export function getImageProvider(): ImageProvider {
-  const val = process.env.IMAGE_PROVIDER?.trim().toLowerCase();
-  if (val === "flux") return "flux";
-  if (val === "recraft") return "recraft";
-  return "openai";
-}
-
 function isOpenAIConfigured(): boolean {
   return Boolean(process.env.OPENAI_API_KEY);
 }
 
-function isFalConfigured(): boolean {
-  return Boolean(process.env.FAL_KEY);
-}
-
-// True when the selected provider has its credentials AND blob storage is ready.
+// True when the provider has its credentials AND blob storage is ready.
 export function isGeneratedIllustrationConfigured(): boolean {
-  if (!isBookAssetStorageConfigured()) return false;
-  const provider = getImageProvider();
-  if (provider === "openai") return isOpenAIConfigured();
-  return isFalConfigured(); // flux and recraft both use FAL_KEY
+  return isBookAssetStorageConfigured() && isOpenAIConfigured();
 }
 
-// Batch API path is disabled — all providers use the per-spread cursor path
-// so the progress grid works and builds complete in minutes rather than hours.
+// Batch API path is disabled — the per-spread cursor path keeps the progress
+// grid live and builds complete in minutes rather than hours.
 export function shouldUseImageBatch(): boolean {
   return false;
 }
@@ -202,10 +186,6 @@ export function buildCoverIllustrationPrompt(input: {
   characterBible: CharacterBible;
   coverSpread?: BookSpread;
 }): string {
-  if (getImageProvider() === "recraft") {
-    return buildRecrartCoverPrompt(input);
-  }
-
   const { story, profile, characterBible, coverSpread } = input;
   const sceneDirection =
     coverSpread?.illustrationPrompt ??
@@ -522,158 +502,10 @@ async function generateOpenAIImage(input: {
 }
 
 // ---------------------------------------------------------------------------
-// FLUX image generation (fal.ai)
-// ---------------------------------------------------------------------------
-
-function getFluxModel(): string {
-  return process.env.FLUX_MODEL?.trim() || "fal-ai/flux/dev";
-}
-
-// Generate one square image via fal.ai's synchronous endpoint. fal returns a
-// hosted image URL which we then download to a Buffer. The NSFW safety checker
-// is disabled: this is an author-controlled tool producing wholesome children's
-// book art, and the checker throws frequent false positives on innocent scenes
-// (the exact problem that made OpenAI unusable here).
-async function generateFluxImage(prompt: string): Promise<Buffer> {
-  const apiKey = process.env.FAL_KEY;
-  if (!apiKey) {
-    throw new Error("FAL_KEY is not configured");
-  }
-
-  const model = getFluxModel();
-  // schnell caps at 12 steps (default 4); dev supports up to 50.
-  const num_inference_steps = model.includes("schnell") ? 4 : 28;
-  const MAX_RETRIES = 3;
-  let lastErrorMessage = "Unknown FLUX image generation error";
-
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
-    const response = await fetch(`https://fal.run/${model}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Key ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        prompt,
-        image_size: "square_hd", // 1024×1024
-        num_images: 1,
-        output_format: "png",
-        enable_safety_checker: false,
-        num_inference_steps,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      lastErrorMessage = `FLUX image generation failed for ${model}: ${response.status} ${errorBody.slice(0, 300)}`;
-
-      // Retry transient rate limits / gateway errors.
-      if (
-        (response.status === 429 || response.status >= 500) &&
-        attempt < MAX_RETRIES - 1
-      ) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, 4000 * (attempt + 1))
-        );
-        continue;
-      }
-      throw new Error(lastErrorMessage);
-    }
-
-    const payload = (await response.json()) as {
-      images?: Array<{ url?: string }>;
-    };
-    const imageUrl = payload.images?.[0]?.url;
-    if (!imageUrl) {
-      throw new Error(`FLUX returned no image for ${model}`);
-    }
-
-    const imageResponse = await fetch(imageUrl);
-    if (!imageResponse.ok) {
-      throw new Error(
-        `FLUX image download failed: ${imageResponse.status} for ${imageUrl}`
-      );
-    }
-    return Buffer.from(await imageResponse.arrayBuffer());
-  }
-
-  throw new Error(lastErrorMessage);
-}
-
-// ---------------------------------------------------------------------------
-// Recraft image generation (fal.ai)
-// ---------------------------------------------------------------------------
-
-// Recraft v3 is purpose-built for illustration and design. Setting style to
-// "digital_illustration" locks in a storybook art aesthetic at the model level
-// so prompts don't need to describe the rendering style — they can focus purely
-// on scene content. Override via RECRAFT_STYLE env var if needed.
-async function generateRecrartImage(prompt: string): Promise<Buffer> {
-  const apiKey = process.env.FAL_KEY;
-  if (!apiKey) throw new Error("FAL_KEY is not configured");
-
-  const style = process.env.RECRAFT_STYLE?.trim() || "digital_illustration";
-  const MAX_RETRIES = 3;
-  let lastErrorMessage = "Unknown Recraft image generation error";
-
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
-    const response = await fetch("https://fal.run/fal-ai/recraft-v3", {
-      method: "POST",
-      headers: {
-        Authorization: `Key ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        prompt,
-        image_size: "square_hd",
-        style,
-        n: 1,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      lastErrorMessage = `Recraft image generation failed: ${response.status} ${errorBody.slice(0, 300)}`;
-
-      if (
-        (response.status === 429 || response.status >= 500) &&
-        attempt < MAX_RETRIES - 1
-      ) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, 4000 * (attempt + 1))
-        );
-        continue;
-      }
-      throw new Error(lastErrorMessage);
-    }
-
-    const payload = (await response.json()) as {
-      images?: Array<{ url?: string }>;
-    };
-    const imageUrl = payload.images?.[0]?.url;
-    if (!imageUrl) throw new Error("Recraft returned no image");
-
-    const imageResponse = await fetch(imageUrl);
-    if (!imageResponse.ok) {
-      throw new Error(
-        `Recraft image download failed: ${imageResponse.status} for ${imageUrl}`
-      );
-    }
-    return Buffer.from(await imageResponse.arrayBuffer());
-  }
-
-  throw new Error(lastErrorMessage);
-}
-
-// ---------------------------------------------------------------------------
 // Provider dispatch
 // ---------------------------------------------------------------------------
 
-// Generate one square base image using the configured provider.
 async function generateBaseImage(prompt: string): Promise<Buffer> {
-  const provider = getImageProvider();
-  if (provider === "flux") return generateFluxImage(prompt);
-  if (provider === "recraft") return generateRecrartImage(prompt);
   return generateOpenAIImage({
     prompt,
     size: BOOK_SPEC.coverIllustrationOpenAISize,
@@ -776,92 +608,6 @@ function requireOpenAIKey(): string {
 // Prompt builders
 // ---------------------------------------------------------------------------
 
-const RECRAFT_PROMPT_LIMIT = 950; // hard cap, Recraft rejects > 1000 chars
-
-function capPrompt(prompt: string): string {
-  return prompt.length > RECRAFT_PROMPT_LIMIT
-    ? prompt.slice(0, RECRAFT_PROMPT_LIMIT - 1).trimEnd()
-    : prompt;
-}
-
-// Recraft has a 1000-char prompt limit, so we build a compact version that
-// prioritises scene content. The illustration style is handled by the model's
-// `style` parameter, so we don't need to describe it in the prompt.
-function buildRecrartPagePrompt(input: {
-  profile: ChildProfile;
-  characterBible: CharacterBible;
-  spread: BookSpread;
-  side: "left" | "right";
-  correctionNote?: string;
-}): string {
-  const { profile, characterBible, spread, side, correctionNote } = input;
-
-  const compositionVariants = [
-    "wide establishing shot",
-    "medium shot at eye level",
-    "close-up on face and hands",
-    "low-angle view",
-    "bird's-eye view",
-    "three-quarter angle",
-    "over-the-shoulder view",
-    "silhouette against lit background",
-  ];
-  const compositionIdx =
-    (spread.sequence * 2 + (side === "right" ? 1 : 0)) %
-    compositionVariants.length;
-  const compositionHint = compositionVariants[compositionIdx];
-
-  // First sentence of each bible field keeps the character readable but short.
-  const appearance =
-    characterBible.childAppearance.split(".")[0]?.trim() ??
-    characterBible.childAppearance;
-  const outfit =
-    characterBible.outfitRules.split(".")[0]?.trim() ??
-    characterBible.outfitRules;
-  const companions = characterBible.companionCharacters.slice(0, 2).join(", ");
-
-  const parts = [
-    spread.illustrationPrompt,
-    spread.sceneBrief,
-    `${profile.name}: ${appearance.slice(0, 100)}.`,
-    `Outfit: ${outfit.slice(0, 80)}.`,
-    companions ? `With: ${companions}.` : "",
-    `Palette: ${characterBible.palette.slice(0, 60)}.`,
-    `Composition: ${compositionHint}.`,
-    correctionNote ? `Correction: ${correctionNote.slice(0, 180)}.` : "",
-    "Warm children's picture book. No text in image.",
-  ];
-
-  return capPrompt(parts.filter(Boolean).join(" "));
-}
-
-function buildRecrartCoverPrompt(input: {
-  story: Story;
-  profile: ChildProfile;
-  characterBible: CharacterBible;
-  coverSpread?: BookSpread;
-}): string {
-  const { story, profile, characterBible, coverSpread } = input;
-
-  const sceneDirection =
-    coverSpread?.illustrationPrompt ??
-    `Front cover for "${story.title}" starring ${profile.name}.`;
-  const appearance =
-    characterBible.childAppearance.split(".")[0]?.trim() ??
-    characterBible.childAppearance;
-  const companions = characterBible.companionCharacters.slice(0, 2).join(", ");
-
-  const parts = [
-    sceneDirection,
-    `${profile.name}: ${appearance.slice(0, 100)}.`,
-    companions ? `With: ${companions}.` : "",
-    `Palette: ${characterBible.palette.slice(0, 60)}.`,
-    `Book: "${story.title}". Children's picture book front cover. Warm bedtime feeling. No text in image.`,
-  ];
-
-  return capPrompt(parts.filter(Boolean).join(" "));
-}
-
 function buildPageIllustrationPrompt(input: {
   project: BookProject;
   story: Story;
@@ -872,10 +618,6 @@ function buildPageIllustrationPrompt(input: {
   omitPageText?: boolean;
   correctionNote?: string;
 }): string {
-  if (getImageProvider() === "recraft") {
-    return buildRecrartPagePrompt(input);
-  }
-
   const {
     project,
     story,
@@ -904,7 +646,6 @@ function buildPageIllustrationPrompt(input: {
   const compositionHint = compositionVariants[compositionIdx];
 
   return [
-    // Scene-specific content leads so FLUX weights the narrative moment first.
     `Illustration direction: ${spread.illustrationPrompt}.`,
     `Scene brief: ${spread.sceneBrief}.`,
     ...(omitPageText ? [] : pageText ? [`Page moment: ${pageText}.`] : []),

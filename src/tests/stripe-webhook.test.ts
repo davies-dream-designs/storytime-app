@@ -114,7 +114,7 @@ describe("Stripe checkout webhook", () => {
     mockDb.bookProjects.getById.mockResolvedValue(createProject());
     mockDb.bookProjects.update.mockResolvedValue(undefined);
     mockSubmitPrintFulfillment.mockResolvedValue({
-      provider: "prodigi",
+      provider: "lulu",
       status: "submitted",
       externalOrderId: "ord_123",
       externalStatus: "received",

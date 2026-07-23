@@ -88,7 +88,8 @@ function hasUnresolvedGeneratedPageImages(spreads: BookSpread[]) {
   return spreads.some(
     (spread) =>
       isGeneratedPageSpread(spread) &&
-      !(spread.leftPageImageUrl ?? spread.imageUrl)
+      (!(spread.leftPageImageUrl ?? spread.imageUrl) ||
+        Boolean(spread.leftPageImageError))
   );
 }
 
@@ -724,12 +725,6 @@ async function advanceExportBuild(
 ) {
   if (!project.spreads.length || !project.assets.coverImageUrl) {
     throw new Error("This book does not have a complete draft to refresh yet.");
-  }
-
-  if (hasUnresolvedGeneratedPageImages(project.spreads)) {
-    throw new Error(
-      "One or more images failed to generate. Retry only the failed image from the spread review."
-    );
   }
 
   const projectForExport: BookProject = {

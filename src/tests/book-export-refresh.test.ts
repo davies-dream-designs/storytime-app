@@ -281,4 +281,68 @@ describe("book export refresh jobs", () => {
     expect(project?.spreads[0]?.leftPageImageError).toBeUndefined();
     expect(project?.assets.activeJobStatus).toBeUndefined();
   });
+
+  it("allows export refresh even when image failure metadata remains unresolved", async () => {
+    const { db } = await import("@/lib/db");
+    const { processBookBuildJob } = await import("@/lib/print-books/jobs");
+    const readyProject = createReadyProject();
+    await db.bookProjects.create({
+      ...readyProject,
+      assets: {
+        ...readyProject.assets,
+        activeJobId: "job-1",
+        activeJobMode: "exports",
+        activeJobStatus: "queued",
+      },
+      spreads: readyProject.spreads.map((spread) => ({
+        ...spread,
+        imageUrl: undefined,
+        leftPageImageUrl: undefined,
+        leftPageImageError: "Image generation failed",
+      })),
+    });
+    await db.stories.create({
+      id: "story-1",
+      userId: "user-1",
+      profileId: "profile-1",
+      profileName: "Bailey",
+      title: "The Garden",
+      pages: [
+        {
+          pageNumber: 1,
+          text: "Once upon a time.",
+          illustrationPrompt: "A sunny garden.",
+        },
+      ],
+      wordCount: 4,
+      theme: "bravery",
+      premise: "A garden story",
+      notes: "",
+      createdAt: "2026-07-20T00:00:00.000Z",
+    });
+    await db.profiles.create({
+      id: "profile-1",
+      userId: "user-1",
+      name: "Bailey",
+      age: 6,
+      favouriteCharacters: [],
+      favouriteActivities: [],
+      favouriteAnimals: [],
+      favouritePlaces: [],
+      lessons: [],
+      createdAt: "2026-07-20T00:00:00.000Z",
+    });
+    await db.bookBuildJobs.create(createExportJob());
+
+    await expect(processBookBuildJob("job-1")).resolves.toMatchObject({
+      shouldContinue: false,
+    });
+
+    const project = await db.bookProjects.getById("book-1");
+    expect(project?.status).toBe("ready");
+    expect(project?.spreads[0]?.leftPageImageError).toBe(
+      "Image generation failed"
+    );
+    expect(project?.assets.activeJobStatus).toBeUndefined();
+  });
 });

@@ -18,7 +18,7 @@ export default function PrintProductOptions({
   orderingAvailable: boolean;
 }) {
   const quotes = getPrintProductQuotes(project).filter(
-    (quote) => quote.key === "hardcover" || quote.key === "softcover"
+    (quote) => quote.key === "hardcover"
   );
 
   return (

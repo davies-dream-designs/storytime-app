@@ -132,6 +132,8 @@ export default function BookStatusPanel({
   const [regeneratingImage, setRegeneratingImage] = useState<string | null>(
     null
   );
+  const [redoTarget, setRedoTarget] = useState<ExpandedImage | null>(null);
+  const [redoCorrectionNote, setRedoCorrectionNote] = useState("");
   const [imageError, setImageError] = useState("");
   const [expandedImage, setExpandedImage] = useState<ExpandedImage | null>(
     null
@@ -343,14 +345,21 @@ export default function BookStatusPanel({
     setRegeneratingExports(false);
   }
 
-  async function handleRegenerateImage(image: ExpandedImage) {
+  async function handleRegenerateImage(
+    image: ExpandedImage,
+    correctionNote = ""
+  ) {
     setRegeneratingImage(`${image.spreadId}:${image.side}`);
     setImageError("");
     const res = await fetch(`/api/books/${project.id}/images/regenerate`, {
       method: "POST",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ spreadId: image.spreadId, side: image.side }),
+      body: JSON.stringify({
+        spreadId: image.spreadId,
+        side: image.side,
+        correctionNote,
+      }),
     });
     const next = await res.json();
 
@@ -380,6 +389,40 @@ export default function BookStatusPanel({
     }
 
     setRegeneratingImage(null);
+  }
+
+  function openRedoPrompt(image: ExpandedImage) {
+    setRedoTarget(image);
+    setRedoCorrectionNote("");
+    setImageError("");
+  }
+
+  async function submitRedoPrompt() {
+    if (!redoTarget) return;
+    const correctionNote = redoCorrectionNote.trim();
+    const targetPreview = spreadPreviews.find(
+      (preview) => preview.id === redoTarget.spreadId
+    );
+    const targetUrl =
+      redoTarget.side === "left"
+        ? targetPreview?.leftPageImageUrl
+        : targetPreview?.rightPageImageUrl;
+    const targetError =
+      redoTarget.side === "left"
+        ? targetPreview?.leftPageImageError
+        : targetPreview?.rightPageImageError;
+    const isPaidRedo =
+      Boolean(targetUrl) && !targetError && !isPlaceholderImageUrl(targetUrl);
+
+    if (isPaidRedo && !correctionNote) {
+      setImageError("Tell us what to fix before spending a redo credit.");
+      return;
+    }
+
+    const target = redoTarget;
+    setRedoTarget(null);
+    setRedoCorrectionNote("");
+    await handleRegenerateImage(target, correctionNote);
   }
 
   async function handleRepairArt() {
@@ -445,10 +488,10 @@ export default function BookStatusPanel({
             {isExportRefresh
               ? "We’re refreshing the PDF, EPUB, and Lulu export files from the existing artwork."
               : project.status === "ready"
-              ? t("illustratedPdfReadySub")
-              : project.status === "failed"
-                ? t("failedSafeSub")
-                : t("illustratedPdfBuildingSub")}
+                ? t("illustratedPdfReadySub")
+                : project.status === "failed"
+                  ? t("failedSafeSub")
+                  : t("illustratedPdfBuildingSub")}
           </p>
           {lastUpdated ? (
             <p className="mt-2 text-xs font-medium uppercase tracking-wide text-night-400">
@@ -538,7 +581,7 @@ export default function BookStatusPanel({
                       <button
                         type="button"
                         onClick={() =>
-                          handleRegenerateImage({
+                          openRedoPrompt({
                             spreadId: preview.id,
                             sequence: preview.sequence,
                             title: preview.title,
@@ -570,6 +613,48 @@ export default function BookStatusPanel({
               {imageError}
             </p>
           ) : null}
+          {redoTarget ? (
+            <div className="fixed inset-0 z-50 flex items-end bg-night-900/50 px-4 pb-4 sm:items-center sm:justify-center sm:p-6">
+              <div className="w-full max-w-lg rounded-3xl bg-white p-5 shadow-xl">
+                <h3 className="text-xl font-black text-night-900">
+                  What should change?
+                </h3>
+                <p className="mt-2 text-sm font-medium text-night-500">
+                  We will keep the same story moment, character details, and
+                  style, then add your correction to the redo prompt.
+                </p>
+                <textarea
+                  value={redoCorrectionNote}
+                  onChange={(event) =>
+                    setRedoCorrectionNote(event.target.value.slice(0, 500))
+                  }
+                  rows={4}
+                  className="mt-4 w-full rounded-2xl border border-night-200 px-4 py-3 text-base font-medium text-night-900 outline-none focus:border-lilac-500"
+                  placeholder="e.g. Make the cape blue, show both boots, remove the extra toy, make Bailey face the bird..."
+                />
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRedoTarget(null);
+                      setRedoCorrectionNote("");
+                    }}
+                    className="rounded-full border border-night-200 bg-white px-5 py-3 text-sm font-bold text-night-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={submitRedoPrompt}
+                    disabled={Boolean(regeneratingImage)}
+                    className="rounded-full bg-night-800 px-5 py-3 text-sm font-bold text-cream-50 disabled:opacity-50"
+                  >
+                    Redo image
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -590,8 +675,8 @@ export default function BookStatusPanel({
                 {isExportRefresh
                   ? "This should not regenerate illustrations or spend story/art credits."
                   : startingBuild && project.status === "queued"
-                  ? t("startingSub")
-                  : t("activeSub")}
+                    ? t("startingSub")
+                    : t("activeSub")}
               </p>
               <p className="mt-2 text-xs font-medium uppercase tracking-wide text-star-700">
                 {t("safeToLeave")}

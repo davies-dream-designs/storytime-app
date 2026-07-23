@@ -136,6 +136,32 @@ describe("POST /api/books/[id]/images/regenerate", () => {
     expect(mockRefundImageRegenerationCredit).not.toHaveBeenCalled();
   });
 
+  it("passes a user correction note to the image redo job", async () => {
+    const { POST } =
+      await import("@/app/api/books/[id]/images/regenerate/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/books/book-1/images/regenerate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          spreadId: "spread-2",
+          side: "right",
+          correctionNote: "Make the cape blue and remove the extra toy.",
+        }),
+      }),
+      { params: Promise.resolve({ id: "book-1" }) }
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockRegenerateBookSpreadPageImage).toHaveBeenCalledWith({
+      projectId: "book-1",
+      userId: "user-1",
+      spreadId: "spread-2",
+      side: "right",
+      correctionNote: "Make the cape blue and remove the extra toy.",
+    });
+  });
+
   it("does not charge when retrying a failed spread image", async () => {
     mockDb.bookProjects.getById.mockResolvedValue({
       ...createBookProject(),

@@ -21,6 +21,7 @@ import {
   getBookSpineWidthIn,
 } from "@/lib/print-books/bookConfig";
 import {
+  LULU_HARDCOVER_CASEWRAP_WRAP_IN,
   LULU_HARDCOVER_COVER_PAGE_HEIGHT_IN,
   LULU_HARDCOVER_COVER_PAGE_WIDTH_IN,
   LULU_HARDCOVER_COVER_PANEL_WIDTH_IN,
@@ -1544,12 +1545,17 @@ async function buildCoverPdf(input: {
   const spineX = pageWidth;
   const frontCoverX = pageWidth + coverSpineWidth;
 
-  // For Lulu hardcover casewrap, the cover sheet is taller than the trim to
-  // allow the paper to fold over the board edges. Anything closer to the edge
-  // than this wrapSafeY will be folded out of sight or distorted.
-  const trimHeightPt = BOOK_SPEC.trimHeightIn * POINTS_PER_INCH;
-  const wrapY = Math.max(0, (pageHeight - trimHeightPt) / 2);
-  const coverSafeY = wrapY + 45; // 45pt safety from the fold line
+  // For Lulu hardcover casewrap the cover sheet is larger than the trim on all
+  // four sides — the extra paper folds over the board. Content inside the wrap
+  // area will be hidden or distorted. Use the Lulu-specific constant when the
+  // page is taller than the Storycot-only bleed sheet; fall back to bleed only.
+  const isLuluCover =
+    pageHeight >= LULU_HARDCOVER_COVER_PAGE_HEIGHT_IN * POINTS_PER_INCH - 1;
+  const wrap = isLuluCover
+    ? LULU_HARDCOVER_CASEWRAP_WRAP_IN * POINTS_PER_INCH // 0.875" = 63pt
+    : BLEED; // Storycot: just the bleed
+  const coverSafeY = wrap + 45; // 45pt safety from the fold line
+  const coverSafeX = wrap + 45; // same margin applies horizontally
 
   page.drawRectangle({
     x: 0,
@@ -1610,9 +1616,9 @@ async function buildCoverPdf(input: {
     page.pushOperators(popGraphicsState());
     // Soft paper scrim so the dark blurb text stays legible over the art.
     page.drawRectangle({
-      x: backCoverX + BLEED + 24,
-      y: pageHeight - 300,
-      width: pageWidth - (BLEED + 24) * 2,
+      x: backSafeX,
+      y: pageHeight - coverSafeY - 300,
+      width: pageWidth - coverSafeX - 30,
       height: 216,
       color: theme.paper,
       opacity: 0.86,
@@ -1643,11 +1649,16 @@ async function buildCoverPdf(input: {
     });
   }
 
+  // Horizontal safe edge for content: outer left (back) and outer right (front)
+  const backSafeX = backCoverX + coverSafeX;
+  const frontSafeX = frontCoverX + coverSafeX;
+  const frontSafeWidth = pageWidth - coverSafeX * 2;
+
   await drawBrandWordmark({
     pdfDoc,
     page,
     variant: "light",
-    x: frontCoverX + BLEED + 30,
+    x: frontSafeX,
     y: pageHeight - coverSafeY - 36,
     iconSize: 36,
     font: sansBold,
@@ -1656,22 +1667,22 @@ async function buildCoverPdf(input: {
   const titleBandTop = pageHeight - coverSafeY - 86;
   const titleBandHeight = 148;
   page.drawRectangle({
-    x: frontCoverX + BLEED + 24,
+    x: frontSafeX - 8,
     y: titleBandTop - titleBandHeight,
-    width: pageWidth - (BLEED + 24) * 2,
+    width: frontSafeWidth + 8,
     height: titleBandHeight,
     color: BRAND_PURPLE,
     opacity: image ? 0.48 : 0.82,
   });
   page.drawText(input.story.title, {
-    x: frontCoverX + BLEED + 42,
+    x: frontSafeX + 8,
     y: titleBandTop - 66,
     font: serifBold,
     size: 28,
     color: rgb(0.99, 0.96, 0.88),
   });
   page.drawText(`Created for ${input.profile.name}`, {
-    x: frontCoverX + BLEED + 42,
+    x: frontSafeX + 8,
     y: titleBandTop - 102,
     font: serif,
     size: 16,
@@ -1680,7 +1691,7 @@ async function buildCoverPdf(input: {
 
   const backBlurbTop = pageHeight - coverSafeY - 116;
   page.drawText("A personalised story from Storycot", {
-    x: backCoverX + BLEED + 42,
+    x: backSafeX,
     y: backBlurbTop,
     font: sansBold,
     size: 13,
@@ -1692,9 +1703,9 @@ async function buildCoverPdf(input: {
       input.story.pages.map((storyPage) => storyPage.text).join(" "),
       360
     ),
-    x: backCoverX + BLEED + 42,
+    x: backSafeX,
     topY: backBlurbTop - 32,
-    maxWidth: pageWidth * 0.56,
+    maxWidth: pageWidth - coverSafeX - 30,
     lineHeight: 18,
     font: serif,
     size: 12,
@@ -1703,29 +1714,29 @@ async function buildCoverPdf(input: {
 
   const footerY = coverSafeY + 56;
   page.drawRectangle({
-    x: backCoverX + BLEED + 42,
+    x: backSafeX,
     y: footerY,
-    width: pageWidth - (BLEED + 42) * 2,
+    width: pageWidth - coverSafeX - 30,
     height: 110,
     color: rgb(1, 1, 1),
     opacity: 0.74,
   });
   page.drawText("Personalised for bedtime reading", {
-    x: backCoverX + BLEED + 58,
+    x: backSafeX + 16,
     y: footerY + 82,
     font: sansBold,
     size: 11,
     color: theme.skyAccent,
   });
   page.drawText(BOOK_SPEC.trimLabel, {
-    x: backCoverX + BLEED + 58,
+    x: backSafeX + 16,
     y: footerY + 62,
     font: sans,
     size: 10,
     color: rgb(0.34, 0.35, 0.4),
   });
   page.drawText("Create your own at storycot.com", {
-    x: backCoverX + BLEED + 58,
+    x: backSafeX + 16,
     y: footerY + 40,
     font: sansBold,
     size: 10,

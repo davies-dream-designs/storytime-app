@@ -1316,7 +1316,12 @@ async function buildPrintPdf(input: {
         });
       }
 
-      if (spread.layoutType === "text_art" && hasPrintableArt(spread, "start")) {
+      if (
+        (spread.layoutType === "text_art" ||
+          spread.layoutType === "hero" ||
+          spread.layoutType === "quiet") &&
+        hasPrintableArt(spread, "start")
+      ) {
         const startArtPage = pdfDoc.addPage([pageWidth, pageHeight]);
         await drawLuluArtPage({
           pdfDoc,

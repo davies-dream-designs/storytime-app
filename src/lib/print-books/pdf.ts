@@ -1,8 +1,8 @@
 import { readFile } from "fs/promises";
 import path from "path";
+import fontkit from "@pdf-lib/fontkit";
 import {
   PDFDocument,
-  StandardFonts,
   clip,
   degrees,
   endPath,
@@ -65,6 +65,58 @@ const LULU_COVER_PDF_GEOMETRY: PdfPageGeometry = {
 
 let lightLogoBytes: Uint8Array | null = null;
 let darkLogoBytes: Uint8Array | null = null;
+let liberationSerifBytes: Uint8Array | null = null;
+let liberationSerifBoldBytes: Uint8Array | null = null;
+let liberationSansBytes: Uint8Array | null = null;
+let liberationSansBoldBytes: Uint8Array | null = null;
+
+type EmbeddedPdfFonts = {
+  serif: Awaited<ReturnType<PDFDocument["embedFont"]>>;
+  serifBold: Awaited<ReturnType<PDFDocument["embedFont"]>>;
+  sans: Awaited<ReturnType<PDFDocument["embedFont"]>>;
+  sansBold: Awaited<ReturnType<PDFDocument["embedFont"]>>;
+};
+
+async function getFontBytes(
+  fileName: string,
+  cache: Uint8Array | null
+): Promise<Uint8Array> {
+  if (cache) return cache;
+  const bytes = await readFile(
+    path.join(process.cwd(), "public/fonts/liberation", fileName)
+  );
+  return Uint8Array.from(bytes);
+}
+
+async function loadEmbeddedPdfFonts(
+  pdfDoc: PDFDocument
+): Promise<EmbeddedPdfFonts> {
+  pdfDoc.registerFontkit(fontkit);
+
+  liberationSerifBytes = await getFontBytes(
+    "LiberationSerif-Regular.ttf",
+    liberationSerifBytes
+  );
+  liberationSerifBoldBytes = await getFontBytes(
+    "LiberationSerif-Bold.ttf",
+    liberationSerifBoldBytes
+  );
+  liberationSansBytes = await getFontBytes(
+    "LiberationSans-Regular.ttf",
+    liberationSansBytes
+  );
+  liberationSansBoldBytes = await getFontBytes(
+    "LiberationSans-Bold.ttf",
+    liberationSansBoldBytes
+  );
+
+  return {
+    serif: await pdfDoc.embedFont(liberationSerifBytes),
+    serifBold: await pdfDoc.embedFont(liberationSerifBoldBytes),
+    sans: await pdfDoc.embedFont(liberationSansBytes),
+    sansBold: await pdfDoc.embedFont(liberationSansBoldBytes),
+  };
+}
 
 type PlaceholderTheme = {
   sky: ReturnType<typeof rgb>;
@@ -1237,10 +1289,8 @@ async function buildPrintPdf(input: {
   const { pageWidth, pageHeight, textSafeMargin } = geometry;
   const includeCoverFrontMatter = input.includeCoverFrontMatter ?? true;
   const pdfDoc = await PDFDocument.create();
-  const serif = await pdfDoc.embedFont(StandardFonts.TimesRoman);
-  const serifBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
-  const sans = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const sansBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const { serif, serifBold, sans, sansBold } =
+    await loadEmbeddedPdfFonts(pdfDoc);
   const theme = pickPlaceholderTheme(input.story);
 
   for (const spread of input.project.spreads) {
@@ -1410,10 +1460,8 @@ async function buildCoverPdf(input: {
   const geometry = input.geometry ?? STORYCOT_PDF_GEOMETRY;
   const { pageWidth, pageHeight } = geometry;
   const pdfDoc = await PDFDocument.create();
-  const serif = await pdfDoc.embedFont(StandardFonts.TimesRoman);
-  const serifBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
-  const sans = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const sansBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const { serif, serifBold, sans, sansBold } =
+    await loadEmbeddedPdfFonts(pdfDoc);
   const theme = pickPlaceholderTheme(input.story);
   const spine = getBookSpineWidthIn(input.project.pageCount);
   const spineWidthIn = input.spineWidthIn ?? spine.widthIn;

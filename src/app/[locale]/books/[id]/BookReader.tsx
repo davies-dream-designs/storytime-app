@@ -190,7 +190,7 @@ export default function BookReader({ project }: { project: BookProject }) {
       <div className="overflow-hidden rounded-3xl border border-night-100 bg-white shadow-xl">
         {/* Image panel */}
         {hasImage ? (
-          <div className="relative aspect-square w-full overflow-hidden max-h-[70vh]">
+          <div className="relative aspect-square w-full overflow-hidden max-h-[55vh]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={spread.imageUrl!}
@@ -475,19 +475,19 @@ export default function BookReader({ project }: { project: BookProject }) {
                 ›
               </button>
             ) : null}
-          </div>
 
-          {/* Story text */}
-          {pageText ? (
-            <div
-              className="max-h-[20vh] overflow-y-auto border-t border-white/10 bg-black/80 px-5 py-4 backdrop-blur-sm"
-              onContextMenu={(e) => e.preventDefault()}
-            >
-              <p className="font-display text-base leading-relaxed text-white/90">
-                {pageText}
-              </p>
-            </div>
-          ) : null}
+            {/* Story text overlay */}
+            {pageText ? (
+              <div
+                className="pointer-events-none absolute inset-x-0 bottom-0 max-h-[45%] overflow-y-auto bg-gradient-to-t from-black/85 via-black/60 to-transparent px-5 pb-4 pt-10"
+                onContextMenu={(e) => e.preventDefault()}
+              >
+                <p className="font-display text-sm leading-relaxed text-white/95 drop-shadow">
+                  {pageText}
+                </p>
+              </div>
+            ) : null}
+          </div>
 
           {/* Voice picker (fullscreen) */}
           {canNarrate ? (

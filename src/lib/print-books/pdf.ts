@@ -1623,7 +1623,7 @@ async function buildCoverPdf(input: {
     page.drawRectangle({
       x: backSafeX,
       y: pageHeight - coverSafeY - 300,
-      width: pageWidth - coverSafeX - 30,
+      width: pageWidth - coverSafeX * 2,
       height: 216,
       color: theme.paper,
       opacity: 0.86,
@@ -1707,7 +1707,7 @@ async function buildCoverPdf(input: {
     ),
     x: backSafeX,
     topY: backBlurbTop - 32,
-    maxWidth: pageWidth - coverSafeX - 30,
+    maxWidth: pageWidth - coverSafeX * 2,
     lineHeight: 18,
     font: serif,
     size: 12,
@@ -1718,7 +1718,7 @@ async function buildCoverPdf(input: {
   page.drawRectangle({
     x: backSafeX,
     y: footerY,
-    width: pageWidth - coverSafeX - 30,
+    width: pageWidth - coverSafeX * 2,
     height: 110,
     color: rgb(1, 1, 1),
     opacity: 0.74,

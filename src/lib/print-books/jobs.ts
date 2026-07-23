@@ -843,6 +843,8 @@ export async function regenerateBookSpreadPageImage(input: {
   const updatedProject = await db.bookProjects.update(project.id, {
     status: "composing",
     currentStageLabel: "Refreshing exports with the regenerated image...",
+    errorCode: undefined,
+    errorMessage: undefined,
     spreads: nextSpreads,
     assets: {
       ...project.assets,

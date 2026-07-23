@@ -451,19 +451,38 @@ export default function BookStatusPanel({
   }
 
   const progress = getBookProjectProgress(project);
-  const stageLabel = getBookProjectDisplayStageLabel(project);
+  const failedImageTargets = getFailedImageTargets(spreadPreviews);
+  const hasResolvedImageFailure =
+    project.status === "failed" &&
+    project.errorCode === "illustrating:image_failed" &&
+    failedImageTargets.length === 0 &&
+    artworkPreviews.every((preview) => preview.url);
+  const displayStatus = hasResolvedImageFailure ? "ready" : project.status;
+  const displayProject = hasResolvedImageFailure
+    ? ({
+        ...project,
+        status: "ready",
+        currentStageLabel: "Your illustrated book is ready to order.",
+        errorCode: undefined,
+        errorMessage: undefined,
+      } as BookProject)
+    : project;
+  const stageLabel = getBookProjectDisplayStageLabel(displayProject);
   const isActiveBuild =
-    (project.status !== "ready" && project.status !== "failed") ||
+    (displayStatus !== "ready" && displayStatus !== "failed") ||
     Boolean(activeJobStatus);
   const hasMixedArt =
-    project.status === "ready" && project.assets.artMode === "mixed";
-  const failedImageTargets = getFailedImageTargets(spreadPreviews);
+    displayStatus === "ready" && project.assets.artMode === "mixed";
   const hasImageGenerationFailure =
     project.errorCode === "illustrating:image_failed" &&
     failedImageTargets.length > 0;
+  const showFailedBookPanel =
+    displayStatus === "failed" &&
+    (project.errorCode !== "illustrating:image_failed" ||
+      failedImageTargets.length > 0);
   const showSpreadGrid =
-    project.status === "illustrating" ||
-    project.status === "failed" ||
+    displayStatus === "illustrating" ||
+    displayStatus === "failed" ||
     spreadPreviews.some((p) => p.thumbnailUrl);
   const lastUpdated = project.updatedAt
     ? new Intl.DateTimeFormat(undefined, {
@@ -487,9 +506,9 @@ export default function BookStatusPanel({
           <p className="mt-2 text-night-500">
             {isExportRefresh
               ? "We’re refreshing the PDF, EPUB, and Lulu export files from the existing artwork."
-              : project.status === "ready"
+              : displayStatus === "ready"
                 ? t("illustratedPdfReadySub")
-                : project.status === "failed"
+                : displayStatus === "failed"
                   ? t("failedSafeSub")
                   : t("illustratedPdfBuildingSub")}
           </p>
@@ -523,7 +542,7 @@ export default function BookStatusPanel({
               {completedArtworkCount} of {artworkPreviews.length} illustrations
               planned
             </p>
-            {project.status === "ready" || project.status === "failed" ? (
+            {displayStatus === "ready" || displayStatus === "failed" ? (
               <p className="text-xs font-bold text-night-400">
                 Retry failed images free · Redo finished images: 1 credit
               </p>
@@ -534,7 +553,7 @@ export default function BookStatusPanel({
               const key = `${preview.id}:${side}`;
               const isRegenerating = regeneratingImage === key;
               const isEditableStatus =
-                project.status === "ready" || project.status === "failed";
+                displayStatus === "ready" || displayStatus === "failed";
               const isGeneratedPage =
                 preview.title !== "Cover" &&
                 preview.title !== "Title" &&
@@ -686,7 +705,7 @@ export default function BookStatusPanel({
         </div>
       ) : null}
 
-      {project.status === "failed" ? (
+      {showFailedBookPanel ? (
         <div className="mt-6 rounded-2xl border border-blush-200 bg-blush-100 p-4">
           <p className="font-bold text-blush-700">{t("failedTitle")}</p>
           <p className="mt-1 text-sm text-blush-600">
@@ -715,7 +734,7 @@ export default function BookStatusPanel({
         </div>
       ) : null}
 
-      {(project.status === "ready" || project.status === "failed") &&
+      {(displayStatus === "ready" || displayStatus === "failed") &&
       !activeJobStatus ? (
         <div className="mt-6 rounded-2xl border border-night-100 bg-night-50 p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
           <div>
@@ -808,7 +827,7 @@ export default function BookStatusPanel({
                 ) : null}
               </p>
               <div className="flex items-center gap-2">
-                {(project.status === "ready" || project.status === "failed") &&
+                {(displayStatus === "ready" || displayStatus === "failed") &&
                 expandedImage.title !== "Cover" &&
                 expandedImage.title !== "Title" &&
                 expandedImage.title !== "Back Cover" ? (

@@ -152,6 +152,8 @@ export interface BookAsset {
   proofingWarnings?: string[];
   proofingErrors?: string[];
   proofVersion: number;
+  digitalDownloadUnlockedAt?: string;
+  digitalDownloadCheckoutSessionId?: string;
 }
 
 export interface BookBilling {

@@ -99,7 +99,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true, refunded: true });
     }
 
-    if (checkoutType === "print_book") {
+    if (checkoutType === "digital_download") {
+      const projectId = session.metadata?.projectId;
+      if (projectId && userId) {
+        const project = await db.bookProjects.getById(projectId);
+        if (project && project.userId === userId) {
+          await db.bookProjects.update(project.id, {
+            assets: {
+              ...project.assets,
+              digitalDownloadUnlockedAt: new Date().toISOString(),
+              digitalDownloadCheckoutSessionId: session.id,
+            },
+          });
+        }
+      }
+    } else if (checkoutType === "print_book") {
       const projectId = session.metadata?.projectId;
       const productKey = session.metadata?.productKey;
       if (projectId && isPrintProductKey(productKey)) {

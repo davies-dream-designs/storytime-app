@@ -97,6 +97,81 @@ export async function POST(req: NextRequest) {
   const appUrl = getRequestOrigin(req);
   const locale = getRequestLocale(req);
 
+  if (body.type === "digital_download") {
+    if (!body.projectId) {
+      return NextResponse.json(
+        { error: "Invalid digital download checkout" },
+        { status: 400 }
+      );
+    }
+
+    const project = await db.bookProjects.getById(body.projectId);
+    if (!project || project.userId !== userId) {
+      return NextResponse.json({ error: "Book not found" }, { status: 404 });
+    }
+
+    if (project.status !== "ready") {
+      return NextResponse.json(
+        { error: "This book is not ready for download yet." },
+        { status: 409 }
+      );
+    }
+
+    if (project.assets.digitalDownloadUnlockedAt) {
+      return NextResponse.json(
+        { error: "Digital download is already unlocked for this book." },
+        { status: 409 }
+      );
+    }
+
+    const story = await db.stories.getById(project.sourceStoryId);
+    const bookPath = getBookReturnPath(locale, project.id);
+
+    await db.bookProjects.update(project.id, {
+      assets: {
+        ...project.assets,
+        digitalDownloadCheckoutSessionId: undefined,
+      },
+    });
+
+    const session = await stripe.checkout.sessions.create({
+      locale: getStripeLocale(locale),
+      payment_method_types: ["card"],
+      mode: "payment",
+      billing_address_collection: "required",
+      line_items: [
+        {
+          price_data: {
+            currency: "aud",
+            product_data: {
+              name: `Storycot Digital Book — ${story?.title ?? "Illustrated Story"}`,
+              description:
+                "Illustrated PDF and EPUB — download to any device, read forever.",
+            },
+            unit_amount: 995,
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: {
+        checkoutType: "digital_download",
+        userId,
+        projectId: project.id,
+      },
+      success_url: `${appUrl}${bookPath}?download_success=1`,
+      cancel_url: `${appUrl}${bookPath}?download_canceled=1`,
+    });
+
+    await db.bookProjects.update(project.id, {
+      assets: {
+        ...project.assets,
+        digitalDownloadCheckoutSessionId: session.id,
+      },
+    });
+
+    return NextResponse.json({ url: session.url });
+  }
+
   if (body.type === "print_book") {
     const client = await clerkClient();
     const user = await client.users.getUser(userId);

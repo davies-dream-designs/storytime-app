@@ -4,10 +4,10 @@ export type NarrationVoice = {
 };
 
 export const NARRATION_VOICES: NarrationVoice[] = [
-  { id: "21m00Tcm4TlvDq8ikWAM", label: "Rachel" },
-  { id: "MF3mGyEYCl7XYWbV9V6O", label: "Elli" },
-  { id: "TxGEqnHWrfWFTfGW9XjX", label: "Josh" },
-  { id: "pNInz6obpgDQGcFmaJgB", label: "Adam" },
+  { id: "JBFqnCBsd6RMkjVDRZzb", label: "George" },   // Warm, Captivating Storyteller
+  { id: "cgSgspJ2msm6clMCkdW9", label: "Jessica" },  // Playful, Bright, Warm
+  { id: "nPczCjzI2devNBz1zQrb", label: "Brian" },    // Deep, Resonant, Comforting
+  { id: "EXAVITQu4vr4xnSDxMaL", label: "Sarah" },    // Mature, Reassuring, Confident
 ];
 
 export const DEFAULT_NARRATION_VOICE_ID = NARRATION_VOICES[0]!.id;

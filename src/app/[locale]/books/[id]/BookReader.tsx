@@ -235,10 +235,10 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
   return (
     <div className="select-none">
       {/* Main reader card */}
-      <div className="overflow-hidden rounded-3xl border border-night-100 bg-white shadow-xl lg:flex lg:min-h-[480px]">
+      <div className={`overflow-hidden rounded-3xl border border-night-100 bg-white shadow-xl${pageText ? " lg:flex lg:min-h-[480px]" : ""}`}>
         {/* Image panel */}
         {hasImage ? (
-          <div className="relative aspect-square w-full overflow-hidden max-h-[55vh] lg:aspect-auto lg:max-h-none lg:w-[55%] lg:shrink-0">
+          <div className={`relative aspect-square w-full overflow-hidden max-h-[55vh]${pageText ? " lg:aspect-auto lg:max-h-none lg:w-[55%] lg:shrink-0" : " lg:max-h-[75vh]"}`}>
             <Image
               src={spread.imageUrl!}
               alt={spread.title ?? `Page ${index + 1}`}
@@ -291,39 +291,25 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
           </div>
         )}
 
-        {/* Text + indicator (right side on desktop) */}
-        <div className="flex flex-col lg:flex-1">
-          {/* Story text */}
-          {pageText ? (
+        {/* Text + indicator (right side on desktop) — hidden for cover/pages without text */}
+        {pageText ? (
+          <div className="flex flex-col lg:flex-1">
             <div className="flex-1 border-t border-night-50 px-7 pb-8 pt-6 lg:border-t-0 lg:border-l lg:flex lg:items-center">
               <p className="font-display text-xl font-medium leading-relaxed text-night-800">
                 {words.length > 0
                   ? words.map((w, i) => (
-                      <span
-                        key={i}
-                        className={
-                          i === currentWordIndex
-                            ? "rounded-sm bg-yellow-200"
-                            : ""
-                        }
-                      >
+                      <span key={i} className={i === currentWordIndex ? "rounded-sm bg-yellow-200" : ""}>
                         {w.word}{" "}
                       </span>
                     ))
                   : pageText}
               </p>
             </div>
-          ) : (
-            <div className="flex-1" />
-          )}
-
-          {/* Page indicator */}
-          <div className="border-t border-night-50 px-7 py-3 text-center">
-            <p className="text-xs text-night-300">
-              Page {index + 1} of {total}
-            </p>
+            <div className="border-t border-night-50 px-7 py-3 text-center">
+              <p className="text-xs text-night-300">Page {index + 1} of {total}</p>
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
 
       {/* Navigation */}
@@ -463,8 +449,8 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
           </div>
 
           {/* Image area — shared mobile + desktop */}
-          {/* Desktop: aspect-square + h-screen makes a perfect square with no letterbox bars */}
-          <div className="relative min-h-0 flex-1 lg:aspect-square lg:h-screen lg:flex-none lg:shrink-0">
+          {/* Desktop with text: aspect-square so image fills perfectly; without text: flex-1 full width */}
+          <div className={`relative min-h-0 flex-1${pageText ? " lg:aspect-square lg:h-screen lg:flex-none lg:shrink-0" : ""}`}>
             {hasImage ? (
               <Image
                 src={spread.imageUrl!}
@@ -514,8 +500,8 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
             ))}
           </div>
 
-          {/* Desktop-only right panel — flex-1 fills whatever space the square image leaves */}
-          <div className="hidden lg:flex lg:flex-1 lg:flex-col lg:border-l lg:border-night-100">
+          {/* Desktop-only right panel — only shown when page has text */}
+          {pageText ? <div className="hidden lg:flex lg:flex-1 lg:flex-col lg:border-l lg:border-night-100">
             {/* Top bar */}
             <div className="flex items-center justify-between border-b border-night-100 px-6 py-4">
               <p className="text-sm font-medium text-night-400">{index + 1} / {total}</p>
@@ -560,7 +546,7 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
                 ))}
               </div>
             </div>
-          </div>
+          </div> : null}
         </div>
       ) : null}
     </div>

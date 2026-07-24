@@ -1,10 +1,55 @@
 # Storycot - Handover Document
 
-**Last updated:** 2026-07-23  
-**Branch:** `main` / `dev` synced  
+**Last updated:** 2026-07-24  
+**Branch:** `dev` ahead of `main` — see below  
 **Live URL:** https://storycot.com  
 **Preview URL:** https://dev.storycot.com  
-**Latest production merge:** `feat/book-reader-and-purchase-tiers` merged → `dev` → `main` 2026-07-23
+**Latest production merge:** `feat/book-reader-and-purchase-tiers` → `main` 2026-07-23
+
+---
+
+## Current Handoff - 2026-07-24 - Web-Optimised Images + Security + Admin Polish
+
+`dev` is ahead of `main` — **not yet merged to production**. Pending review before prod push.
+
+### What Changed
+
+- **Web-optimised illustration images:**
+  - At illustration generation time, a 1024×1024 JPEG (`-web.jpg`) is now stored alongside the 2490×2490 print PNG.
+  - `BookSpread.leftPageWebImageUrl` and `BookAsset.coverWebImageUrl` hold the web URLs.
+  - `BookReader` uses the web version — eliminates first-load lag on the book reader.
+  - Print PDF pipeline still uses the full-res PNG. No change to Lulu output.
+  - Only affects newly generated books; existing books fall back to print URL gracefully.
+
+- **Security fixes:**
+  - Next.js: 15.5.19 → 15.5.21 (latest 15.x, covers next/sharp advisory context).
+  - brace-expansion: 1.1.7 → 1.1.16 (CVE-2026-13149 DoS fix).
+  - Next.js bundled `sharp@0.34.5` is unfixable without forking Next — accepted risk (Storycot controls all images through `/_next/image`, no untrusted uploads).
+
+- **Admin dashboard timestamps** now render in `Australia/Adelaide` timezone instead of UTC (Vercel server default).
+
+- **Animated storybook video (explored + removed):**
+  - Investigated Kling video generation via fal.ai, OpenArt AI (no public API), ElevenLabs video (no API, uses Kling anyway).
+  - Implemented full pipeline: Kling clips, frame chaining for character consistency, ElevenLabs full-book narration with word-boundary page sync, Inngest webhook + fallback poll.
+  - Removed after persistent infrastructure reliability issues (Inngest `waitForEvent` timeout bug, ffmpeg bundling on Vercel Lambda, fal.ai webhook delivery inconsistency).
+  - All video code cleanly removed — codebase is unaffected. Re-visit when fal.ai API is more stable.
+
+### Key Files Changed
+
+| File | Change |
+|---|---|
+| `src/lib/print-books/illustrations.ts` | `webImageBuffer()` — stores `-web.jpg` alongside print PNG |
+| `src/types/printBook.ts` | `leftPageWebImageUrl` on `BookSpread`, `coverWebImageUrl` on `BookAsset` |
+| `src/lib/print-books/jobs.ts` | Persists `coverWebImageUrl` into `BookAsset` |
+| `src/app/[locale]/books/[id]/BookReader.tsx` | Uses `leftPageWebImageUrl` / `coverWebImageUrl` when available |
+| `src/app/[locale]/admin/page.tsx` | Admin timestamps in `Australia/Adelaide` |
+| `next.config.ts` | Reverted ffmpeg config; clean |
+| `package.json` | Next.js 15.5.21, brace-expansion 1.1.16 |
+
+### QA
+
+- Generate an illustrated book → open book page → images should load without lag on first view.
+- Admin: open `/admin` → timestamps should show ACST/ACDT time, not UTC.
 
 ---
 

@@ -10,6 +10,14 @@ type Clip = {
   sceneBrief?: string;
 };
 
+type SpreadPage = {
+  spreadId: string;
+  sequence: number;
+  videoUrl: string | null;
+  imageUrl: string | null;
+  sceneBrief: string;
+};
+
 type VideoStatus = {
   unlocked: boolean;
   status: "generating" | "ready" | "failed" | null;
@@ -17,6 +25,7 @@ type VideoStatus = {
   readyAt: string | null;
   error: string | null;
   clips: Clip[];
+  allSpreads: SpreadPage[];
   totalSpreads: number;
 };
 
@@ -24,10 +33,10 @@ type PageBoundary = { spreadId: string; endTime: number };
 type FullNarration = { audioUrl: string; pageBoundaries: PageBoundary[]; totalDuration: number };
 
 function AnimatedPlayer({
-  clips,
+  allSpreads,
   projectId,
 }: {
-  clips: Clip[];
+  allSpreads: SpreadPage[];
   projectId: string;
 }) {
   const [current, setCurrent] = useState(0);
@@ -77,7 +86,7 @@ function AnimatedPlayer({
     };
   }, [narration]);
 
-  // Switch video clip when current changes, video loops while audio continues
+  // Switch page when current changes
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -88,13 +97,13 @@ function AnimatedPlayer({
   function togglePlay() {
     const audio = audioRef.current;
     const video = videoRef.current;
-    if (!audio || !video) return;
+    if (!audio) return;
     if (playing) {
       audio.pause();
-      video.pause();
+      video?.pause();
     } else {
       audio.play().catch(() => {});
-      video.play().catch(() => {});
+      video?.play().catch(() => {});
     }
   }
 
@@ -106,21 +115,38 @@ function AnimatedPlayer({
     setCurrent(index);
   }
 
-  const clip = clips[current];
-  if (!clip) return null;
+  const page = allSpreads[current];
+  if (!page) return null;
 
   return (
     <div className="mt-4">
-      <div className="relative overflow-hidden rounded-xl bg-night-900 shadow-lg">
-        <video
-          ref={videoRef}
-          key={clip.videoUrl}
-          src={clip.videoUrl}
-          className="w-full"
-          playsInline
-          muted
-          loop
-        />
+      <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-night-900 shadow-lg">
+        {page.videoUrl ? (
+          // Kling animated clip — loops while narration plays this page
+          <video
+            ref={videoRef}
+            key={page.videoUrl}
+            src={page.videoUrl}
+            className="h-full w-full object-cover"
+            playsInline
+            muted
+            loop
+          />
+        ) : page.imageUrl ? (
+          // Illustration generated but no Kling clip (e.g. failed illustration
+          // pages now covered by narration) — show static image
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={page.imageUrl}
+            alt={page.sceneBrief}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          // No image at all — dark placeholder
+          <div className="flex h-full w-full items-center justify-center">
+            <p className="text-sm text-night-500">Illustration unavailable</p>
+          </div>
+        )}
         {/* Play/pause overlay */}
         <button
           onClick={togglePlay}
@@ -148,11 +174,11 @@ function AnimatedPlayer({
           ← Prev
         </button>
         <p className="text-center text-sm text-night-500">
-          Page {current + 1} of {clips.length}
+          Page {current + 1} of {allSpreads.length}
         </p>
         <button
-          onClick={() => goTo(Math.min(clips.length - 1, current + 1))}
-          disabled={current >= clips.length - 1}
+          onClick={() => goTo(Math.min(allSpreads.length - 1, current + 1))}
+          disabled={current >= allSpreads.length - 1}
           className="storycot-btn storycot-btn-secondary disabled:opacity-40"
         >
           Next →
@@ -184,6 +210,7 @@ export default function AnimatedVideoSection({
     readyAt: null,
     error: null,
     clips: [],
+    allSpreads: [],
     totalSpreads: 0,
   });
 
@@ -257,7 +284,7 @@ export default function AnimatedVideoSection({
     const done = videoState.clips.length;
     const total = videoState.totalSpreads;
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-    const isReady = videoState.status === "ready" && done > 0;
+    const isReady = videoState.status === "ready" && videoState.allSpreads.length > 0;
     const isFailed = videoState.status === "failed";
 
     return (
@@ -275,7 +302,7 @@ export default function AnimatedVideoSection({
             <p className="mt-1 text-sm text-night-500">
               {done} animated pages ready to watch.
             </p>
-            <AnimatedPlayer clips={videoState.clips} projectId={projectId} />
+            <AnimatedPlayer allSpreads={videoState.allSpreads} projectId={projectId} />
           </>
         )}
 

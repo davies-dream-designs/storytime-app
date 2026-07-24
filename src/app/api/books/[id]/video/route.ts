@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
-import { getIllustratedSpreads, isVideoConfigured } from "@/lib/print-books/video";
+import { getStorySpreads, getIllustratedSpreads, isVideoConfigured } from "@/lib/print-books/video";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -21,15 +21,27 @@ export async function GET(
   if (!project || project.userId !== userId)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // clips = spreads with Kling video generated (for progress counter)
   const clips = getIllustratedSpreads(project.spreads)
     .filter((s) => s.leftPageVideoUrl)
     .map((s) => ({
       spreadId: s.id,
       sequence: s.sequence,
-      videoUrl: s.leftPageVideoUrl,
+      videoUrl: s.leftPageVideoUrl!,
       imageUrl: s.leftPageImageUrl,
       sceneBrief: s.sceneBrief,
     }));
+
+  // allSpreads = every story spread in order, with whatever assets exist.
+  // Used by the player to show something for every narrated page even if
+  // the illustration failed (no video → fall back to static image or blank).
+  const allSpreads = getStorySpreads(project.spreads).map((s) => ({
+    spreadId: s.id,
+    sequence: s.sequence,
+    videoUrl: s.leftPageVideoUrl ?? null,
+    imageUrl: s.leftPageImageUrl ?? s.imageUrl ?? null,
+    sceneBrief: s.sceneBrief,
+  }));
 
   return NextResponse.json({
     unlocked: Boolean(project.assets.animatedVideoUnlockedAt),
@@ -38,6 +50,7 @@ export async function GET(
     readyAt: project.assets.animatedVideoReadyAt ?? null,
     error: project.assets.animatedVideoError ?? null,
     clips,
+    allSpreads,
     totalSpreads: getIllustratedSpreads(project.spreads).length,
   });
 }

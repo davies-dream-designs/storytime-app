@@ -145,12 +145,24 @@ export async function prepareVideoSourceImage(
 // Helpers
 // ---------------------------------------------------------------------------
 
-export function getIllustratedSpreads(spreads: BookSpread[]): BookSpread[] {
-  return spreads.filter(
-    (s) =>
-      (s.layoutType === "text_art" ||
+// All story spreads in sequence — used for narration (every page has text
+// regardless of whether its illustration succeeded).
+export function getStorySpreads(spreads: BookSpread[]): BookSpread[] {
+  return spreads
+    .filter(
+      (s) =>
+        s.layoutType === "text_art" ||
         s.layoutType === "hero" ||
-        s.layoutType === "quiet") &&
+        s.layoutType === "quiet"
+    )
+    .sort((a, b) => a.sequence - b.sequence);
+}
+
+// Story spreads that have a real (non-placeholder) illustration — used for
+// Kling video generation and for returning clip URLs.
+export function getIllustratedSpreads(spreads: BookSpread[]): BookSpread[] {
+  return getStorySpreads(spreads).filter(
+    (s) =>
       s.leftPageImageUrl &&
       !s.leftPageImageUrl.endsWith(".svg") &&
       !s.leftPageImageUrl.startsWith("data:image/svg")

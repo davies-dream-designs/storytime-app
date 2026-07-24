@@ -7,7 +7,7 @@ import {
   NARRATION_VOICES,
 } from "@/lib/elevenlabs";
 import { findBookAsset, storeBookAsset } from "@/lib/print-books/storage";
-import { getIllustratedSpreads } from "@/lib/print-books/video";
+import { getStorySpreads } from "@/lib/print-books/video";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -99,8 +99,9 @@ export async function GET(
     return NextResponse.json({ audioUrl: cachedAudio, ...meta });
   }
 
-  // Build full text tracking word count per spread
-  const spreads = getIllustratedSpreads(project.spreads);
+  // Build full text tracking word count per spread — use ALL story spreads
+  // so the narration covers every page even if some illustrations failed.
+  const spreads = getStorySpreads(project.spreads);
   const spreadMeta: { spreadId: string; wordCount: number }[] = [];
   let fullText = "";
 

@@ -84,6 +84,12 @@ export default async function LocaleLayout({
           className={`${fredoka.variable} ${nunito.variable}`}
         >
           <body className="bg-parchment text-ink font-body antialiased">
+            <a
+              href="#main-content"
+              className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[9999] focus:rounded-xl focus:bg-night-800 focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-moon-200 focus:outline-none focus:ring-2 focus:ring-moon-400"
+            >
+              Skip to main content
+            </a>
             <GlobalPendingProvider>{children}</GlobalPendingProvider>
           </body>
         </html>

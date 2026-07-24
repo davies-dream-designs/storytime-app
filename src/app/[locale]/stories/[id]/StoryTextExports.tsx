@@ -15,6 +15,8 @@ export default function StoryTextExports({
   const t = useTranslations("stories");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -25,12 +27,24 @@ export default function StoryTextExports({
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open]);
 
+  useEffect(() => {
+    if (open) {
+      const first = menuRef.current?.querySelector<HTMLElement>("a,button");
+      first?.focus();
+    }
+  }, [open]);
+
   return (
     <div ref={ref} className="relative">
       <button
+        ref={btnRef}
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
+        aria-controls="export-text-menu"
         className="storycot-btn storycot-btn-secondary text-sm flex items-center gap-1.5"
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown") { e.preventDefault(); setOpen(true); }
+        }}
       >
         {t("exportText")}
         <svg
@@ -44,11 +58,22 @@ export default function StoryTextExports({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-1.5 min-w-[160px] overflow-hidden rounded-2xl border border-night-100 bg-white py-1 shadow-xl">
+        <div
+          ref={menuRef}
+          id="export-text-menu"
+          role="menu"
+          className="absolute left-0 top-full z-20 mt-1.5 min-w-[160px] overflow-hidden rounded-2xl border border-night-100 bg-white py-1 shadow-xl"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") { setOpen(false); btnRef.current?.focus(); }
+            if (e.key === "ArrowDown") { e.preventDefault(); const items = e.currentTarget.querySelectorAll<HTMLElement>("a,button"); items[0]?.focus(); }
+            if (e.key === "ArrowUp") { e.preventDefault(); const items = e.currentTarget.querySelectorAll<HTMLElement>("a,button"); items[items.length - 1]?.focus(); }
+          }}
+        >
           <DownloadLink
             href={`/stories/${storyId}/print`}
             target="_blank"
             rel="noopener noreferrer"
+            role="menuitem"
             className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-night-700 hover:bg-night-50"
             pendingLabel={t("downloadStarting")}
             onClick={() => setOpen(false)}

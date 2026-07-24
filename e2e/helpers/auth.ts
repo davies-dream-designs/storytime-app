@@ -18,10 +18,11 @@ export function getBypassUrl(url: string): string {
 
 async function getSignInToken(): Promise<string> {
   const testUserId = process.env.E2E_TEST_USER_ID ?? 'user_3GVKe5HmZpQR7HRWFrrgwxc0Vxs'
-  const clerkSecret = process.env.CLERK_SECRET_KEY
+  // CLERK_SECRET_KEY_DEV is the OpenHands secret name; fall back to CLERK_SECRET_KEY for local runs
+  const clerkSecret = process.env.CLERK_SECRET_KEY_DEV ?? process.env.CLERK_SECRET_KEY
 
   if (!clerkSecret) {
-    throw new Error('CLERK_SECRET_KEY is required for Playwright sign-in token flow.')
+    throw new Error('CLERK_SECRET_KEY_DEV (or CLERK_SECRET_KEY) is required for Playwright sign-in token flow.')
   }
 
   const res = await fetch('https://api.clerk.com/v1/sign_in_tokens', {
@@ -44,8 +45,17 @@ async function getSignInToken(): Promise<string> {
 export async function signIn(page: Page) {
   const baseUrl = getBaseUrl()
 
-  await page.goto(getBypassUrl(`${baseUrl}/en`))
-  await page.waitForLoadState('networkidle')
+  // Set Vercel bypass cookie — either via a pre-generated share URL or the automation bypass secret.
+  // Share URL approach: generate via Vercel MCP `get_access_to_vercel_url` (expires ~23h).
+  // Automation bypass: set VERCEL_AUTOMATION_BYPASS_SECRET from Vercel project settings.
+  const bypassUrl = process.env.VERCEL_BYPASS_URL
+  if (bypassUrl) {
+    await page.goto(bypassUrl)
+    await page.waitForLoadState('networkidle')
+  } else {
+    await page.goto(getBypassUrl(`${baseUrl}/en`))
+    await page.waitForLoadState('networkidle')
+  }
 
   const token = await getSignInToken()
   await page.goto(`${baseUrl}/en/sign-in?__clerk_ticket=${token}`)

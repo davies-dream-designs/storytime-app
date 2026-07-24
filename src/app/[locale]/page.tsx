@@ -46,7 +46,7 @@ export default async function Home() {
   ]
 
   return (
-    <main className="overflow-x-hidden">
+    <main id="main-content" tabIndex={-1} className="overflow-x-hidden">
       <Suspense><RefCapture /></Suspense>
       {/* Nav */}
       <header className="absolute inset-x-0 top-0 z-30">

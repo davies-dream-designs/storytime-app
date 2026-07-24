@@ -1,16 +1,85 @@
 # Storycot - Handover Document
 
 **Last updated:** 2026-07-24  
-**Branch:** `dev` ahead of `main` — PR #97 open, ready to merge  
+**Branch:** `fix/wcag-aa-conformance` open as PR #99 → `dev`; `dev` → `main` via PR #97 (merged)  
 **Live URL:** https://storycot.com  
 **Preview URL:** https://dev.storycot.com  
-**Latest production merge:** `feat/book-reader-and-purchase-tiers` → `main` 2026-07-23
+**Latest production merge:** PR #97 merged 2026-07-24
+
+---
+
+## Next session — run WCAG a11y tests ⚡
+
+**The WCAG conformance work is almost done. One thing left: run the Playwright tests.**
+
+`CLERK_SECRET_KEY_DEV` has been added as an OpenHands secret (it's the Clerk secret key from Vercel). In a new session it will be injected automatically.
+
+**Run this to complete the WCAG audit:**
+```bash
+cd /home/openhands/workspace/storytime-app   # or re-clone storytime-app
+git checkout fix/wcag-aa-conformance
+PLAYWRIGHT_BASE_URL=https://dev.storycot.com \
+  npx playwright test --config=playwright.a11y.config.ts --reporter=list
+```
+
+If all 9 tests pass → merge PR #99 to dev, then dev → main (PR #97 pattern).
+If any fail → fix the violation, commit to the branch, re-run.
+
+**What the test covers (once auth works):**
+- Dashboard, stories, profiles, account, story detail — full axe-core WCAG 2.1 AA scan
+- Mobile nav open state
+- Skip link: Tab → skip link focused, Enter → jumps to `#main-content`
+- Export text ▾ dropdown: ArrowDown opens, Escape closes and returns focus
+- `meta-viewport` — no `maximum-scale=1` on our pages
+
+**Known non-issue:** Clerk's sign-in/sign-up pages have their own landmark violations (Geist design system). We exclude those — they're Clerk's responsibility.
+
+---
+
+## Current Handoff - 2026-07-24 - WCAG 2.1 AA Conformance (PR #99, not yet merged)
+
+## Current Handoff - 2026-07-24 - WCAG 2.1 AA Conformance (PR #99, pending test run)
+
+Branch `fix/wcag-aa-conformance` → PR #99 → `dev`. Not yet merged. Blocked only on running the Playwright a11y tests (see top of file).
+
+### What Changed
+
+- **37 WCAG 2.1 AA violations fixed** across 20 files — see full list below.
+- **`e2e/a11y.spec.ts`** — axe-core Playwright test suite (9 tests, auth-gated via `CLERK_SECRET_KEY_DEV`).
+- **`playwright.a11y.config.ts`** — separate playwright config for a11y suite (no global Clerk setup required).
+- **`@axe-core/playwright`** added as dev dependency.
+
+### WCAG Fixes Summary
+
+| Criterion | Fix |
+|---|---|
+| 2.4.1 Bypass Blocks | Skip to main content link in root layout; `id="main-content"` on every `<main>` |
+| 2.4.2 Page Titled | Per-page `<title>` via `metadata`/`generateMetadata` on all inner pages |
+| 1.3.1 + 3.3.2 Labels | `aria-label` on CollectionFilters search + all selects |
+| 2.4.4 Link Purpose | Nav account link: `title` → `aria-label` |
+| 1.3.1 Semantics | Progress bar: `role="progressbar"` with `aria-valuenow/min/max` |
+| 4.1.2 Name/Role/Value | Both redo modals: `role="dialog" aria-modal aria-labelledby`; heading `id` |
+| 4.1.2 | Expanded image modal: `aria-labelledby` wired |
+| 3.3.2 | Textarea in redo modals: `aria-label="Correction note"` |
+| 3.3.1 Error ID | `role="alert"` on dynamic error paragraphs |
+| 4.1.3 Status | `aria-live="polite"` on StoryReader text, BookStatusPanel stage label |
+| 4.1.3 | ShareButton: `role="status"` sr-only copy confirmation |
+| 2.4.7 Focus Visible | Textarea: `outline-none` → `focus-visible:ring-2` |
+| 4.1.2 + 2.1.2 | StoryTextExports: `role="menu/menuitem"`, `aria-controls`, keyboard nav + focus management |
+| 4.1.2 | LanguageSwitcher: `role="listbox/option"`, `aria-selected`, `aria-haspopup` |
+| 2.1.1 | BookReader opacity-0 tap zones: `aria-hidden tabIndex=-1` |
+| 4.1.2 | BookReader chevron SVG: `aria-hidden="true"` |
+| Landmark | Nav `<nav>`: `aria-label="Site navigation"` |
+
+### Known non-issues (Clerk's code, not ours)
+- `landmark-unique` on sign-in/sign-up: Clerk's Geist renders two unlabelled `<nav>` elements
+- `maximum-scale=1` on Clerk pages: set by Geist, not our layout
 
 ---
 
 ## Current Handoff - 2026-07-24 - Story/Book Consolidation + i18n Audit + Export UX
 
-`dev` is ahead of `main` — PR #97 open. All work below is on `dev`, not yet in production.
+`dev` → `main` merged via PR #97 on 2026-07-24. All in production.
 
 ### What Changed
 

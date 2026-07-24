@@ -3,6 +3,8 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
 import DashboardGreeting from "@/components/DashboardGreeting";
+
+export const metadata = { title: "Dashboard — Storycot" };
 import ReferralRedeemer from "@/components/ReferralRedeemer";
 import StoryCard from "@/components/StoryCard";
 import { buttonClassName } from "@/components/ui/buttonStyles";
@@ -28,7 +30,7 @@ export default async function Dashboard() {
     <>
       <Nav />
       <ReferralRedeemer />
-      <main className="mx-auto max-w-6xl px-5 py-10">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-5 py-10">
         <DashboardGreeting
           storiesCount={stories.length}
           profilesCount={profiles.length}

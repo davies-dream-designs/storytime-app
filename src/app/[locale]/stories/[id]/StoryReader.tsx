@@ -104,7 +104,7 @@ export default function StoryReader({ story }: { story: Story }) {
           </p>
         </div>
 
-        <div className="min-h-[8rem] px-6 pb-8 pt-6 sm:px-8 sm:pb-10 sm:pt-8">
+        <div className="min-h-[8rem] px-6 pb-8 pt-6 sm:px-8 sm:pb-10 sm:pt-8" aria-live="polite" aria-atomic="false">
           {currentPage ? (
             <p className="font-display text-xl font-medium leading-relaxed text-night-800 sm:text-2xl">
               {currentPage.text}

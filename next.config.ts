@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
   experimental: {
     // Ensure the ffmpeg binary is copied into the standalone output so it's
     // available at /var/task/node_modules/ffmpeg-static/ffmpeg on Vercel.
+    // @ts-expect-error — option exists at runtime but missing from types in this Next.js version
     outputFileTracingIncludes: {
       '/api/inngest': ['./node_modules/ffmpeg-static/**/*'],
     },

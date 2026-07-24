@@ -20,16 +20,86 @@ type VideoStatus = {
   totalSpreads: number;
 };
 
-function AnimatedPlayer({ clips }: { clips: Clip[] }) {
+function AnimatedPlayer({
+  clips,
+  projectId,
+}: {
+  clips: Clip[];
+  projectId: string;
+}) {
   const [current, setCurrent] = useState(0);
+  const [playing, setPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Pre-cached narration URLs keyed by spreadId
+  const narrationCache = useRef<Map<string, string>>(new Map());
+
+  async function fetchNarration(spreadId: string): Promise<string | null> {
+    if (narrationCache.current.has(spreadId)) {
+      return narrationCache.current.get(spreadId) ?? null;
+    }
+    try {
+      const res = await fetch(
+        `/api/books/${projectId}/narrate?spreadId=${encodeURIComponent(spreadId)}`
+      );
+      if (!res.ok) return null;
+      const data = (await res.json()) as { audioUrl?: string };
+      if (data.audioUrl) {
+        narrationCache.current.set(spreadId, data.audioUrl);
+        return data.audioUrl;
+      }
+    } catch {}
+    return null;
+  }
+
+  function stopAudio() {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+      audioRef.current = null;
+    }
+  }
+
+  async function playClip(index: number) {
+    const clip = clips[index];
+    if (!clip) return;
+
+    stopAudio();
+
+    const video = videoRef.current;
+    if (!video) return;
+
+    video.load();
+
+    // Fetch narration (may be cached)
+    const narrationUrl = await fetchNarration(clip.spreadId);
+
+    // Play video (muted — Kling audio is replaced by ElevenLabs narration)
+    video.play().catch(() => {});
+    setPlaying(true);
+
+    // Play narration audio alongside
+    if (narrationUrl) {
+      const audio = new Audio(narrationUrl);
+      audioRef.current = audio;
+      audio.play().catch(() => {});
+    }
+
+    // Pre-load narration for next clip
+    const next = clips[index + 1];
+    if (next) fetchNarration(next.spreadId);
+  }
 
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.load();
-      videoRef.current.play().catch(() => {});
-    }
+    playClip(current);
+    return stopAudio;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current]);
+
+  function goTo(index: number) {
+    stopAudio();
+    setCurrent(index);
+  }
 
   const clip = clips[current];
   if (!clip) return null;
@@ -43,13 +113,21 @@ function AnimatedPlayer({ clips }: { clips: Clip[] }) {
           src={clip.videoUrl}
           className="w-full"
           playsInline
-          onEnded={current < clips.length - 1 ? () => setCurrent((c) => c + 1) : undefined}
-          controls
+          muted
+          onEnded={current < clips.length - 1 ? () => goTo(current + 1) : undefined}
+          onPause={() => {
+            audioRef.current?.pause();
+            setPlaying(false);
+          }}
+          onPlay={() => {
+            audioRef.current?.play().catch(() => {});
+            setPlaying(true);
+          }}
         />
       </div>
       <div className="mt-3 flex items-center justify-between gap-3">
         <button
-          onClick={() => setCurrent((c) => Math.max(0, c - 1))}
+          onClick={() => goTo(Math.max(0, current - 1))}
           disabled={current === 0}
           className="storycot-btn storycot-btn-secondary disabled:opacity-40"
         >
@@ -57,9 +135,10 @@ function AnimatedPlayer({ clips }: { clips: Clip[] }) {
         </button>
         <p className="text-center text-sm text-night-500">
           Page {current + 1} of {clips.length}
+          {playing ? " · playing" : ""}
         </p>
         <button
-          onClick={() => setCurrent((c) => Math.min(clips.length - 1, c + 1))}
+          onClick={() => goTo(Math.min(clips.length - 1, current + 1))}
           disabled={current >= clips.length - 1}
           className="storycot-btn storycot-btn-secondary disabled:opacity-40"
         >
@@ -184,7 +263,7 @@ export default function AnimatedVideoSection({
             <p className="mt-1 text-sm text-night-500">
               {done} animated pages ready to watch.
             </p>
-            <AnimatedPlayer clips={videoState.clips} />
+            <AnimatedPlayer clips={videoState.clips} projectId={projectId} />
           </>
         )}
 

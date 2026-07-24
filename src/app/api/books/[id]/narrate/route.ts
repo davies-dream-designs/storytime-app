@@ -29,9 +29,14 @@ export async function GET(
   const user = await client.users.getUser(userId);
   const isAdmin = user.privateMetadata.isAdmin === true;
 
-  if (!isAdmin && !project.assets.digitalDownloadUnlockedAt)
+  const hasAccess =
+    isAdmin ||
+    Boolean(project.assets.digitalDownloadUnlockedAt) ||
+    Boolean(project.assets.animatedVideoUnlockedAt);
+
+  if (!hasAccess)
     return NextResponse.json(
-      { error: "Digital download purchase required" },
+      { error: "Purchase required to access narration" },
       { status: 402 }
     );
 

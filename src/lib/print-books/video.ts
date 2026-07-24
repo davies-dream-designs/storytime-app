@@ -24,35 +24,39 @@ export function buildKlingMotionPrompt(
   spread: BookSpread,
   characterBible: CharacterBible
 ): string {
-  // Pull the first sentence of each bible field — enough for Kling, not so much
-  // that it confuses the motion model with too many constraints.
-  const appearance =
-    characterBible.childAppearance.split(".")[0]?.trim() ??
-    characterBible.childAppearance;
-  const palette = characterBible.palette.split(",")[0]?.trim() ?? characterBible.palette;
+  const appearance = characterBible.childAppearance.trim();
+  const outfit = characterBible.outfitRules.split(".")[0]?.trim() ?? characterBible.outfitRules;
+  const palette = characterBible.palette.trim();
   const companions = characterBible.companionCharacters.slice(0, 2).join(" and ");
 
   const parts = [
-    // Scene context so Kling understands the moment
+    // Illustration direction first — this is the richest scene description.
+    spread.illustrationPrompt
+      ? `Illustration: ${spread.illustrationPrompt}.`
+      : "",
+    // Scene brief adds the emotional/narrative layer.
     spread.sceneBrief
-      ? `Scene: ${spread.sceneBrief.slice(0, 120)}.`
+      ? `Scene: ${spread.sceneBrief}.`
       : "",
 
-    // Motion style — gentle, bedtime, children's book feel
+    // Motion style — gentle, dreamy, children's book atmosphere.
     "Bring this children's watercolour illustration gently to life.",
-    "Soft warm light flickers, the main character breathes slowly,",
-    "leaves or loose fabric drift in a gentle breeze, warm magical atmosphere.",
+    "Soft warm light flickers slowly, the main character breathes calmly,",
+    "loose fabric or foliage sways in a gentle breeze.",
+    "Warm, magical, dreamy bedtime atmosphere throughout.",
 
-    // Character consistency — critical so the character doesn't morph
-    `Main character: ${appearance.slice(0, 80)}.`,
+    // Character consistency — prevent the model drifting the character's appearance.
+    `Main character appearance: ${appearance}.`,
+    `Outfit: ${outfit}.`,
     companions ? `Also present: ${companions}.` : "",
-    `Colour palette: ${palette.slice(0, 60)}.`,
+    `Colour palette: ${palette}.`,
 
-    // Technical constraints
-    "Single continuous shot — no cuts, no camera change, no scene transition.",
-    "Preserve the watercolour illustration art style exactly.",
-    "Slow, calm movement only. This is a bedtime story — keep it dreamy and peaceful.",
-    "Do not introduce new characters, objects, or background elements.",
+    // Hard technical constraints.
+    "Single continuous shot — absolutely no cuts, no camera changes, no scene transitions.",
+    "Preserve the watercolour illustration art style exactly — do not make it look photorealistic.",
+    "Slow and calm movement only. No sudden motion, no dialogue, no speaking.",
+    "Do not introduce any new characters, objects, text, or background elements not in the original illustration.",
+    "No sound or speech — visuals only.",
   ];
 
   return parts.filter(Boolean).join(" ");

@@ -49,6 +49,15 @@ async function upscaleImageBuffer(input: Buffer): Promise<Buffer> {
     .toBuffer();
 }
 
+// Downsample to a web-friendly 1024×1024 JPEG (~150-300 KB) for the book
+// reader. The print PNG is kept separately for PDF/Lulu use.
+async function webImageBuffer(input: Buffer): Promise<Buffer> {
+  return sharp(input)
+    .resize(1024, 1024, { kernel: sharp.kernel.lanczos3, fit: "fill" })
+    .jpeg({ quality: 88, mozjpeg: true })
+    .toBuffer();
+}
+
 // ---------------------------------------------------------------------------
 // Placeholder SVG generators (used when OpenAI is not configured)
 // ---------------------------------------------------------------------------
@@ -1007,6 +1016,7 @@ export async function generateCoverIllustration(input: {
   characterBible: CharacterBible;
 }): Promise<{
   coverImageUrl: string;
+  coverWebImageUrl?: string;
   spreads: BookSpread[];
   provider: "openai" | "placeholder";
 }> {
@@ -1024,14 +1034,24 @@ export async function generateCoverIllustration(input: {
         upscaled = await generateAndUpscale(prompt);
       }
 
-      const coverImageUrl = await storeBookAsset({
-        pathname: `books/${input.project.id}/cover.png`,
-        body: upscaled,
-        contentType: "image/png",
-      });
+      const [coverImageUrl, coverWebImageUrl] = await Promise.all([
+        storeBookAsset({
+          pathname: `books/${input.project.id}/cover.png`,
+          body: upscaled,
+          contentType: "image/png",
+        }),
+        webImageBuffer(upscaled).then((web) =>
+          storeBookAsset({
+            pathname: `books/${input.project.id}/cover-web.jpg`,
+            body: web,
+            contentType: "image/jpeg",
+          })
+        ),
+      ]);
 
       return {
         coverImageUrl,
+        coverWebImageUrl,
         spreads: replaceCoverSpreadImage(input.project.spreads, coverImageUrl),
         provider: "openai",
       };
@@ -1072,7 +1092,7 @@ export async function generateSpreadPageIllustration(input: {
   spread: BookSpread;
   side: "left" | "right";
   correctionNote?: string;
-}): Promise<{ url: string; provider: "openai" | "placeholder" }> {
+}): Promise<{ url: string; webUrl?: string; provider: "openai" | "placeholder" }> {
   const { project, spread, side } = input;
   const suffix = side === "left" ? "-left" : "-right";
   const base = `books/${project.id}/spreads/${spread.sequence}`;
@@ -1090,6 +1110,18 @@ export async function generateSpreadPageIllustration(input: {
     return { url: await storePlaceholderPage(), provider: "placeholder" };
   }
 
+  const storeWithWeb = async (upscaled: Buffer) => {
+    const printPathname = generatedImagePathname(base, suffix);
+    const webPathname = `${printPathname.replace(/\.png$/, "")}-web.jpg`;
+    const [url, webUrl] = await Promise.all([
+      storeBookAsset({ pathname: printPathname, body: upscaled, contentType: "image/png" }),
+      webImageBuffer(upscaled).then((web) =>
+        storeBookAsset({ pathname: webPathname, body: web, contentType: "image/jpeg" })
+      ),
+    ]);
+    return { url, webUrl };
+  };
+
   const prompt = buildPageIllustrationPrompt(input);
 
   try {
@@ -1103,12 +1135,8 @@ export async function generateSpreadPageIllustration(input: {
       );
       upscaled = await generateAndUpscale(prompt);
     }
-    const url = await storeBookAsset({
-      pathname: generatedImagePathname(base, suffix),
-      body: upscaled,
-      contentType: "image/png",
-    });
-    return { url, provider: "openai" };
+    const { url, webUrl } = await storeWithWeb(upscaled);
+    return { url, webUrl, provider: "openai" };
   } catch (err) {
     if (
       !(err instanceof ModerationBlockedError) &&
@@ -1123,12 +1151,8 @@ export async function generateSpreadPageIllustration(input: {
     });
     try {
       const upscaled = await generateAndUpscale(fallbackPrompt);
-      const url = await storeBookAsset({
-        pathname: generatedImagePathname(base, suffix),
-        body: upscaled,
-        contentType: "image/png",
-      });
-      return { url, provider: "openai" };
+      const { url, webUrl } = await storeWithWeb(upscaled);
+      return { url, webUrl, provider: "openai" };
     } catch (fallbackErr) {
       if (
         !(fallbackErr instanceof ModerationBlockedError) &&
@@ -1165,8 +1189,9 @@ export async function generateSpreadIllustration(input: {
       side: "left",
     });
     nextSpread.leftPageImageUrl = left.url;
+    nextSpread.leftPageWebImageUrl = left.webUrl;
     nextSpread.rightPageImageUrl = undefined;
-    nextSpread.thumbnailUrl = left.url;
+    nextSpread.thumbnailUrl = left.webUrl ?? left.url;
     nextSpread.leftPageImageError = undefined;
     nextSpread.rightPageImageError = undefined;
     return {

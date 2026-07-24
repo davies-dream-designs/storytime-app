@@ -17,4 +17,5 @@ export const inngest = new Inngest({
 /** Event names emitted into Inngest. Keep these centralised and typed. */
 export const INNGEST_EVENTS = {
   bookBuildRequested: 'storycot/book.build.requested',
+  bookVideoRequested: 'storycot/book.video.requested',
 } as const

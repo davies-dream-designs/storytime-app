@@ -12,6 +12,7 @@ type ReaderSpread = {
   leftPageText: string;
   rightPageText: string;
   imageUrl?: string;
+  webImageUrl?: string;
 };
 
 function isPlaceholder(url?: string): boolean {
@@ -35,11 +36,12 @@ function getReaderSpreads(project: BookProject): ReaderSpread[] {
       title: s.title,
       leftPageText: s.leftPageText,
       rightPageText: s.rightPageText,
-      imageUrl: s.leftPageImageUrl ?? s.imageUrl,
+      imageUrl: s.leftPageWebImageUrl ?? s.leftPageImageUrl ?? s.imageUrl,
+      webImageUrl: s.leftPageWebImageUrl,
     }));
 
   // Prepend cover as first page if available
-  const coverUrl = project.assets.coverImageUrl;
+  const coverUrl = project.assets.coverWebImageUrl ?? project.assets.coverImageUrl;
   if (coverUrl && !isPlaceholder(coverUrl)) {
     story.unshift({
       id: "cover",
@@ -48,6 +50,7 @@ function getReaderSpreads(project: BookProject): ReaderSpread[] {
       leftPageText: "",
       rightPageText: "",
       imageUrl: coverUrl,
+      webImageUrl: project.assets.coverWebImageUrl,
     });
   }
 

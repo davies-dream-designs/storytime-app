@@ -98,11 +98,15 @@ export interface BookSpread {
   illustrationPrompt: string;
   imageUrl?: string;
   leftPageImageUrl?: string;
+  leftPageWebImageUrl?: string;
   rightPageImageUrl?: string;
   leftPageImageError?: string;
   rightPageImageError?: string;
   thumbnailUrl?: string;
+  leftPageVideoUrl?: string;
 }
+
+export type AnimatedVideoStatus = "generating" | "ready" | "failed";
 
 export interface BookAsset {
   coverImageUrl?: string;
@@ -152,8 +156,15 @@ export interface BookAsset {
   proofingWarnings?: string[];
   proofingErrors?: string[];
   proofVersion: number;
+  coverWebImageUrl?: string;
   digitalDownloadUnlockedAt?: string;
   digitalDownloadCheckoutSessionId?: string;
+  animatedVideoUnlockedAt?: string;
+  animatedVideoCheckoutSessionId?: string;
+  animatedVideoStatus?: AnimatedVideoStatus;
+  animatedVideoStartedAt?: string;
+  animatedVideoReadyAt?: string;
+  animatedVideoError?: string;
 }
 
 export interface BookBilling {

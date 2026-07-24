@@ -450,7 +450,7 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
 
           {/* Image area — shared mobile + desktop */}
           {/* Desktop with text: aspect-square so image fills perfectly; without text: flex-1 full width */}
-          <div className={`relative min-h-0 flex-1${pageText ? " lg:aspect-square lg:h-screen lg:flex-none lg:shrink-0" : ""}`}>
+          <div className={`relative min-h-0 flex-1 lg:h-screen${pageText ? " lg:aspect-square lg:flex-none lg:shrink-0" : ""}`}>
             {hasImage ? (
               <Image
                 src={spread.imageUrl!}

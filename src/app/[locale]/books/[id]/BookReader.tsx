@@ -479,7 +479,7 @@ export default function BookReader({ project }: { project: BookProject }) {
             {/* Story text overlay */}
             {pageText ? (
               <div
-                className="pointer-events-none absolute inset-x-0 bottom-0 max-h-[45%] overflow-y-auto bg-gradient-to-t from-black/85 via-black/60 to-transparent px-5 pb-4 pt-10"
+                className="absolute inset-x-0 bottom-0 max-h-[45%] overflow-y-auto bg-gradient-to-t from-black/85 via-black/60 to-transparent px-5 pb-4 pt-10"
                 onContextMenu={(e) => e.preventDefault()}
               >
                 <p className="font-display text-sm leading-relaxed text-white/95 drop-shadow">

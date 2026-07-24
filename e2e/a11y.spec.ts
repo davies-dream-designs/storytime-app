@@ -16,7 +16,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { getBaseUrl, signIn } from "./helpers/auth";
 
 const BASE = getBaseUrl();
-const CAN_AUTH = Boolean(process.env.CLERK_SECRET_KEY);
+const CAN_AUTH = Boolean(process.env.CLERK_SECRET_KEY_DEV ?? process.env.CLERK_SECRET_KEY);
 
 const AXE_OPTIONS = {
   runOnly: {

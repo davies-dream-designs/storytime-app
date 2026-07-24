@@ -18,10 +18,11 @@ export function getBypassUrl(url: string): string {
 
 async function getSignInToken(): Promise<string> {
   const testUserId = process.env.E2E_TEST_USER_ID ?? 'user_3GVKe5HmZpQR7HRWFrrgwxc0Vxs'
-  const clerkSecret = process.env.CLERK_SECRET_KEY
+  // CLERK_SECRET_KEY_DEV is the OpenHands secret name; fall back to CLERK_SECRET_KEY for local runs
+  const clerkSecret = process.env.CLERK_SECRET_KEY_DEV ?? process.env.CLERK_SECRET_KEY
 
   if (!clerkSecret) {
-    throw new Error('CLERK_SECRET_KEY is required for Playwright sign-in token flow.')
+    throw new Error('CLERK_SECRET_KEY_DEV (or CLERK_SECRET_KEY) is required for Playwright sign-in token flow.')
   }
 
   const res = await fetch('https://api.clerk.com/v1/sign_in_tokens', {

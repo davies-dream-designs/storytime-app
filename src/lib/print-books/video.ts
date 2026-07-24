@@ -153,7 +153,9 @@ export async function pollKlingJob(
 export async function submitKlingJob(
   imageUrl: string,
   prompt: string,
-  webhookUrl: string
+  webhookUrl: string,
+  projectId: string,
+  spreadId: string
 ): Promise<string> {
   configureFal();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -166,7 +168,13 @@ export async function submitKlingJob(
     },
     webhookUrl,
   });
-  console.log(`Kling job submitted: ${request_id}`);
+  console.log(`Kling job submitted: ${request_id} for spread ${spreadId}`);
+
+  // Store the requestId → { projectId, spreadId } mapping so the webhook
+  // handler can write directly to the DB without needing an Inngest event.
+  const { kv } = await import("@vercel/kv");
+  await kv.set(`klingJob:${request_id}`, { projectId, spreadId }, { ex: 3600 });
+
   return request_id;
 }
 

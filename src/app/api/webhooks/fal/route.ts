@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
+import { kv } from "@vercel/kv";
+import { db } from "@/lib/db";
 
-// fal.ai webhook payload — delivered when a queued job completes or fails.
 type FalWebhookBody = {
   request_id: string;
   status: "OK" | "ERROR";
@@ -22,24 +22,35 @@ export async function POST(req: NextRequest) {
   }
 
   const videoUrl = body.status === "OK" ? (body.payload?.video?.url ?? null) : null;
-  const failed = body.status === "ERROR";
-  const error = failed ? (body.error ?? "Kling failed") : null;
+  console.log(`fal webhook: ${body.request_id} status=${body.status}`, videoUrl ? "✓" : body.error);
 
-  console.log(
-    `fal webhook: request_id=${body.request_id} status=${body.status}`,
-    videoUrl ? `url=${videoUrl.slice(0, 60)}` : error
+  if (!videoUrl) {
+    // Failed job — nothing to store, Inngest fallback poll will handle it.
+    return NextResponse.json({ received: true });
+  }
+
+  // Look up which project/spread this belongs to.
+  const meta = await kv.get<{ projectId: string; spreadId: string }>(
+    `klingJob:${body.request_id}`
   );
 
-  // Fire the Inngest event so the waiting generateBookVideo function resumes.
-  await inngest.send({
-    name: INNGEST_EVENTS.klingCompleted,
-    data: {
-      requestId: body.request_id,
-      videoUrl,
-      failed,
-      error,
-    },
-  });
+  if (!meta) {
+    console.warn(`fal webhook: no KV entry for request_id ${body.request_id}`);
+    return NextResponse.json({ received: true });
+  }
+
+  const { projectId, spreadId } = meta;
+
+  // Write the video URL directly to the spread — no Inngest event needed.
+  // The Inngest function will read this from DB after its sleep.
+  const project = await db.bookProjects.getById(projectId);
+  if (project) {
+    const updatedSpreads = project.spreads.map((s) =>
+      s.id === spreadId ? { ...s, leftPageVideoUrl: videoUrl } : s
+    );
+    await db.bookProjects.update(projectId, { spreads: updatedSpreads });
+    console.log(`fal webhook: stored videoUrl for spread ${spreadId} in project ${projectId}`);
+  }
 
   return NextResponse.json({ received: true });
 }

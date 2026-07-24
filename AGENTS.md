@@ -4,6 +4,20 @@ This file documents the conventions, constraints, and workflow rules that all au
 
 ---
 
+## Memory Vault — do this first
+
+Pull Jake's memory vault before starting any work:
+
+```bash
+git -C /home/openhands/jake-vault pull origin vault 2>/dev/null || \
+  git clone "https://${GITHUB_TOKEN}@github.com/davies-dream-designs/claude-memory.git" \
+  --branch vault /home/openhands/jake-vault
+```
+
+Read `/home/openhands/jake-vault/MEMORY.md` for project context and preferences. See `/home/openhands/AGENTS.md` for full global rules.
+
+---
+
 ## Technology
 
 - **Framework:** Next.js 15, App Router, TypeScript strict mode

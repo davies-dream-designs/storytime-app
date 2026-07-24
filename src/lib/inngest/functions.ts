@@ -69,11 +69,11 @@ export const buildBook = inngest.createFunction(
 // Animated storybook video generation
 // ---------------------------------------------------------------------------
 
-// fal.ai calls our webhook when a Kling job finishes; the webhook handler
-// fires a storycot/kling.completed event. Each spread waits up to 10 min.
-// Webhook timeout — if fal.ai doesn't call back within this window we fall
-// back to a single poll. Kling standard typically completes in 60-120s.
-const KLING_WEBHOOK_TIMEOUT = "5m";
+// After submitting to Kling, sleep then check if the webhook already wrote
+// the video URL to the DB. If not, poll fal.ai directly as fallback.
+const KLING_INITIAL_SLEEP_MS = 45_000;
+const KLING_POLL_RETRIES = 4;
+const KLING_POLL_INTERVAL_MS = 20_000;
 
 export const generateBookVideo = inngest.createFunction(
   {
@@ -132,50 +132,58 @@ export const generateBookVideo = inngest.createFunction(
         (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
       const webhookUrl = `${appUrl}/api/webhooks/fal`;
 
-      // Submit to Kling — fal.ai will POST the result to our webhook.
+      // Submit to Kling with webhook URL + KV mapping so the webhook handler
+      // can write the video URL directly to the DB.
       const requestId: string = await step.run(`submit-spread-${i}`, (): Promise<string> =>
-        submitKlingJob(sourceUrl, prompt, webhookUrl)
+        submitKlingJob(sourceUrl, prompt, webhookUrl, projectId, spread.id)
       );
 
-      // Wait for the webhook to fire storycot/kling.completed with our requestId.
-      // No polling, no sleep — Inngest pauses efficiently until fal.ai calls back.
-      const klingResult = await step.waitForEvent(`wait-kling-${i}`, {
-        event: INNGEST_EVENTS.klingCompleted,
-        if: `async.data.requestId == "${requestId}"`,
-        timeout: KLING_WEBHOOK_TIMEOUT,
-      });
+      // Sleep then check if the webhook already wrote the video URL to the DB.
+      // This is simpler and more reliable than step.waitForEvent with an if
+      // condition, which has timing/timeout bugs with Inngest's event matching.
+      await step.sleep(`wait-spread-${i}`, KLING_INITIAL_SLEEP_MS);
 
       let videoUrl: string | undefined;
 
-      if (!klingResult) {
-        // Webhook didn't arrive within the timeout — Kling may have completed
-        // before waitForEvent was registered (race condition on fast jobs) or
-        // the delivery failed. Poll once as a fallback before giving up.
-        console.warn(`Spread ${i} webhook timed out — falling back to poll`);
-        const fallback = await step.run(
-          `fallback-poll-${i}`,
-          (): Promise<{ done: boolean; videoUrl?: string; failed?: boolean; error?: string }> =>
-            pollKlingJob(requestId)
-        );
-        if (fallback.done && !fallback.failed && fallback.videoUrl) {
-          videoUrl = fallback.videoUrl;
-          results.push({ spreadId: spread.id, videoUrl });
-        } else {
-          results.push({
-            spreadId: spread.id,
-            error: fallback.error ?? "Webhook timed out and fallback poll found no result",
-          });
-          console.warn(`Spread ${i} fallback poll: ${fallback.error ?? "no result"}`);
-        }
-      } else if (klingResult.data.failed) {
-        results.push({ spreadId: spread.id, error: klingResult.data.error ?? "Kling failed" });
-        console.warn(`Spread ${i} Kling failed: ${klingResult.data.error}`);
-      } else {
-        videoUrl = klingResult.data.videoUrl as string | undefined;
+      // Check DB first — webhook may have already written the URL.
+      const afterSleep = await step.run(`check-db-${i}`, async (): Promise<string | null> => {
+        const current = await db.bookProjects.getById(projectId);
+        const s = current?.spreads.find((sp) => sp.id === spread.id);
+        return s?.leftPageVideoUrl ?? null;
+      });
+
+      if (afterSleep) {
+        videoUrl = afterSleep;
         results.push({ spreadId: spread.id, videoUrl });
+      } else {
+        // Webhook hasn't arrived yet — poll fal.ai directly.
+        for (let p = 0; p < KLING_POLL_RETRIES; p++) {
+          const poll = await step.run(
+            `poll-spread-${i}-${p}`,
+            (): Promise<{ done: boolean; videoUrl?: string; failed?: boolean; error?: string }> =>
+              pollKlingJob(requestId)
+          );
+          if (poll.done) {
+            if (!poll.failed && poll.videoUrl) {
+              videoUrl = poll.videoUrl;
+              results.push({ spreadId: spread.id, videoUrl });
+            } else {
+              results.push({ spreadId: spread.id, error: poll.error ?? "Kling failed" });
+              console.warn(`Spread ${i} poll failed: ${poll.error}`);
+            }
+            break;
+          }
+          if (p < KLING_POLL_RETRIES - 1) {
+            await step.sleep(`poll-wait-${i}-${p}`, KLING_POLL_INTERVAL_MS);
+          }
+        }
+        if (!videoUrl && !results.find((r) => r.spreadId === spread.id)) {
+          results.push({ spreadId: spread.id, error: "Kling did not complete in time" });
+        }
       }
 
-      // Persist the video URL onto the spread immediately
+      // Persist the video URL onto the spread (webhook may not have written it yet
+      // if we got it via the fallback poll path).
       if (videoUrl) {
         const freshProject = await step.run(`store-spread-${i}`, async () => {
           const current = await db.bookProjects.getById(projectId);

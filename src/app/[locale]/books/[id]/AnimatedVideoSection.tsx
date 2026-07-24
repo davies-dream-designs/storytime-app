@@ -24,13 +24,6 @@ function AnimatedPlayer({ clips }: { clips: Clip[] }) {
   const [current, setCurrent] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  function advance() {
-    setCurrent((c) => (c + 1 < clips.length ? c + 1 : c));
-  }
-  function back() {
-    setCurrent((c) => (c > 0 ? c - 1 : 0));
-  }
-
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.load();
@@ -50,13 +43,13 @@ function AnimatedPlayer({ clips }: { clips: Clip[] }) {
           src={clip.videoUrl}
           className="w-full"
           playsInline
-          onEnded={current < clips.length - 1 ? advance : undefined}
+          onEnded={current < clips.length - 1 ? () => setCurrent((c) => c + 1) : undefined}
           controls
         />
       </div>
       <div className="mt-3 flex items-center justify-between gap-3">
         <button
-          onClick={back}
+          onClick={() => setCurrent((c) => Math.max(0, c - 1))}
           disabled={current === 0}
           className="storycot-btn storycot-btn-secondary disabled:opacity-40"
         >
@@ -66,43 +59,13 @@ function AnimatedPlayer({ clips }: { clips: Clip[] }) {
           Page {current + 1} of {clips.length}
         </p>
         <button
-          onClick={advance}
+          onClick={() => setCurrent((c) => Math.min(clips.length - 1, c + 1))}
           disabled={current >= clips.length - 1}
           className="storycot-btn storycot-btn-secondary disabled:opacity-40"
         >
           Next →
         </button>
       </div>
-    </div>
-  );
-}
-
-function GeneratingProgress({
-  clips,
-  totalSpreads,
-}: {
-  clips: Clip[];
-  totalSpreads: number;
-}) {
-  const done = clips.length;
-  const pct = totalSpreads > 0 ? Math.round((done / totalSpreads) * 100) : 0;
-
-  return (
-    <div className="mt-4 space-y-3">
-      <div className="flex items-center justify-between text-sm text-night-500">
-        <span>Animating illustrations…</span>
-        <span>{done}/{totalSpreads} pages</span>
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-night-100">
-        <div
-          className="h-full rounded-full bg-moon-400 transition-all duration-500"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <p className="text-xs text-night-400">
-        Each page takes about 90 seconds — this usually finishes in 10–20 minutes.
-        You can close this page and come back.
-      </p>
     </div>
   );
 }
@@ -132,21 +95,33 @@ export default function AnimatedVideoSection({
     totalSpreads: 0,
   });
 
-  // Poll while generating
+  async function fetchStatus() {
+    try {
+      const res = await fetch(`/api/books/${projectId}/video`);
+      if (!res.ok) return;
+      const data = (await res.json()) as VideoStatus;
+      setVideoState(data);
+      return data;
+    } catch {}
+  }
+
+  // Fetch immediately on mount when unlocked — don't make the user wait 10s
+  // to find out if generation is still running or already done/failed.
+  useEffect(() => {
+    if (!initialUnlocked) return;
+    fetchStatus();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Poll every 10s while generating
   useEffect(() => {
     if (!videoState.unlocked || videoState.status !== "generating") return;
-
     const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/books/${projectId}/video`);
-        if (!res.ok) return;
-        const data = (await res.json()) as VideoStatus;
-        setVideoState(data);
-        if (data.status !== "generating") clearInterval(interval);
-      } catch {}
+      const data = await fetchStatus();
+      if (data && data.status !== "generating") clearInterval(interval);
     }, 10_000);
-
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, videoState.unlocked, videoState.status]);
 
   async function startCheckout() {
@@ -168,12 +143,9 @@ export default function AnimatedVideoSection({
         return;
       }
       if (data.adminTriggered) {
-        // Admin bypass — no Stripe, video is already generating
-        setVideoState((prev) => ({
-          ...prev,
-          unlocked: true,
-          status: "generating",
-        }));
+        // Fetch fresh state from DB immediately rather than relying on
+        // client-side optimistic update — Inngest send may have failed.
+        await fetchStatus();
         return;
       }
       if (data.url) window.location.href = data.url;
@@ -184,58 +156,90 @@ export default function AnimatedVideoSection({
     }
   }
 
-  // Unlocked and ready — show player
+  // -------------------------------------------------------------------------
+  // Render states — styled to match DigitalDownloadSection
+  // -------------------------------------------------------------------------
+
   if (videoState.unlocked && videoState.status === "ready" && videoState.clips.length > 0) {
     return (
       <div className="rounded-2xl border border-green-200 bg-green-50 p-5">
         <p className="text-xs font-bold uppercase tracking-wide text-green-700">
-          Animated storybook — ready
+          Animated storybook — unlocked
         </p>
         <p className="mt-1 font-display text-xl font-bold text-night-800">
           {storyTitle}
         </p>
         <p className="mt-1 text-sm text-night-500">
-          {videoState.clips.length} animated pages — tap play to watch.
+          {videoState.clips.length} animated pages ready to watch.
         </p>
         <AnimatedPlayer clips={videoState.clips} />
       </div>
     );
   }
 
-  // Generating — show progress
   if (videoState.unlocked && videoState.status === "generating") {
+    const done = videoState.clips.length;
+    const total = videoState.totalSpreads;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
     return (
-      <div className="rounded-2xl border border-moon-200 bg-moon-50 p-5">
-        <p className="text-xs font-bold uppercase tracking-wide text-moon-700">
+      <div className="rounded-2xl border border-night-100 bg-white p-5 shadow-sm">
+        <p className="text-xs font-bold uppercase tracking-wide text-moon-600">
           Animated storybook — generating
         </p>
         <p className="mt-1 font-display text-xl font-bold text-night-800">
           {storyTitle}
         </p>
-        <GeneratingProgress
-          clips={videoState.clips}
-          totalSpreads={videoState.totalSpreads}
-        />
+        <p className="mt-2 text-sm text-night-500">
+          Animating your illustrations one by one — each page takes about 90 seconds.
+        </p>
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center justify-between text-sm text-night-500">
+            <span>{done} of {total} pages done</span>
+            <span>{pct}%</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-night-100">
+            <div
+              className="h-full rounded-full bg-moon-400 transition-all duration-500"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
+        <p className="mt-3 text-xs text-night-400">
+          You can close this page and come back — it will keep going in the background.
+        </p>
       </div>
     );
   }
 
-  // Failed
   if (videoState.unlocked && videoState.status === "failed") {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
-        <p className="text-xs font-bold uppercase tracking-wide text-red-700">
-          Animated storybook — generation failed
+      <div className="rounded-2xl border border-red-100 bg-red-50 p-5">
+        <p className="text-xs font-bold uppercase tracking-wide text-red-600">
+          Animated storybook — failed
         </p>
-        <p className="mt-2 text-sm text-night-500">
+        <p className="mt-2 text-sm text-night-600">
           Something went wrong generating your animated storybook.
-          {isAdmin ? " You can retry via the video API." : " Please contact support."}
         </p>
+        {isAdmin && (
+          <button
+            onClick={async () => {
+              await fetch(`/api/books/${projectId}/video`, { method: "POST" });
+              await fetchStatus();
+            }}
+            className="storycot-btn storycot-btn-secondary mt-3"
+          >
+            Retry generation
+          </button>
+        )}
+        {!isAdmin && (
+          <p className="mt-1 text-sm text-night-400">Please contact support.</p>
+        )}
       </div>
     );
   }
 
-  // Not yet purchased — show purchase card
+  // Not yet purchased / not yet triggered
   return (
     <div className="rounded-2xl border border-night-100 bg-white p-5 shadow-sm">
       <p className="text-xs font-bold uppercase tracking-wide text-star-600">
@@ -262,7 +266,7 @@ export default function AnimatedVideoSection({
         </li>
         <li className="flex items-center gap-2">
           <span className="text-green-500" aria-hidden="true">✓</span>
-          Narration-ready — audio plays alongside each page
+          Narration plays alongside each animated page
         </li>
         <li className="flex items-center gap-2">
           <span className="text-green-500" aria-hidden="true">✓</span>
@@ -270,7 +274,9 @@ export default function AnimatedVideoSection({
         </li>
       </ul>
       {error ? (
-        <p className="mt-3 text-sm font-bold text-blush-600">{error}</p>
+        <p className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
+          {error}
+        </p>
       ) : null}
       <button
         onClick={startCheckout}
@@ -278,9 +284,7 @@ export default function AnimatedVideoSection({
         className="storycot-btn storycot-btn-primary mt-4 w-full justify-center disabled:opacity-60"
       >
         {loading
-          ? isAdmin
-            ? "Triggering…"
-            : "Opening checkout…"
+          ? isAdmin ? "Starting…" : "Opening checkout…"
           : isAdmin
             ? "Generate animated storybook (admin — free)"
             : "Get animated storybook — $14.95"}

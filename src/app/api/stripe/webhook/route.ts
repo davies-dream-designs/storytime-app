@@ -114,10 +114,14 @@ export async function POST(req: NextRequest) {
               animatedVideoStartedAt: new Date().toISOString(),
             },
           });
-          await inngest.send({
-            name: INNGEST_EVENTS.bookVideoRequested,
-            data: { projectId: project.id },
-          });
+          try {
+            await inngest.send({
+              name: INNGEST_EVENTS.bookVideoRequested,
+              data: { projectId: project.id },
+            });
+          } catch (err) {
+            console.error("Inngest send failed (video webhook):", err);
+          }
         }
       }
     } else if (checkoutType === "digital_download") {

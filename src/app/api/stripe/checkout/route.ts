@@ -147,10 +147,16 @@ export async function POST(req: NextRequest) {
           animatedVideoStartedAt: new Date().toISOString(),
         },
       });
-      await inngest.send({
-        name: INNGEST_EVENTS.bookVideoRequested,
-        data: { projectId: project.id },
-      });
+      // Fire Inngest but don't let a missing event key break the response —
+      // the DB is already updated so the client can poll for status.
+      try {
+        await inngest.send({
+          name: INNGEST_EVENTS.bookVideoRequested,
+          data: { projectId: project.id },
+        });
+      } catch (err) {
+        console.error("Inngest send failed (video):", err);
+      }
       return NextResponse.json({ adminTriggered: true });
     }
 

@@ -1,9 +1,16 @@
 import sharp from "sharp";
+import { fal } from "@fal-ai/client";
 import type { BookSpread, CharacterBible } from "@/types/printBook";
 import { storeBookAsset } from "@/lib/print-books/storage";
 
 const KLING_MODEL = "fal-ai/kling-video/v2.1/standard/image-to-video";
 const KLING_DURATION = "5";
+
+function configureFal() {
+  const key = process.env.FAL_KEY;
+  if (!key) throw new Error("FAL_KEY is not configured");
+  fal.config({ credentials: key });
+}
 
 export function isVideoConfigured(): boolean {
   return Boolean(process.env.FAL_KEY);
@@ -52,101 +59,58 @@ export function buildKlingMotionPrompt(
 }
 
 // ---------------------------------------------------------------------------
-// Kling API via fal.ai
+// Kling API via @fal-ai/client SDK
+// Using the SDK avoids manually constructing queue URLs — fal's request_id
+// format includes model context and must not be embedded in raw URL paths.
 // ---------------------------------------------------------------------------
-
-type KlingSubmitResponse = { request_id: string };
-type KlingStatusResponse = {
-  status: "IN_QUEUE" | "IN_PROGRESS" | "COMPLETED" | "FAILED";
-  error?: unknown;
-};
-type KlingResultResponse = {
-  video?: { url?: string };
-  error?: unknown;
-};
-
-async function falPost(path: string, body: unknown): Promise<Response> {
-  const apiKey = process.env.FAL_KEY;
-  if (!apiKey) throw new Error("FAL_KEY is not configured");
-
-  return fetch(`https://queue.fal.run/${path}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Key ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-}
-
-async function falGet(path: string): Promise<Response> {
-  const apiKey = process.env.FAL_KEY;
-  if (!apiKey) throw new Error("FAL_KEY is not configured");
-
-  return fetch(`https://queue.fal.run/${path}`, {
-    headers: { Authorization: `Key ${apiKey}` },
-  });
-}
 
 export async function submitKlingJob(
   imageUrl: string,
   prompt: string
 ): Promise<string> {
-  const res = await falPost(KLING_MODEL, {
-    image_url: imageUrl,
-    prompt,
-    duration: KLING_DURATION,
-    aspect_ratio: "1:1",
+  configureFal();
+  // Cast to unknown first — the SDK's input type for this model doesn't
+  // expose all parameters (e.g. aspect_ratio) but the API accepts them.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { request_id } = await (fal.queue.submit as any)(KLING_MODEL, {
+    input: {
+      image_url: imageUrl,
+      prompt,
+      duration: KLING_DURATION,
+      aspect_ratio: "1:1",
+    },
   });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Kling submit failed: ${res.status} ${err.slice(0, 200)}`);
-  }
-
-  const data = (await res.json()) as KlingSubmitResponse;
-  if (!data.request_id) throw new Error("Kling submit returned no request_id");
-  return data.request_id;
+  console.log(`Kling job submitted: ${request_id}`);
+  return request_id;
 }
 
 export async function pollKlingJob(
   requestId: string
 ): Promise<{ done: boolean; videoUrl?: string; failed?: boolean; error?: string }> {
-  // Use /status for a non-blocking check — GET without /status enters long-poll
-  // mode and blocks until the job finishes (or returns 405 on failure).
-  const statusRes = await falGet(`${KLING_MODEL}/requests/${requestId}/status`);
+  configureFal();
 
-  if (!statusRes.ok) {
-    const body = await statusRes.text();
-    console.error(`Kling status check failed: ${statusRes.status}`, body.slice(0, 400));
-    throw new Error(`Kling poll failed: ${statusRes.status} — ${body.slice(0, 200)}`);
+  let status: Awaited<ReturnType<typeof fal.queue.status>>;
+  try {
+    status = await fal.queue.status(KLING_MODEL, { requestId, logs: false });
+  } catch (err) {
+    // SDK throws when the job fails — treat as a terminal failure.
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error(`Kling job failed for ${requestId}:`, errMsg);
+    return { done: true, failed: true, error: errMsg.slice(0, 200) };
   }
 
-  const statusData = (await statusRes.json()) as KlingStatusResponse;
-  console.log(`Kling request ${requestId} status: ${statusData.status}`);
+  console.log(`Kling request ${requestId} status: ${status.status}`);
 
-  if (statusData.status === "FAILED") {
-    const errDetail = JSON.stringify(statusData.error ?? "Kling generation failed");
-    console.error(`Kling job failed for ${requestId}:`, errDetail);
-    return { done: true, failed: true, error: errDetail.slice(0, 200) };
-  }
-
-  if (statusData.status !== "COMPLETED") {
+  if (status.status !== "COMPLETED") {
     return { done: false };
   }
 
-  // Fetch the actual result now that it's done
-  const resultRes = await falGet(`${KLING_MODEL}/requests/${requestId}`);
-  if (!resultRes.ok) {
-    const body = await resultRes.text();
-    console.error(`Kling result fetch failed: ${resultRes.status}`, body.slice(0, 400));
-    throw new Error(`Kling result fetch failed: ${resultRes.status}`);
-  }
-
-  const resultData = (await resultRes.json()) as KlingResultResponse;
-  const videoUrl = resultData.video?.url;
+  // Job is done — fetch the result.
+  const result = await fal.queue.result(KLING_MODEL, { requestId });
+  const output = result.data as { video?: { url?: string } } | undefined;
+  const videoUrl = output?.video?.url;
   if (!videoUrl) {
-    console.error("Kling completed but no video URL:", JSON.stringify(resultData).slice(0, 400));
+    console.error("Kling completed but no video URL:", JSON.stringify(output).slice(0, 400));
     throw new Error("Kling completed but returned no video URL");
   }
 

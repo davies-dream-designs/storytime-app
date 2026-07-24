@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import type { BookProject, BookSpread } from "@/types/printBook";
 import { DEFAULT_NARRATION_VOICE_ID, type WordTiming } from "@/lib/elevenlabs";
 
@@ -238,15 +239,14 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
         {/* Image panel */}
         {hasImage ? (
           <div className="relative aspect-square w-full overflow-hidden max-h-[55vh] lg:aspect-auto lg:max-h-none lg:w-[55%] lg:shrink-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={spread.imageUrl!}
               alt={spread.title ?? `Page ${index + 1}`}
-              className="pointer-events-none h-full w-full object-cover select-none"
+              fill
+              sizes="(min-width: 1024px) 55vw, 100vw"
+              className="pointer-events-none object-cover select-none"
               draggable={false}
-              style={
-                { userSelect: "none", WebkitUserDrag: "none" } as React.CSSProperties
-              }
+              priority={index === 0}
               onContextMenu={(e) => e.preventDefault()}
             />
             {/* Transparent overlay — blocks right-click/long-press, captures expand tap */}
@@ -465,13 +465,14 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
           {/* Image area — shared mobile + desktop */}
           <div className="relative min-h-0 flex-1">
             {hasImage ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Image
                 src={spread.imageUrl!}
                 alt={spread.title ?? `Page ${index + 1}`}
-                className="pointer-events-none h-full w-full object-contain select-none"
+                fill
+                sizes="(min-width: 1024px) 60vw, 100vw"
+                className="pointer-events-none object-contain select-none"
                 draggable={false}
-                style={{ userSelect: "none", WebkitUserDrag: "none" } as React.CSSProperties}
+                priority
                 onContextMenu={(e) => e.preventDefault()}
               />
             ) : (

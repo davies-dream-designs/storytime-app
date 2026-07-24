@@ -69,7 +69,7 @@ export default async function ProfilePage({
   return (
     <>
       <Nav />
-      <main className="mx-auto max-w-5xl px-5 py-10">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-5xl px-5 py-10">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-star-300 to-moon-300 font-display text-3xl font-bold text-night-800">

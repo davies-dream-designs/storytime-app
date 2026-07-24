@@ -31,6 +31,12 @@ import BookStatusPanel from "../../books/[id]/BookStatusPanel";
 import DigitalDownloadSection from "../../books/[id]/DigitalDownloadSection";
 import PrintFulfillmentResendButton from "../../books/[id]/PrintFulfillmentResendButton";
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const story = await db.stories.getById(id);
+  return { title: story ? `${story.title} — Storycot` : "Story — Storycot" };
+}
+
 export default async function StoryPage({
   params,
   searchParams,
@@ -97,7 +103,7 @@ export default async function StoryPage({
   return (
     <>
       <Nav />
-      <main className="mx-auto max-w-4xl px-5 py-10">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-4xl px-5 py-10">
         {/* Title + actions */}
         <div className="mb-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

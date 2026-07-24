@@ -70,6 +70,7 @@ export default function CollectionFilters({
         <input
           type="search"
           placeholder={searchPlaceholder}
+          aria-label={searchPlaceholder}
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
           className="w-full rounded-full border border-night-100 bg-white py-2.5 pl-10 pr-4 text-sm text-night-700 placeholder:text-night-300 focus:outline-none focus:ring-2 focus:ring-night-300"
@@ -80,6 +81,7 @@ export default function CollectionFilters({
         {primarySelect ? (
           <select
             value={primarySelect.value}
+            aria-label={primarySelect.allLabel}
             onChange={(event) => primarySelect.onChange(event.target.value)}
             className={selectClass}
           >
@@ -95,6 +97,7 @@ export default function CollectionFilters({
         {secondarySelect ? (
           <select
             value={secondarySelect.value}
+            aria-label={secondarySelect.allLabel}
             onChange={(event) => secondarySelect.onChange(event.target.value)}
             className={selectClass}
           >
@@ -109,6 +112,7 @@ export default function CollectionFilters({
 
         <select
           value={dateRange.preset}
+          aria-label="Date range"
           onChange={(event) =>
             onDateRangeChange({
               ...dateRange,

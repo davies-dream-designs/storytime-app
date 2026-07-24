@@ -25,16 +25,21 @@ export default function ShareButton({ storyId }: { storyId: string }) {
   }
 
   return (
-    <Button
-      onClick={handleShare}
-      disabled={state === "loading"}
-      variant="secondary"
-    >
-      {state === "copied"
-        ? t("shareLinkCopied")
-        : state === "loading"
-          ? "…"
-          : t("shareIdle")}
-    </Button>
+    <>
+      <Button
+        onClick={handleShare}
+        disabled={state === "loading"}
+        variant="secondary"
+      >
+        {state === "copied"
+          ? t("shareLinkCopied")
+          : state === "loading"
+            ? "…"
+            : t("shareIdle")}
+      </Button>
+      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {state === "copied" ? t("shareLinkCopied") : ""}
+      </span>
+    </>
   );
 }

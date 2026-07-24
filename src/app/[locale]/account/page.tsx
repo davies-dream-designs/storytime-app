@@ -5,6 +5,8 @@ import Nav from "@/components/Nav";
 import CreditPacks from "./CreditPacks";
 import ShareSection from "@/components/ShareSection";
 
+export const metadata = { title: "Account — Storycot" };
+
 export default async function AccountPage({
   searchParams,
 }: {
@@ -25,7 +27,7 @@ export default async function AccountPage({
   return (
     <>
       <Nav />
-      <main className="mx-auto max-w-2xl px-5 py-14">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-5 py-14">
         <h1 className="font-display text-4xl font-bold text-night-800">
           {t("title")}
         </h1>

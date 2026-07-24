@@ -36,6 +36,7 @@
     "postcss": ">=8.5.10"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@clerk/testing": "^2.2.11",
     "@playwright/test": "^1.52.0",
     "@tailwindcss/postcss": "^4.3.3",

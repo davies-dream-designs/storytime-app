@@ -22,7 +22,7 @@ export default function ErrorState({
   secondaryAction,
 }: ErrorStateProps) {
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-3xl flex-col items-center justify-center px-5 py-16 text-center">
+    <main id="main-content" tabIndex={-1} className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-3xl flex-col items-center justify-center px-5 py-16 text-center">
       <div className="relative mb-8 h-36 w-36" aria-hidden="true">
         <div className="absolute inset-x-5 bottom-2 h-8 rounded-full bg-night-200/50 blur-md" />
         <div className="animate-drift absolute inset-0 rounded-[2rem] border-4 border-night-200 bg-white shadow-lg shadow-night-200/40">

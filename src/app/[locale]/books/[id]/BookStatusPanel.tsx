@@ -538,7 +538,7 @@ export default function BookStatusPanel({
           <p className="text-sm font-bold uppercase tracking-wide text-star-600">
             {t("statusLabel")}
           </p>
-          <h2 className="mt-2 font-display text-3xl font-bold text-night-800">
+          <h2 className="mt-2 font-display text-3xl font-bold text-night-800" aria-live="polite" aria-atomic="true">
             {stageLabel}
           </h2>
           <p className="mt-2 text-night-500">
@@ -566,7 +566,14 @@ export default function BookStatusPanel({
         </div>
       </div>
 
-      <div className="mt-6 h-3 overflow-hidden rounded-full bg-night-100">
+      <div
+        className="mt-6 h-3 overflow-hidden rounded-full bg-night-100"
+        role="progressbar"
+        aria-valuenow={Math.min(progress, 100)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={t("progressLabel")}
+      >
         <div
           className="h-full rounded-full bg-star-400 transition-all"
           style={{ width: `${Math.min(progress, 100)}%` }}
@@ -651,14 +658,14 @@ export default function BookStatusPanel({
             })}
           </div>
           {imageError ? (
-            <p className="mt-3 rounded-xl bg-blush-100 px-4 py-3 text-sm font-bold text-blush-700">
+            <p role="alert" className="mt-3 rounded-xl bg-blush-100 px-4 py-3 text-sm font-bold text-blush-700">
               {imageError}
             </p>
           ) : null}
           {redoTarget ? (
-            <div className="fixed inset-0 z-50 flex items-end bg-night-900/50 px-4 pb-4 sm:items-center sm:justify-center sm:p-6">
+            <div className="fixed inset-0 z-50 flex items-end bg-night-900/50 px-4 pb-4 sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="redo-dialog-title">
               <div className="w-full max-w-lg rounded-3xl bg-white p-5 shadow-xl">
-                <h3 className="text-xl font-black text-night-900">
+                <h3 id="redo-dialog-title" className="text-xl font-black text-night-900">
                   What should change?
                 </h3>
                 <p className="mt-2 text-sm font-medium text-night-500">
@@ -671,7 +678,8 @@ export default function BookStatusPanel({
                     setRedoCorrectionNote(event.target.value.slice(0, 500))
                   }
                   rows={4}
-                  className="mt-4 w-full rounded-2xl border border-night-200 px-4 py-3 text-base font-medium text-night-900 outline-none focus:border-lilac-500"
+                  aria-label="Correction note"
+                  className="mt-4 w-full rounded-2xl border border-night-200 px-4 py-3 text-base font-medium text-night-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lilac-500 focus:border-lilac-500"
                   placeholder="e.g. Make the cape blue, show both boots, remove the extra toy, make Bailey face the bird..."
                 />
                 <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
@@ -880,15 +888,15 @@ export default function BookStatusPanel({
           </div>
 
           {imageError ? (
-            <p className="mt-4 rounded-xl bg-blush-100 px-4 py-3 text-sm font-bold text-blush-700">
+            <p role="alert" className="mt-4 rounded-xl bg-blush-100 px-4 py-3 text-sm font-bold text-blush-700">
               {imageError}
             </p>
           ) : null}
 
           {redoTarget ? (
-            <div className="fixed inset-0 z-50 flex items-end bg-night-900/50 px-4 pb-4 sm:items-center sm:justify-center sm:p-6">
+            <div className="fixed inset-0 z-50 flex items-end bg-night-900/50 px-4 pb-4 sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="redo-dialog-title">
               <div className="w-full max-w-lg rounded-3xl bg-white p-5 shadow-xl">
-                <h3 className="text-xl font-black text-night-900">
+                <h3 id="redo-dialog-title" className="text-xl font-black text-night-900">
                   What should change?
                 </h3>
                 <p className="mt-2 text-sm font-medium text-night-500">
@@ -901,7 +909,8 @@ export default function BookStatusPanel({
                     setRedoCorrectionNote(event.target.value.slice(0, 500))
                   }
                   rows={4}
-                  className="mt-4 w-full rounded-2xl border border-night-200 px-4 py-3 text-base font-medium text-night-900 outline-none focus:border-lilac-500"
+                  aria-label="Correction note"
+                  className="mt-4 w-full rounded-2xl border border-night-200 px-4 py-3 text-base font-medium text-night-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lilac-500 focus:border-lilac-500"
                   placeholder="e.g. Make the cape blue, show both boots, remove the extra toy, make Bailey face the bird..."
                 />
                 <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
@@ -1035,6 +1044,7 @@ export default function BookStatusPanel({
           className="fixed inset-0 z-50 flex items-center justify-center bg-night-900/75 p-4"
           role="dialog"
           aria-modal="true"
+          aria-labelledby="expanded-image-dialog-title"
           onClick={() => setExpandedImage(null)}
         >
           <div
@@ -1071,7 +1081,7 @@ export default function BookStatusPanel({
               </div>
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-              <p className="text-sm font-bold text-night-700">
+              <p id="expanded-image-dialog-title" className="text-sm font-bold text-night-700">
                 {expandedImage.displayLabel ?? "Selected illustration"}
                 {expandedImage.index !== undefined ? (
                   <span className="ml-2 font-medium text-night-400">

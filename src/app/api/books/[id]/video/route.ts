@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
 import { getIllustratedSpreads, isVideoConfigured } from "@/lib/print-books/video";
 
+export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 // GET — return animated video status and per-spread clip URLs

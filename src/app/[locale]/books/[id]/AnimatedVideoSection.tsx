@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 type Clip = {
   spreadId: string;
@@ -174,34 +174,33 @@ export default function AnimatedVideoSection({
     totalSpreads: 0,
   });
 
-  async function fetchStatus() {
+  const fetchStatus = useCallback(async () => {
     try {
-      const res = await fetch(`/api/books/${projectId}/video`);
+      const res = await fetch(`/api/books/${projectId}/video`, {
+        cache: "no-store",
+      });
       if (!res.ok) return;
       const data = (await res.json()) as VideoStatus;
       setVideoState(data);
       return data;
     } catch {}
-  }
+  }, [projectId]);
 
-  // Fetch immediately on mount when unlocked — don't make the user wait 10s
-  // to find out if generation is still running or already done/failed.
+  // Fetch immediately on mount when unlocked.
   useEffect(() => {
     if (!initialUnlocked) return;
     fetchStatus();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialUnlocked, fetchStatus]);
 
-  // Poll every 10s while generating
+  // Poll every 10s while generating — useCallback keeps fetchStatus stable
+  // so the interval always has the latest closure.
   useEffect(() => {
     if (!videoState.unlocked || videoState.status !== "generating") return;
-    const interval = setInterval(async () => {
-      const data = await fetchStatus();
-      if (data && data.status !== "generating") clearInterval(interval);
+    const interval = setInterval(() => {
+      fetchStatus();
     }, 10_000);
     return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, videoState.unlocked, videoState.status]);
+  }, [projectId, videoState.unlocked, videoState.status, fetchStatus]);
 
   async function startCheckout() {
     setLoading(true);
@@ -287,17 +286,25 @@ export default function AnimatedVideoSection({
             <p className="mt-3 text-xs text-night-500">
               You can close this page and come back — it keeps going in the background.
             </p>
-            {isAdmin && (
+            <div className="mt-3 flex flex-wrap gap-2">
               <button
-                onClick={async () => {
-                  await fetch(`/api/books/${projectId}/video`, { method: "POST" });
-                  await fetchStatus();
-                }}
-                className="storycot-btn storycot-btn-secondary mt-3 text-xs"
+                onClick={() => fetchStatus()}
+                className="storycot-btn storycot-btn-secondary text-xs"
               >
-                Admin — re-trigger job
+                Refresh
               </button>
-            )}
+              {isAdmin && (
+                <button
+                  onClick={async () => {
+                    await fetch(`/api/books/${projectId}/video`, { method: "POST" });
+                    await fetchStatus();
+                  }}
+                  className="storycot-btn storycot-btn-secondary text-xs"
+                >
+                  Admin — re-trigger job
+                </button>
+              )}
+            </div>
           </>
         )}
 

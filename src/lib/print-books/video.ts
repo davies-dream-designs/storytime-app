@@ -1,7 +1,15 @@
 import sharp from "sharp";
 import { fal } from "@fal-ai/client";
+import { execFile } from "child_process";
+import { promisify } from "util";
+import { writeFile, unlink, readFile } from "fs/promises";
+import { tmpdir } from "os";
+import { join } from "path";
+import ffmpegStatic from "ffmpeg-static";
 import type { BookSpread, CharacterBible } from "@/types/printBook";
 import { storeBookAsset } from "@/lib/print-books/storage";
+
+const execFileAsync = promisify(execFile);
 
 const KLING_MODEL = "fal-ai/kling-video/v2.1/standard/image-to-video";
 const KLING_DURATION = "5";
@@ -48,6 +56,60 @@ export function buildKlingMotionPrompt(
 
   const prompt = parts.filter(Boolean).join(" ");
   return prompt.length <= 2400 ? prompt : prompt.slice(0, 2400);
+}
+
+// ---------------------------------------------------------------------------
+// Frame extraction — pulls the last frame of a Kling clip for chaining.
+// Each clip's last frame becomes the input image for the next clip so
+// the character appearance is inherited rather than re-derived from the
+// flat illustration each time.
+// ---------------------------------------------------------------------------
+
+export async function extractLastFrame(
+  videoUrl: string,
+  projectId: string,
+  spreadId: string
+): Promise<string> {
+  if (!ffmpegStatic) throw new Error("ffmpeg-static binary not found");
+
+  // Download the video
+  const res = await fetch(videoUrl);
+  if (!res.ok) throw new Error(`Failed to fetch video: ${res.status}`);
+  const videoBuffer = Buffer.from(await res.arrayBuffer());
+
+  const id = `${projectId}-${spreadId}-${Date.now()}`;
+  const tmpVideo = join(tmpdir(), `${id}.mp4`);
+  const tmpFrame = join(tmpdir(), `${id}.jpg`);
+
+  await writeFile(tmpVideo, videoBuffer);
+
+  try {
+    // Seek to 4.8s (just before the 5s clip ends) and extract one frame
+    await execFileAsync(ffmpegStatic, [
+      "-ss", "4.8",
+      "-i", tmpVideo,
+      "-frames:v", "1",
+      "-q:v", "2",
+      "-y",
+      tmpFrame,
+    ]);
+
+    const frameBuffer = await readFile(tmpFrame);
+
+    // Resize to 1024×1024 for Kling input
+    const resized = await sharp(frameBuffer)
+      .resize(1024, 1024, { fit: "fill", kernel: sharp.kernel.lanczos3 })
+      .jpeg({ quality: 88 })
+      .toBuffer();
+
+    return storeBookAsset({
+      pathname: `books/${projectId}/video-frames/${spreadId}.jpg`,
+      body: resized,
+      contentType: "image/jpeg",
+    });
+  } finally {
+    await Promise.allSettled([unlink(tmpVideo), unlink(tmpFrame)]);
+  }
 }
 
 // ---------------------------------------------------------------------------

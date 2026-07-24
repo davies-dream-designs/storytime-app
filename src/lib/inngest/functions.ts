@@ -6,6 +6,7 @@ import {
   buildKlingMotionPrompt,
   getIllustratedSpreads,
   prepareVideoSourceImage,
+  extractLastFrame,
   submitKlingJob,
   pollKlingJob,
 } from "@/lib/print-books/video";
@@ -105,13 +106,20 @@ export const generateBookVideo = inngest.createFunction(
 
     const results: { spreadId: string; videoUrl?: string; error?: string }[] = [];
 
+    // frameUrl starts as null. After each clip, we extract its last frame
+    // and use it as the input for the next clip — this chains the character
+    // appearance through the whole video so it's consistent rather than
+    // re-derived from each flat illustration independently.
+    let frameUrl: string | null = null;
+
     for (let i = 0; i < spreads.length; i++) {
       const spread = spreads[i]!;
       const prompt = buildKlingMotionPrompt(spread, project.characterBible);
 
-      // Resize the 2490px print-quality image down to 1024px JPEG for Kling.
-      // Kling outputs 960px regardless of input — feeding it 16MB buys nothing.
-      const sourceUrl = await step.run(`prep-image-${i}`, () =>
+      // First spread: resize the illustration to 1024px as the base input.
+      // Subsequent spreads: use the last frame of the previous clip — this
+      // inherits the character appearance that Kling established in clip 0.
+      const sourceUrl = frameUrl ?? await step.run(`prep-image-${i}`, () =>
         prepareVideoSourceImage(projectId, spread.id, spread.leftPageImageUrl!)
       );
 
@@ -164,6 +172,18 @@ export const generateBookVideo = inngest.createFunction(
           return db.bookProjects.update(projectId, { spreads: updatedSpreads });
         });
         if (!freshProject) break;
+
+        // Extract last frame to use as input for the next clip
+        try {
+          frameUrl = await step.run(`extract-frame-${i}`, () =>
+            extractLastFrame(videoUrl, projectId, spread.id)
+          );
+        } catch (err) {
+          // Frame extraction failure is non-fatal — next clip falls back to
+          // the illustration image rather than breaking the whole pipeline.
+          console.warn(`Frame extraction failed for spread ${i}:`, err);
+          frameUrl = null;
+        }
       }
     }
 

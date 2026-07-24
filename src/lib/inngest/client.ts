@@ -18,4 +18,5 @@ export const inngest = new Inngest({
 export const INNGEST_EVENTS = {
   bookBuildRequested: 'storycot/book.build.requested',
   bookVideoRequested: 'storycot/book.video.requested',
+  klingCompleted: 'storycot/kling.completed',
 } as const

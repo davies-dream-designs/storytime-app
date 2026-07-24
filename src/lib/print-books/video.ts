@@ -131,11 +131,10 @@ export async function extractLastFrame(
 
 export async function submitKlingJob(
   imageUrl: string,
-  prompt: string
+  prompt: string,
+  webhookUrl: string
 ): Promise<string> {
   configureFal();
-  // Cast to unknown first — the SDK's input type for this model doesn't
-  // expose all parameters (e.g. aspect_ratio) but the API accepts them.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { request_id } = await (fal.queue.submit as any)(KLING_MODEL, {
     input: {
@@ -144,42 +143,10 @@ export async function submitKlingJob(
       duration: KLING_DURATION,
       aspect_ratio: "1:1",
     },
+    webhookUrl,
   });
   console.log(`Kling job submitted: ${request_id}`);
   return request_id;
-}
-
-export async function pollKlingJob(
-  requestId: string
-): Promise<{ done: boolean; videoUrl?: string; failed?: boolean; error?: string }> {
-  configureFal();
-
-  let status: Awaited<ReturnType<typeof fal.queue.status>>;
-  try {
-    status = await fal.queue.status(KLING_MODEL, { requestId, logs: false });
-  } catch (err) {
-    // SDK throws when the job fails — treat as a terminal failure.
-    const errMsg = err instanceof Error ? err.message : String(err);
-    console.error(`Kling job failed for ${requestId}:`, errMsg);
-    return { done: true, failed: true, error: errMsg.slice(0, 200) };
-  }
-
-  console.log(`Kling request ${requestId} status: ${status.status}`);
-
-  if (status.status !== "COMPLETED") {
-    return { done: false };
-  }
-
-  // Job is done — fetch the result.
-  const result = await fal.queue.result(KLING_MODEL, { requestId });
-  const output = result.data as { video?: { url?: string } } | undefined;
-  const videoUrl = output?.video?.url;
-  if (!videoUrl) {
-    console.error("Kling completed but no video URL:", JSON.stringify(output).slice(0, 400));
-    throw new Error("Kling completed but returned no video URL");
-  }
-
-  return { done: true, videoUrl };
 }
 
 // ---------------------------------------------------------------------------

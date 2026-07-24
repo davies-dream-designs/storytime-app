@@ -8,7 +8,6 @@ import {
   prepareVideoSourceImage,
   extractLastFrame,
   submitKlingJob,
-  pollKlingJob,
 } from "@/lib/print-books/video";
 
 // Hard stop so a wedged pipeline can never loop forever inside one invocation.
@@ -69,12 +68,9 @@ export const buildBook = inngest.createFunction(
 // Animated storybook video generation
 // ---------------------------------------------------------------------------
 
-// Processes one spread at a time: submit → sleep → poll → store.
-// Kling jobs take ~60-90s. We sleep 70s then poll with up to 3 retries
-// before giving up on a single spread (the rest still complete).
-const KLING_SLEEP_MS = 70_000;
-const KLING_POLL_RETRIES = 6;
-const KLING_POLL_INTERVAL_MS = 15_000;
+// fal.ai calls our webhook when a Kling job finishes; the webhook handler
+// fires a storycot/kling.completed event. Each spread waits up to 10 min.
+const KLING_WEBHOOK_TIMEOUT = "10m";
 
 export const generateBookVideo = inngest.createFunction(
   {
@@ -117,48 +113,42 @@ export const generateBookVideo = inngest.createFunction(
       const prompt = buildKlingMotionPrompt(spread, project.characterBible);
 
       // First spread: resize the illustration to 1024px as the base input.
-      // Subsequent spreads: use the last frame of the previous clip — this
-      // inherits the character appearance that Kling established in clip 0.
+      // Subsequent spreads: use the last frame of the previous clip.
       const sourceUrl = frameUrl ?? await step.run(`prep-image-${i}`, () =>
         prepareVideoSourceImage(projectId, spread.id, spread.leftPageImageUrl!)
       );
 
-      // Submit the Kling job
+      // Build the webhook URL — fal.ai calls this when the job completes.
+      const appUrl =
+        process.env.NEXT_PUBLIC_APP_URL ??
+        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+      const webhookUrl = `${appUrl}/api/webhooks/fal`;
+
+      // Submit to Kling — fal.ai will POST the result to our webhook.
       const requestId = await step.run(`submit-spread-${i}`, () =>
-        submitKlingJob(sourceUrl, prompt)
+        submitKlingJob(sourceUrl, prompt, webhookUrl)
       );
 
-      // Sleep while Kling processes
-      await step.sleep(`wait-spread-${i}`, KLING_SLEEP_MS);
+      // Wait for the webhook to fire storycot/kling.completed with our requestId.
+      // No polling, no sleep — Inngest pauses efficiently until fal.ai calls back.
+      const klingResult = await step.waitForEvent(`wait-kling-${i}`, {
+        event: INNGEST_EVENTS.klingCompleted,
+        if: `async.data.requestId == "${requestId}"`,
+        timeout: KLING_WEBHOOK_TIMEOUT,
+      });
 
-      // Poll until done or give up
       let videoUrl: string | undefined;
-      let pollError: string | undefined;
 
-      for (let p = 0; p < KLING_POLL_RETRIES; p++) {
-        const pollResult = await step.run(`poll-spread-${i}-attempt-${p}`, () =>
-          pollKlingJob(requestId)
-        );
-
-        if (pollResult.done) {
-          if (pollResult.failed) {
-            pollError = pollResult.error ?? "Kling failed";
-          } else {
-            videoUrl = pollResult.videoUrl;
-          }
-          break;
-        }
-
-        if (p < KLING_POLL_RETRIES - 1) {
-          await step.sleep(`retry-wait-${i}-${p}`, KLING_POLL_INTERVAL_MS);
-        }
-      }
-
-      if (!pollError) {
-        results.push({ spreadId: spread.id, videoUrl });
+      if (!klingResult) {
+        // Timed out waiting for webhook
+        results.push({ spreadId: spread.id, error: "Timed out waiting for Kling" });
+        console.warn(`Spread ${i} timed out waiting for webhook`);
+      } else if (klingResult.data.failed) {
+        results.push({ spreadId: spread.id, error: klingResult.data.error ?? "Kling failed" });
+        console.warn(`Spread ${i} Kling failed: ${klingResult.data.error}`);
       } else {
-        results.push({ spreadId: spread.id, error: pollError });
-        console.warn(`Spread ${spread.id} video failed: ${pollError}`);
+        videoUrl = klingResult.data.videoUrl as string | undefined;
+        results.push({ spreadId: spread.id, videoUrl });
       }
 
       // Persist the video URL onto the spread immediately

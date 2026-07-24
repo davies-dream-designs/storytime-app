@@ -174,9 +174,9 @@ export default function BookReader({ project }: { project: BookProject }) {
 
   const hasImage = spread.imageUrl && !isPlaceholder(spread.imageUrl);
   const pageText = spread.leftPageText || spread.rightPageText;
-  const canNarrate = Boolean(
-    spreads.some((s) => s.leftPageText || s.rightPageText)
-  );
+  const hasPurchased = Boolean(project.assets.digitalDownloadUnlockedAt);
+  const canNarrate = hasPurchased && spreads.some((s) => s.leftPageText || s.rightPageText);
+  const showNarrationUpsell = !hasPurchased && spreads.some((s) => s.leftPageText || s.rightPageText);
 
   return (
     <div className="select-none">
@@ -343,6 +343,24 @@ export default function BookReader({ project }: { project: BookProject }) {
             </div>
           </div>
         </div>
+      ) : showNarrationUpsell ? (
+        <a
+          href="#digital-download"
+          className="mt-4 flex items-center gap-3 rounded-2xl border border-night-100 bg-white/60 px-5 py-4 backdrop-blur-sm"
+        >
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-night-100 text-night-500">
+            <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5 translate-x-0.5">
+              <path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+            </svg>
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold text-night-800">Hear your story read aloud</p>
+            <p className="text-xs text-night-400">Included with Digital Download · $9.99</p>
+          </div>
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0 text-night-300">
+            <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+          </svg>
+        </a>
       ) : null}
 
       {/* Fullscreen reader overlay */}

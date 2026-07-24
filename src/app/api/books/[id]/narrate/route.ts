@@ -25,6 +25,12 @@ export async function GET(
   if (!project || project.userId !== userId)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  if (!project.assets.digitalDownloadUnlockedAt)
+    return NextResponse.json(
+      { error: "Digital download purchase required" },
+      { status: 402 }
+    );
+
   if (!isNarrationConfigured())
     return NextResponse.json(
       { error: "Narration not configured" },

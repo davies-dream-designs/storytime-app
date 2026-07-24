@@ -269,7 +269,7 @@ export default async function BookProjectPage({
               Choose how you want to keep this story forever.
             </p>
 
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div id="digital-download" className="grid gap-5 sm:grid-cols-2">
               {/* Tier 1 — Digital download */}
               {!fileRetention.isArchived ? (
                 <DigitalDownloadSection

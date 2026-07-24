@@ -21,7 +21,7 @@ export default async function StoriesPage() {
   return (
     <>
       <Nav />
-      <main id="main-content" className="mx-auto max-w-6xl px-5 py-10">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-5 py-10">
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="font-display text-4xl font-bold text-night-800">

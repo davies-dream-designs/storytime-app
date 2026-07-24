@@ -27,7 +27,7 @@ export default async function AccountPage({
   return (
     <>
       <Nav />
-      <main id="main-content" className="mx-auto max-w-2xl px-5 py-14">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-5 py-14">
         <h1 className="font-display text-4xl font-bold text-night-800">
           {t("title")}
         </h1>

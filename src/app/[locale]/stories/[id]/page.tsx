@@ -103,7 +103,7 @@ export default async function StoryPage({
   return (
     <>
       <Nav />
-      <main id="main-content" className="mx-auto max-w-4xl px-5 py-10">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-4xl px-5 py-10">
         {/* Title + actions */}
         <div className="mb-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

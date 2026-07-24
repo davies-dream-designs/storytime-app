@@ -30,7 +30,7 @@ export default async function Dashboard() {
     <>
       <Nav />
       <ReferralRedeemer />
-      <main id="main-content" className="mx-auto max-w-6xl px-5 py-10">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-5 py-10">
         <DashboardGreeting
           storiesCount={stories.length}
           profilesCount={profiles.length}

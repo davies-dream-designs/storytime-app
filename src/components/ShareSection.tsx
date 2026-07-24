@@ -22,12 +22,13 @@ export default function ShareSection({ userId }: { userId: string }) {
           🎁
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="font-display text-xl font-bold text-night-800">{t('shareReferralTitle')}</h2>
+          <h2 id="share-referral-title" className="font-display text-xl font-bold text-night-800">{t('shareReferralTitle')}</h2>
           <p className="mt-1 text-sm text-night-500">{t('shareReferralSub')}</p>
           <div className="mt-4 flex gap-2">
             <input
               readOnly
               value={link}
+              aria-labelledby="share-referral-title"
               className="min-w-0 flex-1 rounded-xl border border-star-200 bg-white px-4 py-2.5 text-sm text-night-600 outline-none"
             />
             <button

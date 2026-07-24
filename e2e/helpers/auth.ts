@@ -45,8 +45,17 @@ async function getSignInToken(): Promise<string> {
 export async function signIn(page: Page) {
   const baseUrl = getBaseUrl()
 
-  await page.goto(getBypassUrl(`${baseUrl}/en`))
-  await page.waitForLoadState('networkidle')
+  // Set Vercel bypass cookie — either via a pre-generated share URL or the automation bypass secret.
+  // Share URL approach: generate via Vercel MCP `get_access_to_vercel_url` (expires ~23h).
+  // Automation bypass: set VERCEL_AUTOMATION_BYPASS_SECRET from Vercel project settings.
+  const bypassUrl = process.env.VERCEL_BYPASS_URL
+  if (bypassUrl) {
+    await page.goto(bypassUrl)
+    await page.waitForLoadState('networkidle')
+  } else {
+    await page.goto(getBypassUrl(`${baseUrl}/en`))
+    await page.waitForLoadState('networkidle')
+  }
 
   const token = await getSignInToken()
   await page.goto(`${baseUrl}/en/sign-in?__clerk_ticket=${token}`)

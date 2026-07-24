@@ -102,6 +102,7 @@ test.describe("WCAG 2.1 AA — authenticated pages", () => {
   });
 
   test("mobile nav open state", async ({ browser }) => {
+    test.setTimeout(60000);
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
     const p = await ctx.newPage();
     await signIn(p);

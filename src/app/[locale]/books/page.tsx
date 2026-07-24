@@ -24,7 +24,7 @@ export default async function BooksPage() {
   return (
     <>
       <Nav />
-      <main id="main-content" className="mx-auto max-w-5xl px-5 py-10">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-5xl px-5 py-10">
         <div className="mb-8">
           <h1 className="font-display text-4xl font-bold text-night-800">
             {t("listTitle")}

@@ -27,7 +27,7 @@ export default async function ProfilesPage() {
   return (
     <>
       <Nav />
-      <main id="main-content" className="mx-auto max-w-6xl px-5 py-10">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-5 py-10">
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="font-display text-4xl font-bold text-night-800">
@@ -88,9 +88,9 @@ export default async function ProfilesPage() {
                         })()}
                       </span>
                     </div>
-                    <h3 className="mt-4 font-display text-xl font-bold text-night-800 group-hover:text-night-600">
+                    <h2 className="mt-4 font-display text-xl font-bold text-night-800 group-hover:text-night-600">
                       {profile.name}
-                    </h3>
+                    </h2>
                     {profile.favouriteCharacters.length > 0 && (
                       <p className="mt-1 text-sm text-night-400 line-clamp-1">
                         {t("lovesLabel", {

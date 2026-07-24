@@ -16,6 +16,7 @@ export default function StoryTextExports({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -36,6 +37,7 @@ export default function StoryTextExports({
   return (
     <div ref={ref} className="relative">
       <button
+        ref={btnRef}
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls="export-text-menu"
@@ -62,7 +64,7 @@ export default function StoryTextExports({
           role="menu"
           className="absolute left-0 top-full z-20 mt-1.5 min-w-[160px] overflow-hidden rounded-2xl border border-night-100 bg-white py-1 shadow-xl"
           onKeyDown={(e) => {
-            if (e.key === "Escape") { setOpen(false); }
+            if (e.key === "Escape") { setOpen(false); btnRef.current?.focus(); }
             if (e.key === "ArrowDown") { e.preventDefault(); const items = e.currentTarget.querySelectorAll<HTMLElement>("a,button"); items[0]?.focus(); }
             if (e.key === "ArrowUp") { e.preventDefault(); const items = e.currentTarget.querySelectorAll<HTMLElement>("a,button"); items[items.length - 1]?.focus(); }
           }}

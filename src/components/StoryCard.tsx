@@ -41,14 +41,14 @@ export default function StoryCard({
       <div className="flex flex-1 flex-col">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3
+            <h2
               className={joinClasses(
                 "font-display font-bold text-night-800 line-clamp-2",
                 compact ? "min-h-[2.75rem] text-lg" : "min-h-[3.5rem] text-xl"
               )}
             >
               {story.title}
-            </h3>
+            </h2>
             <p className="mt-1.5 text-sm text-night-400">
               {labels.forProfile} · {formatLocalShortDate(story.createdAt)}
             </p>

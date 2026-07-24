@@ -58,8 +58,11 @@ export function buildKlingMotionPrompt(
 type KlingSubmitResponse = { request_id: string };
 type KlingStatusResponse = {
   status: "IN_QUEUE" | "IN_PROGRESS" | "COMPLETED" | "FAILED";
-  output?: { video?: { url?: string } };
-  error?: string;
+  error?: unknown;
+};
+type KlingResultResponse = {
+  video?: { url?: string };
+  error?: unknown;
 };
 
 async function falPost(path: string, body: unknown): Promise<Response> {
@@ -109,26 +112,45 @@ export async function submitKlingJob(
 export async function pollKlingJob(
   requestId: string
 ): Promise<{ done: boolean; videoUrl?: string; failed?: boolean; error?: string }> {
-  const res = await falGet(`${KLING_MODEL}/requests/${requestId}`);
+  // Use /status for a non-blocking check — GET without /status enters long-poll
+  // mode and blocks until the job finishes (or returns 405 on failure).
+  const statusRes = await falGet(`${KLING_MODEL}/requests/${requestId}/status`);
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Kling poll failed: ${res.status} ${err.slice(0, 200)}`);
+  if (!statusRes.ok) {
+    const body = await statusRes.text();
+    console.error(`Kling status check failed: ${statusRes.status}`, body.slice(0, 400));
+    throw new Error(`Kling poll failed: ${statusRes.status} — ${body.slice(0, 200)}`);
   }
 
-  const data = (await res.json()) as KlingStatusResponse;
+  const statusData = (await statusRes.json()) as KlingStatusResponse;
+  console.log(`Kling request ${requestId} status: ${statusData.status}`);
 
-  if (data.status === "COMPLETED") {
-    const videoUrl = data.output?.video?.url;
-    if (!videoUrl) throw new Error("Kling completed but returned no video URL");
-    return { done: true, videoUrl };
+  if (statusData.status === "FAILED") {
+    const errDetail = JSON.stringify(statusData.error ?? "Kling generation failed");
+    console.error(`Kling job failed for ${requestId}:`, errDetail);
+    return { done: true, failed: true, error: errDetail.slice(0, 200) };
   }
 
-  if (data.status === "FAILED") {
-    return { done: true, failed: true, error: data.error ?? "Kling generation failed" };
+  if (statusData.status !== "COMPLETED") {
+    return { done: false };
   }
 
-  return { done: false };
+  // Fetch the actual result now that it's done
+  const resultRes = await falGet(`${KLING_MODEL}/requests/${requestId}`);
+  if (!resultRes.ok) {
+    const body = await resultRes.text();
+    console.error(`Kling result fetch failed: ${resultRes.status}`, body.slice(0, 400));
+    throw new Error(`Kling result fetch failed: ${resultRes.status}`);
+  }
+
+  const resultData = (await resultRes.json()) as KlingResultResponse;
+  const videoUrl = resultData.video?.url;
+  if (!videoUrl) {
+    console.error("Kling completed but no video URL:", JSON.stringify(resultData).slice(0, 400));
+    throw new Error("Kling completed but returned no video URL");
+  }
+
+  return { done: true, videoUrl };
 }
 
 // ---------------------------------------------------------------------------

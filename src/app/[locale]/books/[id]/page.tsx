@@ -252,7 +252,7 @@ export default async function BookProjectPage({
             <h2 className="mb-4 font-display text-2xl font-bold text-night-800">
               Read your book
             </h2>
-            <BookReader project={project} />
+            <BookReader project={project} isAdmin={isAdmin} />
           </section>
         ) : null}
 

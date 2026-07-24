@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import {
   DEFAULT_NARRATION_VOICE_ID,
@@ -25,7 +25,11 @@ export async function GET(
   if (!project || project.userId !== userId)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  if (!project.assets.digitalDownloadUnlockedAt)
+  const client = await clerkClient();
+  const user = await client.users.getUser(userId);
+  const isAdmin = user.privateMetadata.isAdmin === true;
+
+  if (!isAdmin && !project.assets.digitalDownloadUnlockedAt)
     return NextResponse.json(
       { error: "Digital download purchase required" },
       { status: 402 }

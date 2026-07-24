@@ -53,7 +53,7 @@ function getReaderSpreads(project: BookProject): ReaderSpread[] {
   return story;
 }
 
-export default function BookReader({ project }: { project: BookProject }) {
+export default function BookReader({ project, isAdmin = false }: { project: BookProject; isAdmin?: boolean }) {
   const spreads = useMemo(() => getReaderSpreads(project), [project]);
   const [index, setIndex] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
@@ -174,7 +174,7 @@ export default function BookReader({ project }: { project: BookProject }) {
 
   const hasImage = spread.imageUrl && !isPlaceholder(spread.imageUrl);
   const pageText = spread.leftPageText || spread.rightPageText;
-  const hasPurchased = Boolean(project.assets.digitalDownloadUnlockedAt);
+  const hasPurchased = isAdmin || Boolean(project.assets.digitalDownloadUnlockedAt);
   const canNarrate = hasPurchased && spreads.some((s) => s.leftPageText || s.rightPageText);
   const showNarrationUpsell = !hasPurchased && spreads.some((s) => s.leftPageText || s.rightPageText);
 

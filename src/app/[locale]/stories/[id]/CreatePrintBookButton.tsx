@@ -63,8 +63,7 @@ export default function CreatePrintBookButton({
         throw new Error(await getErrorMessage(createRes, t("createError")));
       }
 
-      const project = (await createRes.json()) as { id: string };
-      router.push(`/books/${project.id}` as string);
+      await createRes.json();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("createError"));

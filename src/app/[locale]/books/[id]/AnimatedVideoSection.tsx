@@ -208,6 +208,17 @@ export default function AnimatedVideoSection({
         <p className="mt-3 text-xs text-night-400">
           You can close this page and come back — it will keep going in the background.
         </p>
+        {isAdmin && (
+          <button
+            onClick={async () => {
+              await fetch(`/api/books/${projectId}/video`, { method: "POST" });
+              await fetchStatus();
+            }}
+            className="storycot-btn storycot-btn-secondary mt-4 text-xs"
+          >
+            Admin — re-trigger job
+          </button>
+        )}
       </div>
     );
   }

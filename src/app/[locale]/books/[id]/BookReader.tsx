@@ -463,14 +463,15 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
           </div>
 
           {/* Image area — shared mobile + desktop */}
-          <div className="relative min-h-0 flex-1">
+          {/* Desktop: aspect-square + h-screen makes a perfect square with no letterbox bars */}
+          <div className="relative min-h-0 flex-1 lg:aspect-square lg:h-screen lg:flex-none lg:shrink-0">
             {hasImage ? (
               <Image
                 src={spread.imageUrl!}
                 alt={spread.title ?? `Page ${index + 1}`}
                 fill
                 sizes="(min-width: 1024px) 60vw, 100vw"
-                className="pointer-events-none object-contain select-none"
+                className="pointer-events-none object-cover select-none"
                 draggable={false}
                 priority
                 onContextMenu={(e) => e.preventDefault()}
@@ -513,8 +514,8 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
             ))}
           </div>
 
-          {/* Desktop-only right panel */}
-          <div className="hidden lg:flex lg:w-[380px] lg:shrink-0 lg:flex-col lg:border-l lg:border-night-100">
+          {/* Desktop-only right panel — flex-1 fills whatever space the square image leaves */}
+          <div className="hidden lg:flex lg:flex-1 lg:flex-col lg:border-l lg:border-night-100">
             {/* Top bar */}
             <div className="flex items-center justify-between border-b border-night-100 px-6 py-4">
               <p className="text-sm font-medium text-night-400">{index + 1} / {total}</p>

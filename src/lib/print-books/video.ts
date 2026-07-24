@@ -20,46 +20,46 @@ export function isVideoConfigured(): boolean {
 // Motion prompt builder
 // ---------------------------------------------------------------------------
 
+function cap(value: string, max: number): string {
+  return value.length <= max ? value : `${value.slice(0, max - 1).trimEnd()}…`;
+}
+
 export function buildKlingMotionPrompt(
   spread: BookSpread,
   characterBible: CharacterBible
 ): string {
-  const appearance = characterBible.childAppearance.trim();
-  const outfit = characterBible.outfitRules.split(".")[0]?.trim() ?? characterBible.outfitRules;
-  const palette = characterBible.palette.trim();
-  const companions = characterBible.companionCharacters.slice(0, 2).join(" and ");
+  // Kling hard limit: 2500 chars. Budget each dynamic field explicitly.
+  const illustrationPrompt = cap(spread.illustrationPrompt ?? "", 500);
+  const sceneBrief = cap(spread.sceneBrief ?? "", 200);
+  const appearance = cap(characterBible.childAppearance, 180);
+  const outfit = cap(
+    characterBible.outfitRules.split(".")[0]?.trim() ?? characterBible.outfitRules,
+    100
+  );
+  const palette = cap(characterBible.palette, 80);
+  const companions = cap(
+    characterBible.companionCharacters.slice(0, 2).join(" and "),
+    80
+  );
 
   const parts = [
-    // Illustration direction first — this is the richest scene description.
-    spread.illustrationPrompt
-      ? `Illustration: ${spread.illustrationPrompt}.`
-      : "",
-    // Scene brief adds the emotional/narrative layer.
-    spread.sceneBrief
-      ? `Scene: ${spread.sceneBrief}.`
-      : "",
-
-    // Motion style — gentle, dreamy, children's book atmosphere.
+    illustrationPrompt ? `Illustration: ${illustrationPrompt}.` : "",
+    sceneBrief ? `Scene: ${sceneBrief}.` : "",
     "Bring this children's watercolour illustration gently to life.",
-    "Soft warm light flickers slowly, the main character breathes calmly,",
-    "loose fabric or foliage sways in a gentle breeze.",
-    "Warm, magical, dreamy bedtime atmosphere throughout.",
-
-    // Character consistency — prevent the model drifting the character's appearance.
-    `Main character appearance: ${appearance}.`,
+    "Soft warm light flickers, the main character breathes calmly, loose fabric sways in a gentle breeze.",
+    "Warm magical dreamy bedtime atmosphere.",
+    `Character: ${appearance}.`,
     `Outfit: ${outfit}.`,
-    companions ? `Also present: ${companions}.` : "",
-    `Colour palette: ${palette}.`,
-
-    // Hard technical constraints.
-    "Single continuous shot — absolutely no cuts, no camera changes, no scene transitions.",
-    "Preserve the watercolour illustration art style exactly — do not make it look photorealistic.",
-    "Slow and calm movement only. No sudden motion, no dialogue, no speaking.",
-    "Do not introduce any new characters, objects, text, or background elements not in the original illustration.",
-    "No sound or speech — visuals only.",
+    companions ? `Also: ${companions}.` : "",
+    `Palette: ${palette}.`,
+    "Single continuous shot — no cuts, no camera changes.",
+    "Preserve the watercolour art style exactly.",
+    "Slow calm movement only. No speaking, no new elements.",
   ];
 
-  return parts.filter(Boolean).join(" ");
+  const prompt = parts.filter(Boolean).join(" ");
+  // Hard cap as a safety net — should never trigger with the budgets above.
+  return prompt.length <= 2400 ? prompt : prompt.slice(0, 2400);
 }
 
 // ---------------------------------------------------------------------------

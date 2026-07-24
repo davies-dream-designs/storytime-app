@@ -2,10 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { BookProject, BookSpread } from "@/types/printBook";
-import {
-  DEFAULT_NARRATION_VOICE_ID,
-  NARRATION_VOICES,
-} from "@/lib/elevenlabs";
+import { DEFAULT_NARRATION_VOICE_ID } from "@/lib/elevenlabs";
 
 type ReaderSpread = {
   id: string;
@@ -64,9 +61,6 @@ export default function BookReader({ project }: { project: BookProject }) {
   // Narration
   const [narrating, setNarrating] = useState(false);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
-  const [selectedVoiceId, setSelectedVoiceId] = useState(
-    DEFAULT_NARRATION_VOICE_ID
-  );
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const total = spreads.length;
@@ -134,7 +128,7 @@ export default function BookReader({ project }: { project: BookProject }) {
 
     const run = async () => {
       try {
-        const url = `/api/books/${project.id}/narrate?spreadId=${encodeURIComponent(currentSpread.id)}&voiceId=${encodeURIComponent(selectedVoiceId)}`;
+        const url = `/api/books/${project.id}/narrate?spreadId=${encodeURIComponent(currentSpread.id)}&voiceId=${encodeURIComponent(DEFAULT_NARRATION_VOICE_ID)}`;
         const res = await fetch(url);
         if (!res.ok || cancelled) {
           if (!cancelled) setNarrating(false);
@@ -174,7 +168,7 @@ export default function BookReader({ project }: { project: BookProject }) {
       stopAudio();
       setIsLoadingAudio(false);
     };
-  }, [narrating, index, selectedVoiceId, spreads, project.id]);
+  }, [narrating, index, spreads, project.id]);
 
   if (!spread || total === 0) return null;
 
@@ -346,22 +340,6 @@ export default function BookReader({ project }: { project: BookProject }) {
                     : "Reading aloud — auto-advances each page"
                   : "Listen to the story read aloud"}
               </p>
-              {/* Voice picker */}
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {NARRATION_VOICES.map((voice) => (
-                  <button
-                    key={voice.id}
-                    onClick={() => setSelectedVoiceId(voice.id)}
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition ${
-                      selectedVoiceId === voice.id
-                        ? "bg-night-800 text-white"
-                        : "bg-night-100 text-night-500 hover:bg-night-200"
-                    }`}
-                  >
-                    {voice.label}
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
         </div>
@@ -488,31 +466,6 @@ export default function BookReader({ project }: { project: BookProject }) {
               </div>
             ) : null}
           </div>
-
-          {/* Voice picker (fullscreen) */}
-          {canNarrate ? (
-            <div className="flex items-center gap-2 overflow-x-auto px-4 pb-1 [&::-webkit-scrollbar]:hidden">
-              {NARRATION_VOICES.map((v) => (
-                <button
-                  key={v.id}
-                  onClick={() => {
-                    setSelectedVoiceId(v.id);
-                    if (narrating) {
-                      stopAudio();
-                      setNarrating(true);
-                    }
-                  }}
-                  className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                    selectedVoiceId === v.id
-                      ? "bg-white text-black"
-                      : "bg-white/10 text-white hover:bg-white/20"
-                  }`}
-                >
-                  {v.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
 
           {/* Bottom nav dots */}
           <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto px-4 py-3 [&::-webkit-scrollbar]:hidden">

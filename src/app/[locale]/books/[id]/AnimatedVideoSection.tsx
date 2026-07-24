@@ -20,6 +20,9 @@ type VideoStatus = {
   totalSpreads: number;
 };
 
+type PageBoundary = { spreadId: string; endTime: number };
+type FullNarration = { audioUrl: string; pageBoundaries: PageBoundary[]; totalDuration: number };
+
 function AnimatedPlayer({
   clips,
   projectId,
@@ -29,75 +32,77 @@ function AnimatedPlayer({
 }) {
   const [current, setCurrent] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [narration, setNarration] = useState<FullNarration | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  // Pre-cached narration URLs keyed by spreadId
-  const narrationCache = useRef<Map<string, string>>(new Map());
+  const boundaryRef = useRef<PageBoundary[]>([]);
+  const currentRef = useRef(0);
 
-  async function fetchNarration(spreadId: string): Promise<string | null> {
-    if (narrationCache.current.has(spreadId)) {
-      return narrationCache.current.get(spreadId) ?? null;
-    }
-    try {
-      const res = await fetch(
-        `/api/books/${projectId}/narrate?spreadId=${encodeURIComponent(spreadId)}`
-      );
-      if (!res.ok) return null;
-      const data = (await res.json()) as { audioUrl?: string };
-      if (data.audioUrl) {
-        narrationCache.current.set(spreadId, data.audioUrl);
-        return data.audioUrl;
+  // Keep refs in sync so timeupdate callback has fresh values
+  useEffect(() => { currentRef.current = current; }, [current]);
+  useEffect(() => { boundaryRef.current = narration?.pageBoundaries ?? []; }, [narration]);
+
+  // Load full-book narration once
+  useEffect(() => {
+    fetch(`/api/books/${projectId}/narrate/full`, { cache: "no-store" })
+      .then((r) => r.ok ? r.json() as Promise<FullNarration> : null)
+      .then((data) => { if (data) setNarration(data); })
+      .catch(() => {});
+  }, [projectId]);
+
+  // Wire up the single audio element once narration URL is known
+  useEffect(() => {
+    if (!narration) return;
+
+    const audio = new Audio(narration.audioUrl);
+    audioRef.current = audio;
+
+    audio.addEventListener("play", () => setPlaying(true));
+    audio.addEventListener("pause", () => setPlaying(false));
+    audio.addEventListener("ended", () => setPlaying(false));
+
+    // Advance video clip when audio passes a page boundary
+    audio.addEventListener("timeupdate", () => {
+      const idx = currentRef.current;
+      const boundaries = boundaryRef.current;
+      const boundary = boundaries[idx];
+      if (boundary && audio.currentTime >= boundary.endTime && idx < boundaries.length - 1) {
+        setCurrent(idx + 1);
       }
-    } catch {}
-    return null;
-  }
+    });
 
-  function stopAudio() {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = "";
+    return () => {
+      audio.pause();
       audioRef.current = null;
-    }
-  }
+    };
+  }, [narration]);
 
-  async function playClip(index: number) {
-    const clip = clips[index];
-    if (!clip) return;
-
-    stopAudio();
-
+  // Switch video clip when current changes, video loops while audio continues
+  useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-
     video.load();
+    if (playing) video.play().catch(() => {});
+  }, [current, playing]);
 
-    // Fetch narration (may be cached)
-    const narrationUrl = await fetchNarration(clip.spreadId);
-
-    // Play video (muted — Kling audio is replaced by ElevenLabs narration)
-    video.play().catch(() => {});
-    setPlaying(true);
-
-    // Play narration audio alongside
-    if (narrationUrl) {
-      const audio = new Audio(narrationUrl);
-      audioRef.current = audio;
+  function togglePlay() {
+    const audio = audioRef.current;
+    const video = videoRef.current;
+    if (!audio || !video) return;
+    if (playing) {
+      audio.pause();
+      video.pause();
+    } else {
       audio.play().catch(() => {});
+      video.play().catch(() => {});
     }
-
-    // Pre-load narration for next clip
-    const next = clips[index + 1];
-    if (next) fetchNarration(next.spreadId);
   }
 
-  useEffect(() => {
-    playClip(current);
-    return stopAudio;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current]);
-
   function goTo(index: number) {
-    stopAudio();
+    const audio = audioRef.current;
+    const boundaries = narration?.pageBoundaries ?? [];
+    const targetTime = index === 0 ? 0 : (boundaries[index - 1]?.endTime ?? 0);
+    if (audio) audio.currentTime = targetTime;
     setCurrent(index);
   }
 
@@ -114,17 +119,26 @@ function AnimatedPlayer({
           className="w-full"
           playsInline
           muted
-          onEnded={current < clips.length - 1 ? () => goTo(current + 1) : undefined}
-          onPause={() => {
-            audioRef.current?.pause();
-            setPlaying(false);
-          }}
-          onPlay={() => {
-            audioRef.current?.play().catch(() => {});
-            setPlaying(true);
-          }}
+          loop
         />
+        {/* Play/pause overlay */}
+        <button
+          onClick={togglePlay}
+          className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/10 transition-colors"
+          aria-label={playing ? "Pause" : "Play"}
+        >
+          {!playing && (
+            <span className="rounded-full bg-white/80 p-4 shadow-lg">
+              <svg className="h-8 w-8 text-night-800 translate-x-0.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </span>
+          )}
+        </button>
       </div>
+      {!narration && (
+        <p className="mt-2 text-center text-xs text-night-400">Loading narration…</p>
+      )}
       <div className="mt-3 flex items-center justify-between gap-3">
         <button
           onClick={() => goTo(Math.max(0, current - 1))}
@@ -135,7 +149,6 @@ function AnimatedPlayer({
         </button>
         <p className="text-center text-sm text-night-500">
           Page {current + 1} of {clips.length}
-          {playing ? " · playing" : ""}
         </p>
         <button
           onClick={() => goTo(Math.min(clips.length - 1, current + 1))}

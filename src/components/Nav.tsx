@@ -58,7 +58,7 @@ export default function Nav() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-night-100 bg-parchment/90 backdrop-blur">
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 pr-6">
+      <nav aria-label="Site navigation" className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 pr-6">
         <Link
           href={logoHref}
           className="flex items-center gap-2 font-display text-xl font-bold text-night-700"

@@ -65,6 +65,7 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const wordsRef = useRef<WordTiming[]>([]);
+  const preloadCache = useRef<Map<string, Promise<{ audioUrl: string; words: WordTiming[] } | null>>>(new Map());
 
   const total = spreads.length;
   const spread = spreads[index];
@@ -129,16 +130,22 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
     let cancelled = false;
     setIsLoadingAudio(true);
 
-    const run = async () => {
+    const narrate = async () => {
       try {
-        const url = `/api/books/${project.id}/narrate?spreadId=${encodeURIComponent(currentSpread.id)}&voiceId=${encodeURIComponent(DEFAULT_NARRATION_VOICE_ID)}`;
-        const res = await fetch(url);
-        if (!res.ok || cancelled) {
+        const apiUrl = `/api/books/${project.id}/narrate?spreadId=${encodeURIComponent(currentSpread.id)}&voiceId=${encodeURIComponent(DEFAULT_NARRATION_VOICE_ID)}`;
+
+        // Use preloaded response if available, otherwise fetch now
+        const existing = preloadCache.current.get(currentSpread.id);
+        const result = existing
+          ? await existing
+          : await fetch(apiUrl).then((r) => (r.ok ? r.json() : null));
+
+        if (!result || cancelled) {
           if (!cancelled) setNarrating(false);
           return;
         }
 
-        const { audioUrl, words: pageWords } = (await res.json()) as {
+        const { audioUrl, words: pageWords } = result as {
           audioUrl: string;
           words: WordTiming[];
         };
@@ -150,10 +157,38 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
         const audio = new Audio(audioUrl);
         audioRef.current = audio;
 
+        // Preload the next spread's audio while this one plays
+        const nextSpread = spreads[index + 1];
+        if (nextSpread && nextSpread.id !== "cover" && !preloadCache.current.has(nextSpread.id)) {
+          const nextText = [nextSpread.leftPageText, nextSpread.rightPageText]
+            .filter(Boolean)
+            .join(" ")
+            .trim();
+          if (nextText) {
+            const nextUrl = `/api/books/${project.id}/narrate?spreadId=${encodeURIComponent(nextSpread.id)}&voiceId=${encodeURIComponent(DEFAULT_NARRATION_VOICE_ID)}`;
+            const promise = fetch(nextUrl)
+              .then((r) => (r.ok ? (r.json() as Promise<{ audioUrl: string; words: WordTiming[] }>) : null))
+              .catch(() => null);
+            preloadCache.current.set(nextSpread.id, promise);
+            // Also hint the browser to buffer the audio once we have the URL
+            void promise.then((data) => {
+              if (data?.audioUrl) {
+                const hint = new Audio();
+                hint.preload = "auto";
+                hint.src = data.audioUrl;
+              }
+            });
+          }
+        }
+
         audio.addEventListener("timeupdate", () => {
           const t = audio.currentTime;
           const ws = wordsRef.current;
-          const idx = ws.findIndex((w) => t >= w.start && t < w.end);
+          // Highlight the last word whose start time has passed (no gaps between words)
+          let idx = -1;
+          for (let i = ws.length - 1; i >= 0; i--) {
+            if (ws[i]!.start <= t) { idx = i; break; }
+          }
           setCurrentWordIndex(idx);
         });
 
@@ -176,7 +211,7 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
       }
     };
 
-    void run();
+    void narrate();
 
     return () => {
       cancelled = true;
@@ -268,8 +303,8 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
                         key={i}
                         className={
                           i === currentWordIndex
-                            ? "rounded-sm bg-yellow-200 transition-colors"
-                            : "transition-colors"
+                            ? "rounded-sm bg-yellow-200"
+                            : ""
                         }
                       >
                         {w.word}{" "}
@@ -521,8 +556,8 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
                           key={i}
                           className={
                             i === currentWordIndex
-                              ? "font-bold text-yellow-300 transition-colors"
-                              : "transition-colors"
+                              ? "font-bold text-yellow-300"
+                              : ""
                           }
                         >
                           {w.word}{" "}

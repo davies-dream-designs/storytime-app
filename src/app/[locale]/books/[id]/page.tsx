@@ -271,7 +271,7 @@ export default async function BookProjectPage({
               Choose how you want to keep this story forever.
             </p>
 
-            <div id="digital-download" className="grid gap-5 sm:grid-cols-2">
+            <div id="digital-download" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {/* Animated storybook */}
               {isVideoConfigured() && hasIllustrationsZip ? (
                 <AnimatedVideoSection

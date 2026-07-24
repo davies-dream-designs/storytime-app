@@ -160,91 +160,87 @@ export default function AnimatedVideoSection({
   // Render states — styled to match DigitalDownloadSection
   // -------------------------------------------------------------------------
 
-  if (videoState.unlocked && videoState.status === "ready" && videoState.clips.length > 0) {
-    return (
-      <div className="rounded-2xl border border-green-200 bg-green-50 p-5">
-        <p className="text-xs font-bold uppercase tracking-wide text-green-700">
-          Animated storybook — unlocked
-        </p>
-        <p className="mt-1 font-display text-xl font-bold text-night-800">
-          {storyTitle}
-        </p>
-        <p className="mt-1 text-sm text-night-500">
-          {videoState.clips.length} animated pages ready to watch.
-        </p>
-        <AnimatedPlayer clips={videoState.clips} />
-      </div>
-    );
-  }
-
-  if (videoState.unlocked && videoState.status === "generating") {
+  // Green = unlocked (you own it), regardless of whether generation is done yet.
+  // This matches DigitalDownloadSection: green means paid/triggered, not "ready".
+  if (videoState.unlocked) {
     const done = videoState.clips.length;
     const total = videoState.totalSpreads;
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    const isReady = videoState.status === "ready" && done > 0;
+    const isFailed = videoState.status === "failed";
 
     return (
-      <div className="rounded-2xl border border-night-100 bg-white p-5 shadow-sm">
-        <p className="text-xs font-bold uppercase tracking-wide text-moon-600">
-          Animated storybook — generating
+      <div className={`rounded-2xl border p-5 ${isFailed ? "border-red-200 bg-red-50" : "border-green-200 bg-green-50"}`}>
+        <p className={`text-xs font-bold uppercase tracking-wide ${isFailed ? "text-red-700" : "text-green-700"}`}>
+          Animated storybook —{" "}
+          {isReady ? "unlocked" : isFailed ? "failed" : "generating"}
         </p>
         <p className="mt-1 font-display text-xl font-bold text-night-800">
           {storyTitle}
         </p>
-        <p className="mt-2 text-sm text-night-500">
-          Animating your illustrations one by one — each page takes about 90 seconds.
-        </p>
-        <div className="mt-4 space-y-2">
-          <div className="flex items-center justify-between text-sm text-night-500">
-            <span>{done} of {total} pages done</span>
-            <span>{pct}%</span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-night-100">
-            <div
-              className="h-full rounded-full bg-moon-400 transition-all duration-500"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-        </div>
-        <p className="mt-3 text-xs text-night-400">
-          You can close this page and come back — it will keep going in the background.
-        </p>
-        {isAdmin && (
-          <button
-            onClick={async () => {
-              await fetch(`/api/books/${projectId}/video`, { method: "POST" });
-              await fetchStatus();
-            }}
-            className="storycot-btn storycot-btn-secondary mt-4 text-xs"
-          >
-            Admin — re-trigger job
-          </button>
-        )}
-      </div>
-    );
-  }
 
-  if (videoState.unlocked && videoState.status === "failed") {
-    return (
-      <div className="rounded-2xl border border-red-100 bg-red-50 p-5">
-        <p className="text-xs font-bold uppercase tracking-wide text-red-600">
-          Animated storybook — failed
-        </p>
-        <p className="mt-2 text-sm text-night-600">
-          Something went wrong generating your animated storybook.
-        </p>
-        {isAdmin && (
-          <button
-            onClick={async () => {
-              await fetch(`/api/books/${projectId}/video`, { method: "POST" });
-              await fetchStatus();
-            }}
-            className="storycot-btn storycot-btn-secondary mt-3"
-          >
-            Retry generation
-          </button>
+        {isReady && (
+          <>
+            <p className="mt-1 text-sm text-night-500">
+              {done} animated pages ready to watch.
+            </p>
+            <AnimatedPlayer clips={videoState.clips} />
+          </>
         )}
-        {!isAdmin && (
-          <p className="mt-1 text-sm text-night-400">Please contact support.</p>
+
+        {!isReady && !isFailed && (
+          <>
+            <p className="mt-2 text-sm text-night-600">
+              Animating your illustrations — each page takes about 90 seconds.
+            </p>
+            <div className="mt-3 space-y-2">
+              <div className="flex items-center justify-between text-sm text-night-500">
+                <span>{done} of {total} pages done</span>
+                <span>{pct}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-green-200">
+                <div
+                  className="h-full rounded-full bg-green-500 transition-all duration-500"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-night-500">
+              You can close this page and come back — it keeps going in the background.
+            </p>
+            {isAdmin && (
+              <button
+                onClick={async () => {
+                  await fetch(`/api/books/${projectId}/video`, { method: "POST" });
+                  await fetchStatus();
+                }}
+                className="storycot-btn storycot-btn-secondary mt-3 text-xs"
+              >
+                Admin — re-trigger job
+              </button>
+            )}
+          </>
+        )}
+
+        {isFailed && (
+          <>
+            <p className="mt-2 text-sm text-night-600">
+              Something went wrong generating your animated storybook.
+            </p>
+            {isAdmin ? (
+              <button
+                onClick={async () => {
+                  await fetch(`/api/books/${projectId}/video`, { method: "POST" });
+                  await fetchStatus();
+                }}
+                className="storycot-btn storycot-btn-secondary mt-3"
+              >
+                Retry generation
+              </button>
+            ) : (
+              <p className="mt-1 text-sm text-night-400">Please contact support.</p>
+            )}
+          </>
         )}
       </div>
     );

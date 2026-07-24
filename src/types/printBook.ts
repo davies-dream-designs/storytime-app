@@ -98,6 +98,7 @@ export interface BookSpread {
   illustrationPrompt: string;
   imageUrl?: string;
   leftPageImageUrl?: string;
+  leftPageWebImageUrl?: string;
   rightPageImageUrl?: string;
   leftPageImageError?: string;
   rightPageImageError?: string;
@@ -152,6 +153,7 @@ export interface BookAsset {
   proofingWarnings?: string[];
   proofingErrors?: string[];
   proofVersion: number;
+  coverWebImageUrl?: string;
   digitalDownloadUnlockedAt?: string;
   digitalDownloadCheckoutSessionId?: string;
 }
@@ -196,7 +198,7 @@ export interface PrintShippingAddress {
 }
 
 export interface PrintFulfillment {
-  provider: "prodigi" | "peecho" | "lulu";
+  provider: "peecho" | "lulu";
   status: "not_configured" | "ready_for_manual_review" | "submitted" | "failed";
   preparedAt?: string;
   submittedAt?: string;

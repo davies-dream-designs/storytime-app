@@ -1,7 +1,7 @@
 import { getPrintProductQuotes } from "@/lib/print-books/printProducts";
 import type { BookProject } from "@/types/printBook";
 import PrintCheckoutButton from "@/components/PrintCheckoutButton";
-import { PRINT_ORDERING_COMING_SOON_MESSAGE } from "@/lib/print-books/launch";
+import { getTranslations } from "next-intl/server";
 
 function formatAud(value: number) {
   return new Intl.NumberFormat("en-AU", {
@@ -10,13 +10,14 @@ function formatAud(value: number) {
   }).format(value);
 }
 
-export default function PrintProductOptions({
+export default async function PrintProductOptions({
   project,
   orderingAvailable,
 }: {
   project: Pick<BookProject, "id" | "pageCount" | "assets">;
   orderingAvailable: boolean;
 }) {
+  const t = await getTranslations("books");
   const effectivePageCount =
     project.assets.luluPrintPdfPageCount ?? project.pageCount;
   const quotes = getPrintProductQuotes({
@@ -51,16 +52,16 @@ export default function PrintProductOptions({
               {formatAud(quote.priceAud)}
             </p>
             <p className="mt-1 text-xs font-medium uppercase tracking-wide text-night-400">
-              Estimated AU print price
+              {t("estimatedPrice")}
             </p>
           </div>
           <dl className="mt-4 space-y-2 text-sm text-night-600">
             <div className="flex justify-between gap-3">
-              <dt>Format</dt>
+              <dt>{t("printFormat")}</dt>
               <dd className="text-right font-medium">{quote.format}</dd>
             </div>
             <div className="flex justify-between gap-3">
-              <dt>Print pages</dt>
+              <dt>{t("printPages")}</dt>
               <dd className="text-right font-medium">
                 {quote.pageCount}
                 {quote.needsPadding
@@ -69,7 +70,7 @@ export default function PrintProductOptions({
               </dd>
             </div>
             <div className="flex justify-between gap-3">
-              <dt>Production</dt>
+              <dt>{t("printProduction")}</dt>
               <dd className="text-right font-medium">{quote.productionDays}</dd>
             </div>
           </dl>
@@ -80,14 +81,14 @@ export default function PrintProductOptions({
           ) : null}
           {!orderingAvailable && quote.isWithinSpecs ? (
             <p className="mt-4 rounded-xl bg-moon-50 px-3 py-2 text-sm font-bold text-night-700">
-              {PRINT_ORDERING_COMING_SOON_MESSAGE}
+              {t("printOrderingComingSoon")}
             </p>
           ) : null}
           <PrintCheckoutButton
             projectId={project.id}
             productKey={quote.key}
             disabled={!quote.isWithinSpecs || !orderingAvailable}
-            label={orderingAvailable ? undefined : "Coming soon"}
+            label={orderingAvailable ? undefined : t("comingSoon")}
           />
         </article>
       ))}

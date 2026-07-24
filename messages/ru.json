@@ -243,7 +243,7 @@
     "tryAgainButton": "Попробуйте еще раз",
     "backToNewStory": "Вернуться к новой истории",
     "backToLibrary": "← Библиотека",
-    "printButton": "🖨️ Распечатать / PDF",
+    "printButton": "Текст PDF",
     "newStoryButton": "✨ Новая история",
     "ageLabel": "Возраст {age}",
     "searchPlaceholder": "Искать истории, темы…",
@@ -277,7 +277,7 @@
     "wordsCount": "{count} слова",
     "pagesCount": "Страницы {count}",
     "viewBookButton": "Посмотреть иллюстрированное PDF",
-    "textEpubButton": "Текст EPUB для Kindle/Книги",
+    "textEpubButton": "Текст EPUB",
     "epubHelp": "Для Kindle или Apple Books: загрузите EPUB, затем поделитесь/откройте файл в приложении для чтения.",
     "downloadStarting": "Начинаем загрузку…",
     "deleteStory": "Удалить историю",
@@ -301,7 +301,8 @@
         "ageRange": "Ages 7+",
         "desc": "Longer read-aloud · richer story and detailed scenes"
       }
-    }
+    },
+    "exportText": "Экспорт текста"
   },
   "books": {
     "createButton": "Создать иллюстрированный PDF",
@@ -443,7 +444,7 @@
     "refreshFinalButton": "Обновить окончательный пакет",
     "finalizingButton": "Завершение пакета…",
     "finalizedAtLabel": "Завершен {value}",
-    "epubButton": "EPUB для Kindle/Книги",
+    "epubButton": "Иллюстрированный EPUB",
     "epubHelp": "Для Kindle или Apple Books: загрузите EPUB, затем поделитесь/откройте файл в приложении для чтения. Изображения сжимаются в соответствии с ограничением отправки Kindle в 50 МБ.",
     "mixedArtTitle": "Некоторым иллюстрациям нужна еще одна попытка",
     "mixedArtSub": "Несколько страниц отошли к черновым заполнителям. Восстановите иллюстрации, чтобы заменить их, прежде чем делиться ими или заказывать.",
@@ -471,7 +472,30 @@
     "printOptionsTitle": "Order a printed book",
     "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
     "readyLabel": "Your illustrated book is ready to order.",
-    "orderedLabel": "Order placed — your book is with the printer."
+    "orderedLabel": "Order placed — your book is with the printer.",
+    "viewFullScreen": "Просмотр на весь экран",
+    "tapToExpand": "Нажмите для увеличения",
+    "illustrationComingSoon": "Иллюстрация скоро появится",
+    "pageOf": "Страница {page} из {total}",
+    "prevButton": "← Назад",
+    "nextButton": "Вперёд →",
+    "goToPage": "Перейти на страницу {page}",
+    "previousPage": "Предыдущая страница",
+    "nextPage": "Следующая страница",
+    "noIllustration": "Иллюстрация отсутствует",
+    "noText": "На этой странице нет текста",
+    "listenToStory": "Слушать историю вслух",
+    "listenShort": "Слушать",
+    "pauseNarration": "Пауза чтения",
+    "readingAloud": "Читается вслух — автоматически переходит на следующую страницу",
+    "narrationUpsellTitle": "Послушайте свою историю вслух",
+    "narrationUpsellSub": "Включено в Цифровую загрузку · $9,99",
+    "printFormat": "Формат",
+    "printPages": "Страниц для печати",
+    "printProduction": "Производство",
+    "estimatedPrice": "Ориентировочная цена печати AU",
+    "printOrderingComingSoon": "Печатные книги скоро появятся. Вы уже можете создать и загрузить PDF или EPUB.",
+    "comingSoon": "Скоро"
   },
   "account": {
     "title": "Ваш аккаунт",
@@ -525,6 +549,18 @@
     "monthsOld": "{months} месяцев",
     "yearsOld": "{years} лет",
     "andMonths": "{years} лет {months} месяцев",
-    "navigating": "Открытие страницы…"
+    "navigating": "Открытие страницы…",
+    "close": "Закрыть"
+  },
+  "print": {
+    "storycotStory": "История Storycot",
+    "createdFor": "История, созданная специально для {name}",
+    "forProfileTheme": "Для {name} · {theme}",
+    "theEnd": "Конец.",
+    "sweetDreams": "Сладких снов, {name}.",
+    "tagline": "Помогая маленьким мечтателям погружаться в самые счастливые приключения.",
+    "bestResults": "Лучший результат: размер бумаги A4, поля Нет",
+    "printButton": "Печать / Сохранить как PDF",
+    "back": "← Назад"
   }
 }

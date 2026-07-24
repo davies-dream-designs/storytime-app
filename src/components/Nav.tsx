@@ -39,6 +39,8 @@ export default function Nav() {
     if (href === "/") return pathname === "/";
     if (href === "/stories" && pathname.startsWith("/stories/new"))
       return false;
+    // /books/* is now part of the stories section
+    if (href === "/stories" && pathname.startsWith("/books")) return true;
     return pathname === href || pathname.startsWith(`${href}/`);
   };
   const navLinkClass = (href: string) =>
@@ -90,13 +92,6 @@ export default function Nav() {
                 className={navLinkClass("/stories")}
               >
                 {t("stories")}
-              </Link>
-              <Link
-                href="/books"
-                aria-current={isActive("/books") ? "page" : undefined}
-                className={navLinkClass("/books")}
-              >
-                {t("books")}
               </Link>
               <Link
                 href="/stories/new"
@@ -238,14 +233,6 @@ export default function Nav() {
             className={mobileLinkClass("/stories")}
           >
             {t("storiesMobile")}
-          </Link>
-          <Link
-            href="/books"
-            aria-current={isActive("/books") ? "page" : undefined}
-            onClick={() => setOpen(false)}
-            className={mobileLinkClass("/books")}
-          >
-            {t("booksMobile")}
           </Link>
           <Link
             href="/account"

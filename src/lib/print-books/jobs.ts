@@ -356,6 +356,7 @@ async function regenerateProjectArt(input: {
       assets: {
         ...input.project.assets,
         coverImageUrl: cover.coverImageUrl,
+        coverWebImageUrl: cover.coverWebImageUrl,
         artMode: cover.provider === "openai" ? "generated" : "placeholder",
         lastBuildMode: input.buildMode,
         artGenerationCursor: 1,

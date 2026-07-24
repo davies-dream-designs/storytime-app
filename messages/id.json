@@ -243,7 +243,7 @@
     "tryAgainButton": "Coba lagi",
     "backToNewStory": "Kembali ke cerita baru",
     "backToLibrary": "← Perpustakaan",
-    "printButton": "🖨️ Cetak / PDF",
+    "printButton": "PDF teks",
     "newStoryButton": "✨ Cerita baru",
     "ageLabel": "Usia {age}",
     "searchPlaceholder": "Cari cerita, tema…",
@@ -277,7 +277,7 @@
     "wordsCount": "kata-kata {count}",
     "pagesCount": "halaman {count}",
     "viewBookButton": "Lihat ilustrasi PDF",
-    "textEpubButton": "Teks EPUB untuk Kindle/Buku",
+    "textEpubButton": "EPUB teks",
     "epubHelp": "Untuk Kindle atau Apple Books: unduh EPUB, lalu bagikan/buka file di aplikasi pembaca Anda.",
     "downloadStarting": "Mulai mengunduh…",
     "deleteStory": "Hapus cerita",
@@ -301,7 +301,8 @@
         "ageRange": "Ages 7+",
         "desc": "Longer read-aloud · richer story and detailed scenes"
       }
-    }
+    },
+    "exportText": "Ekspor teks"
   },
   "books": {
     "createButton": "Hasilkan PDF bergambar",
@@ -443,7 +444,7 @@
     "refreshFinalButton": "Segarkan paket terakhir",
     "finalizingButton": "Menyelesaikan paket…",
     "finalizedAtLabel": "{value} yang diselesaikan",
-    "epubButton": "EPUB untuk Kindle/Buku",
+    "epubButton": "EPUB bergambar",
     "epubHelp": "Untuk Kindle atau Apple Books: unduh EPUB, lalu bagikan/buka file di aplikasi pembaca Anda. Gambar dikompresi untuk batas pengiriman Kindle sebesar 50 MB.",
     "mixedArtTitle": "Beberapa ilustrasi perlu dicoba lagi",
     "mixedArtSub": "Beberapa halaman dikembalikan ke draf placeholder. Buat ulang ilustrasi untuk menggantikannya sebelum dibagikan atau dipesan.",
@@ -471,7 +472,30 @@
     "printOptionsTitle": "Order a printed book",
     "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
     "readyLabel": "Your illustrated book is ready to order.",
-    "orderedLabel": "Order placed — your book is with the printer."
+    "orderedLabel": "Order placed — your book is with the printer.",
+    "viewFullScreen": "Lihat layar penuh",
+    "tapToExpand": "Ketuk untuk memperbesar",
+    "illustrationComingSoon": "Ilustrasi segera hadir",
+    "pageOf": "Halaman {page} dari {total}",
+    "prevButton": "← Sebelumnya",
+    "nextButton": "Berikutnya →",
+    "goToPage": "Pergi ke halaman {page}",
+    "previousPage": "Halaman sebelumnya",
+    "nextPage": "Halaman berikutnya",
+    "noIllustration": "Tidak ada ilustrasi untuk halaman ini",
+    "noText": "Tidak ada teks di halaman ini",
+    "listenToStory": "Dengarkan cerita dibacakan",
+    "listenShort": "Dengarkan",
+    "pauseNarration": "Jeda narasi",
+    "readingAloud": "Sedang dibacakan — lanjut otomatis setiap halaman",
+    "narrationUpsellTitle": "Dengarkan ceritamu dibacakan",
+    "narrationUpsellSub": "Termasuk dalam Unduhan Digital · $9,99",
+    "printFormat": "Format",
+    "printPages": "Halaman cetak",
+    "printProduction": "Produksi",
+    "estimatedPrice": "Perkiraan harga cetak AU",
+    "printOrderingComingSoon": "Buku cetak segera hadir. Anda masih bisa membuat dan mengunduh PDF atau EPUB hari ini.",
+    "comingSoon": "Segera hadir"
   },
   "account": {
     "title": "Akun Anda",
@@ -525,6 +549,18 @@
     "monthsOld": "{months} bulan",
     "yearsOld": "{years} tahun",
     "andMonths": "{years} tahun {months} bulan",
-    "navigating": "Halaman pembuka…"
+    "navigating": "Halaman pembuka…",
+    "close": "Tutup"
+  },
+  "print": {
+    "storycotStory": "Cerita Storycot",
+    "createdFor": "Cerita yang dibuat khusus untuk {name}",
+    "forProfileTheme": "Untuk {name} · {theme}",
+    "theEnd": "Tamat.",
+    "sweetDreams": "Mimpi indah, {name}.",
+    "tagline": "Membantu si kecil yang suka bermimpi untuk melayang ke petualangan terindah mereka.",
+    "bestResults": "Hasil terbaik: ukuran kertas A4, margin Tidak ada",
+    "printButton": "Cetak / Simpan sebagai PDF",
+    "back": "← Kembali"
   }
 }

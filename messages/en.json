@@ -261,7 +261,7 @@
     "tryAgainButton": "Try again",
     "backToNewStory": "Back to new story",
     "backToLibrary": "← Library",
-    "printButton": "🖨️ Print / PDF",
+    "printButton": "Text PDF",
     "newStoryButton": "✨ New story",
     "ageLabel": "Age {age}",
     "searchPlaceholder": "Search stories, themes…",
@@ -295,13 +295,14 @@
     "wordsCount": "{count} words",
     "pagesCount": "{count} pages",
     "viewBookButton": "View illustrated book",
-    "textEpubButton": "Text EPUB for Kindle/Books",
+    "textEpubButton": "Text EPUB",
     "epubHelp": "For Kindle or Apple Books: download the EPUB, then share/open the file in your reader app.",
     "downloadStarting": "Starting download…",
     "deleteStory": "Delete story",
     "deleteConfirm": "Delete this story? Any illustrated book created from it will also be removed from your library.",
     "deleting": "Deleting…",
-    "deleteError": "We couldn't delete this story."
+    "deleteError": "We couldn't delete this story.",
+    "exportText": "Export text"
   },
   "books": {
     "createButton": "Generate illustrated book",
@@ -461,7 +462,7 @@
     "refreshFinalButton": "Refresh final package",
     "finalizingButton": "Finalizing package…",
     "finalizedAtLabel": "Finalized {value}",
-    "epubButton": "EPUB for Kindle/Books",
+    "epubButton": "Illustrated EPUB",
     "epubHelp": "For Kindle or Apple Books: download the EPUB, then share/open the file in your reader app. Images are compressed for Kindle’s 50 MB send limit.",
     "mixedArtTitle": "Some illustrations need another try",
     "mixedArtSub": "A few pages fell back to draft placeholders. Regenerate the illustrations to replace them before sharing or ordering.",
@@ -471,7 +472,30 @@
     "deleteBook": "Delete book",
     "deleteConfirm": "Delete this illustrated book project? The original story will stay in your library.",
     "deleting": "Deleting…",
-    "deleteError": "We couldn't delete this book PDF."
+    "deleteError": "We couldn't delete this book PDF.",
+    "viewFullScreen": "View full screen",
+    "tapToExpand": "Tap to expand",
+    "illustrationComingSoon": "Illustration coming soon",
+    "pageOf": "Page {page} of {total}",
+    "prevButton": "← Previous",
+    "nextButton": "Next →",
+    "goToPage": "Go to page {page}",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "noIllustration": "No illustration for this page",
+    "noText": "No text on this page",
+    "listenToStory": "Listen to the story read aloud",
+    "listenShort": "Listen",
+    "pauseNarration": "Pause narration",
+    "readingAloud": "Reading aloud — auto-advances each page",
+    "narrationUpsellTitle": "Hear your story read aloud",
+    "narrationUpsellSub": "Included with Digital Download · $9.99",
+    "printFormat": "Format",
+    "printPages": "Print pages",
+    "printProduction": "Production",
+    "estimatedPrice": "Estimated AU print price",
+    "printOrderingComingSoon": "Printed books are coming soon. You can still create and download your PDF or EPUB today.",
+    "comingSoon": "Coming soon"
   },
   "account": {
     "title": "Your account",
@@ -525,6 +549,18 @@
     "monthsOld": "{months} months old",
     "yearsOld": "{years} years old",
     "andMonths": "{years} years {months} months old",
-    "navigating": "Opening page…"
+    "navigating": "Opening page…",
+    "close": "Close"
+  },
+  "print": {
+    "storycotStory": "A Storycot story",
+    "createdFor": "A story created especially for {name}",
+    "forProfileTheme": "For {name} · {theme}",
+    "theEnd": "The End.",
+    "sweetDreams": "Sweet dreams, {name}.",
+    "tagline": "Helping little dreamers drift off to their happiest adventures.",
+    "bestResults": "Best results: paper size A4, margins None",
+    "printButton": "Print / Save as PDF",
+    "back": "← Back"
   }
 }

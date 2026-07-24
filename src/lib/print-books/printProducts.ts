@@ -44,7 +44,7 @@ export const PRINT_PRODUCTS = {
     key: "layflat",
     label: "Layflat",
     badge: "Premium",
-    provider: "Prodigi",
+    provider: "Lulu",
     format: "21x21cm square layflat",
     minPageCount: 18,
     maxPageCount: 122,

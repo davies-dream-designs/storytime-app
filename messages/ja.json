@@ -243,7 +243,7 @@
     "tryAgainButton": "もう一度試してください",
     "backToNewStory": "新しい話に戻る",
     "backToLibrary": "← 図書館",
-    "printButton": "🖨️ 印刷 / PDF",
+    "printButton": "テキスト PDF",
     "newStoryButton": "✨ 新しい物語",
     "ageLabel": "年齢 {age}",
     "searchPlaceholder": "ストーリーやテーマを検索…",
@@ -277,7 +277,7 @@
     "wordsCount": "{count}の言葉",
     "pagesCount": "{count} ページ",
     "viewBookButton": "図解 PDF を表示",
-    "textEpubButton": "Kindle/書籍のテキスト EPUB",
+    "textEpubButton": "テキスト EPUB",
     "epubHelp": "Kindle または Apple Books の場合: EPUB をダウンロードし、リーダー アプリでファイルを共有/開きます。",
     "downloadStarting": "ダウンロードを開始しています…",
     "deleteStory": "ストーリーを削除する",
@@ -301,7 +301,8 @@
         "ageRange": "Ages 7+",
         "desc": "Longer read-aloud · richer story and detailed scenes"
       }
-    }
+    },
+    "exportText": "テキストをエクスポート"
   },
   "books": {
     "createButton": "イラスト付きの PDF を生成",
@@ -443,7 +444,7 @@
     "refreshFinalButton": "最終パッケージを更新する",
     "finalizingButton": "パッケージを完成させています…",
     "finalizedAtLabel": "確定済み {value}",
-    "epubButton": "EPUB Kindle/本用",
+    "epubButton": "イラスト付き EPUB",
     "epubHelp": "Kindle または Apple Books の場合: EPUB をダウンロードし、リーダー アプリでファイルを共有/開きます。画像は、Kindle の 50 MB の送信制限に合わせて圧縮されます。",
     "mixedArtTitle": "一部のイラストはもう一度試してみる必要があります",
     "mixedArtSub": "数ページがドラフトのプレースホルダーに戻りました。共有または注文する前に、イラストを再生成して置き換えます。",
@@ -471,7 +472,30 @@
     "printOptionsTitle": "Order a printed book",
     "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
     "readyLabel": "Your illustrated book is ready to order.",
-    "orderedLabel": "Order placed — your book is with the printer."
+    "orderedLabel": "Order placed — your book is with the printer.",
+    "viewFullScreen": "全画面表示",
+    "tapToExpand": "タップして拡大",
+    "illustrationComingSoon": "イラストは近日公開",
+    "pageOf": "{total}ページ中{page}ページ目",
+    "prevButton": "← 前へ",
+    "nextButton": "次へ →",
+    "goToPage": "{page}ページ目に移動",
+    "previousPage": "前のページ",
+    "nextPage": "次のページ",
+    "noIllustration": "このページにイラストはありません",
+    "noText": "このページにテキストはありません",
+    "listenToStory": "物語を読み上げで聴く",
+    "listenShort": "聴く",
+    "pauseNarration": "読み上げを一時停止",
+    "readingAloud": "読み上げ中 — 各ページを自動で進みます",
+    "narrationUpsellTitle": "あなたの物語を読み上げで聴こう",
+    "narrationUpsellSub": "デジタルダウンロードに含まれています · $9.99",
+    "printFormat": "形式",
+    "printPages": "印刷ページ数",
+    "printProduction": "制作",
+    "estimatedPrice": "AU推定印刷価格",
+    "printOrderingComingSoon": "印刷本は近日公開予定です。今すぐPDFやEPUBを作成してダウンロードできます。",
+    "comingSoon": "近日公開"
   },
   "account": {
     "title": "あなたのアカウント",
@@ -525,6 +549,18 @@
     "monthsOld": "{months} 生後 1 か月",
     "yearsOld": "{years} 歳",
     "andMonths": "{years} 歳 {months} か月",
-    "navigating": "ページを開く…"
+    "navigating": "ページを開く…",
+    "close": "閉じる"
+  },
+  "print": {
+    "storycotStory": "Storycotのストーリー",
+    "createdFor": "{name}のために特別に作られたストーリー",
+    "forProfileTheme": "{name}へ · {theme}",
+    "theEnd": "おわり。",
+    "sweetDreams": "良い夢を、{name}。",
+    "tagline": "小さな夢想家たちが最高に幸せな冒険へ旅立てるように。",
+    "bestResults": "最適な設定：用紙サイズ A4、余白 なし",
+    "printButton": "印刷 / PDFとして保存",
+    "back": "← 戻る"
   }
 }

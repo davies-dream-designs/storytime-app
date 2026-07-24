@@ -1,10 +1,108 @@
 # Storycot - Handover Document
 
-**Last updated:** 2026-07-23  
-**Branch:** `main` / `dev` synced  
+**Last updated:** 2026-07-24  
+**Branch:** `dev` ahead of `main` — PR #97 open, ready to merge  
 **Live URL:** https://storycot.com  
 **Preview URL:** https://dev.storycot.com  
-**Latest production merge:** `feat/book-reader-and-purchase-tiers` merged → `dev` → `main` 2026-07-23
+**Latest production merge:** `feat/book-reader-and-purchase-tiers` → `main` 2026-07-23
+
+---
+
+## Current Handoff - 2026-07-24 - Story/Book Consolidation + i18n Audit + Export UX
+
+`dev` is ahead of `main` — PR #97 open. All work below is on `dev`, not yet in production.
+
+### What Changed
+
+- **Story/book page consolidation:**
+  - `/stories/[id]` is now the single destination. Illustrated books are an unlock within the story page — not a separate navigation section.
+  - When no book: StoryReader (text, streaming) + CreateBook CTA shown as before.
+  - When book building: StoryReader + BookStatusPanel (progress, live art preview) below.
+  - When book ready: BookReader (illustrated) replaces the text reader; download/purchase section appears below.
+  - `/books/[id]` now redirects to `/stories/{sourceStoryId}`, passing through checkout params.
+  - Books link removed from Nav (desktop + mobile). `/books/*` paths treat Stories link as active.
+  - `CreatePrintBookButton` stays on story page after creation (`router.refresh()`) instead of navigating away.
+
+- **Multilingual conformance audit:**
+  - Full key audit across all 13 locales — 484 → 518 keys, zero gaps.
+  - 4 components were rendering hardcoded English strings with no translation hooks: `BookReader`, `PrintProductOptions`, `print/page.tsx`, `PrintTrigger`. All wired up.
+  - New `print` namespace added for print page copy.
+  - `books.epubButton` renamed to "Illustrated EPUB" (was ambiguous duplicate of text EPUB).
+
+- **Export UX cleanup:**
+  - `🖨️ Print / PDF` → `Text PDF`, `Text EPUB for Kindle/Books` → `Text EPUB`.
+  - Two text export buttons consolidated into a single `Export text ▾` dropdown (`StoryTextExports.tsx`).
+  - Illustration estimate box now shows preset-specific text (e.g. "Tiny Tales — a simple source story expanded into about 24 pages") instead of raw numbers.
+
+### Key Files Changed
+
+| File | Change |
+|---|---|
+| `src/app/[locale]/stories/[id]/page.tsx` | Unified story+book page — absorbs BookReader, BookStatusPanel, download/purchase sections |
+| `src/app/[locale]/stories/[id]/StoryTextExports.tsx` | New — "Export text ▾" dropdown (Text PDF + Text EPUB) |
+| `src/app/[locale]/books/[id]/page.tsx` | Now redirects to `/stories/{sourceStoryId}` |
+| `src/components/Nav.tsx` | Books link removed; `/books/*` treated as Stories-active |
+| `src/components/BooksLibrary.tsx` | Card links updated to `/stories/{sourceStoryId}` |
+| `src/app/[locale]/stories/[id]/CreatePrintBookButton.tsx` | Stays on story page after creation |
+| `messages/*.json` (all 13 locales) | 518 keys, zero gaps |
+
+### QA Checklist
+
+- [ ] Story with no book: text reader streams, CreateBook CTA visible, Export text ▾ dropdown works
+- [ ] Story building: StoryReader + BookStatusPanel both visible; art previews live update
+- [ ] Story with book ready: BookReader shown, downloads section visible, no text reader
+- [ ] Navigate to old `/books/{id}` URL — should redirect to story page
+- [ ] Stripe callback URLs (`?download_success=1`) land correctly on story page
+- [ ] Export text ▾ → Text PDF opens print page in new tab
+- [ ] Export text ▾ → Text EPUB downloads file
+- [ ] Digital Download section shows "Illustrated EPUB" (not "EPUB for Kindle/Books")
+- [ ] Nav: Books link gone, Stories link highlights on `/books/*` paths
+- [ ] Test each locale — all 518 keys should render without missing key errors
+
+---
+
+## Current Handoff - 2026-07-24 - Web-Optimised Images + Security + Admin Polish
+
+`dev` is ahead of `main` — **not yet merged to production**. Pending review before prod push.
+
+### What Changed
+
+- **Web-optimised illustration images:**
+  - At illustration generation time, a 1024×1024 JPEG (`-web.jpg`) is now stored alongside the 2490×2490 print PNG.
+  - `BookSpread.leftPageWebImageUrl` and `BookAsset.coverWebImageUrl` hold the web URLs.
+  - `BookReader` uses the web version — eliminates first-load lag on the book reader.
+  - Print PDF pipeline still uses the full-res PNG. No change to Lulu output.
+  - Only affects newly generated books; existing books fall back to print URL gracefully.
+
+- **Security fixes:**
+  - Next.js: 15.5.19 → 15.5.21 (latest 15.x, covers next/sharp advisory context).
+  - brace-expansion: 1.1.7 → 1.1.16 (CVE-2026-13149 DoS fix).
+  - Next.js bundled `sharp@0.34.5` is unfixable without forking Next — accepted risk (Storycot controls all images through `/_next/image`, no untrusted uploads).
+
+- **Admin dashboard timestamps** now render in `Australia/Adelaide` timezone instead of UTC (Vercel server default).
+
+- **Animated storybook video (explored + removed):**
+  - Investigated Kling video generation via fal.ai, OpenArt AI (no public API), ElevenLabs video (no API, uses Kling anyway).
+  - Implemented full pipeline: Kling clips, frame chaining for character consistency, ElevenLabs full-book narration with word-boundary page sync, Inngest webhook + fallback poll.
+  - Removed after persistent infrastructure reliability issues (Inngest `waitForEvent` timeout bug, ffmpeg bundling on Vercel Lambda, fal.ai webhook delivery inconsistency).
+  - All video code cleanly removed — codebase is unaffected. Re-visit when fal.ai API is more stable.
+
+### Key Files Changed
+
+| File | Change |
+|---|---|
+| `src/lib/print-books/illustrations.ts` | `webImageBuffer()` — stores `-web.jpg` alongside print PNG |
+| `src/types/printBook.ts` | `leftPageWebImageUrl` on `BookSpread`, `coverWebImageUrl` on `BookAsset` |
+| `src/lib/print-books/jobs.ts` | Persists `coverWebImageUrl` into `BookAsset` |
+| `src/app/[locale]/books/[id]/BookReader.tsx` | Uses `leftPageWebImageUrl` / `coverWebImageUrl` when available |
+| `src/app/[locale]/admin/page.tsx` | Admin timestamps in `Australia/Adelaide` |
+| `next.config.ts` | Reverted ffmpeg config; clean |
+| `package.json` | Next.js 15.5.21, brace-expansion 1.1.16 |
+
+### QA
+
+- Generate an illustrated book → open book page → images should load without lag on first view.
+- Admin: open `/admin` → timestamps should show ACST/ACDT time, not UTC.
 
 ---
 

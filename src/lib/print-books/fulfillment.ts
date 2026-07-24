@@ -13,19 +13,7 @@ type FulfillmentProvider = PrintFulfillment["provider"];
 
 function getFulfillmentProvider(): FulfillmentProvider {
   if (process.env.STORYCOT_PRINT_PROVIDER === "peecho") return "peecho";
-  if (process.env.STORYCOT_PRINT_PROVIDER === "lulu") return "lulu";
-  return "prodigi";
-}
-
-function getProdigiSku(productKey: PrintBookOrder["productKey"]) {
-  switch (productKey) {
-    case "softcover":
-      return process.env.STORYCOT_PRODIGI_SOFTCOVER_SKU;
-    case "hardcover":
-      return process.env.STORYCOT_PRODIGI_HARDCOVER_SKU;
-    case "layflat":
-      return process.env.STORYCOT_PRODIGI_LAYFLAT_SKU;
-  }
+  return "lulu";
 }
 
 function getPeechoOfferingId(productKey: PrintBookOrder["productKey"]) {
@@ -47,78 +35,6 @@ function assertPublicAssetUrl(value: string | undefined, label: string) {
     );
   }
   return value;
-}
-
-function buildProdigiPayload(input: {
-  project: BookProject;
-  order: PrintBookOrder;
-  shipping: PrintShippingAddress;
-}) {
-  const { project, order, shipping } = input;
-  const sku = getProdigiSku(order.productKey);
-  if (!sku) {
-    throw new Error(
-      `Prodigi SKU is not configured for ${order.productKey}. Set STORYCOT_PRODIGI_${order.productKey.toUpperCase()}_SKU.`
-    );
-  }
-
-  const printPdfUrl = assertPublicAssetUrl(
-    project.assets.printPdfUrl,
-    "Interior print PDF"
-  );
-  const coverPdfUrl = assertPublicAssetUrl(
-    project.assets.coverPdfUrl,
-    "Cover PDF"
-  );
-
-  return {
-    merchantReference: `storycot-${project.id}`,
-    shippingMethod: "Standard",
-    idempotencyKey: order.checkoutSessionId ?? `storycot-${project.id}`,
-    recipient: {
-      name: shipping.name ?? "Storycot customer",
-      email: shipping.email,
-      phoneNumber: shipping.phone,
-      address: {
-        line1: shipping.line1,
-        line2: shipping.line2 ?? null,
-        postalOrZipCode: shipping.postalCode,
-        countryCode: "AU",
-        townOrCity: shipping.city,
-        stateOrCounty: shipping.state ?? null,
-      },
-    },
-    items: [
-      {
-        merchantReference: `${project.id}-${order.productKey}`,
-        sku,
-        copies: 1,
-        sizing: "fitPrintArea",
-        recipientCost: {
-          amount: order.amountAud.toFixed(2),
-          currency: "AUD",
-        },
-        assets: [
-          {
-            printArea: "default",
-            url: printPdfUrl,
-            pageCount: order.pageCount,
-          },
-          {
-            printArea: "cover",
-            url: coverPdfUrl,
-          },
-        ],
-      },
-    ],
-    metadata: {
-      source: "storycot",
-      projectId: project.id,
-      sourceStoryId: project.sourceStoryId,
-      productKey: order.productKey,
-      checkoutSessionId: order.checkoutSessionId,
-    },
-  };
 }
 
 function buildPeechoPayload(input: {
@@ -201,11 +117,9 @@ export function preparePrintFulfillment(input: {
 
   try {
     const payload =
-      provider === "lulu"
-        ? buildLuluPrintJobPayload({ ...input, shipping })
-        : provider === "peecho"
-          ? buildPeechoPayload({ ...input, shipping })
-          : buildProdigiPayload({ ...input, shipping });
+      provider === "peecho"
+        ? buildPeechoPayload({ ...input, shipping })
+        : buildLuluPrintJobPayload({ ...input, shipping });
 
     return {
       provider,
@@ -224,37 +138,6 @@ export function preparePrintFulfillment(input: {
           : "Print fulfilment is not configured.",
     };
   }
-}
-
-async function submitProdigiOrder(
-  payload: unknown
-): Promise<{ orderId: string; externalStatus: string }> {
-  const apiKey = process.env.STORYCOT_PRODIGI_API_KEY;
-  if (!apiKey) throw new Error("STORYCOT_PRODIGI_API_KEY is not configured.");
-
-  const response = await fetch("https://api.prodigi.com/v4.0/orders", {
-    method: "POST",
-    headers: {
-      "X-API-Key": apiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(
-      `Prodigi order submission failed (${response.status}): ${text}`
-    );
-  }
-
-  const data = (await response.json()) as {
-    order?: { id?: string; status?: { stage?: string } };
-  };
-  const orderId = data.order?.id;
-  if (!orderId) throw new Error("Prodigi did not return an order ID.");
-
-  return { orderId, externalStatus: data.order?.status?.stage ?? "received" };
 }
 
 export async function submitPrintFulfillment(input: {
@@ -278,10 +161,9 @@ export async function submitPrintFulfillment(input: {
   }
 
   try {
-    const { orderId, externalStatus } =
-      fulfillment.provider === "lulu"
-        ? await submitLuluPrintJob(fulfillment.payload)
-        : await submitProdigiOrder(fulfillment.payload);
+    const { orderId, externalStatus } = await submitLuluPrintJob(
+      fulfillment.payload
+    );
     console.info("Print fulfillment submitted", {
       projectId: input.project.id,
       productKey: input.order.productKey,
@@ -295,7 +177,7 @@ export async function submitPrintFulfillment(input: {
       submittedAt: new Date().toISOString(),
       externalOrderId: orderId,
       externalStatus,
-      message: `Order ${orderId} submitted to ${fulfillment.provider === "lulu" ? "Lulu" : "Prodigi"}.`,
+      message: `Order ${orderId} submitted to Lulu.`,
       payload: undefined,
     };
   } catch (error) {
@@ -311,7 +193,7 @@ export async function submitPrintFulfillment(input: {
       message:
         error instanceof Error
           ? error.message
-          : `${fulfillment.provider === "lulu" ? "Lulu" : "Prodigi"} submission failed.`,
+          : "Lulu submission failed.",
     };
   }
 }

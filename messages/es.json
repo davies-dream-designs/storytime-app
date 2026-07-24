@@ -243,7 +243,7 @@
     "tryAgainButton": "Intentar de nuevo",
     "backToNewStory": "Volver al cuento nuevo",
     "backToLibrary": "← Biblioteca",
-    "printButton": "🖨️ Imprimir / PDF",
+    "printButton": "PDF de texto",
     "newStoryButton": "✨ Nuevo cuento",
     "ageLabel": "Edad {age}",
     "searchPlaceholder": "Buscar cuentos, temas…",
@@ -277,7 +277,7 @@
     "wordsCount": "{count} palabras",
     "pagesCount": "{count} páginas",
     "viewBookButton": "Ver PDF ilustrado",
-    "textEpubButton": "EPUB de texto para Kindle/Books",
+    "textEpubButton": "EPUB de texto",
     "epubHelp": "Para Kindle o Apple Books: descarga el EPUB y luego compártelo o ábrelo en tu app de lectura.",
     "downloadStarting": "Iniciando descarga…",
     "deleteStory": "Eliminar historia",
@@ -301,7 +301,8 @@
         "ageRange": "Ages 7+",
         "desc": "Longer read-aloud · richer story and detailed scenes"
       }
-    }
+    },
+    "exportText": "Exportar texto"
   },
   "books": {
     "createButton": "Generar PDF ilustrado",
@@ -443,7 +444,7 @@
     "hardcoverTitle": "Tapa dura",
     "hardcoverSub": "El pedido de tapa dura usará este PDF ilustrado cuando esté disponible.",
     "hardcoverButton": "Pedido de tapa dura próximamente",
-    "epubButton": "EPUB para Kindle/Books",
+    "epubButton": "EPUB ilustrado",
     "epubHelp": "Para Kindle o Apple Books: descarga el EPUB y luego compártelo o ábrelo en tu app de lectura. Las imágenes se comprimen para el límite de 50 MB de Kindle.",
     "mixedArtTitle": "Algunas ilustraciones necesitan otro intento",
     "mixedArtSub": "Algunas páginas usaron marcadores de posición. Vuelve a generar las ilustraciones antes de compartir o pedir una copia.",
@@ -471,7 +472,30 @@
     "printOptionsTitle": "Order a printed book",
     "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
     "readyLabel": "Your illustrated book is ready to order.",
-    "orderedLabel": "Order placed — your book is with the printer."
+    "orderedLabel": "Order placed — your book is with the printer.",
+    "viewFullScreen": "Ver en pantalla completa",
+    "tapToExpand": "Toca para ampliar",
+    "illustrationComingSoon": "Ilustración próximamente",
+    "pageOf": "Página {page} de {total}",
+    "prevButton": "← Anterior",
+    "nextButton": "Siguiente →",
+    "goToPage": "Ir a la página {page}",
+    "previousPage": "Página anterior",
+    "nextPage": "Página siguiente",
+    "noIllustration": "No hay ilustración para esta página",
+    "noText": "No hay texto en esta página",
+    "listenToStory": "Escuchar el cuento en voz alta",
+    "listenShort": "Escuchar",
+    "pauseNarration": "Pausar narración",
+    "readingAloud": "Leyendo en voz alta — avanza automáticamente cada página",
+    "narrationUpsellTitle": "Escucha tu cuento leído en voz alta",
+    "narrationUpsellSub": "Incluido con la Descarga Digital · $9,99",
+    "printFormat": "Formato",
+    "printPages": "Páginas impresas",
+    "printProduction": "Producción",
+    "estimatedPrice": "Precio estimado de impresión AU",
+    "printOrderingComingSoon": "Los libros impresos llegan pronto. Todavía puedes crear y descargar tu PDF o EPUB hoy.",
+    "comingSoon": "Próximamente"
   },
   "account": {
     "title": "Tu cuenta",
@@ -525,6 +549,18 @@
     "monthsOld": "{months} meses",
     "yearsOld": "{years} años",
     "andMonths": "{years} años {months} meses",
-    "navigating": "Abriendo página…"
+    "navigating": "Abriendo página…",
+    "close": "Cerrar"
+  },
+  "print": {
+    "storycotStory": "Un cuento de Storycot",
+    "createdFor": "Un cuento creado especialmente para {name}",
+    "forProfileTheme": "Para {name} · {theme}",
+    "theEnd": "Fin.",
+    "sweetDreams": "Dulces sueños, {name}.",
+    "tagline": "Ayudando a los pequeños soñadores a adentrarse en sus aventuras más felices.",
+    "bestResults": "Mejores resultados: tamaño de papel A4, márgenes Ninguno",
+    "printButton": "Imprimir / Guardar como PDF",
+    "back": "← Atrás"
   }
 }

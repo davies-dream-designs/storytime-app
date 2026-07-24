@@ -243,7 +243,7 @@
     "tryAgainButton": "Spróbuj ponownie",
     "backToNewStory": "Powrót do nowej historii",
     "backToLibrary": "← Biblioteka",
-    "printButton": "🖨️ Drukuj / PDF",
+    "printButton": "Tekst PDF",
     "newStoryButton": "✨ Nowa historia",
     "ageLabel": "Wiek {age}",
     "searchPlaceholder": "Wyszukaj historie, motywy…",
@@ -277,7 +277,7 @@
     "wordsCount": "{count} słowa",
     "pagesCount": "Strony {count}",
     "viewBookButton": "Zobacz ilustrację PDF",
-    "textEpubButton": "Tekst EPUB dla Kindle/Książki",
+    "textEpubButton": "Tekst EPUB",
     "epubHelp": "W przypadku Kindle lub Apple Books: pobierz EPUB, a następnie udostępnij/otwórz plik w aplikacji czytnika.",
     "downloadStarting": "Rozpoczynam pobieranie…",
     "deleteStory": "Usuń historię",
@@ -301,7 +301,8 @@
         "ageRange": "Ages 7+",
         "desc": "Longer read-aloud · richer story and detailed scenes"
       }
-    }
+    },
+    "exportText": "Eksportuj tekst"
   },
   "books": {
     "createButton": "Wygeneruj ilustrowany PDF",
@@ -443,7 +444,7 @@
     "refreshFinalButton": "Odśwież pakiet końcowy",
     "finalizingButton": "Finalizowanie pakietu…",
     "finalizedAtLabel": "Sfinalizowano {value}",
-    "epubButton": "EPUB dla Kindle/Książki",
+    "epubButton": "Ilustrowany EPUB",
     "epubHelp": "W przypadku Kindle lub Apple Books: pobierz EPUB, a następnie udostępnij/otwórz plik w aplikacji czytnika. Obrazy są kompresowane zgodnie z limitem wysyłania wynoszącym 50 MB w Kindle.",
     "mixedArtTitle": "Niektóre ilustracje wymagają kolejnej próby",
     "mixedArtSub": "Kilka stron wróciło do symboli zastępczych wersji roboczych. Wygeneruj ponownie ilustracje, aby je zastąpić przed udostępnieniem lub złożeniem zamówienia.",
@@ -471,7 +472,30 @@
     "printOptionsTitle": "Order a printed book",
     "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
     "readyLabel": "Your illustrated book is ready to order.",
-    "orderedLabel": "Order placed — your book is with the printer."
+    "orderedLabel": "Order placed — your book is with the printer.",
+    "viewFullScreen": "Wyświetl pełnoekranowo",
+    "tapToExpand": "Stuknij, aby powiększyć",
+    "illustrationComingSoon": "Ilustracja wkrótce",
+    "pageOf": "Strona {page} z {total}",
+    "prevButton": "← Poprzednia",
+    "nextButton": "Następna →",
+    "goToPage": "Przejdź do strony {page}",
+    "previousPage": "Poprzednia strona",
+    "nextPage": "Następna strona",
+    "noIllustration": "Brak ilustracji dla tej strony",
+    "noText": "Brak tekstu na tej stronie",
+    "listenToStory": "Posłuchaj historii czytanej na głos",
+    "listenShort": "Słuchaj",
+    "pauseNarration": "Wstrzymaj narrację",
+    "readingAloud": "Czytanie na głos — automatycznie przechodzi do następnej strony",
+    "narrationUpsellTitle": "Posłuchaj swojej historii czytanej na głos",
+    "narrationUpsellSub": "Zawarte w Pobieraniu cyfrowym · 9,99 $",
+    "printFormat": "Format",
+    "printPages": "Strony do druku",
+    "printProduction": "Produkcja",
+    "estimatedPrice": "Szacowana cena druku AU",
+    "printOrderingComingSoon": "Drukowane książki już wkrótce. Możesz już teraz tworzyć i pobierać PDF lub EPUB.",
+    "comingSoon": "Wkrótce"
   },
   "account": {
     "title": "Twoje konto",
@@ -525,6 +549,18 @@
     "monthsOld": "{months} miesięcy",
     "yearsOld": "{years} lat",
     "andMonths": "{years} lata {months} miesiące",
-    "navigating": "Otwieram stronę…"
+    "navigating": "Otwieram stronę…",
+    "close": "Zamknij"
+  },
+  "print": {
+    "storycotStory": "Historia Storycot",
+    "createdFor": "Historia stworzona specjalnie dla {name}",
+    "forProfileTheme": "Dla {name} · {theme}",
+    "theEnd": "Koniec.",
+    "sweetDreams": "Słodkich snów, {name}.",
+    "tagline": "Pomagamy małym marzycielom odpłynąć w swoje najszczęśliwsze przygody.",
+    "bestResults": "Najlepsze wyniki: rozmiar papieru A4, marginesy Brak",
+    "printButton": "Drukuj / Zapisz jako PDF",
+    "back": "← Wstecz"
   }
 }

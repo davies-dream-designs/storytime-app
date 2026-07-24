@@ -54,7 +54,11 @@ export default async function AdminPage() {
                       {p!.errorCode ?? "unknown"}
                     </span>
                     <p className="text-xs text-night-400 mt-1">
-                      {new Date(p!.updatedAt).toLocaleString()}
+                      {new Date(p!.updatedAt).toLocaleString("en-AU", {
+                        timeZone: "Australia/Adelaide",
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })}
                     </p>
                     <p className="text-xs text-night-400">
                       retries: {p!.retryCount}

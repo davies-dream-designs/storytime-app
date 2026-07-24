@@ -197,7 +197,7 @@ export default function BooksLibrary({ projects, stories }: BooksLibraryProps) {
                 </div>
                 <div className="mt-5 flex flex-wrap gap-2">
                   <Link
-                    href={`/books/${project.id}` as string}
+                    href={`/stories/${project.sourceStoryId}` as string}
                     className="storycot-btn storycot-btn-primary storycot-btn-compact"
                   >
                     {t("viewBookButton")}

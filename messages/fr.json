@@ -243,7 +243,7 @@
     "tryAgainButton": "Réessayer",
     "backToNewStory": "Retour à la nouvelle histoire",
     "backToLibrary": "← Bibliothèque",
-    "printButton": "🖨️ Imprimer / PDF",
+    "printButton": "PDF du texte",
     "newStoryButton": "✨ Nouvelle histoire",
     "ageLabel": "Âge {age}",
     "searchPlaceholder": "Rechercher des histoires, thèmes…",
@@ -277,7 +277,7 @@
     "wordsCount": "{count} mots",
     "pagesCount": "{count} pages",
     "viewBookButton": "Voir le PDF illustré",
-    "textEpubButton": "EPUB texte pour Kindle/Books",
+    "textEpubButton": "EPUB du texte",
     "epubHelp": "Pour Kindle ou Apple Books : téléchargez l’EPUB, puis partagez/ouvrez le fichier dans votre application de lecture.",
     "downloadStarting": "Téléchargement…",
     "deleteStory": "Supprimer l'histoire",
@@ -301,7 +301,8 @@
         "ageRange": "Ages 7+",
         "desc": "Longer read-aloud · richer story and detailed scenes"
       }
-    }
+    },
+    "exportText": "Exporter le texte"
   },
   "books": {
     "createButton": "Générer le PDF illustré",
@@ -443,7 +444,7 @@
     "hardcoverTitle": "Couverture rigide",
     "hardcoverSub": "La commande en couverture rigide utilisera ce PDF illustré lorsque l’option sera disponible.",
     "hardcoverButton": "Commande couverture rigide bientôt disponible",
-    "epubButton": "EPUB pour Kindle/Books",
+    "epubButton": "EPUB illustré",
     "epubHelp": "Pour Kindle ou Apple Books : téléchargez l’EPUB, puis partagez/ouvrez le fichier dans votre application de lecture. Les images sont compressées pour la limite Kindle de 50 Mo.",
     "mixedArtTitle": "Certaines illustrations doivent être relancées",
     "mixedArtSub": "Quelques pages sont revenues à des images provisoires. Régénérez les illustrations avant de partager ou commander.",
@@ -471,7 +472,30 @@
     "printOptionsTitle": "Order a printed book",
     "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
     "readyLabel": "Your illustrated book is ready to order.",
-    "orderedLabel": "Order placed — your book is with the printer."
+    "orderedLabel": "Order placed — your book is with the printer.",
+    "viewFullScreen": "Voir en plein écran",
+    "tapToExpand": "Appuyer pour agrandir",
+    "illustrationComingSoon": "Illustration bientôt disponible",
+    "pageOf": "Page {page} sur {total}",
+    "prevButton": "← Précédent",
+    "nextButton": "Suivant →",
+    "goToPage": "Aller à la page {page}",
+    "previousPage": "Page précédente",
+    "nextPage": "Page suivante",
+    "noIllustration": "Pas d'illustration pour cette page",
+    "noText": "Pas de texte sur cette page",
+    "listenToStory": "Écouter l'histoire lue à voix haute",
+    "listenShort": "Écouter",
+    "pauseNarration": "Mettre en pause la narration",
+    "readingAloud": "Lecture à voix haute — passe à la page suivante automatiquement",
+    "narrationUpsellTitle": "Écoute ton histoire lue à voix haute",
+    "narrationUpsellSub": "Inclus avec le Téléchargement numérique · 9,99 $",
+    "printFormat": "Format",
+    "printPages": "Pages imprimées",
+    "printProduction": "Production",
+    "estimatedPrice": "Prix d'impression AU estimé",
+    "printOrderingComingSoon": "Les livres imprimés arrivent bientôt. Vous pouvez encore créer et télécharger votre PDF ou EPUB aujourd'hui.",
+    "comingSoon": "Bientôt disponible"
   },
   "account": {
     "title": "Votre compte",
@@ -525,6 +549,18 @@
     "monthsOld": "{months} mois",
     "yearsOld": "{years} ans",
     "andMonths": "{years} ans {months} mois",
-    "navigating": "Ouverture de la page…"
+    "navigating": "Ouverture de la page…",
+    "close": "Fermer"
+  },
+  "print": {
+    "storycotStory": "Une histoire Storycot",
+    "createdFor": "Une histoire créée spécialement pour {name}",
+    "forProfileTheme": "Pour {name} · {theme}",
+    "theEnd": "Fin.",
+    "sweetDreams": "Fais de beaux rêves, {name}.",
+    "tagline": "Pour aider les petits rêveurs à s'envoler vers leurs aventures les plus heureuses.",
+    "bestResults": "Meilleurs résultats : format papier A4, marges Aucune",
+    "printButton": "Imprimer / Enregistrer en PDF",
+    "back": "← Retour"
   }
 }

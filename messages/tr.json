@@ -243,7 +243,7 @@
     "tryAgainButton": "Tekrar dene",
     "backToNewStory": "Yeni hikayeye geri dön",
     "backToLibrary": "← Kütüphane",
-    "printButton": "🖨️ Yazdır / PDF",
+    "printButton": "Metin PDF",
     "newStoryButton": "✨ Yeni hikaye",
     "ageLabel": "Yaş {age}",
     "searchPlaceholder": "Hikayeleri, temaları arayın…",
@@ -277,7 +277,7 @@
     "wordsCount": "{count} kelimeler",
     "pagesCount": "{count} sayfalar",
     "viewBookButton": "Resimli görünümü görüntüleyin PDF",
-    "textEpubButton": "Kindle/Kitaplar için EPUB metni",
+    "textEpubButton": "Metin EPUB",
     "epubHelp": "Kindle veya Apple Books için: EPUB'yi indirin, ardından dosyayı okuyucu uygulamanızda paylaşın/açın.",
     "downloadStarting": "İndirme başlatılıyor…",
     "deleteStory": "Hikayeyi sil",
@@ -301,7 +301,8 @@
         "ageRange": "Ages 7+",
         "desc": "Longer read-aloud · richer story and detailed scenes"
       }
-    }
+    },
+    "exportText": "Metni dışa aktar"
   },
   "books": {
     "createButton": "Resimli PDF oluştur",
@@ -443,7 +444,7 @@
     "refreshFinalButton": "Son paketi yenile",
     "finalizingButton": "Paket sonlandırılıyor…",
     "finalizedAtLabel": "Kesinleşmiş {value}",
-    "epubButton": "Kindle/Kitaplar için EPUB",
+    "epubButton": "Resimli EPUB",
     "epubHelp": "Kindle veya Apple Books için: EPUB'yi indirin, ardından dosyayı okuyucu uygulamanızda paylaşın/açın. Görüntüler Kindle'nin 50 MB gönderme sınırına göre sıkıştırılmıştır.",
     "mixedArtTitle": "Bazı illüstrasyonların tekrar denemeye ihtiyacı var",
     "mixedArtSub": "Birkaç sayfa taslak yer tutuculara kaldı. Paylaşmadan veya sipariş vermeden önce resimleri değiştirmek için yeniden oluşturun.",
@@ -471,7 +472,30 @@
     "printOptionsTitle": "Order a printed book",
     "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
     "readyLabel": "Your illustrated book is ready to order.",
-    "orderedLabel": "Order placed — your book is with the printer."
+    "orderedLabel": "Order placed — your book is with the printer.",
+    "viewFullScreen": "Tam ekranda görüntüle",
+    "tapToExpand": "Genişletmek için dokun",
+    "illustrationComingSoon": "İllüstrasyon yakında geliyor",
+    "pageOf": "{total} sayfadan {page}. sayfa",
+    "prevButton": "← Önceki",
+    "nextButton": "Sonraki →",
+    "goToPage": "{page}. sayfaya git",
+    "previousPage": "Önceki sayfa",
+    "nextPage": "Sonraki sayfa",
+    "noIllustration": "Bu sayfa için illüstrasyon yok",
+    "noText": "Bu sayfada metin yok",
+    "listenToStory": "Hikayeyi sesli olarak dinle",
+    "listenShort": "Dinle",
+    "pauseNarration": "Anlatımı duraklat",
+    "readingAloud": "Yüksek sesle okunuyor — her sayfada otomatik ilerler",
+    "narrationUpsellTitle": "Hikayen sesli okunurken dinle",
+    "narrationUpsellSub": "Dijital İndirme ile birlikte gelir · $9,99",
+    "printFormat": "Format",
+    "printPages": "Baskı sayfaları",
+    "printProduction": "Üretim",
+    "estimatedPrice": "Tahmini AU baskı fiyatı",
+    "printOrderingComingSoon": "Basılı kitaplar yakında geliyor. PDF veya EPUB'unuzu bugün hâlâ oluşturabilir ve indirebilirsiniz.",
+    "comingSoon": "Yakında"
   },
   "account": {
     "title": "Hesabınız",
@@ -525,6 +549,18 @@
     "monthsOld": "{months} aylık",
     "yearsOld": "{years} yaşında",
     "andMonths": "{years} yıl {months} aylık",
-    "navigating": "Sayfa açılıyor…"
+    "navigating": "Sayfa açılıyor…",
+    "close": "Kapat"
+  },
+  "print": {
+    "storycotStory": "Bir Storycot hikayesi",
+    "createdFor": "{name} için özel olarak oluşturulmuş bir hikaye",
+    "forProfileTheme": "{name} için · {theme}",
+    "theEnd": "Son.",
+    "sweetDreams": "Tatlı rüyalar, {name}.",
+    "tagline": "Küçük hayalperestlerin en mutlu maceralarına dalmalarına yardımcı oluyoruz.",
+    "bestResults": "En iyi sonuçlar: kağıt boyutu A4, kenar boşlukları Yok",
+    "printButton": "Yazdır / PDF olarak kaydet",
+    "back": "← Geri"
   }
 }

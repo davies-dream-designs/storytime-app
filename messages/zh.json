@@ -243,7 +243,7 @@
     "tryAgainButton": "重试",
     "backToNewStory": "返回新故事",
     "backToLibrary": "← 图书馆",
-    "printButton": "🖨️ 打印 / PDF",
+    "printButton": "文本 PDF",
     "newStoryButton": "✨ 新故事",
     "ageLabel": "{age}岁",
     "searchPlaceholder": "搜索故事、主题…",
@@ -277,7 +277,7 @@
     "wordsCount": "{count} 字",
     "pagesCount": "{count} 页",
     "viewBookButton": "查看插图 PDF",
-    "textEpubButton": "Kindle/Books 纯文本 EPUB",
+    "textEpubButton": "文本 EPUB",
     "epubHelp": "用于 Kindle 或 Apple Books：下载 EPUB 后，将文件分享或打开到阅读器应用中。",
     "downloadStarting": "正在开始下载…",
     "deleteStory": "删除故事",
@@ -301,7 +301,8 @@
         "ageRange": "Ages 7+",
         "desc": "Longer read-aloud · richer story and detailed scenes"
       }
-    }
+    },
+    "exportText": "导出文本"
   },
   "books": {
     "createButton": "生成插图 PDF",
@@ -443,7 +444,7 @@
     "hardcoverTitle": "精装书",
     "hardcoverSub": "精装订购启用后将使用此插图 PDF。",
     "hardcoverButton": "精装订购即将推出",
-    "epubButton": "Kindle/Books EPUB",
+    "epubButton": "插图版 EPUB",
     "epubHelp": "用于 Kindle 或 Apple Books：下载 EPUB 后，将文件分享或打开到阅读器应用中。图片会压缩以适配 Kindle 50MB 发送限制。",
     "mixedArtTitle": "部分插图需要重试",
     "mixedArtSub": "有些页面回退到了占位草图。分享或订购前请重新生成插图。",
@@ -471,7 +472,30 @@
     "printOptionsTitle": "Order a printed book",
     "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
     "readyLabel": "Your illustrated book is ready to order.",
-    "orderedLabel": "Order placed — your book is with the printer."
+    "orderedLabel": "Order placed — your book is with the printer.",
+    "viewFullScreen": "全屏查看",
+    "tapToExpand": "点击展开",
+    "illustrationComingSoon": "插图即将上线",
+    "pageOf": "第 {page} 页，共 {total} 页",
+    "prevButton": "← 上一页",
+    "nextButton": "下一页 →",
+    "goToPage": "跳转到第 {page} 页",
+    "previousPage": "上一页",
+    "nextPage": "下一页",
+    "noIllustration": "本页暂无插图",
+    "noText": "本页暂无文字",
+    "listenToStory": "听故事朗读",
+    "listenShort": "收听",
+    "pauseNarration": "暂停朗读",
+    "readingAloud": "正在朗读——每页自动翻页",
+    "narrationUpsellTitle": "收听故事朗读",
+    "narrationUpsellSub": "含数字下载 · $9.99",
+    "printFormat": "格式",
+    "printPages": "打印页数",
+    "printProduction": "生产",
+    "estimatedPrice": "澳大利亚预计印刷价格",
+    "printOrderingComingSoon": "印刷书籍即将上线。您今天仍然可以创建并下载 PDF 或 EPUB。",
+    "comingSoon": "即将推出"
   },
   "account": {
     "title": "您的账户",
@@ -525,6 +549,18 @@
     "monthsOld": "{months} 个月",
     "yearsOld": "{years} 岁",
     "andMonths": "{years} 岁 {months} 个月",
-    "navigating": "正在打开页面…"
+    "navigating": "正在打开页面…",
+    "close": "关闭"
+  },
+  "print": {
+    "storycotStory": "Storycot 故事",
+    "createdFor": "专为 {name} 创作的故事",
+    "forProfileTheme": "献给 {name} · {theme}",
+    "theEnd": "故事结束。",
+    "sweetDreams": "晚安，{name}，好梦。",
+    "tagline": "帮助小小梦想家飘入最幸福的冒险旅程。",
+    "bestResults": "最佳效果：纸张尺寸 A4，页边距 无",
+    "printButton": "打印 / 保存为 PDF",
+    "back": "← 返回"
   }
 }

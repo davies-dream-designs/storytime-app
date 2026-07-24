@@ -3,7 +3,6 @@ import Stripe from "stripe";
 import { clerkClient } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { submitPrintFulfillment } from "@/lib/print-books/fulfillment";
-import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
 import {
   isPrintProductKey,
   quotePrintProduct,
@@ -100,31 +99,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true, refunded: true });
     }
 
-    if (checkoutType === "animated_video") {
-      const projectId = session.metadata?.projectId;
-      if (projectId && userId) {
-        const project = await db.bookProjects.getById(projectId);
-        if (project && project.userId === userId) {
-          await db.bookProjects.update(project.id, {
-            assets: {
-              ...project.assets,
-              animatedVideoUnlockedAt: new Date().toISOString(),
-              animatedVideoCheckoutSessionId: session.id,
-              animatedVideoStatus: "generating",
-              animatedVideoStartedAt: new Date().toISOString(),
-            },
-          });
-          try {
-            await inngest.send({
-              name: INNGEST_EVENTS.bookVideoRequested,
-              data: { projectId: project.id },
-            });
-          } catch (err) {
-            console.error("Inngest send failed (video webhook):", err);
-          }
-        }
-      }
-    } else if (checkoutType === "digital_download") {
+    if (checkoutType === "digital_download") {
       const projectId = session.metadata?.projectId;
       if (projectId && userId) {
         const project = await db.bookProjects.getById(projectId);

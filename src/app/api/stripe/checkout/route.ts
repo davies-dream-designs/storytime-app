@@ -16,8 +16,6 @@ import {
   PRINT_ORDERING_COMING_SOON_MESSAGE,
 } from "@/lib/print-books/launch";
 import { isStoryPrintRestricted } from "@/lib/ipGuardrails";
-import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
-import { isVideoConfigured } from "@/lib/print-books/video";
 
 const PACKS = {
   starter: { credits: 10, amount: 499, label: "Storycot Starter — 10 stories" },
@@ -98,101 +96,6 @@ export async function POST(req: NextRequest) {
   };
   const appUrl = getRequestOrigin(req);
   const locale = getRequestLocale(req);
-
-  if (body.type === "animated_video") {
-    if (!body.projectId) {
-      return NextResponse.json(
-        { error: "Invalid animated video checkout" },
-        { status: 400 }
-      );
-    }
-
-    const project = await db.bookProjects.getById(body.projectId);
-    if (!project || project.userId !== userId) {
-      return NextResponse.json({ error: "Book not found" }, { status: 404 });
-    }
-
-    if (project.status !== "ready") {
-      return NextResponse.json(
-        { error: "This book is not ready yet." },
-        { status: 409 }
-      );
-    }
-
-    if (project.assets.animatedVideoUnlockedAt) {
-      return NextResponse.json(
-        { error: "Animated video is already unlocked for this book." },
-        { status: 409 }
-      );
-    }
-
-    if (!isVideoConfigured()) {
-      return NextResponse.json(
-        { error: "Video generation is not configured." },
-        { status: 503 }
-      );
-    }
-
-    // Admin bypass — unlock and trigger immediately, no Stripe session needed
-    const client = await clerkClient();
-    const user = await client.users.getUser(userId);
-    const isAdmin = user.privateMetadata.isAdmin === true;
-
-    if (isAdmin) {
-      await db.bookProjects.update(project.id, {
-        assets: {
-          ...project.assets,
-          animatedVideoUnlockedAt: new Date().toISOString(),
-          animatedVideoStatus: "generating",
-          animatedVideoStartedAt: new Date().toISOString(),
-        },
-      });
-      // Fire Inngest but don't let a missing event key break the response —
-      // the DB is already updated so the client can poll for status.
-      try {
-        await inngest.send({
-          name: INNGEST_EVENTS.bookVideoRequested,
-          data: { projectId: project.id },
-        });
-      } catch (err) {
-        console.error("Inngest send failed (video):", err);
-      }
-      return NextResponse.json({ adminTriggered: true });
-    }
-
-    const story = await db.stories.getById(project.sourceStoryId);
-    const bookPath = getBookReturnPath(locale, project.id);
-
-    const session = await stripe.checkout.sessions.create({
-      locale: getStripeLocale(locale),
-      payment_method_types: ["card"],
-      mode: "payment",
-      billing_address_collection: "required",
-      line_items: [
-        {
-          price_data: {
-            currency: "aud",
-            product_data: {
-              name: `Storycot Animated Storybook — ${story?.title ?? "Illustrated Story"}`,
-              description:
-                "Your illustrated story brought to life — animated clips with narration, play online or download.",
-            },
-            unit_amount: 1495,
-          },
-          quantity: 1,
-        },
-      ],
-      metadata: {
-        checkoutType: "animated_video",
-        userId,
-        projectId: project.id,
-      },
-      success_url: `${appUrl}${bookPath}?video_success=1`,
-      cancel_url: `${appUrl}${bookPath}?video_canceled=1`,
-    });
-
-    return NextResponse.json({ url: session.url });
-  }
 
   if (body.type === "digital_download") {
     if (!body.projectId) {

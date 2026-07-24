@@ -103,10 +103,7 @@ export interface BookSpread {
   leftPageImageError?: string;
   rightPageImageError?: string;
   thumbnailUrl?: string;
-  leftPageVideoUrl?: string;
 }
-
-export type AnimatedVideoStatus = "generating" | "ready" | "failed";
 
 export interface BookAsset {
   coverImageUrl?: string;
@@ -159,12 +156,6 @@ export interface BookAsset {
   coverWebImageUrl?: string;
   digitalDownloadUnlockedAt?: string;
   digitalDownloadCheckoutSessionId?: string;
-  animatedVideoUnlockedAt?: string;
-  animatedVideoCheckoutSessionId?: string;
-  animatedVideoStatus?: AnimatedVideoStatus;
-  animatedVideoStartedAt?: string;
-  animatedVideoReadyAt?: string;
-  animatedVideoError?: string;
 }
 
 export interface BookBilling {

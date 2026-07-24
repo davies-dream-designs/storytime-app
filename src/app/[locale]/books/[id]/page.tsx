@@ -17,9 +17,7 @@ import { getBookFileRetentionState } from "@/lib/print-books/retention";
 import BookStatusPanel from "./BookStatusPanel";
 import BookReader from "./BookReader";
 import DigitalDownloadSection from "./DigitalDownloadSection";
-import AnimatedVideoSection from "./AnimatedVideoSection";
 import PrintFulfillmentResendButton from "./PrintFulfillmentResendButton";
-import { isVideoConfigured } from "@/lib/print-books/video";
 
 export default async function BookProjectPage({
   params,
@@ -271,17 +269,7 @@ export default async function BookProjectPage({
               Choose how you want to keep this story forever.
             </p>
 
-            <div id="digital-download" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {/* Animated storybook */}
-              {isVideoConfigured() && hasIllustrationsZip ? (
-                <AnimatedVideoSection
-                  projectId={project.id}
-                  storyTitle={story.title}
-                  isAdmin={isAdmin}
-                  initialUnlocked={Boolean(project.assets.animatedVideoUnlockedAt)}
-                  initialStatus={project.assets.animatedVideoStatus ?? null}
-                />
-              ) : null}
+            <div id="digital-download" className="grid gap-5 sm:grid-cols-2">
 
               {/* Tier 1 — Digital download */}
               {!fileRetention.isArchived ? (

@@ -26,39 +26,27 @@ function cap(value: string, max: number): string {
 
 export function buildKlingMotionPrompt(
   spread: BookSpread,
-  characterBible: CharacterBible
+  _characterBible: CharacterBible
 ): string {
-  // Kling hard limit: 2500 chars. Budget each dynamic field explicitly.
-  const illustrationPrompt = cap(spread.illustrationPrompt ?? "", 500);
-  const sceneBrief = cap(spread.sceneBrief ?? "", 200);
-  const appearance = cap(characterBible.childAppearance, 180);
-  const outfit = cap(
-    characterBible.outfitRules.split(".")[0]?.trim() ?? characterBible.outfitRules,
-    100
-  );
-  const palette = cap(characterBible.palette, 80);
-  const companions = cap(
-    characterBible.companionCharacters.slice(0, 2).join(" and "),
-    80
-  );
+  // For image-to-video, Kling reads all character/visual detail from the
+  // reference image — describing appearance, outfit, or palette in text
+  // makes Kling animate those elements independently (e.g. a cape floats
+  // above the character still wearing it). Prompt should be motion + atmosphere
+  // only. Keep it short so the model focuses on movement, not construction.
+  const sceneBrief = cap(spread.sceneBrief ?? "", 150);
 
   const parts = [
-    illustrationPrompt ? `Illustration: ${illustrationPrompt}.` : "",
     sceneBrief ? `Scene: ${sceneBrief}.` : "",
-    "Bring this children's watercolour illustration gently to life.",
-    "Soft warm light flickers, the main character breathes calmly, loose fabric sways in a gentle breeze.",
-    "Warm magical dreamy bedtime atmosphere.",
-    `Character: ${appearance}.`,
-    `Outfit: ${outfit}.`,
-    companions ? `Also: ${companions}.` : "",
-    `Palette: ${palette}.`,
-    "Single continuous shot — no cuts, no camera changes.",
-    "Preserve the watercolour art style exactly.",
-    "Slow calm movement only. No speaking, no new elements.",
+    "Gently animate this children's watercolour illustration.",
+    "Soft warm light flickers slowly.",
+    "Characters breathe calmly and move only with subtle natural motion.",
+    "Leaves, hair, and loose fabric drift slightly in a gentle breeze.",
+    "Warm dreamy bedtime atmosphere.",
+    "Single continuous shot — no cuts, no sudden movement, no new elements.",
+    "Preserve the watercolour illustration art style exactly.",
   ];
 
   const prompt = parts.filter(Boolean).join(" ");
-  // Hard cap as a safety net — should never trigger with the budgets above.
   return prompt.length <= 2400 ? prompt : prompt.slice(0, 2400);
 }
 

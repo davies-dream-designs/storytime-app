@@ -471,7 +471,30 @@
     "printOptionsTitle": "Order a printed book",
     "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
     "readyLabel": "Your illustrated book is ready to order.",
-    "orderedLabel": "Order placed — your book is with the printer."
+    "orderedLabel": "Order placed — your book is with the printer.",
+    "viewFullScreen": "Ver em tela cheia",
+    "tapToExpand": "Toque para expandir",
+    "illustrationComingSoon": "Ilustração em breve",
+    "pageOf": "Página {page} de {total}",
+    "prevButton": "← Anterior",
+    "nextButton": "Próximo →",
+    "goToPage": "Ir para a página {page}",
+    "previousPage": "Página anterior",
+    "nextPage": "Próxima página",
+    "noIllustration": "Sem ilustração para esta página",
+    "noText": "Sem texto nesta página",
+    "listenToStory": "Ouvir a história lida em voz alta",
+    "listenShort": "Ouvir",
+    "pauseNarration": "Pausar narração",
+    "readingAloud": "Lendo em voz alta — avança automaticamente a cada página",
+    "narrationUpsellTitle": "Ouça sua história lida em voz alta",
+    "narrationUpsellSub": "Incluído no Download Digital · $9,99",
+    "printFormat": "Formato",
+    "printPages": "Páginas impressas",
+    "printProduction": "Produção",
+    "estimatedPrice": "Preço estimado de impressão AU",
+    "printOrderingComingSoon": "Livros impressos em breve. Você ainda pode criar e baixar seu PDF ou EPUB hoje.",
+    "comingSoon": "Em breve"
   },
   "account": {
     "title": "Sua conta",
@@ -525,6 +548,18 @@
     "monthsOld": "{months} meses",
     "yearsOld": "{years} anos",
     "andMonths": "{years} anos e {months} meses",
-    "navigating": "Abrindo página…"
+    "navigating": "Abrindo página…",
+    "close": "Fechar"
+  },
+  "print": {
+    "storycotStory": "Uma história Storycot",
+    "createdFor": "Uma história criada especialmente para {name}",
+    "forProfileTheme": "Para {name} · {theme}",
+    "theEnd": "Fim.",
+    "sweetDreams": "Bons sonhos, {name}.",
+    "tagline": "Ajudando pequenos sonhadores a se perderem em suas aventuras mais felices.",
+    "bestResults": "Melhores resultados: tamanho de papel A4, margens Nenhuma",
+    "printButton": "Imprimir / Salvar como PDF",
+    "back": "← Voltar"
   }
 }

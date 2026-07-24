@@ -471,7 +471,30 @@
     "printOptionsTitle": "Order a printed book",
     "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
     "readyLabel": "Your illustrated book is ready to order.",
-    "orderedLabel": "Order placed — your book is with the printer."
+    "orderedLabel": "Order placed — your book is with the printer.",
+    "viewFullScreen": "Visualizza a schermo intero",
+    "tapToExpand": "Tocca per espandere",
+    "illustrationComingSoon": "Illustrazione in arrivo",
+    "pageOf": "Pagina {page} di {total}",
+    "prevButton": "← Precedente",
+    "nextButton": "Successivo →",
+    "goToPage": "Vai alla pagina {page}",
+    "previousPage": "Pagina precedente",
+    "nextPage": "Pagina successiva",
+    "noIllustration": "Nessuna illustrazione per questa pagina",
+    "noText": "Nessun testo in questa pagina",
+    "listenToStory": "Ascolta la storia letta ad alta voce",
+    "listenShort": "Ascolta",
+    "pauseNarration": "Metti in pausa la narrazione",
+    "readingAloud": "Lettura ad alta voce — avanza automaticamente a ogni pagina",
+    "narrationUpsellTitle": "Ascolta la tua storia letta ad alta voce",
+    "narrationUpsellSub": "Incluso nel Download digitale · $9,99",
+    "printFormat": "Formato",
+    "printPages": "Pagine di stampa",
+    "printProduction": "Produzione",
+    "estimatedPrice": "Prezzo di stampa AU stimato",
+    "printOrderingComingSoon": "I libri stampati sono in arrivo. Puoi ancora creare e scaricare il tuo PDF o EPUB oggi.",
+    "comingSoon": "Prossimamente"
   },
   "account": {
     "title": "Il tuo account",
@@ -525,6 +548,18 @@
     "monthsOld": "{months} mesi",
     "yearsOld": "{years} anni",
     "andMonths": "{years} anni e {months} mesi",
-    "navigating": "Apertura pagina…"
+    "navigating": "Apertura pagina…",
+    "close": "Chiudi"
+  },
+  "print": {
+    "storycotStory": "Una storia di Storycot",
+    "createdFor": "Una storia creata appositamente per {name}",
+    "forProfileTheme": "Per {name} · {theme}",
+    "theEnd": "Fine.",
+    "sweetDreams": "Sogni d'oro, {name}.",
+    "tagline": "Aiutiamo i piccoli sognatori a immergersi nelle loro avventure più felici.",
+    "bestResults": "Risultati migliori: formato carta A4, margini Nessuno",
+    "printButton": "Stampa / Salva come PDF",
+    "back": "← Indietro"
   }
 }

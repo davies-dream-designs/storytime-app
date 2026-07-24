@@ -471,7 +471,30 @@
     "printOptionsTitle": "Order a printed book",
     "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
     "readyLabel": "Your illustrated book is ready to order.",
-    "orderedLabel": "Order placed — your book is with the printer."
+    "orderedLabel": "Order placed — your book is with the printer.",
+    "viewFullScreen": "Vollbild anzeigen",
+    "tapToExpand": "Tippen zum Vergrößern",
+    "illustrationComingSoon": "Illustration kommt bald",
+    "pageOf": "Seite {page} von {total}",
+    "prevButton": "← Zurück",
+    "nextButton": "Weiter →",
+    "goToPage": "Zur Seite {page} gehen",
+    "previousPage": "Vorherige Seite",
+    "nextPage": "Nächste Seite",
+    "noIllustration": "Keine Illustration für diese Seite",
+    "noText": "Kein Text auf dieser Seite",
+    "listenToStory": "Geschichte laut vorlesen lassen",
+    "listenShort": "Anhören",
+    "pauseNarration": "Vorlesen pausieren",
+    "readingAloud": "Wird laut vorgelesen — wechselt jede Seite automatisch",
+    "narrationUpsellTitle": "Lass deine Geschichte vorlesen",
+    "narrationUpsellSub": "Im Digital-Download enthalten · 9,99 $",
+    "printFormat": "Format",
+    "printPages": "Druckseiten",
+    "printProduction": "Produktion",
+    "estimatedPrice": "Geschätzter AU-Druckpreis",
+    "printOrderingComingSoon": "Gedruckte Bücher kommen bald. Du kannst heute noch dein PDF oder EPUB erstellen und herunterladen.",
+    "comingSoon": "Kommt bald"
   },
   "account": {
     "title": "Dein Konto",
@@ -525,6 +548,18 @@
     "monthsOld": "{months} Monate alt",
     "yearsOld": "{years} Jahre alt",
     "andMonths": "{years} Jahre {months} Monate alt",
-    "navigating": "Seite wird geöffnet…"
+    "navigating": "Seite wird geöffnet…",
+    "close": "Schließen"
+  },
+  "print": {
+    "storycotStory": "Eine Storycot-Geschichte",
+    "createdFor": "Eine Geschichte, die speziell für {name} erstellt wurde",
+    "forProfileTheme": "Für {name} · {theme}",
+    "theEnd": "Ende.",
+    "sweetDreams": "Süße Träume, {name}.",
+    "tagline": "Damit kleine Träumer in ihre glücklichsten Abenteuer abdriften können.",
+    "bestResults": "Bestes Ergebnis: Papierformat A4, Ränder Keine",
+    "printButton": "Drucken / Als PDF speichern",
+    "back": "← Zurück"
   }
 }

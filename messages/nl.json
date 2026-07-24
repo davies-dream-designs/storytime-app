@@ -471,7 +471,30 @@
     "printOptionsTitle": "Order a printed book",
     "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
     "readyLabel": "Your illustrated book is ready to order.",
-    "orderedLabel": "Order placed — your book is with the printer."
+    "orderedLabel": "Order placed — your book is with the printer.",
+    "viewFullScreen": "Volledig scherm weergeven",
+    "tapToExpand": "Tik om te vergroten",
+    "illustrationComingSoon": "Illustratie binnenkort beschikbaar",
+    "pageOf": "Pagina {page} van {total}",
+    "prevButton": "← Vorige",
+    "nextButton": "Volgende →",
+    "goToPage": "Ga naar pagina {page}",
+    "previousPage": "Vorige pagina",
+    "nextPage": "Volgende pagina",
+    "noIllustration": "Geen illustratie voor deze pagina",
+    "noText": "Geen tekst op deze pagina",
+    "listenToStory": "Luister naar het verhaal voorgelezen",
+    "listenShort": "Luisteren",
+    "pauseNarration": "Vertelling pauzeren",
+    "readingAloud": "Hardop lezen — gaat automatisch naar de volgende pagina",
+    "narrationUpsellTitle": "Laat je verhaal hardop voorlezen",
+    "narrationUpsellSub": "Inbegrepen bij Digitale Download · $9,99",
+    "printFormat": "Formaat",
+    "printPages": "Afdrukpagina's",
+    "printProduction": "Productie",
+    "estimatedPrice": "Geschatte AU-drukprijs",
+    "printOrderingComingSoon": "Gedrukte boeken komen binnenkort. Je kunt vandaag nog je PDF of EPUB maken en downloaden.",
+    "comingSoon": "Binnenkort beschikbaar"
   },
   "account": {
     "title": "Uw account",
@@ -525,6 +548,18 @@
     "monthsOld": "{months} maanden oud",
     "yearsOld": "{years} jaar oud",
     "andMonths": "{years} jaar {months} maanden oud",
-    "navigating": "Openingspagina"
+    "navigating": "Openingspagina",
+    "close": "Sluiten"
+  },
+  "print": {
+    "storycotStory": "Een Storycot-verhaal",
+    "createdFor": "Een verhaal speciaal gemaakt voor {name}",
+    "forProfileTheme": "Voor {name} · {theme}",
+    "theEnd": "Einde.",
+    "sweetDreams": "Slaap lekker, {name}.",
+    "tagline": "Om kleine droomers te helpen wegdrijven naar hun gelukkigste avonturen.",
+    "bestResults": "Beste resultaten: papierformaat A4, marges Geen",
+    "printButton": "Afdrukken / Opslaan als PDF",
+    "back": "← Terug"
   }
 }

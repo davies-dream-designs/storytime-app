@@ -471,7 +471,30 @@
     "printOptionsTitle": "Order a printed book",
     "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
     "readyLabel": "Your illustrated book is ready to order.",
-    "orderedLabel": "Order placed — your book is with the printer."
+    "orderedLabel": "Order placed — your book is with the printer.",
+    "viewFullScreen": "全画面表示",
+    "tapToExpand": "タップして拡大",
+    "illustrationComingSoon": "イラストは近日公開",
+    "pageOf": "{total}ページ中{page}ページ目",
+    "prevButton": "← 前へ",
+    "nextButton": "次へ →",
+    "goToPage": "{page}ページ目に移動",
+    "previousPage": "前のページ",
+    "nextPage": "次のページ",
+    "noIllustration": "このページにイラストはありません",
+    "noText": "このページにテキストはありません",
+    "listenToStory": "物語を読み上げで聴く",
+    "listenShort": "聴く",
+    "pauseNarration": "読み上げを一時停止",
+    "readingAloud": "読み上げ中 — 各ページを自動で進みます",
+    "narrationUpsellTitle": "あなたの物語を読み上げで聴こう",
+    "narrationUpsellSub": "デジタルダウンロードに含まれています · $9.99",
+    "printFormat": "形式",
+    "printPages": "印刷ページ数",
+    "printProduction": "制作",
+    "estimatedPrice": "AU推定印刷価格",
+    "printOrderingComingSoon": "印刷本は近日公開予定です。今すぐPDFやEPUBを作成してダウンロードできます。",
+    "comingSoon": "近日公開"
   },
   "account": {
     "title": "あなたのアカウント",
@@ -525,6 +548,18 @@
     "monthsOld": "{months} 生後 1 か月",
     "yearsOld": "{years} 歳",
     "andMonths": "{years} 歳 {months} か月",
-    "navigating": "ページを開く…"
+    "navigating": "ページを開く…",
+    "close": "閉じる"
+  },
+  "print": {
+    "storycotStory": "Storycotのストーリー",
+    "createdFor": "{name}のために特別に作られたストーリー",
+    "forProfileTheme": "{name}へ · {theme}",
+    "theEnd": "おわり。",
+    "sweetDreams": "良い夢を、{name}。",
+    "tagline": "小さな夢想家たちが最高に幸せな冒険へ旅立てるように。",
+    "bestResults": "最適な設定：用紙サイズ A4、余白 なし",
+    "printButton": "印刷 / PDFとして保存",
+    "back": "← 戻る"
   }
 }

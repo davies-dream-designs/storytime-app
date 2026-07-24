@@ -5,11 +5,22 @@ import { promisify } from "util";
 import { writeFile, unlink, readFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
-import ffmpegStatic from "ffmpeg-static";
 import type { BookSpread, CharacterBible } from "@/types/printBook";
 import { storeBookAsset } from "@/lib/print-books/storage";
 
 const execFileAsync = promisify(execFile);
+
+// Resolve ffmpeg binary at runtime so Next.js bundling can't corrupt the
+// path — ffmpeg-static returns a string, not a binary, and webpack treats
+// it as a resolvable module which breaks the path in standalone output.
+function getFfmpegPath(): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const p = require("ffmpeg-static") as string | null;
+    if (p) return p;
+  } catch {}
+  return "ffmpeg"; // fall back to system ffmpeg if available
+}
 
 const KLING_MODEL = "fal-ai/kling-video/v2.1/standard/image-to-video";
 const KLING_DURATION = "5";
@@ -70,7 +81,7 @@ export async function extractLastFrame(
   projectId: string,
   spreadId: string
 ): Promise<string> {
-  if (!ffmpegStatic) throw new Error("ffmpeg-static binary not found");
+  const ffmpegPath = getFfmpegPath();
 
   // Download the video
   const res = await fetch(videoUrl);
@@ -85,7 +96,7 @@ export async function extractLastFrame(
 
   try {
     // Seek to 4.8s (just before the 5s clip ends) and extract one frame
-    await execFileAsync(ffmpegStatic, [
+    await execFileAsync(ffmpegPath, [
       "-ss", "4.8",
       "-i", tmpVideo,
       "-frames:v", "1",

@@ -6,11 +6,11 @@ import {
   NARRATION_VOICES,
   generateNarration,
   isNarrationConfigured,
+  type WordTiming,
 } from "@/lib/elevenlabs";
-import {
-  findBookAsset,
-  storeBookAsset,
-} from "@/lib/print-books/storage";
+import { findBookAsset, storeBookAsset } from "@/lib/print-books/storage";
+
+export const maxDuration = 60;
 
 export async function GET(
   req: NextRequest,
@@ -65,21 +65,32 @@ export async function GET(
       { status: 400 }
     );
 
-  const pathname = `books/${id}/audio/${spreadId}-${voiceId}.mp3`;
+  const audioPath = `books/${id}/audio/${spreadId}-${voiceId}.mp3`;
+  const timingsPath = `books/${id}/audio/${spreadId}-${voiceId}.json`;
 
-  // Return cached blob if it already exists
-  const cached = await findBookAsset(pathname);
-  if (cached) {
-    return NextResponse.redirect(cached, { status: 302 });
+  // Return from cache if both assets exist
+  const [cachedAudio, cachedTimings] = await Promise.all([
+    findBookAsset(audioPath),
+    findBookAsset(timingsPath),
+  ]);
+
+  if (cachedAudio && cachedTimings) {
+    const timingsRes = await fetch(cachedTimings);
+    const words = (await timingsRes.json()) as WordTiming[];
+    return NextResponse.json({ audioUrl: cachedAudio, words });
   }
 
-  // Generate and cache
-  const audio = await generateNarration(text, voiceId);
-  const audioUrl = await storeBookAsset({
-    pathname,
-    body: audio,
-    contentType: "audio/mpeg",
-  });
+  // Generate and cache both
+  const { audio, words } = await generateNarration(text, voiceId);
 
-  return NextResponse.redirect(audioUrl, { status: 302 });
+  const [audioUrl] = await Promise.all([
+    storeBookAsset({ pathname: audioPath, body: audio, contentType: "audio/mpeg" }),
+    storeBookAsset({
+      pathname: timingsPath,
+      body: JSON.stringify(words),
+      contentType: "application/json",
+    }),
+  ]);
+
+  return NextResponse.json({ audioUrl, words });
 }

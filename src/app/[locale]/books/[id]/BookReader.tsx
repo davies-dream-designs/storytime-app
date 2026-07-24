@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { BookProject, BookSpread } from "@/types/printBook";
-import { DEFAULT_NARRATION_VOICE_ID } from "@/lib/elevenlabs";
+import { DEFAULT_NARRATION_VOICE_ID, type WordTiming } from "@/lib/elevenlabs";
 
 type ReaderSpread = {
   id: string;
@@ -61,7 +61,10 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
   // Narration
   const [narrating, setNarrating] = useState(false);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const [words, setWords] = useState<WordTiming[]>([]);
+  const [currentWordIndex, setCurrentWordIndex] = useState(-1);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const wordsRef = useRef<WordTiming[]>([]);
 
   const total = spreads.length;
   const spread = spreads[index];
@@ -135,17 +138,29 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
           return;
         }
 
-        const blob = await res.blob();
+        const { audioUrl, words: pageWords } = (await res.json()) as {
+          audioUrl: string;
+          words: WordTiming[];
+        };
         if (cancelled) return;
 
-        const objectUrl = URL.createObjectURL(blob);
-        const audio = new Audio(objectUrl);
+        wordsRef.current = pageWords ?? [];
+        setWords(pageWords ?? []);
+
+        const audio = new Audio(audioUrl);
         audioRef.current = audio;
 
+        audio.addEventListener("timeupdate", () => {
+          const t = audio.currentTime;
+          const ws = wordsRef.current;
+          const idx = ws.findIndex((w) => t >= w.start && t < w.end);
+          setCurrentWordIndex(idx);
+        });
+
         audio.addEventListener("ended", () => {
-          URL.revokeObjectURL(objectUrl);
           audioRef.current = null;
           if (cancelled) return;
+          setCurrentWordIndex(-1);
           setIndex((i) => {
             if (i < spreads.length - 1) return i + 1;
             setNarrating(false);
@@ -167,13 +182,16 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
       cancelled = true;
       stopAudio();
       setIsLoadingAudio(false);
+      wordsRef.current = [];
+      setWords([]);
+      setCurrentWordIndex(-1);
     };
   }, [narrating, index, spreads, project.id]);
 
   if (!spread || total === 0) return null;
 
   const hasImage = spread.imageUrl && !isPlaceholder(spread.imageUrl);
-  const pageText = spread.leftPageText || spread.rightPageText;
+  const pageText = [spread.leftPageText, spread.rightPageText].filter(Boolean).join(" ").trim();
   const hasPurchased = isAdmin || Boolean(project.assets.digitalDownloadUnlockedAt);
   const canNarrate = hasPurchased && spreads.some((s) => s.leftPageText || s.rightPageText);
   const showNarrationUpsell = !hasPurchased && spreads.some((s) => s.leftPageText || s.rightPageText);
@@ -181,10 +199,10 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
   return (
     <div className="select-none">
       {/* Main reader card */}
-      <div className="overflow-hidden rounded-3xl border border-night-100 bg-white shadow-xl">
+      <div className="overflow-hidden rounded-3xl border border-night-100 bg-white shadow-xl lg:flex lg:min-h-[480px]">
         {/* Image panel */}
         {hasImage ? (
-          <div className="relative aspect-square w-full overflow-hidden max-h-[55vh]">
+          <div className="relative aspect-square w-full overflow-hidden max-h-[55vh] lg:aspect-auto lg:max-h-none lg:w-[55%] lg:shrink-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={spread.imageUrl!}
@@ -226,7 +244,7 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center bg-moon-50 px-8 py-16">
+          <div className="flex items-center justify-center bg-moon-50 px-8 py-16 lg:w-[55%] lg:shrink-0">
             <div className="text-center">
               <span className="text-5xl" aria-hidden="true">
                 🎨
@@ -238,20 +256,38 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
           </div>
         )}
 
-        {/* Story text */}
-        {pageText ? (
-          <div className="border-t border-night-50 px-7 pb-8 pt-6">
-            <p className="font-display text-xl font-medium leading-relaxed text-night-800">
-              {pageText}
+        {/* Text + indicator (right side on desktop) */}
+        <div className="flex flex-col lg:flex-1">
+          {/* Story text */}
+          {pageText ? (
+            <div className="flex-1 border-t border-night-50 px-7 pb-8 pt-6 lg:border-t-0 lg:border-l lg:flex lg:items-center">
+              <p className="font-display text-xl font-medium leading-relaxed text-night-800">
+                {words.length > 0
+                  ? words.map((w, i) => (
+                      <span
+                        key={i}
+                        className={
+                          i === currentWordIndex
+                            ? "rounded-sm bg-yellow-200 transition-colors"
+                            : "transition-colors"
+                        }
+                      >
+                        {w.word}{" "}
+                      </span>
+                    ))
+                  : pageText}
+              </p>
+            </div>
+          ) : (
+            <div className="flex-1" />
+          )}
+
+          {/* Page indicator */}
+          <div className="border-t border-night-50 px-7 py-3 text-center">
+            <p className="text-xs text-night-300">
+              Page {index + 1} of {total}
             </p>
           </div>
-        ) : null}
-
-        {/* Page indicator */}
-        <div className="border-t border-night-50 px-7 py-3 text-center">
-          <p className="text-xs text-night-300">
-            Page {index + 1} of {total}
-          </p>
         </div>
       </div>
 
@@ -479,7 +515,20 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
                 onContextMenu={(e) => e.preventDefault()}
               >
                 <p className="font-display text-sm leading-relaxed text-white/95 drop-shadow">
-                  {pageText}
+                  {words.length > 0
+                    ? words.map((w, i) => (
+                        <span
+                          key={i}
+                          className={
+                            i === currentWordIndex
+                              ? "font-bold text-yellow-300 transition-colors"
+                              : "transition-colors"
+                          }
+                        >
+                          {w.word}{" "}
+                        </span>
+                      ))
+                    : pageText}
                 </p>
               </div>
             ) : null}

@@ -1,10 +1,63 @@
 # Storycot - Handover Document
 
 **Last updated:** 2026-07-24  
-**Branch:** `dev` ahead of `main` — see below  
+**Branch:** `dev` ahead of `main` — PR #97 open, ready to merge  
 **Live URL:** https://storycot.com  
 **Preview URL:** https://dev.storycot.com  
 **Latest production merge:** `feat/book-reader-and-purchase-tiers` → `main` 2026-07-23
+
+---
+
+## Current Handoff - 2026-07-24 - Story/Book Consolidation + i18n Audit + Export UX
+
+`dev` is ahead of `main` — PR #97 open. All work below is on `dev`, not yet in production.
+
+### What Changed
+
+- **Story/book page consolidation:**
+  - `/stories/[id]` is now the single destination. Illustrated books are an unlock within the story page — not a separate navigation section.
+  - When no book: StoryReader (text, streaming) + CreateBook CTA shown as before.
+  - When book building: StoryReader + BookStatusPanel (progress, live art preview) below.
+  - When book ready: BookReader (illustrated) replaces the text reader; download/purchase section appears below.
+  - `/books/[id]` now redirects to `/stories/{sourceStoryId}`, passing through checkout params.
+  - Books link removed from Nav (desktop + mobile). `/books/*` paths treat Stories link as active.
+  - `CreatePrintBookButton` stays on story page after creation (`router.refresh()`) instead of navigating away.
+
+- **Multilingual conformance audit:**
+  - Full key audit across all 13 locales — 484 → 518 keys, zero gaps.
+  - 4 components were rendering hardcoded English strings with no translation hooks: `BookReader`, `PrintProductOptions`, `print/page.tsx`, `PrintTrigger`. All wired up.
+  - New `print` namespace added for print page copy.
+  - `books.epubButton` renamed to "Illustrated EPUB" (was ambiguous duplicate of text EPUB).
+
+- **Export UX cleanup:**
+  - `🖨️ Print / PDF` → `Text PDF`, `Text EPUB for Kindle/Books` → `Text EPUB`.
+  - Two text export buttons consolidated into a single `Export text ▾` dropdown (`StoryTextExports.tsx`).
+  - Illustration estimate box now shows preset-specific text (e.g. "Tiny Tales — a simple source story expanded into about 24 pages") instead of raw numbers.
+
+### Key Files Changed
+
+| File | Change |
+|---|---|
+| `src/app/[locale]/stories/[id]/page.tsx` | Unified story+book page — absorbs BookReader, BookStatusPanel, download/purchase sections |
+| `src/app/[locale]/stories/[id]/StoryTextExports.tsx` | New — "Export text ▾" dropdown (Text PDF + Text EPUB) |
+| `src/app/[locale]/books/[id]/page.tsx` | Now redirects to `/stories/{sourceStoryId}` |
+| `src/components/Nav.tsx` | Books link removed; `/books/*` treated as Stories-active |
+| `src/components/BooksLibrary.tsx` | Card links updated to `/stories/{sourceStoryId}` |
+| `src/app/[locale]/stories/[id]/CreatePrintBookButton.tsx` | Stays on story page after creation |
+| `messages/*.json` (all 13 locales) | 518 keys, zero gaps |
+
+### QA Checklist
+
+- [ ] Story with no book: text reader streams, CreateBook CTA visible, Export text ▾ dropdown works
+- [ ] Story building: StoryReader + BookStatusPanel both visible; art previews live update
+- [ ] Story with book ready: BookReader shown, downloads section visible, no text reader
+- [ ] Navigate to old `/books/{id}` URL — should redirect to story page
+- [ ] Stripe callback URLs (`?download_success=1`) land correctly on story page
+- [ ] Export text ▾ → Text PDF opens print page in new tab
+- [ ] Export text ▾ → Text EPUB downloads file
+- [ ] Digital Download section shows "Illustrated EPUB" (not "EPUB for Kindle/Books")
+- [ ] Nav: Books link gone, Stories link highlights on `/books/*` paths
+- [ ] Test each locale — all 518 keys should render without missing key errors
 
 ---
 

@@ -334,15 +334,34 @@ export default function AnimatedVideoSection({
                 Refresh
               </button>
               {isAdmin && (
-                <button
-                  onClick={async () => {
-                    await fetch(`/api/books/${projectId}/video`, { method: "POST" });
-                    await fetchStatus();
-                  }}
-                  className="storycot-btn storycot-btn-secondary text-xs"
-                >
-                  Admin — re-trigger job
-                </button>
+                <>
+                  <button
+                    onClick={async () => {
+                      await fetch(`/api/books/${projectId}/video`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "retrigger" }),
+                      });
+                      await fetchStatus();
+                    }}
+                    className="storycot-btn storycot-btn-secondary text-xs"
+                  >
+                    Admin — re-trigger (reset)
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await fetch(`/api/books/${projectId}/video`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "cancel" }),
+                      });
+                      await fetchStatus();
+                    }}
+                    className="storycot-btn storycot-btn-secondary text-xs text-red-600"
+                  >
+                    Admin — mark cancelled
+                  </button>
+                </>
               )}
             </div>
           </>

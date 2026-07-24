@@ -55,9 +55,14 @@ export async function GET(
   });
 }
 
-// POST — admin-only: re-trigger video generation
+// POST — admin-only.
+// Body: { action: "retrigger" | "cancel" }
+// retrigger: clears existing clip URLs (resets progress to 0) then fires Inngest.
+// cancel:    marks the job as cancelled in DB without starting a new run.
+//            Inngest cancellations don't call back to the app, so use this
+//            after cancelling a run in the Inngest dashboard.
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { userId } = await auth();
@@ -69,18 +74,36 @@ export async function POST(
   if (user.privateMetadata.isAdmin !== true)
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  if (!isVideoConfigured())
-    return NextResponse.json(
-      { error: "FAL_KEY not configured" },
-      { status: 503 }
-    );
-
   const { id } = await params;
   const project = await db.bookProjects.getById(id);
   if (!project || project.status !== "ready")
     return NextResponse.json({ error: "Not found or not ready" }, { status: 404 });
 
+  const body = await req.json().catch(() => ({})) as { action?: string };
+  const action = body.action ?? "retrigger";
+
+  if (action === "cancel") {
+    await db.bookProjects.update(project.id, {
+      assets: {
+        ...project.assets,
+        animatedVideoStatus: "failed",
+        animatedVideoError: "Cancelled",
+      },
+    });
+    return NextResponse.json({ cancelled: true });
+  }
+
+  // retrigger — clear existing clip URLs so progress resets to 0
+  if (!isVideoConfigured())
+    return NextResponse.json({ error: "FAL_KEY not configured" }, { status: 503 });
+
+  const clearedSpreads = project.spreads.map((s) => ({
+    ...s,
+    leftPageVideoUrl: undefined,
+  }));
+
   await db.bookProjects.update(project.id, {
+    spreads: clearedSpreads,
     assets: {
       ...project.assets,
       animatedVideoUnlockedAt:
@@ -91,10 +114,14 @@ export async function POST(
     },
   });
 
-  await inngest.send({
-    name: INNGEST_EVENTS.bookVideoRequested,
-    data: { projectId: project.id },
-  });
+  try {
+    await inngest.send({
+      name: INNGEST_EVENTS.bookVideoRequested,
+      data: { projectId: project.id },
+    });
+  } catch (err) {
+    console.error("Inngest send failed (retrigger):", err);
+  }
 
   return NextResponse.json({ triggered: true });
 }

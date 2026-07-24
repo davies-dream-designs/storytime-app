@@ -117,9 +117,14 @@ export const generateBookVideo = inngest.createFunction(
 
       // First spread: resize the illustration to 1024px as the base input.
       // Subsequent spreads: use the last frame of the previous clip.
-      const sourceUrl = frameUrl ?? await step.run(`prep-image-${i}`, () =>
-        prepareVideoSourceImage(projectId, spread.id, spread.leftPageImageUrl!)
-      );
+      let sourceUrl: string;
+      if (frameUrl) {
+        sourceUrl = frameUrl;
+      } else {
+        sourceUrl = await step.run(`prep-image-${i}`, (): Promise<string> =>
+          prepareVideoSourceImage(projectId, spread.id, spread.leftPageImageUrl!)
+        );
+      }
 
       // Build the webhook URL — fal.ai calls this when the job completes.
       const appUrl =
@@ -128,7 +133,7 @@ export const generateBookVideo = inngest.createFunction(
       const webhookUrl = `${appUrl}/api/webhooks/fal`;
 
       // Submit to Kling — fal.ai will POST the result to our webhook.
-      const requestId = await step.run(`submit-spread-${i}`, () =>
+      const requestId: string = await step.run(`submit-spread-${i}`, (): Promise<string> =>
         submitKlingJob(sourceUrl, prompt, webhookUrl)
       );
 
@@ -147,8 +152,10 @@ export const generateBookVideo = inngest.createFunction(
         // before waitForEvent was registered (race condition on fast jobs) or
         // the delivery failed. Poll once as a fallback before giving up.
         console.warn(`Spread ${i} webhook timed out — falling back to poll`);
-        const fallback = await step.run(`fallback-poll-${i}`, () =>
-          pollKlingJob(requestId)
+        const fallback = await step.run(
+          `fallback-poll-${i}`,
+          (): Promise<{ done: boolean; videoUrl?: string; failed?: boolean; error?: string }> =>
+            pollKlingJob(requestId)
         );
         if (fallback.done && !fallback.failed && fallback.videoUrl) {
           videoUrl = fallback.videoUrl;

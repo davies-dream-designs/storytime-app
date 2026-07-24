@@ -104,7 +104,7 @@ export default function Nav() {
                 href="/account"
                 aria-current={isActive("/account") ? "page" : undefined}
                 className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-bold transition ${isActive("/account") ? "bg-night-700 text-moon-200 shadow-sm shadow-night-700/20" : "text-night-500 hover:bg-night-100"}`}
-                title={t("accountCredits")}
+                aria-label={t("accountCredits")}
               >
                 ✨
                 {creditInfo && !creditInfo.isAdmin ? (
@@ -156,7 +156,7 @@ export default function Nav() {
                       ? "bg-red-100 text-red-600"
                       : "bg-night-100 text-night-600"
                   }`}
-                  title={t("accountCredits")}
+                  aria-label={t("accountCredits")}
                 >
                   ✨ {creditInfo.credits}
                 </Link>

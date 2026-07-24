@@ -45,6 +45,8 @@ export default function LanguageSwitcher({
         onClick={() => setOpen((o) => !o)}
         aria-label={t("language")}
         aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-controls="language-listbox"
         className={btnClass}
       >
         {/* Globe icon */}
@@ -80,11 +82,13 @@ export default function LanguageSwitcher({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-36 overflow-hidden rounded-xl border border-night-100 bg-white shadow-lg">
+        <div id="language-listbox" role="listbox" className="absolute right-0 top-full z-50 mt-2 w-36 overflow-hidden rounded-xl border border-night-100 bg-white shadow-lg">
           {localeConfigs.map((l) => (
             <button
               key={l.code}
               type="button"
+              role="option"
+              aria-selected={l.code === locale}
               onClick={() => switchLocale(l.code)}
               className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-sm transition hover:bg-night-50 ${l.code === locale ? "font-bold text-night-800 bg-night-50" : "text-night-600"}`}
             >

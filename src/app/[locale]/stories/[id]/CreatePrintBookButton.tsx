@@ -141,7 +141,7 @@ export default function CreatePrintBookButton({
           {loading ? t("creatingButton") : t("createButton")}
         </Button>
         {error ? (
-          <p className="mt-2 text-xs font-bold text-blush-600">{error}</p>
+          <p role="alert" className="mt-2 text-xs font-bold text-blush-600">{error}</p>
         ) : null}
       </>
     );

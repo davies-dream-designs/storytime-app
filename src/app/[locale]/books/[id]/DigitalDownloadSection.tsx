@@ -124,7 +124,7 @@ export default function DigitalDownloadSection({
         </li>
       </ul>
       {error ? (
-        <p className="mt-3 text-sm font-bold text-blush-600">{error}</p>
+        <p role="alert" className="mt-3 text-sm font-bold text-blush-600">{error}</p>
       ) : null}
       <button
         onClick={startCheckout}

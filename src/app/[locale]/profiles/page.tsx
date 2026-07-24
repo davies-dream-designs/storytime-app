@@ -5,6 +5,8 @@ import Nav from "@/components/Nav";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 import { db } from "@/lib/db";
 
+export const metadata = { title: "Profiles — Storycot" };
+
 export default async function ProfilesPage() {
   const { userId } = await auth();
   const [t, tCommon, profiles, stories] = await Promise.all([
@@ -25,7 +27,7 @@ export default async function ProfilesPage() {
   return (
     <>
       <Nav />
-      <main className="mx-auto max-w-6xl px-5 py-10">
+      <main id="main-content" className="mx-auto max-w-6xl px-5 py-10">
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="font-display text-4xl font-bold text-night-800">

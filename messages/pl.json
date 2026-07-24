@@ -243,7 +243,7 @@
     "tryAgainButton": "Spróbuj ponownie",
     "backToNewStory": "Powrót do nowej historii",
     "backToLibrary": "← Biblioteka",
-    "printButton": "🖨️ Drukuj / PDF",
+    "printButton": "Tekst PDF",
     "newStoryButton": "✨ Nowa historia",
     "ageLabel": "Wiek {age}",
     "searchPlaceholder": "Wyszukaj historie, motywy…",
@@ -277,7 +277,7 @@
     "wordsCount": "{count} słowa",
     "pagesCount": "Strony {count}",
     "viewBookButton": "Zobacz ilustrację PDF",
-    "textEpubButton": "Tekst EPUB dla Kindle/Książki",
+    "textEpubButton": "Tekst EPUB",
     "epubHelp": "W przypadku Kindle lub Apple Books: pobierz EPUB, a następnie udostępnij/otwórz plik w aplikacji czytnika.",
     "downloadStarting": "Rozpoczynam pobieranie…",
     "deleteStory": "Usuń historię",
@@ -301,7 +301,8 @@
         "ageRange": "Ages 7+",
         "desc": "Longer read-aloud · richer story and detailed scenes"
       }
-    }
+    },
+    "exportText": "Eksportuj tekst"
   },
   "books": {
     "createButton": "Wygeneruj ilustrowany PDF",
@@ -443,7 +444,7 @@
     "refreshFinalButton": "Odśwież pakiet końcowy",
     "finalizingButton": "Finalizowanie pakietu…",
     "finalizedAtLabel": "Sfinalizowano {value}",
-    "epubButton": "EPUB dla Kindle/Książki",
+    "epubButton": "Ilustrowany EPUB",
     "epubHelp": "W przypadku Kindle lub Apple Books: pobierz EPUB, a następnie udostępnij/otwórz plik w aplikacji czytnika. Obrazy są kompresowane zgodnie z limitem wysyłania wynoszącym 50 MB w Kindle.",
     "mixedArtTitle": "Niektóre ilustracje wymagają kolejnej próby",
     "mixedArtSub": "Kilka stron wróciło do symboli zastępczych wersji roboczych. Wygeneruj ponownie ilustracje, aby je zastąpić przed udostępnieniem lub złożeniem zamówienia.",

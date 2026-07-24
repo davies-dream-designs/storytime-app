@@ -243,7 +243,7 @@
     "tryAgainButton": "Erneut versuchen",
     "backToNewStory": "Zurück zur neuen Geschichte",
     "backToLibrary": "← Bibliothek",
-    "printButton": "🖨️ Drucken / PDF",
+    "printButton": "Text-PDF",
     "newStoryButton": "✨ Neue Geschichte",
     "ageLabel": "Alter {age}",
     "searchPlaceholder": "Geschichten, Themen suchen…",
@@ -277,7 +277,7 @@
     "wordsCount": "{count} Wörter",
     "pagesCount": "{count} Seiten",
     "viewBookButton": "Illustriertes PDF ansehen",
-    "textEpubButton": "Text-EPUB für Kindle/Books",
+    "textEpubButton": "Text-EPUB",
     "epubHelp": "Für Kindle oder Apple Books: EPUB herunterladen und dann in deiner Lese-App teilen/öffnen.",
     "downloadStarting": "Download wird gestartet…",
     "deleteStory": "Geschichte löschen",
@@ -301,7 +301,8 @@
         "ageRange": "Ages 7+",
         "desc": "Longer read-aloud · richer story and detailed scenes"
       }
-    }
+    },
+    "exportText": "Text exportieren"
   },
   "books": {
     "createButton": "Illustriertes PDF erstellen",
@@ -443,7 +444,7 @@
     "refreshFinalButton": "Finales Paket aktualisieren",
     "finalizingButton": "Paket wird finalisiert…",
     "finalizedAtLabel": "Finalisiert {value}",
-    "epubButton": "EPUB für Kindle/Books",
+    "epubButton": "Illustriertes EPUB",
     "epubHelp": "Für Kindle oder Apple Books: EPUB herunterladen und dann in deiner Lese-App teilen/öffnen. Bilder werden für Kindles 50-MB-Sendelimit komprimiert.",
     "mixedArtTitle": "Einige Illustrationen brauchen einen neuen Versuch",
     "mixedArtSub": "Ein paar Seiten sind auf Entwurfsplatzhalter zurückgefallen. Erstelle die Illustrationen neu, bevor du sie teilst oder bestellst.",

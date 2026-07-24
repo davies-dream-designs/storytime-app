@@ -243,7 +243,7 @@
     "tryAgainButton": "Réessayer",
     "backToNewStory": "Retour à la nouvelle histoire",
     "backToLibrary": "← Bibliothèque",
-    "printButton": "🖨️ Imprimer / PDF",
+    "printButton": "PDF du texte",
     "newStoryButton": "✨ Nouvelle histoire",
     "ageLabel": "Âge {age}",
     "searchPlaceholder": "Rechercher des histoires, thèmes…",
@@ -277,7 +277,7 @@
     "wordsCount": "{count} mots",
     "pagesCount": "{count} pages",
     "viewBookButton": "Voir le PDF illustré",
-    "textEpubButton": "EPUB texte pour Kindle/Books",
+    "textEpubButton": "EPUB du texte",
     "epubHelp": "Pour Kindle ou Apple Books : téléchargez l’EPUB, puis partagez/ouvrez le fichier dans votre application de lecture.",
     "downloadStarting": "Téléchargement…",
     "deleteStory": "Supprimer l'histoire",
@@ -301,7 +301,8 @@
         "ageRange": "Ages 7+",
         "desc": "Longer read-aloud · richer story and detailed scenes"
       }
-    }
+    },
+    "exportText": "Exporter le texte"
   },
   "books": {
     "createButton": "Générer le PDF illustré",
@@ -443,7 +444,7 @@
     "hardcoverTitle": "Couverture rigide",
     "hardcoverSub": "La commande en couverture rigide utilisera ce PDF illustré lorsque l’option sera disponible.",
     "hardcoverButton": "Commande couverture rigide bientôt disponible",
-    "epubButton": "EPUB pour Kindle/Books",
+    "epubButton": "EPUB illustré",
     "epubHelp": "Pour Kindle ou Apple Books : téléchargez l’EPUB, puis partagez/ouvrez le fichier dans votre application de lecture. Les images sont compressées pour la limite Kindle de 50 Mo.",
     "mixedArtTitle": "Certaines illustrations doivent être relancées",
     "mixedArtSub": "Quelques pages sont revenues à des images provisoires. Régénérez les illustrations avant de partager ou commander.",

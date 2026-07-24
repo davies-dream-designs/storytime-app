@@ -243,7 +243,7 @@
     "tryAgainButton": "Tekrar dene",
     "backToNewStory": "Yeni hikayeye geri dön",
     "backToLibrary": "← Kütüphane",
-    "printButton": "🖨️ Yazdır / PDF",
+    "printButton": "Metin PDF",
     "newStoryButton": "✨ Yeni hikaye",
     "ageLabel": "Yaş {age}",
     "searchPlaceholder": "Hikayeleri, temaları arayın…",
@@ -277,7 +277,7 @@
     "wordsCount": "{count} kelimeler",
     "pagesCount": "{count} sayfalar",
     "viewBookButton": "Resimli görünümü görüntüleyin PDF",
-    "textEpubButton": "Kindle/Kitaplar için EPUB metni",
+    "textEpubButton": "Metin EPUB",
     "epubHelp": "Kindle veya Apple Books için: EPUB'yi indirin, ardından dosyayı okuyucu uygulamanızda paylaşın/açın.",
     "downloadStarting": "İndirme başlatılıyor…",
     "deleteStory": "Hikayeyi sil",
@@ -301,7 +301,8 @@
         "ageRange": "Ages 7+",
         "desc": "Longer read-aloud · richer story and detailed scenes"
       }
-    }
+    },
+    "exportText": "Metni dışa aktar"
   },
   "books": {
     "createButton": "Resimli PDF oluştur",
@@ -443,7 +444,7 @@
     "refreshFinalButton": "Son paketi yenile",
     "finalizingButton": "Paket sonlandırılıyor…",
     "finalizedAtLabel": "Kesinleşmiş {value}",
-    "epubButton": "Kindle/Kitaplar için EPUB",
+    "epubButton": "Resimli EPUB",
     "epubHelp": "Kindle veya Apple Books için: EPUB'yi indirin, ardından dosyayı okuyucu uygulamanızda paylaşın/açın. Görüntüler Kindle'nin 50 MB gönderme sınırına göre sıkıştırılmıştır.",
     "mixedArtTitle": "Bazı illüstrasyonların tekrar denemeye ihtiyacı var",
     "mixedArtSub": "Birkaç sayfa taslak yer tutuculara kaldı. Paylaşmadan veya sipariş vermeden önce resimleri değiştirmek için yeniden oluşturun.",

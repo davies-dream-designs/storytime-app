@@ -243,7 +243,7 @@
     "tryAgainButton": "Coba lagi",
     "backToNewStory": "Kembali ke cerita baru",
     "backToLibrary": "← Perpustakaan",
-    "printButton": "🖨️ Cetak / PDF",
+    "printButton": "PDF teks",
     "newStoryButton": "✨ Cerita baru",
     "ageLabel": "Usia {age}",
     "searchPlaceholder": "Cari cerita, tema…",
@@ -277,7 +277,7 @@
     "wordsCount": "kata-kata {count}",
     "pagesCount": "halaman {count}",
     "viewBookButton": "Lihat ilustrasi PDF",
-    "textEpubButton": "Teks EPUB untuk Kindle/Buku",
+    "textEpubButton": "EPUB teks",
     "epubHelp": "Untuk Kindle atau Apple Books: unduh EPUB, lalu bagikan/buka file di aplikasi pembaca Anda.",
     "downloadStarting": "Mulai mengunduh…",
     "deleteStory": "Hapus cerita",
@@ -301,7 +301,8 @@
         "ageRange": "Ages 7+",
         "desc": "Longer read-aloud · richer story and detailed scenes"
       }
-    }
+    },
+    "exportText": "Ekspor teks"
   },
   "books": {
     "createButton": "Hasilkan PDF bergambar",
@@ -443,7 +444,7 @@
     "refreshFinalButton": "Segarkan paket terakhir",
     "finalizingButton": "Menyelesaikan paket…",
     "finalizedAtLabel": "{value} yang diselesaikan",
-    "epubButton": "EPUB untuk Kindle/Buku",
+    "epubButton": "EPUB bergambar",
     "epubHelp": "Untuk Kindle atau Apple Books: unduh EPUB, lalu bagikan/buka file di aplikasi pembaca Anda. Gambar dikompresi untuk batas pengiriman Kindle sebesar 50 MB.",
     "mixedArtTitle": "Beberapa ilustrasi perlu dicoba lagi",
     "mixedArtSub": "Beberapa halaman dikembalikan ke draf placeholder. Buat ulang ilustrasi untuk menggantikannya sebelum dibagikan atau dipesan.",

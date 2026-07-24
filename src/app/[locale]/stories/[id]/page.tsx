@@ -3,7 +3,6 @@ import { auth } from "@clerk/nextjs/server";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
-import DownloadLink from "@/components/DownloadLink";
 import FileDownloadButton from "@/components/FileDownloadButton";
 import DeleteStoryButton from "@/components/DeleteStoryButton";
 import PrintProductOptions from "@/components/PrintProductOptions";
@@ -26,6 +25,7 @@ import { isStoryPrintRestricted } from "@/lib/ipGuardrails";
 import StoryReader from "./StoryReader";
 import ShareButton from "./ShareButton";
 import CreatePrintBookButton from "./CreatePrintBookButton";
+import StoryTextExports from "./StoryTextExports";
 import BookReader from "../../books/[id]/BookReader";
 import BookStatusPanel from "../../books/[id]/BookStatusPanel";
 import DigitalDownloadSection from "../../books/[id]/DigitalDownloadSection";
@@ -171,35 +171,39 @@ export default async function StoryPage({
           {/* Estimate info — shown when no book yet */}
           {isReady && !existingBook && (
             <div className="mt-3 max-w-md rounded-2xl border border-star-200 bg-star-50 px-4 py-3 text-sm text-night-600">
-              <p className="font-bold text-night-800">Illustration estimate</p>
+              <p className="font-bold text-night-800">{tBooks("estimateTitle")}</p>
               <p className="mt-1">
-                {illustrationEstimate.credits} credits ·{" "}
-                {estimatedPageCount} pages · {estimatedIllustrationCount}{" "}
-                illustrations
+                {story.storyPreset === "tiny-tales"
+                  ? tBooks("estimateBodyTinyTales", {
+                      credits: illustrationEstimate.credits,
+                      pages: estimatedPageCount,
+                      illustrations: estimatedIllustrationCount,
+                    })
+                  : story.storyPreset === "moonlit-adventures"
+                    ? tBooks("estimateBodyMoonlitAdventures", {
+                        credits: illustrationEstimate.credits,
+                        pages: estimatedPageCount,
+                        illustrations: estimatedIllustrationCount,
+                      })
+                    : story.storyPreset === "epic-sagas"
+                      ? tBooks("estimateBodyEpicSagas", {
+                          credits: illustrationEstimate.credits,
+                          pages: estimatedPageCount,
+                          illustrations: estimatedIllustrationCount,
+                        })
+                      : tBooks("estimateBody", {
+                          credits: illustrationEstimate.credits,
+                          pages: estimatedPageCount,
+                          illustrations: estimatedIllustrationCount,
+                        })}
               </p>
             </div>
           )}
 
-          {/* Text exports — always visible when story is ready */}
+          {/* Text exports dropdown — always visible when story is ready */}
           {isReady && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <DownloadLink
-                href={`/stories/${id}/print`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="storycot-btn storycot-btn-secondary text-sm"
-                pendingLabel={t("downloadStarting")}
-              >
-                {t("printButton")}
-              </DownloadLink>
-              <FileDownloadButton
-                href={`/api/stories/${id}/epub`}
-                shareTitle={story.title}
-                label={t("textEpubButton")}
-                pendingLabel={t("downloadStarting")}
-                className="storycot-btn storycot-btn-secondary text-sm"
-                shareWhenAvailable
-              />
+            <div className="mt-3">
+              <StoryTextExports storyId={id} storyTitle={story.title} />
             </div>
           )}
         </div>

@@ -243,7 +243,7 @@
     "tryAgainButton": "Opnieuw proberen",
     "backToNewStory": "Terug naar nieuw verhaal",
     "backToLibrary": "Bibliotheek",
-    "printButton": "🖨️ Afdrukken / PDF",
+    "printButton": "Tekst-PDF",
     "newStoryButton": "Nieuwe story",
     "ageLabel": "Leeftijd {age}",
     "searchPlaceholder": "Verhalen, thema's zoeken...",
@@ -277,7 +277,7 @@
     "wordsCount": "{count} woorden",
     "pagesCount": "{count}-pagina's",
     "viewBookButton": "Bekijk geïllustreerde PDF",
-    "textEpubButton": "Tekst EPUB voor Kindle/Boeken",
+    "textEpubButton": "Tekst-EPUB",
     "epubHelp": "Voor Kindle- of Apple-boeken: download de EPUB en deel/open het bestand in uw reader-app.",
     "downloadStarting": "Start download",
     "deleteStory": "Delete story",
@@ -301,7 +301,8 @@
         "ageRange": "Ages 7+",
         "desc": "Longer read-aloud · richer story and detailed scenes"
       }
-    }
+    },
+    "exportText": "Tekst exporteren"
   },
   "books": {
     "createButton": "Genereer geïllustreerde PDF",
@@ -443,7 +444,7 @@
     "refreshFinalButton": "Eindpakket verversen",
     "finalizingButton": "Pakket wordt afgerond...",
     "finalizedAtLabel": "Afgerond {value}",
-    "epubButton": "EPUB voor Kindle/Boeken",
+    "epubButton": "Geïllustreerd EPUB",
     "epubHelp": "Voor Kindle- of Apple-boeken: download de EPUB en deel/open het bestand in uw reader-app. Afbeeldingen worden gecomprimeerd voor de verzendlimiet van 50 MB van Kindle.",
     "mixedArtTitle": "Sommige illustraties hebben een andere poging nodig",
     "mixedArtSub": "Enkele pagina's vielen terug op draft placeholders. Regenereer de illustraties om ze te vervangen voordat je ze deelt of bestelt.",

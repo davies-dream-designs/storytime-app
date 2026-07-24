@@ -243,7 +243,7 @@
     "tryAgainButton": "もう一度試してください",
     "backToNewStory": "新しい話に戻る",
     "backToLibrary": "← 図書館",
-    "printButton": "🖨️ 印刷 / PDF",
+    "printButton": "テキスト PDF",
     "newStoryButton": "✨ 新しい物語",
     "ageLabel": "年齢 {age}",
     "searchPlaceholder": "ストーリーやテーマを検索…",
@@ -277,7 +277,7 @@
     "wordsCount": "{count}の言葉",
     "pagesCount": "{count} ページ",
     "viewBookButton": "図解 PDF を表示",
-    "textEpubButton": "Kindle/書籍のテキスト EPUB",
+    "textEpubButton": "テキスト EPUB",
     "epubHelp": "Kindle または Apple Books の場合: EPUB をダウンロードし、リーダー アプリでファイルを共有/開きます。",
     "downloadStarting": "ダウンロードを開始しています…",
     "deleteStory": "ストーリーを削除する",
@@ -301,7 +301,8 @@
         "ageRange": "Ages 7+",
         "desc": "Longer read-aloud · richer story and detailed scenes"
       }
-    }
+    },
+    "exportText": "テキストをエクスポート"
   },
   "books": {
     "createButton": "イラスト付きの PDF を生成",
@@ -443,7 +444,7 @@
     "refreshFinalButton": "最終パッケージを更新する",
     "finalizingButton": "パッケージを完成させています…",
     "finalizedAtLabel": "確定済み {value}",
-    "epubButton": "EPUB Kindle/本用",
+    "epubButton": "イラスト付き EPUB",
     "epubHelp": "Kindle または Apple Books の場合: EPUB をダウンロードし、リーダー アプリでファイルを共有/開きます。画像は、Kindle の 50 MB の送信制限に合わせて圧縮されます。",
     "mixedArtTitle": "一部のイラストはもう一度試してみる必要があります",
     "mixedArtSub": "数ページがドラフトのプレースホルダーに戻りました。共有または注文する前に、イラストを再生成して置き換えます。",

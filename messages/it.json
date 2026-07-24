@@ -243,7 +243,7 @@
     "tryAgainButton": "Riprova",
     "backToNewStory": "Torna alla nuova storia",
     "backToLibrary": "← Biblioteca",
-    "printButton": "🖨️ Stampa / PDF",
+    "printButton": "PDF del testo",
     "newStoryButton": "✨ Nuova storia",
     "ageLabel": "Età {age}",
     "searchPlaceholder": "Cerca storie, temi…",
@@ -277,7 +277,7 @@
     "wordsCount": "{count} parole",
     "pagesCount": "{count} pagine",
     "viewBookButton": "Vedi PDF illustrato",
-    "textEpubButton": "EPUB di testo per Kindle/Books",
+    "textEpubButton": "EPUB del testo",
     "epubHelp": "Per Kindle o Apple Books: scarica l'EPUB, poi condividi/apri il file nella tua app di lettura.",
     "downloadStarting": "Download in avvio…",
     "deleteStory": "Elimina storia",
@@ -301,7 +301,8 @@
         "ageRange": "Ages 7+",
         "desc": "Longer read-aloud · richer story and detailed scenes"
       }
-    }
+    },
+    "exportText": "Esporta testo"
   },
   "books": {
     "createButton": "Genera PDF illustrato",
@@ -443,7 +444,7 @@
     "refreshFinalButton": "Aggiorna pacchetto finale",
     "finalizingButton": "Finalizzazione pacchetto…",
     "finalizedAtLabel": "Finalizzato {value}",
-    "epubButton": "EPUB per Kindle/Books",
+    "epubButton": "EPUB illustrato",
     "epubHelp": "Per Kindle o Apple Books: scarica l'EPUB, poi condividi/apri il file nella tua app di lettura. Le immagini sono compresse per il limite di invio Kindle di 50 MB.",
     "mixedArtTitle": "Alcune illustrazioni richiedono un altro tentativo",
     "mixedArtSub": "Alcune pagine sono tornate a segnaposto di bozza. Rigenera le illustrazioni per sostituirle prima di condividere o ordinare.",

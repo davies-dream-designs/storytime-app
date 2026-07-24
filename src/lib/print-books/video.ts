@@ -129,6 +129,27 @@ export async function extractLastFrame(
 // format includes model context and must not be embedded in raw URL paths.
 // ---------------------------------------------------------------------------
 
+// Fallback poll — used when the webhook doesn't arrive within the timeout.
+// Kling jobs that completed before waitForEvent was registered won't fire
+// the webhook a second time, so we poll once to catch those.
+export async function pollKlingJob(
+  requestId: string
+): Promise<{ done: boolean; videoUrl?: string; failed?: boolean; error?: string }> {
+  configureFal();
+  try {
+    const status = await fal.queue.status(KLING_MODEL, { requestId, logs: false });
+    if (status.status !== "COMPLETED") return { done: false };
+    const result = await fal.queue.result(KLING_MODEL, { requestId });
+    const output = result.data as { video?: { url?: string } } | undefined;
+    const videoUrl = output?.video?.url;
+    if (!videoUrl) throw new Error("Kling completed but returned no video URL");
+    return { done: true, videoUrl };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { done: true, failed: true, error: msg.slice(0, 200) };
+  }
+}
+
 export async function submitKlingJob(
   imageUrl: string,
   prompt: string,

@@ -8,6 +8,7 @@ import {
   prepareVideoSourceImage,
   extractLastFrame,
   submitKlingJob,
+  pollKlingJob,
 } from "@/lib/print-books/video";
 
 // Hard stop so a wedged pipeline can never loop forever inside one invocation.
@@ -70,7 +71,9 @@ export const buildBook = inngest.createFunction(
 
 // fal.ai calls our webhook when a Kling job finishes; the webhook handler
 // fires a storycot/kling.completed event. Each spread waits up to 10 min.
-const KLING_WEBHOOK_TIMEOUT = "10m";
+// Webhook timeout — if fal.ai doesn't call back within this window we fall
+// back to a single poll. Kling standard typically completes in 60-120s.
+const KLING_WEBHOOK_TIMEOUT = "5m";
 
 export const generateBookVideo = inngest.createFunction(
   {
@@ -140,9 +143,23 @@ export const generateBookVideo = inngest.createFunction(
       let videoUrl: string | undefined;
 
       if (!klingResult) {
-        // Timed out waiting for webhook
-        results.push({ spreadId: spread.id, error: "Timed out waiting for Kling" });
-        console.warn(`Spread ${i} timed out waiting for webhook`);
+        // Webhook didn't arrive within the timeout — Kling may have completed
+        // before waitForEvent was registered (race condition on fast jobs) or
+        // the delivery failed. Poll once as a fallback before giving up.
+        console.warn(`Spread ${i} webhook timed out — falling back to poll`);
+        const fallback = await step.run(`fallback-poll-${i}`, () =>
+          pollKlingJob(requestId)
+        );
+        if (fallback.done && !fallback.failed && fallback.videoUrl) {
+          videoUrl = fallback.videoUrl;
+          results.push({ spreadId: spread.id, videoUrl });
+        } else {
+          results.push({
+            spreadId: spread.id,
+            error: fallback.error ?? "Webhook timed out and fallback poll found no result",
+          });
+          console.warn(`Spread ${i} fallback poll: ${fallback.error ?? "no result"}`);
+        }
       } else if (klingResult.data.failed) {
         results.push({ spreadId: spread.id, error: klingResult.data.error ?? "Kling failed" });
         console.warn(`Spread ${i} Kling failed: ${klingResult.data.error}`);

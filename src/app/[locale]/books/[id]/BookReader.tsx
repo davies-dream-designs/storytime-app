@@ -68,6 +68,7 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
   const spreads = useMemo(() => getReaderSpreads(project), [project]);
   const [index, setIndex] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
+  const [isLandscape, setIsLandscape] = useState(false);
 
   // Narration
   const [narrating, setNarrating] = useState(false);
@@ -114,6 +115,15 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [fullscreen, next, prev]);
+
+  // Track orientation for fullscreen split-panel layout
+  useEffect(() => {
+    if (!fullscreen) return;
+    function update() { setIsLandscape(window.innerWidth > window.innerHeight); }
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [fullscreen]);
 
   // Narration engine — runs whenever narrating, index, or voice changes
   useEffect(() => {
@@ -435,41 +445,48 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
       {/* Fullscreen reader overlay */}
       {fullscreen ? (
         <div
-          className="fixed inset-0 z-50 flex flex-col bg-black lg:flex-row lg:bg-white"
+          className={`fixed inset-0 z-50 flex bg-black lg:flex-row lg:bg-white ${isLandscape ? "flex-row" : "flex-col"}`}
           style={{ WebkitTouchCallout: "none" } as React.CSSProperties}
         >
-          {/* Mobile-only top bar */}
-          <div className="flex items-center justify-between px-4 py-3 lg:hidden">
-            <p className="text-sm font-bold text-white/60">{index + 1} / {total}</p>
-            <div className="flex items-center gap-2">
-              {canNarrate ? (
-                <button
-                  onClick={() => { if (narrating) { setNarrating(false); stopAudio(); } else { setNarrating(true); } }}
-                  disabled={isLoadingAudio}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-50"
-                  aria-label={narrating ? t("pauseNarration") : t("listenShort")}
-                >
-                  {isLoadingAudio ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" /> : narrating ? (
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4"><rect x="4" y="3" width="4" height="14" rx="1" /><rect x="12" y="3" width="4" height="14" rx="1" /></svg>
-                  ) : (
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 translate-x-0.5"><path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
-                  )}
-                </button>
-              ) : null}
-              <button onClick={() => setFullscreen(false)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20" aria-label={tc("close")}>✕</button>
+          {/* Portrait-only top bar — hidden in landscape (controls move to text panel) */}
+          {!isLandscape ? (
+            <div className="flex shrink-0 items-center justify-between px-4 py-3 lg:hidden">
+              <p className="text-sm font-bold text-white/60">{index + 1} / {total}</p>
+              <div className="flex items-center gap-2">
+                {canNarrate ? (
+                  <button
+                    onClick={() => { if (narrating) { setNarrating(false); stopAudio(); } else { setNarrating(true); } }}
+                    disabled={isLoadingAudio}
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-50"
+                    aria-label={narrating ? t("pauseNarration") : t("listenShort")}
+                  >
+                    {isLoadingAudio ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" /> : narrating ? (
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4"><rect x="4" y="3" width="4" height="14" rx="1" /><rect x="12" y="3" width="4" height="14" rx="1" /></svg>
+                    ) : (
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 translate-x-0.5"><path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
+                    )}
+                  </button>
+                ) : null}
+                <button onClick={() => setFullscreen(false)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20" aria-label={tc("close")}>✕</button>
+              </div>
             </div>
-          </div>
+          ) : null}
 
-          {/* Image area — shared mobile + desktop */}
-          {/* Desktop with text: aspect-square so image fills perfectly; without text: flex-1 full width */}
-          <div className={`relative min-h-0 flex-1 lg:h-screen${pageText ? " lg:aspect-square lg:flex-none lg:shrink-0" : ""}`}>
+          {/* Image panel — portrait: full width square; landscape: full height square; desktop: full height square */}
+          <div
+            className={`relative min-h-0 flex-shrink-0${
+              isLandscape
+                ? " h-full aspect-square"
+                : " w-full aspect-square"
+            }${pageText ? " lg:h-screen lg:aspect-square lg:flex-none lg:shrink-0" : " lg:flex-1"}`}
+          >
             {hasImage ? (
               <Image
                 src={spread.imageUrl!}
                 alt={spread.title ?? t("pageOf", { page: index + 1, total })}
                 fill
                 sizes="(min-width: 1024px) 60vw, 100vw"
-                className="pointer-events-none object-cover select-none"
+                className="pointer-events-none object-contain select-none"
                 draggable={false}
                 priority
                 onContextMenu={(e) => e.preventDefault()}
@@ -480,85 +497,123 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
               </div>
             )}
 
-            {/* Tap zones */}
+            {/* Invisible tap zones for prev/next */}
             <button onClick={prev} disabled={index === 0} className="absolute inset-y-0 left-0 w-1/3 opacity-0" aria-hidden="true" tabIndex={-1} />
             <button onClick={next} disabled={index === total - 1} className="absolute inset-y-0 right-0 w-1/3 opacity-0" aria-hidden="true" tabIndex={-1} />
 
-            {/* Arrow hints */}
+            {/* Arrow hints — visible on portrait + desktop, hidden on landscape mobile */}
             {index > 0 ? (
-              <button onClick={prev} className="absolute left-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60" aria-label={t("previousPage")}>‹</button>
+              <button
+                onClick={prev}
+                className={`absolute left-3 top-1/2 -translate-y-1/2 h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 ${isLandscape ? "hidden lg:flex" : "flex"}`}
+                aria-label={t("previousPage")}
+              >‹</button>
             ) : null}
             {index < total - 1 ? (
-              <button onClick={next} className="absolute right-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60" aria-label={t("nextPage")}>›</button>
-            ) : null}
-
-            {/* Mobile-only text overlay */}
-            {pageText ? (
-              <div className="lg:hidden absolute inset-x-0 bottom-0 max-h-[45%] overflow-y-auto bg-gradient-to-t from-black/85 via-black/60 to-transparent px-5 pb-4 pt-10" onContextMenu={(e) => e.preventDefault()}>
-                <p className="font-display text-sm leading-relaxed text-white/95 drop-shadow">
-                  {words.length > 0 ? words.map((w, i) => (
-                    <span key={i} className={i === currentWordIndex ? "font-bold text-yellow-300" : ""}>{w.word}{" "}</span>
-                  )) : pageText}
-                </p>
-              </div>
+              <button
+                onClick={next}
+                className={`absolute right-3 top-1/2 -translate-y-1/2 h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 ${isLandscape ? "hidden lg:flex" : "flex"}`}
+                aria-label={t("nextPage")}
+              >›</button>
             ) : null}
           </div>
 
-          {/* Mobile-only nav dots */}
-          <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto px-4 py-3 lg:hidden [&::-webkit-scrollbar]:hidden">
-            {spreads.map((_, i) => (
-              <button key={i} onClick={() => { setNarrating(false); stopAudio(); setIndex(i); }} aria-label={t("goToPage", { page: i + 1 })}
-                className={`h-1.5 shrink-0 rounded-full transition-all ${i === index ? "w-5 bg-white" : "w-1.5 bg-white/30 hover:bg-white/50"}`} />
-            ))}
-          </div>
+          {/* Text + nav panel — portrait: flex-1 below image; landscape + desktop: right panel */}
+          {pageText ? (
+            <div className={`flex flex-1 flex-col overflow-hidden bg-black lg:bg-white lg:border-l lg:border-night-100${isLandscape ? " border-l border-white/10" : ""}`}>
+              {/* Controls row — landscape mobile + desktop */}
+              {isLandscape ? (
+                <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3 lg:hidden">
+                  <p className="text-sm font-medium text-white/60">{index + 1} / {total}</p>
+                  <div className="flex items-center gap-2">
+                    {canNarrate ? (
+                      <button
+                        onClick={() => { if (narrating) { setNarrating(false); stopAudio(); } else { setNarrating(true); } }}
+                        disabled={isLoadingAudio}
+                        className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-50"
+                        aria-label={narrating ? t("pauseNarration") : t("listenShort")}
+                      >
+                        {isLoadingAudio ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" /> : narrating ? (
+                          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4"><rect x="4" y="3" width="4" height="14" rx="1" /><rect x="12" y="3" width="4" height="14" rx="1" /></svg>
+                        ) : (
+                          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 translate-x-0.5"><path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
+                        )}
+                      </button>
+                    ) : null}
+                    <button onClick={() => setFullscreen(false)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20" aria-label={tc("close")}>✕</button>
+                  </div>
+                </div>
+              ) : null}
 
-          {/* Desktop-only right panel — only shown when page has text */}
-          {pageText ? <div className="hidden lg:flex lg:flex-1 lg:flex-col lg:border-l lg:border-night-100">
-            {/* Top bar */}
-            <div className="flex items-center justify-between border-b border-night-100 px-6 py-4">
-              <p className="text-sm font-medium text-night-400">{index + 1} / {total}</p>
-              <div className="flex items-center gap-2">
-                {canNarrate ? (
-                  <button
-                    onClick={() => { if (narrating) { setNarrating(false); stopAudio(); } else { setNarrating(true); } }}
-                    disabled={isLoadingAudio}
-                    className="flex h-9 w-9 items-center justify-center rounded-full border border-night-200 text-night-700 hover:bg-night-50 disabled:opacity-50"
-                    aria-label={narrating ? t("pauseNarration") : t("listenShort")}
-                  >
-                    {isLoadingAudio ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-night-700 border-t-transparent" /> : narrating ? (
-                      <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4"><rect x="4" y="3" width="4" height="14" rx="1" /><rect x="12" y="3" width="4" height="14" rx="1" /></svg>
-                    ) : (
-                      <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 translate-x-0.5"><path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
-                    )}
-                  </button>
-                ) : null}
-                <button onClick={() => setFullscreen(false)} className="flex h-9 w-9 items-center justify-center rounded-full border border-night-200 text-night-700 hover:bg-night-50" aria-label={tc("close")}>✕</button>
+              {/* Desktop controls row */}
+              <div className="hidden lg:flex shrink-0 items-center justify-between border-b border-night-100 px-6 py-4">
+                <p className="text-sm font-medium text-night-400">{index + 1} / {total}</p>
+                <div className="flex items-center gap-2">
+                  {canNarrate ? (
+                    <button
+                      onClick={() => { if (narrating) { setNarrating(false); stopAudio(); } else { setNarrating(true); } }}
+                      disabled={isLoadingAudio}
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-night-200 text-night-700 hover:bg-night-50 disabled:opacity-50"
+                      aria-label={narrating ? t("pauseNarration") : t("listenShort")}
+                    >
+                      {isLoadingAudio ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-night-700 border-t-transparent" /> : narrating ? (
+                        <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4"><rect x="4" y="3" width="4" height="14" rx="1" /><rect x="12" y="3" width="4" height="14" rx="1" /></svg>
+                      ) : (
+                        <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 translate-x-0.5"><path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
+                      )}
+                    </button>
+                  ) : null}
+                  <button onClick={() => setFullscreen(false)} className="flex h-9 w-9 items-center justify-center rounded-full border border-night-200 text-night-700 hover:bg-night-50" aria-label={tc("close")}>✕</button>
+                </div>
               </div>
-            </div>
 
-            {/* Story text — vertically centred */}
-            <div className="flex flex-1 items-center overflow-y-auto px-8 py-8">
-              {pageText ? (
-                <p className="font-display text-2xl font-medium leading-relaxed text-night-800">
-                  {words.length > 0 ? words.map((w, i) => (
-                    <span key={i} className={i === currentWordIndex ? "rounded-sm bg-yellow-200" : ""}>{w.word}{" "}</span>
-                  )) : pageText}
+              {/* Story text — vertically centred, fills available space */}
+              <div className="flex flex-1 items-center overflow-y-auto px-5 py-5 lg:px-8 lg:py-8">
+                <p className="font-display text-lg font-medium leading-relaxed text-white/95 lg:text-2xl lg:text-night-800">
+                  {words.length > 0
+                    ? words.map((w, i) => (
+                        <span
+                          key={i}
+                          className={i === currentWordIndex ? "font-bold text-yellow-300 lg:font-normal lg:rounded-sm lg:bg-yellow-200 lg:text-inherit" : ""}
+                        >
+                          {w.word}{" "}
+                        </span>
+                      ))
+                    : pageText}
                 </p>
-              ) : (
-                <p className="text-night-300">{t("noText")}</p>
-              )}
-            </div>
+              </div>
 
-            {/* Nav dots */}
-            <div className="border-t border-night-100 px-6 py-4">
-              <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+              {/* Nav dots */}
+              <div className="flex shrink-0 flex-nowrap items-center gap-1.5 overflow-x-auto border-t border-white/10 px-4 py-3 lg:border-night-100 lg:px-6 lg:py-4 [&::-webkit-scrollbar]:hidden">
                 {spreads.map((_, i) => (
-                  <button key={i} onClick={() => { setNarrating(false); stopAudio(); setIndex(i); }} aria-label={t("goToPage", { page: i + 1 })}
-                    className={`h-2 shrink-0 rounded-full transition-all ${i === index ? "w-6 bg-night-700" : "w-2 bg-night-200 hover:bg-night-400"}`} />
+                  <button
+                    key={i}
+                    onClick={() => { setNarrating(false); stopAudio(); setIndex(i); }}
+                    aria-label={t("goToPage", { page: i + 1 })}
+                    className={`shrink-0 rounded-full transition-all ${
+                      i === index
+                        ? "h-1.5 w-5 bg-white lg:h-2 lg:w-6 lg:bg-night-700"
+                        : "h-1.5 w-1.5 bg-white/30 hover:bg-white/50 lg:h-2 lg:w-2 lg:bg-night-200 lg:hover:bg-night-400"
+                    }`}
+                  />
                 ))}
               </div>
             </div>
-          </div> : null}
+          ) : (
+            /* No text (cover page) — portrait nav dots below image */
+            !isLandscape ? (
+              <div className="flex shrink-0 flex-nowrap items-center gap-1.5 overflow-x-auto px-4 py-3 lg:hidden [&::-webkit-scrollbar]:hidden">
+                {spreads.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setNarrating(false); stopAudio(); setIndex(i); }}
+                    aria-label={t("goToPage", { page: i + 1 })}
+                    className={`h-1.5 shrink-0 rounded-full transition-all ${i === index ? "w-5 bg-white" : "w-1.5 bg-white/30 hover:bg-white/50"}`}
+                  />
+                ))}
+              </div>
+            ) : null
+          )}
         </div>
       ) : null}
     </div>

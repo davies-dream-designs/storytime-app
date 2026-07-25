@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import MigrationActions from "./MigrationActions";
 import TestEmailActions from "./TestEmailActions";
 import LuluWebhookActions from "./LuluWebhookActions";
+import PrintOrdersSection from "./PrintOrdersSection";
 
 export const metadata = { title: "Admin — Storycot" };
 
@@ -17,12 +18,14 @@ export default async function AdminPage() {
   if (user.privateMetadata.isAdmin !== true) notFound();
 
   let projects: Awaited<ReturnType<typeof db.bookProjects.getById>>[] = [];
+  let printOrders: Awaited<ReturnType<typeof db.bookProjects.getPrintOrders>> = [];
   let dbReady = true;
   try {
     const failedIds = await db.bookProjects.getFailedIndex();
     projects = (
       await Promise.all(failedIds.map((id) => db.bookProjects.getById(id)))
     ).filter(Boolean);
+    printOrders = await db.bookProjects.getPrintOrders();
   } catch {
     dbReady = false;
   }
@@ -42,6 +45,9 @@ export default async function AdminPage() {
 
         <LuluWebhookActions />
         <TestEmailActions />
+
+        <PrintOrdersSection orders={printOrders} />
+
         <MigrationActions />
 
         {projects.length === 0 ? (

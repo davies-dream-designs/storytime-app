@@ -1,8 +1,8 @@
-import { eq, and, inArray, desc, isNull } from "drizzle-orm";
+import { eq, and, inArray, desc, isNull, isNotNull } from "drizzle-orm";
 import { getClient } from "./client";
 import * as schema from "./schema";
 import type { ChildProfile, Story, Character } from "@/types";
-import type { BookBuildJob, BookProject } from "@/types/printBook";
+import type { BookBuildJob, BookProject, PrintBookOrder } from "@/types/printBook";
 import { deleteBookProjectAssets } from "@/lib/print-books/storage";
 
 // ── Row ↔ type converters ─────────────────────────────────────────────────────
@@ -484,6 +484,35 @@ export const db = {
         .delete(schema.bookProjects)
         .where(eq(schema.bookProjects.id, id));
       return true;
+    },
+    async getPrintOrders(): Promise<
+      {
+        id: string;
+        userId: string;
+        sourceStoryId: string;
+        printOrder: PrintBookOrder;
+        updatedAt: string;
+      }[]
+    > {
+      const rows = await getClient()
+        .select({
+          id: schema.bookProjects.id,
+          userId: schema.bookProjects.userId,
+          sourceStoryId: schema.bookProjects.sourceStoryId,
+          printOrder: schema.bookProjects.printOrder,
+          updatedAt: schema.bookProjects.updatedAt,
+        })
+        .from(schema.bookProjects)
+        .where(isNotNull(schema.bookProjects.printOrder))
+        .orderBy(desc(schema.bookProjects.updatedAt))
+        .limit(100);
+      return rows.map((r) => ({
+        id: r.id,
+        userId: r.userId,
+        sourceStoryId: r.sourceStoryId,
+        printOrder: r.printOrder as PrintBookOrder,
+        updatedAt: r.updatedAt,
+      }));
     },
   },
 

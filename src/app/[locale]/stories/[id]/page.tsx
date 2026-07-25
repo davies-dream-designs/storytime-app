@@ -346,6 +346,12 @@ export default async function StoryPage({
                       team has been notified and will sort it out — no further
                       action needed from you.
                     </p>
+                    <a
+                      href="mailto:hello@storycot.com"
+                      className="mt-3 inline-block text-sm font-bold text-blush-700 underline underline-offset-2 hover:text-blush-900"
+                    >
+                      Email us if you have questions →
+                    </a>
                     {isAdmin ? (
                       <PrintFulfillmentResendButton
                         bookId={existingBook.id}

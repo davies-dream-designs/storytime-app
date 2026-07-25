@@ -93,6 +93,7 @@ export async function POST(req: NextRequest) {
     type?: string;
     projectId?: string;
     productKey?: string;
+    quantity?: number;
   };
   const appUrl = getRequestOrigin(req);
   const locale = getRequestLocale(req);
@@ -248,6 +249,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const quantity = Math.min(10, Math.max(1, Math.floor(body.quantity ?? 1)));
+
     const quote = quotePrintProduct(project, body.productKey);
     if (!quote.isWithinSpecs) {
       return NextResponse.json(
@@ -279,7 +282,7 @@ export async function POST(req: NextRequest) {
             },
             unit_amount: Math.round(quote.priceAud * 100),
           },
-          quantity: 1,
+          quantity,
         },
       ],
       metadata: {
@@ -292,6 +295,7 @@ export async function POST(req: NextRequest) {
         format: quote.format,
         pageCount: quote.pageCount.toString(),
         amountAud: quote.priceAud.toFixed(2),
+        quantity: quantity.toString(),
       },
       success_url: `${appUrl}${bookPath}?print_success=1`,
       cancel_url: `${appUrl}${bookPath}?print_canceled=1`,
@@ -306,6 +310,7 @@ export async function POST(req: NextRequest) {
         status: "checkout_started",
         amountAud: quote.priceAud,
         pageCount: quote.pageCount,
+        quantity,
         checkoutSessionId: session.id,
         checkoutStartedAt: new Date().toISOString(),
       },

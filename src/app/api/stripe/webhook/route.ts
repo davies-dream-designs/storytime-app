@@ -121,14 +121,16 @@ export async function POST(req: NextRequest) {
         const project = await db.bookProjects.getById(projectId);
         if (project && project.userId === userId) {
           const quote = quotePrintProduct(project, productKey);
+          const quantity = Math.min(10, Math.max(1, parseInt(session.metadata?.quantity ?? "1", 10) || 1));
           const printOrder: PrintBookOrder = {
             productKey: quote.key,
             productLabel: quote.label,
             provider: quote.provider,
             format: quote.format,
             status: "paid",
-            amountAud: quote.priceAud,
+            amountAud: quote.priceAud * quantity,
             pageCount: quote.pageCount,
+            quantity,
             checkoutSessionId: session.id,
             paymentIntentId:
               typeof session.payment_intent === "string"

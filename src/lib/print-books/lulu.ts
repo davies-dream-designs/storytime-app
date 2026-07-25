@@ -312,7 +312,7 @@ export function buildLuluPrintJobPayload(input: {
           },
           pod_package_id: productSpec.packageId,
         },
-        quantity: 1,
+        quantity: order.quantity ?? 1,
         title: order.productLabel,
       },
     ],

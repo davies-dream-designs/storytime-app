@@ -175,6 +175,7 @@ export interface PrintBookOrder {
   status: "checkout_started" | "paid" | "refunded";
   amountAud: number;
   pageCount: number;
+  quantity?: number;
   checkoutSessionId?: string;
   paymentIntentId?: string;
   billingCountry?: string;

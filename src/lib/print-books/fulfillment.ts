@@ -66,7 +66,7 @@ function buildPeechoPayload(input: {
       {
         item_reference: `${project.id}-${order.productKey}`,
         offering_id: Number(offeringId),
-        quantity: 1,
+        quantity: order.quantity ?? 1,
         file_details: {
           content_url: printPdfUrl,
           content_width: 210,

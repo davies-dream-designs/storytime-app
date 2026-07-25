@@ -63,7 +63,13 @@ export default async function StoryPage({
         : Promise.resolve({ credits: 0, isAdmin: false }),
     ]);
 
-  const existingBook = bookProjects.find((p) => p.status !== "failed") ?? null;
+  // Prefer an active/ready book. Otherwise surface a book that failed during
+  // illustration (recoverable via the "retry failed images" panel) so the user
+  // isn't bounced back to a fresh "Generate" button with no way to resume.
+  const existingBook =
+    bookProjects.find((p) => p.status !== "failed") ??
+    bookProjects.find((p) => p.errorCode === "illustrating:image_failed") ??
+    null;
   const ageBand = profile
     ? inferBookAgeBand({ profile, storyPreset: story.storyPreset })
     : "3-5";

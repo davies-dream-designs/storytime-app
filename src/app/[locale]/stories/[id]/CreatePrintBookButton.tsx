@@ -65,14 +65,22 @@ export default function CreatePrintBookButton({
 
       const project = (await createRes.json()) as { id: string };
 
-      // Kick off the build. If it fails surface the error so we can diagnose.
-      const buildRes = await fetch(`/api/books/${project.id}/build`, { method: "POST" });
-      if (!buildRes.ok) {
-        const buildData = (await buildRes.json().catch(() => null)) as { error?: string } | null;
+      // Kick off the build. A 409 means this book can't be fully rebuilt and
+      // needs the "retry failed images" panel instead — that's expected, so we
+      // just refresh and let that panel appear rather than surfacing an error.
+      const buildRes = await fetch(`/api/books/${project.id}/build`, {
+        method: "POST",
+      });
+      if (!buildRes.ok && buildRes.status !== 409) {
+        const buildData = (await buildRes.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         throw new Error(buildData?.error ?? `Build failed (${buildRes.status})`);
       }
 
-      router.push(`/books/${project.id}`);
+      // Refresh so the server re-renders with the book's status panel in place
+      // of this button.
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("createError"));
       setLoading(false);

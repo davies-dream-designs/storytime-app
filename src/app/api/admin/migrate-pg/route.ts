@@ -23,10 +23,11 @@ export async function POST() {
   if (user.privateMetadata.isAdmin !== true)
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  if (!process.env.DATABASE_URL)
+  const dbUrl = process.env.storycot_DATABASE_URL ?? process.env.DATABASE_URL;
+  if (!dbUrl)
     return NextResponse.json({ error: "DATABASE_URL not set" }, { status: 500 });
 
-  const sql = neon(process.env.DATABASE_URL);
+  const sql = neon(dbUrl);
   const pg = drizzle(sql, { schema });
 
   const results: Record<string, number> = {};

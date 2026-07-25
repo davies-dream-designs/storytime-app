@@ -122,10 +122,11 @@ export async function POST() {
   if (user.privateMetadata.isAdmin !== true)
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  if (!process.env.DATABASE_URL)
+  const dbUrl = process.env.storycot_DATABASE_URL ?? process.env.DATABASE_URL;
+  if (!dbUrl)
     return NextResponse.json({ error: "DATABASE_URL not set" }, { status: 500 });
 
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const pool = new Pool({ connectionString: dbUrl });
   try {
     // Execute each statement individually (pool.query supports raw strings)
     const statements = DDL.split(/;\s*\n/)

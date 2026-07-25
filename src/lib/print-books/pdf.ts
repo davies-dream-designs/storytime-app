@@ -942,6 +942,84 @@ async function drawFrontispiecePage(input: {
   }
 }
 
+async function drawDigitalCoverPage(input: {
+  pdfDoc: PDFDocument;
+  page: ReturnType<PDFDocument["addPage"]>;
+  project: BookProject;
+  story: Story;
+  profile: ChildProfile;
+  pageWidth: number;
+  pageHeight: number;
+  serif: Awaited<ReturnType<PDFDocument["embedFont"]>>;
+  serifBold: Awaited<ReturnType<PDFDocument["embedFont"]>>;
+  sansBold: Awaited<ReturnType<PDFDocument["embedFont"]>>;
+}) {
+  const { pdfDoc, page, project, story, profile, pageWidth, pageHeight, serif, serifBold, sansBold } = input;
+  const theme = pickPlaceholderTheme(story);
+  const safeMargin = BLEED + 45;
+  const safeWidth = pageWidth - safeMargin * 2;
+
+  // Background
+  page.drawRectangle({ x: 0, y: 0, width: pageWidth, height: pageHeight, color: theme.sky });
+
+  // Cover image — full-bleed, clipped to page
+  const coverSpread = project.spreads.find((s) => s.sequence === 1 || s.title === "Cover");
+  const coverImageUrl = project.assets.coverImageUrl ?? coverSpread?.imageUrl;
+  const image = await embedSpreadImage(pdfDoc, coverImageUrl, {
+    maxDrawWidthPt: pageWidth,
+    maxDrawHeightPt: pageHeight,
+  });
+  if (image) {
+    const scale = Math.max(pageWidth / image.width, pageHeight / image.height);
+    const drawWidth = image.width * scale;
+    const drawHeight = image.height * scale;
+    page.pushOperators(
+      pushGraphicsState(),
+      rectangle(0, 0, pageWidth, pageHeight),
+      clip(),
+      endPath()
+    );
+    page.drawImage(image, {
+      x: (pageWidth - drawWidth) / 2,
+      y: (pageHeight - drawHeight) / 2,
+      width: drawWidth,
+      height: drawHeight,
+    });
+    page.pushOperators(popGraphicsState());
+  } else {
+    drawThemeArtPanel({ page, rect: { x: 0, y: 0, width: pageWidth, height: pageHeight }, theme, variant: 1 });
+  }
+
+  // Brand wordmark (top-left, light variant)
+  await drawBrandWordmark({ pdfDoc, page, variant: "light", x: safeMargin, y: pageHeight - safeMargin - 36, iconSize: 36, font: sansBold });
+
+  // Title band (lower third)
+  const bandTop = pageHeight - safeMargin - 86;
+  const bandHeight = 148;
+  page.drawRectangle({
+    x: safeMargin - 8,
+    y: bandTop - bandHeight,
+    width: safeWidth - 28,
+    height: bandHeight,
+    color: BRAND_PURPLE,
+    opacity: image ? 0.52 : 0.82,
+  });
+  page.drawText(story.title, {
+    x: safeMargin + 8,
+    y: bandTop - 66,
+    font: serifBold,
+    size: 28,
+    color: rgb(0.99, 0.96, 0.88),
+  });
+  page.drawText(`Created for ${profile.name}`, {
+    x: safeMargin + 8,
+    y: bandTop - 102,
+    font: serif,
+    size: 16,
+    color: rgb(0.97, 0.92, 0.82),
+  });
+}
+
 async function drawTitlePage(input: {
   pdfDoc: PDFDocument;
   page: ReturnType<PDFDocument["addPage"]>;
@@ -1359,24 +1437,21 @@ async function buildPrintPdf(input: {
     await loadEmbeddedPdfFonts(pdfDoc);
   const theme = pickPlaceholderTheme(input.story);
 
-  // Add the generated cover image as the first page of the digital PDF.
+  // Add a styled cover page (mirrors the Lulu front panel) as page 1 of the digital PDF.
   if (input.includeCoverPage) {
-    const coverSpread = input.project.spreads.find(
-      (s) => s.title === "Cover" || s.sequence === 1
-    );
-    if (coverSpread && hasPrintableArt(coverSpread, "cover")) {
-      const coverPage = pdfDoc.addPage([pageWidth, pageHeight]);
-      await drawFrontispiecePage({
-        pdfDoc,
-        page: coverPage,
-        spread: coverSpread,
-        story: input.story,
-        pageWidth,
-        pageHeight,
-        sans,
-        branded: true,
-      });
-    }
+    const coverPage = pdfDoc.addPage([pageWidth, pageHeight]);
+    await drawDigitalCoverPage({
+      pdfDoc,
+      page: coverPage,
+      project: input.project,
+      story: input.story,
+      profile: input.profile,
+      pageWidth,
+      pageHeight,
+      serif,
+      serifBold,
+      sansBold,
+    });
   }
 
   for (const spread of input.project.spreads) {

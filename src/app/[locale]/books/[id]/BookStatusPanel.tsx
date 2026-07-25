@@ -517,8 +517,13 @@ export default function BookStatusPanel({
     setReaderIndex(lastIdx);
   }, [completedArtworkCount, isActiveBuild, artworkPreviews]);
 
+  // Only warn about mixed art when there are actual placeholder images that
+  // need repair. A successful individual redo also sets artMode="mixed" but
+  // doesn't leave any placeholders, so we must not false-positive in that case.
   const hasMixedArt =
-    displayStatus === "ready" && project.assets.artMode === "mixed";
+    displayStatus === "ready" &&
+    project.assets.artMode === "mixed" &&
+    getRepairImageTargets(spreadPreviews).length > 0;
   const hasImageGenerationFailure =
     project.errorCode === "illustrating:image_failed" &&
     failedImageTargets.length > 0;

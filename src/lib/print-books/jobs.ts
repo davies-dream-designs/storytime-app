@@ -12,6 +12,7 @@ import {
   generateCoverIllustration,
   generateSpreadPageIllustration,
   generateSpreadIllustration,
+  getIllustrationConcurrency,
   isBookStoryIllustrationSpread,
   isGeneratedIllustrationConfigured,
   retrieveBookImageBatch,
@@ -365,8 +366,14 @@ async function regenerateProjectArt(input: {
     });
   }
 
-  const spread = input.project.spreads[currentCursor];
-  if (!spread) {
+  // Process a concurrent window of spreads per step rather than one at a time.
+  const concurrency = getIllustrationConcurrency();
+  const spreadWindow = input.project.spreads.slice(
+    currentCursor,
+    currentCursor + concurrency
+  );
+
+  if (spreadWindow.length === 0) {
     return db.bookProjects.update(input.id, {
       status: "composing",
       currentStageLabel: getBookProjectStageLabel("composing"),
@@ -384,45 +391,38 @@ async function regenerateProjectArt(input: {
     });
   }
 
-  if (!isBookStoryIllustrationSpread(spread)) {
-    return db.bookProjects.update(input.id, {
-      status: "illustrating",
-      currentStageLabel: "Generating final art...",
-      characterBible: input.characterBible,
-      spreads: input.project.spreads,
-      completedSpreads: currentCursor + 1,
-      totalSpreads: totalArtSteps,
-      assets: {
-        ...input.project.assets,
-        lastBuildMode: input.buildMode,
-        artGenerationCursor: currentCursor + 1,
-        artGenerationTotal: totalArtSteps,
-      },
-    });
+  // Generate illustration spreads in parallel; skip non-illustration spreads.
+  const windowResults = await Promise.all(
+    spreadWindow.map((s) =>
+      isBookStoryIllustrationSpread(s)
+        ? generateSpreadIllustration({
+            project: input.project,
+            story: input.story,
+            profile: input.profile,
+            characterBible: input.characterBible,
+            spread: s,
+          })
+        : Promise.resolve(null)
+    )
+  );
+
+  let illustratedSpreads = input.project.spreads;
+  for (const result of windowResults) {
+    if (result) {
+      illustratedSpreads = applySpreadIllustration(
+        illustratedSpreads,
+        result.spread
+      );
+    }
   }
 
-  const illustrated = await generateSpreadIllustration({
-    project: input.project,
-    story: input.story,
-    profile: input.profile,
-    characterBible: input.characterBible,
-    spread,
-  });
-
-  const illustratedSpreads = applySpreadIllustration(
-    input.project.spreads,
-    illustrated.spread
-  );
-  const nextCursor = currentCursor + 1;
+  const nextCursor = currentCursor + spreadWindow.length;
   const spreadProviders = illustratedSpreads
     .filter(
-      (currentSpread) =>
-        currentSpread.sequence > 1 &&
-        (currentSpread.leftPageImageUrl ?? currentSpread.imageUrl)
+      (s) => s.sequence > 1 && (s.leftPageImageUrl ?? s.imageUrl)
     )
-    .map((currentSpread) => {
-      const url =
-        currentSpread.leftPageImageUrl ?? currentSpread.imageUrl ?? "";
+    .map((s) => {
+      const url = s.leftPageImageUrl ?? s.imageUrl ?? "";
       return url.includes("/spreads/") && url.endsWith(".png")
         ? "openai"
         : "placeholder";

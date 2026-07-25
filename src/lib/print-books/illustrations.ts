@@ -33,6 +33,15 @@ export function shouldUseImageBatch(): boolean {
   return false;
 }
 
+// How many spreads to illustrate concurrently per cursor step.
+// Set ILLUSTRATION_CONCURRENCY env var to override — defaults to 3.
+// The OpenAI image API rate limit (x-ratelimit-limit-requests) is returned
+// in response headers after each request, so 429 retries handle any burst.
+export function getIllustrationConcurrency(): number {
+  const val = parseInt(process.env.ILLUSTRATION_CONCURRENCY ?? "3", 10);
+  return isNaN(val) || val < 1 ? 3 : Math.min(val, 20);
+}
+
 // ---------------------------------------------------------------------------
 // Upscaling
 // ---------------------------------------------------------------------------

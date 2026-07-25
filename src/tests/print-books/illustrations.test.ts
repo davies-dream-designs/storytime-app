@@ -186,6 +186,7 @@ describe("generateCoverIllustration", () => {
         removeAlpha: vi.fn().mockReturnThis(),
         raw: vi.fn().mockReturnThis(),
         png: vi.fn().mockReturnThis(),
+        jpeg: vi.fn().mockReturnThis(),
         toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
           options?.resolveWithObject
             ? Promise.resolve({
@@ -347,6 +348,7 @@ describe("generateCoverIllustration", () => {
         removeAlpha: vi.fn().mockReturnThis(),
         raw: vi.fn().mockReturnThis(),
         png: vi.fn().mockReturnThis(),
+        jpeg: vi.fn().mockReturnThis(),
         toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
           options?.resolveWithObject
             ? Promise.resolve({
@@ -430,6 +432,7 @@ describe("generateCoverIllustration", () => {
         removeAlpha: vi.fn().mockReturnThis(),
         raw: vi.fn().mockReturnThis(),
         png: vi.fn().mockReturnThis(),
+        jpeg: vi.fn().mockReturnThis(),
         toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
           options?.resolveWithObject
             ? Promise.resolve({
@@ -468,7 +471,14 @@ describe("generateCoverIllustration", () => {
 
     expect(result.provider).toBe("openai");
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(mockStoreBookAsset).toHaveBeenCalledTimes(1);
+    // Stores the print cover (PNG) plus the web preview (JPEG).
+    expect(mockStoreBookAsset).toHaveBeenCalledTimes(2);
+    expect(mockStoreBookAsset).toHaveBeenCalledWith(
+      expect.objectContaining({ contentType: "image/png" })
+    );
+    expect(mockStoreBookAsset).toHaveBeenCalledWith(
+      expect.objectContaining({ contentType: "image/jpeg" })
+    );
 
     vi.unstubAllGlobals();
     vi.doUnmock("sharp");

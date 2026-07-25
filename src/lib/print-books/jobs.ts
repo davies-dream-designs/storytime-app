@@ -72,11 +72,15 @@ function getProjectArtMode(input: {
   return "mixed";
 }
 
+// Must match the illustration loop (isBookStoryIllustrationSpread): only
+// text_art/hero/quiet spreads get custom art. Front/end matter pages (Title,
+// "The End", Back Cover) are never illustrated, so they must not be treated as
+// missing an image — otherwise the finalize gate never passes.
 function isGeneratedPageSpread(spread: BookSpread) {
   return (
-    spread.sequence > 1 &&
-    spread.title !== "Title" &&
-    spread.title !== "Back Cover"
+    spread.layoutType === "text_art" ||
+    spread.layoutType === "hero" ||
+    spread.layoutType === "quiet"
   );
 }
 

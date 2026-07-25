@@ -72,7 +72,9 @@
       "growth": "成长",
       "resolution": "结局",
       "bedtime": "晚安"
-    }
+    },
+    "feature5Title": "语音朗读",
+    "feature5Desc": "点击播放，故事自动朗读——每个单词在被读出时高亮显示。在任何设备上都是完美的睡前伴侣。"
   },
   "dashboard": {
     "statProfiles": "儿童档案",

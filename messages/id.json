@@ -72,7 +72,9 @@
       "growth": "Pertumbuhan",
       "resolution": "Resolusi",
       "bedtime": "Waktu tidur"
-    }
+    },
+    "feature5Title": "Narasi suara",
+    "feature5Desc": "Ketuk putar dan cerita dibacakan sendiri — setiap kata menyala saat diucapkan. Sempurna untuk waktu tidur di perangkat apa pun."
   },
   "dashboard": {
     "statProfiles": "Profil anak",

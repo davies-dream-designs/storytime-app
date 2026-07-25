@@ -72,7 +72,9 @@
       "growth": "成長",
       "resolution": "解像度",
       "bedtime": "就寝時間"
-    }
+    },
+    "feature5Title": "音声ナレーション",
+    "feature5Desc": "再生をタップすると物語が自動で読み上げられ、話された言葉が一つひとつ光ります。どのデバイスでも就寝時にぴったりです。"
   },
   "dashboard": {
     "statProfiles": "子供のプロフィール",

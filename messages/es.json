@@ -72,7 +72,9 @@
       "growth": "Crecimiento",
       "resolution": "Resolución",
       "bedtime": "Buenas noches"
-    }
+    },
+    "feature5Title": "Narración de voz",
+    "feature5Desc": "Toca reproducir y el cuento se lee solo en voz alta — cada palabra se ilumina al pronunciarse. Perfecto para la hora de dormir en cualquier dispositivo."
   },
   "dashboard": {
     "statProfiles": "Perfiles de niños",

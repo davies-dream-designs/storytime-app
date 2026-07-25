@@ -72,7 +72,9 @@
       "growth": "Büyüme",
       "resolution": "Çözünürlük",
       "bedtime": "Yatma zamanı"
-    }
+    },
+    "feature5Title": "Sesli anlatım",
+    "feature5Desc": "Oynat'a dokun ve hikaye kendini yüksek sesle okusun — her kelime söylenirken parlar. Her cihazda uyku vakti için mükemmel."
   },
   "dashboard": {
     "statProfiles": "Çocuk profilleri",

@@ -72,7 +72,9 @@
       "growth": "Groei",
       "resolution": "Resolutie",
       "bedtime": "Slaaptijd!"
-    }
+    },
+    "feature5Title": "Stemvertelling",
+    "feature5Desc": "Tik op afspelen en het verhaal leest zichzelf voor — elk woord licht op als het uitgesproken wordt. Perfect voor het slapengaan op elk apparaat."
   },
   "dashboard": {
     "statProfiles": "Kinderprofielen",

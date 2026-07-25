@@ -72,7 +72,9 @@
       "growth": "Croissance",
       "resolution": "Résolution",
       "bedtime": "Bonne nuit"
-    }
+    },
+    "feature5Title": "Narration vocale",
+    "feature5Desc": "Appuyez sur lecture et l'histoire se lit à voix haute — chaque mot s'illumine au fur et à mesure qu'il est prononcé. Parfait pour l'heure du coucher sur n'importe quel appareil."
   },
   "dashboard": {
     "statProfiles": "Profils enfants",

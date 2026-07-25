@@ -763,6 +763,8 @@ export async function regenerateBookSpreadPageImage(input: {
     ...spread,
     leftPageImageUrl:
       input.side === "left" ? generated.url : spread.leftPageImageUrl,
+    leftPageWebImageUrl:
+      input.side === "left" ? (generated.webUrl ?? undefined) : spread.leftPageWebImageUrl,
     rightPageImageUrl:
       input.side === "right" ? generated.url : spread.rightPageImageUrl,
     leftPageImageError:
@@ -771,7 +773,7 @@ export async function regenerateBookSpreadPageImage(input: {
       input.side === "right" ? undefined : spread.rightPageImageError,
     thumbnailUrl:
       input.side === "left"
-        ? generated.url
+        ? (generated.webUrl ?? generated.url)
         : (spread.thumbnailUrl ?? spread.leftPageImageUrl ?? generated.url),
   };
 

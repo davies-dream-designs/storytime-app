@@ -205,10 +205,9 @@ export async function sendPrintOrderConfirmedEmail(input: {
               <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
                 <tr>
                   <td style="background:#fdf6ee;border-radius:14px;padding:18px 20px;">
-                    <p style="margin:0 0 4px;font-size:13px;font-weight:800;color:#1e1344;">What to expect</p>
+                    <p style="margin:0 0 4px;font-size:13px;font-weight:800;color:#1e1344;">What happens next</p>
                     <p style="margin:0;font-size:14px;color:#5b4e8a;line-height:1.7;">
-                      Production: 3–5 business days<br />
-                      Delivery to Australia: 5–7 business days
+                      Your book will be printed and shipped to you. We&rsquo;ll email you when it&rsquo;s on its way.
                     </p>
                   </td>
                 </tr>
@@ -250,7 +249,7 @@ export async function sendPrintOrderConfirmedEmail(input: {
 </body>
 </html>`;
 
-  const text = `Hi ${toName}, your ${productLabel} of "${storyTitle}" is confirmed (${safeAmount}).\n\nProduction: 3–5 business days. Delivery to Australia: 5–7 business days.\n\nTrack your order anytime at: ${trackUrl}\n\n— The Storycot Team`;
+  const text = `Hi ${toName}, your ${productLabel} of "${storyTitle}" is confirmed (${safeAmount}).\n\nYour book will be printed and shipped to you. We'll email you when it's on its way.\n\nTrack your order anytime at: ${trackUrl}\n\n— The Storycot Team`;
 
   await client.emails.send({
     from: "Storycot <noreply@storycot.com>",
@@ -321,7 +320,7 @@ export async function sendShippedEmail(input: {
               <h1 style="margin:0 0 16px;font-size:30px;font-weight:800;color:#1e1344;line-height:1.18;">${safeTitle}</h1>
 
               <p style="margin:0 0 24px;font-size:16px;color:#5b4e8a;line-height:1.65;">
-                Hi ${safeName}, your <strong>${safeProduct}</strong> has left the printer and is heading your way. It should arrive within the next 5–7 business days.
+                Hi ${safeName}, your <strong>${safeProduct}</strong> has left the printer and is heading your way.
               </p>
 
               ${safeTrackingUrl ? `
@@ -373,7 +372,7 @@ export async function sendShippedEmail(input: {
 </html>`;
 
   const trackingLine = trackingUrl ? `\nTrack your parcel: ${trackingUrl}` : "";
-  const text = `Hi ${toName}, your ${productLabel} of "${storyTitle}" is on its way! It should arrive within 5–7 business days.${trackingLine}\n\nView your order status: ${trackUrl}\n\n— The Storycot Team`;
+  const text = `Hi ${toName}, your ${productLabel} of "${storyTitle}" is on its way!${trackingLine}\n\nView your order status: ${trackUrl}\n\n— The Storycot Team`;
 
   await client.emails.send({
     from: "Storycot <noreply@storycot.com>",

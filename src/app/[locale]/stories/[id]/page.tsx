@@ -330,12 +330,7 @@ export default async function StoryPage({
                     <p className="leading-7 text-night-600">
                       Your book is in production. Check back here for shipping updates.
                     </p>
-                    <div className="rounded-2xl bg-white/70 px-4 py-3 text-sm text-night-600">
-                      <p className="font-semibold text-night-800">Estimated timeline</p>
-                      <p className="mt-1">Production: 3–5 business days</p>
-                      <p>Delivery: 5–7 business days after dispatch</p>
-                    </div>
-                    {f.externalOrderId ? (
+                      {f.externalOrderId ? (
                       <p className="text-xs text-night-400">
                         Printer ref: {f.externalOrderId}
                       </p>
@@ -366,11 +361,6 @@ export default async function StoryPage({
                     Payment received — your book is being prepared for print.
                     Check back here to follow your order status.
                   </p>
-                  <div className="rounded-2xl bg-white/70 px-4 py-3 text-sm text-night-600">
-                    <p className="font-semibold text-night-800">Estimated timeline</p>
-                    <p className="mt-1">Production: 3–5 business days</p>
-                    <p>Delivery: 5–7 business days after dispatch</p>
-                  </div>
                   {isAdmin ? (
                     <PrintFulfillmentResendButton
                       bookId={existingBook.id}

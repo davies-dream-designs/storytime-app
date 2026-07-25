@@ -23,12 +23,18 @@ function isPlaceholder(url?: string): boolean {
 }
 
 function getReaderSpreads(project: BookProject): ReaderSpread[] {
+  const seen = new Set<string>();
   const story: ReaderSpread[] = project.spreads
     .filter(
-      (s: BookSpread) =>
-        s.layoutType === "text_art" ||
-        s.layoutType === "hero" ||
-        s.layoutType === "quiet"
+      (s: BookSpread) => {
+        if (seen.has(s.id)) return false;
+        seen.add(s.id);
+        return (
+          s.layoutType === "text_art" ||
+          s.layoutType === "hero" ||
+          s.layoutType === "quiet"
+        );
+      }
     )
     .sort((a, b) => a.sequence - b.sequence)
     .map((s) => ({

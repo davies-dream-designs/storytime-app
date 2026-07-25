@@ -33,6 +33,15 @@ export function shouldUseImageBatch(): boolean {
   return false;
 }
 
+// How many spreads to illustrate concurrently per cursor step.
+// Default 3 — safe for Tier 2+ (10 RPM). Raise via ILLUSTRATION_CONCURRENCY:
+//   Tier 3 (50 RPM):  5
+//   Tier 4 (100 RPM): 10+
+export function getIllustrationConcurrency(): number {
+  const val = parseInt(process.env.ILLUSTRATION_CONCURRENCY ?? "3", 10);
+  return isNaN(val) || val < 1 ? 3 : Math.min(val, 20);
+}
+
 // ---------------------------------------------------------------------------
 // Upscaling
 // ---------------------------------------------------------------------------

@@ -11,10 +11,34 @@ Pull Jake's memory vault before starting any work:
 ```bash
 git -C /home/openhands/jake-vault pull origin vault 2>/dev/null || \
   git clone "https://${GITHUB_TOKEN}@github.com/davies-dream-designs/claude-memory.git" \
-  --branch vault /home/openhands/jake-vault
+  --branch vault /home/openhands/jake-vault && \
+  cd /home/openhands/jake-vault && \
+  git config user.email "hello@daviesdreamdesigns.com" && \
+  git config user.name "Jake Davies"
 ```
 
-Read `/home/openhands/jake-vault/MEMORY.md` for project context and preferences. See `/home/openhands/AGENTS.md` for full global rules.
+Then read in order:
+1. `/home/openhands/jake-vault/MEMORY.md` — full index
+2. `/home/openhands/jake-vault/Inbox.md` — tasks + any WIP handoff from previous session
+3. `/home/openhands/jake-vault/projects/storytime-app.md` — project context
+
+**Inbox rules:**
+- **WIP section** — mid-task handoff from a previous agent. Pick it up and continue.
+- **Requested this session** — tasks Jake mentioned in chat. Add any new ones Jake mentions. Clear when shipped.
+- **Jake's notes** — instructions from Jake. Act and clear.
+
+**At end of session:**
+- Write `Daily Notes/YYYY-MM-DD.md` with what was shipped (bullets only)
+- Update `projects/storytime-app.md` if state changed
+- Clear completed items from Inbox
+- Push vault: `cd /home/openhands/jake-vault && git add -A && git commit -m "memory: <desc>" && git push origin vault`
+
+**Context running low / switching models:**
+- Write current WIP to Inbox under "WIP — pick up here next session"
+- Update project note + write daily note + push
+- Tell Jake it's safe to start a new session
+
+See `/home/openhands/AGENTS.md` for full global rules.
 
 ---
 

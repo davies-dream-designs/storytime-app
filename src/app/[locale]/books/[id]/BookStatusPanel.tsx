@@ -96,13 +96,17 @@ function isTerminal(status: BookProject["status"]): boolean {
 }
 
 function getSpreadPreviews(project: BookProject): SpreadPreview[] {
+  const seen = new Set<string>();
   return project.spreads
-    .filter(
-      (s) =>
+    .filter((s) => {
+      if (seen.has(s.id)) return false;
+      seen.add(s.id);
+      return (
         s.layoutType === "text_art" ||
         s.layoutType === "hero" ||
         s.layoutType === "quiet"
-    )
+      );
+    })
     .map((s) => ({
       id: s.id,
       sequence: s.sequence,

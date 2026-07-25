@@ -253,6 +253,16 @@ export default function Nav() {
               </span>
             ) : null}
           </Link>
+          {creditInfo?.isAdmin ? (
+            <Link
+              href="/admin"
+              aria-current={isActive("/admin") ? "page" : undefined}
+              onClick={() => setOpen(false)}
+              className={mobileLinkClass("/admin")}
+            >
+              Admin
+            </Link>
+          ) : null}
           <Link
             href="/stories/new"
             onClick={() => setOpen(false)}

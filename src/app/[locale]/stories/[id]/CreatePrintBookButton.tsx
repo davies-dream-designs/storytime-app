@@ -65,9 +65,12 @@ export default function CreatePrintBookButton({
 
       const project = (await createRes.json()) as { id: string };
 
-      // Kick off the build immediately. Errors here are non-fatal — the user
-      // lands on the book page where they can retry from the status panel.
-      await fetch(`/api/books/${project.id}/build`, { method: "POST" }).catch(() => null);
+      // Kick off the build. If it fails surface the error so we can diagnose.
+      const buildRes = await fetch(`/api/books/${project.id}/build`, { method: "POST" });
+      if (!buildRes.ok) {
+        const buildData = (await buildRes.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(buildData?.error ?? `Build failed (${buildRes.status})`);
+      }
 
       router.push(`/books/${project.id}`);
     } catch (err) {

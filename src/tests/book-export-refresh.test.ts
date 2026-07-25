@@ -1,30 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BookBuildJob, BookProject } from "@/types/printBook";
+import { createMemoryDb } from "@/tests/helpers/memoryDb";
 
-const { store, mockGenerateBookEpub, mockGenerateBookPdfs } = vi.hoisted(
-  () => ({
-    store: new Map<string, unknown>(),
-    mockGenerateBookEpub: vi.fn(),
-    mockGenerateBookPdfs: vi.fn(),
-  })
-);
+// vi.mock factories run lazily (on first import), so module-level vars are fine
+const memoryDb = createMemoryDb();
+const mockGenerateBookEpub = vi.fn();
+const mockGenerateBookPdfs = vi.fn();
 
-vi.mock("@vercel/kv", () => ({
-  kv: {
-    get: vi.fn(async (key: string) => store.get(key) ?? null),
-    set: vi.fn(async (key: string, value: unknown) => {
-      store.set(key, value);
-    }),
-    setnx: vi.fn(async (key: string, value: unknown) => {
-      if (store.has(key)) return 0;
-      store.set(key, value);
-      return 1;
-    }),
-    del: vi.fn(async (key: string) => {
-      store.delete(key);
-    }),
-  },
-}));
+vi.mock("@/lib/db", () => ({ db: memoryDb }));
 
 vi.mock("@/lib/print-books/pdf", () => ({
   generateBookPdfs: mockGenerateBookPdfs,
@@ -107,8 +90,7 @@ function createExportJob(): BookBuildJob {
 
 describe("book export refresh jobs", () => {
   beforeEach(() => {
-    vi.resetModules();
-    store.clear();
+    memoryDb._reset();
     mockGenerateBookEpub.mockReset();
     mockGenerateBookPdfs.mockReset();
     mockGenerateBookPdfs.mockResolvedValue({

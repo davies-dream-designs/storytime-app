@@ -966,7 +966,7 @@ export default function BookStatusPanel({
               <p className="mt-2 text-xs font-medium uppercase tracking-wide text-star-700">
                 {t("safeToLeave")}
               </p>
-              {!startingBuild && project.status !== "queued" ? (
+              {!startingBuild ? (
                 <button
                   type="button"
                   onClick={handleRetry}

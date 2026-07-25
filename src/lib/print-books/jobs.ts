@@ -406,8 +406,24 @@ async function regenerateProjectArt(input: {
     )
   );
 
+  // Auto-retry any failed spreads once before moving on — heals transient
+  // 429s and network blips without locking the build in image_failed state.
+  const finalResults = await Promise.all(
+    windowResults.map((result, i) => {
+      if (!result || !result.spread.leftPageImageError) return Promise.resolve(result);
+      const s = spreadWindow[i]!;
+      return generateSpreadIllustration({
+        project: input.project,
+        story: input.story,
+        profile: input.profile,
+        characterBible: input.characterBible,
+        spread: s,
+      });
+    })
+  );
+
   let illustratedSpreads = input.project.spreads;
-  for (const result of windowResults) {
+  for (const result of finalResults) {
     if (result) {
       illustratedSpreads = applySpreadIllustration(
         illustratedSpreads,

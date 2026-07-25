@@ -1048,7 +1048,9 @@ export async function enqueueBookBuildJob(input: {
 }
 
 export async function processBookBuildJob(jobId: string) {
+  const dbHost = (process.env.storycot_DATABASE_URL ?? process.env.DATABASE_URL ?? '').split('@').pop()?.split('/')[0] ?? 'unknown';
   const job = await db.bookBuildJobs.getById(jobId);
+  console.log(`[processBookBuildJob] jobId=${jobId} found=${!!job} db=${dbHost}`);
   if (!job) {
     throw new Error("Job not found");
   }

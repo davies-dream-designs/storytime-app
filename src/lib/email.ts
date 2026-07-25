@@ -139,3 +139,124 @@ export async function sendBookReadyEmail(input: {
     text,
   });
 }
+
+export async function sendPrintOrderConfirmedEmail(input: {
+  toEmail: string;
+  toName: string;
+  storyTitle: string;
+  productLabel: string;
+  amountAud: number;
+  trackUrl: string;
+  appUrl: string;
+}): Promise<void> {
+  const client = getClient();
+  if (!client) return;
+
+  const { toEmail, toName, storyTitle, productLabel, amountAud, trackUrl, appUrl } = input;
+  const logoUrl = joinUrl(getOriginUrl(getEmailAssetOrigin()), "/nav-icon-light.png");
+  const safeName = escapeHtml(toName);
+  const safeTitle = escapeHtml(storyTitle);
+  const safeProduct = escapeHtml(productLabel);
+  const safeTrackUrl = escapeHtml(trackUrl);
+  const safeAppUrl = escapeHtml(appUrl);
+  const safeLogoUrl = escapeHtml(logoUrl);
+  const safeAmount = amountAud.toLocaleString("en-AU", { style: "currency", currency: "AUD" });
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+<body style="margin:0;padding:0;background:#fdf6ee;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#fdf6ee;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
+
+          <!-- Header -->
+          <tr>
+            <td align="center" style="padding-bottom:24px;">
+              <table cellpadding="0" cellspacing="0" role="presentation">
+                <tr>
+                  <td style="padding-right:10px;">
+                    <img src="${safeLogoUrl}" width="36" height="36" alt="" style="display:block;border-radius:10px;" />
+                  </td>
+                  <td style="font-size:30px;font-weight:800;color:#2d2058;letter-spacing:-0.4px;">
+                    Storycot
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Card -->
+          <tr>
+            <td style="background:#ffffff;border:1px solid #ede9fe;border-radius:18px;padding:40px 36px;box-shadow:0 14px 34px rgba(45,32,88,0.08);">
+
+              <p style="margin:0 0 8px;font-size:13px;font-weight:800;letter-spacing:0.08em;color:#7c3aed;text-transform:uppercase;">Order confirmed</p>
+              <h1 style="margin:0 0 16px;font-size:30px;font-weight:800;color:#1e1344;line-height:1.18;">${safeTitle}</h1>
+
+              <p style="margin:0 0 24px;font-size:16px;color:#5b4e8a;line-height:1.65;">
+                Hi ${safeName}, your <strong>${safeProduct}</strong> of <em>${safeTitle}</em> has been confirmed (${safeAmount}). We&rsquo;ll get it printed and on its way to you.
+              </p>
+
+              <!-- Timeline -->
+              <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
+                <tr>
+                  <td style="background:#fdf6ee;border-radius:14px;padding:18px 20px;">
+                    <p style="margin:0 0 4px;font-size:13px;font-weight:800;color:#1e1344;">What to expect</p>
+                    <p style="margin:0;font-size:14px;color:#5b4e8a;line-height:1.7;">
+                      Production: 3–5 business days<br />
+                      Delivery to Australia: 5–7 business days
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA -->
+              <table cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                  <td align="center">
+                    <a href="${safeTrackUrl}"
+                       style="display:inline-block;background:#2d2058;color:#fef9c3;text-decoration:none;font-size:15px;font-weight:800;padding:15px 36px;border-radius:100px;">
+                      Track my order
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:20px 0 0;font-size:13px;color:#7c6dc8;text-align:center;line-height:1.5;">
+                Your order status is updated here as it moves through production.<br />No need to wait for emails — just check back anytime.
+              </p>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding-top:24px;">
+              <p style="margin:0;font-size:12px;color:#7c6dc8;">
+                You're receiving this because you placed an order on
+                <a href="${safeAppUrl}" style="color:#7c3aed;">storycot.com</a>.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const text = `Hi ${toName}, your ${productLabel} of "${storyTitle}" is confirmed (${safeAmount}).\n\nProduction: 3–5 business days. Delivery to Australia: 5–7 business days.\n\nTrack your order anytime at: ${trackUrl}\n\n— The Storycot Team`;
+
+  await client.emails.send({
+    from: "Storycot <noreply@storycot.com>",
+    to: toEmail,
+    subject: `Order confirmed — ${storyTitle} hardcover`,
+    html,
+    text,
+  });
+}

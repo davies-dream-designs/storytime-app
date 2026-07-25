@@ -12,6 +12,7 @@ import {
   getSessionCountry,
   retrieveSessionWhenShippingIsMissing,
 } from "@/lib/stripe/checkoutShipping";
+import { sendPrintOrderConfirmedEmail } from "@/lib/email";
 import type { PrintBookOrder } from "@/types/printBook";
 
 export async function POST(req: NextRequest) {
@@ -153,6 +154,21 @@ export async function POST(req: NextRequest) {
                 : { digitalDownloadUnlockedAt: new Date().toISOString() }),
             },
           });
+
+          // Fire-and-forget — email failure must never break the webhook response.
+          const customerEmail = printOrder.shipping?.email;
+          if (customerEmail) {
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://storycot.com";
+            void sendPrintOrderConfirmedEmail({
+              toEmail: customerEmail,
+              toName: printOrder.shipping?.name ?? "there",
+              storyTitle: (await db.stories.getById(project.sourceStoryId))?.title ?? "Your story",
+              productLabel: quote.label,
+              amountAud: quote.priceAud,
+              trackUrl: `${appUrl}/stories/${project.sourceStoryId}`,
+              appUrl,
+            }).catch((err) => console.error("Print order confirmation email failed (non-fatal)", err));
+          }
         }
       }
     } else if (userId && purchased > 0) {

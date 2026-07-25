@@ -72,7 +72,9 @@
       "growth": "Crescimento",
       "resolution": "Resolução",
       "bedtime": "Hora de dormir"
-    }
+    },
+    "feature5Title": "Narração de voz",
+    "feature5Desc": "Toque em reproduzir e a história se lê em voz alta — cada palavra se ilumina ao ser pronunciada. Perfeito para a hora de dormir em qualquer dispositivo."
   },
   "dashboard": {
     "statProfiles": "Perfis infantis",

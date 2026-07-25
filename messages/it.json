@@ -72,7 +72,9 @@
       "growth": "Crescita",
       "resolution": "Risoluzione",
       "bedtime": "Buonanotte"
-    }
+    },
+    "feature5Title": "Narrazione vocale",
+    "feature5Desc": "Tocca play e la storia si legge da sola ad alta voce — ogni parola si illumina mentre viene pronunciata. Perfetto per andare a letto su qualsiasi dispositivo."
   },
   "dashboard": {
     "statProfiles": "Profili bambini",

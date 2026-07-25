@@ -21,20 +21,22 @@ export function hasDownloadableBookExport(
   );
 }
 
+// A spread that gets a custom generated illustration. This MUST match the
+// illustration loop (isBookStoryIllustrationSpread) — front/end matter pages
+// (e.g. the "The End" closing page) are never illustrated, so they must not be
+// required to have an image, or the book can never reach "ready".
 export function isGeneratedBookPageSpread(
-  spread: Pick<BookSpread, "sequence" | "title">
+  spread: Pick<BookSpread, "layoutType">
 ) {
   return (
-    spread.sequence > 1 &&
-    spread.title !== "Title" &&
-    spread.title !== "Back Cover"
+    spread.layoutType === "text_art" ||
+    spread.layoutType === "hero" ||
+    spread.layoutType === "quiet"
   );
 }
 
 export function hasUnresolvedGeneratedBookPageImages(
-  spreads: Array<
-    Pick<BookSpread, "sequence" | "title" | "imageUrl" | "leftPageImageUrl">
-  >
+  spreads: Array<Pick<BookSpread, "layoutType" | "imageUrl" | "leftPageImageUrl">>
 ) {
   return spreads.some(
     (spread) =>
@@ -44,7 +46,7 @@ export function hasUnresolvedGeneratedBookPageImages(
 }
 
 function hasGeneratedBookPageSpreads(
-  spreads: Array<Pick<BookSpread, "sequence" | "title">>
+  spreads: Array<Pick<BookSpread, "layoutType">>
 ) {
   return spreads.some((spread) => isGeneratedBookPageSpread(spread));
 }

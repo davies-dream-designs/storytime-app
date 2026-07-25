@@ -127,4 +127,29 @@ describe("getBookReadinessState", () => {
     expect(getEffectiveBookProjectStatus(project)).toBe("failed");
     expect(getBookReadinessState(project)).toBe("failed");
   });
+
+  it("does not treat an un-illustrated end-matter page as a missing image", () => {
+    const base = createProject();
+    const project = createProject({
+      status: "failed",
+      errorCode: "illustrating:image_failed",
+      spreads: [
+        // All custom illustration spreads are done...
+        ...base.spreads,
+        // ...but "The End" (end_matter) never gets a custom image. It must not
+        // block the book from being considered ready.
+        {
+          ...base.spreads[0]!,
+          id: "spread-end",
+          sequence: 15,
+          layoutType: "end_matter",
+          title: "The End",
+          leftPageImageUrl: undefined,
+        },
+      ],
+    });
+
+    expect(getEffectiveBookProjectStatus(project)).toBe("ready");
+    expect(getBookReadinessState(project)).toBe("export_ready");
+  });
 });

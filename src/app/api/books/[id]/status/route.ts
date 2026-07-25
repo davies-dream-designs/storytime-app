@@ -1,10 +1,6 @@
-import { after, NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import {
-  dispatchBookBuildJob,
-  isBookBuildJobStale,
-} from "@/lib/print-books/jobs";
 
 export async function GET(
   _req: NextRequest,
@@ -15,24 +11,9 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  let project = await db.bookProjects.getById(id);
+  const project = await db.bookProjects.getById(id);
   if (!project || project.userId !== userId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  const activeJob = project.assets.activeJobId
-    ? await db.bookBuildJobs.getById(project.assets.activeJobId)
-    : await db.bookBuildJobs.getCurrentByProjectId(project.id);
-
-  if (activeJob && activeJob.projectId === project.id) {
-    if (activeJob.status === "queued") {
-      await dispatchBookBuildJob(activeJob);
-      project = (await db.bookProjects.getById(id)) ?? project;
-    } else if (isBookBuildJobStale(activeJob)) {
-      after(async () => {
-        await dispatchBookBuildJob(activeJob);
-      });
-    }
   }
 
   return NextResponse.json({

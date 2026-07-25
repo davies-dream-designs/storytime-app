@@ -72,7 +72,9 @@
       "growth": "Wzrost",
       "resolution": "Rozdzielczość",
       "bedtime": "Pora snu"
-    }
+    },
+    "feature5Title": "Narracja głosowa",
+    "feature5Desc": "Naciśnij odtwarzanie, a historia przeczyta się sama na głos — każde słowo podświetla się podczas wymowy. Idealne na dobranoc na każdym urządzeniu."
   },
   "dashboard": {
     "statProfiles": "Profile dzieci",

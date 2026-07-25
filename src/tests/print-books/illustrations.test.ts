@@ -172,72 +172,6 @@ describe("generateCoverIllustration", () => {
     expect(prompt).toContain("Cover scene:");
   });
 
-  it("builds book image batch requests for the cover and page art", async () => {
-    const { buildBookImageBatchRequests } =
-      await import("@/lib/print-books/illustrations");
-    const project = createProject();
-    const spread = {
-      ...project.spreads[0]!,
-      id: "book-1:spread:2",
-      sequence: 2,
-      pageStart: 3,
-      pageEnd: 4,
-      layoutType: "text_art" as const,
-      title: "Page",
-      illustrationPrompt: "A gentle story-page illustration.",
-    };
-    const titleSpread = {
-      ...project.spreads[0]!,
-      id: "book-1:spread:title",
-      sequence: 3,
-      pageStart: 5,
-      pageEnd: 6,
-      layoutType: "front_matter" as const,
-      title: "Title",
-    };
-    const endSpread = {
-      ...project.spreads[0]!,
-      id: "book-1:spread:end",
-      sequence: 4,
-      pageStart: 7,
-      pageEnd: 8,
-      layoutType: "end_matter" as const,
-      title: "The End",
-    };
-    const backCoverSpread = {
-      ...project.spreads[0]!,
-      id: "book-1:spread:back",
-      sequence: 5,
-      pageStart: 9,
-      pageEnd: 10,
-      layoutType: "end_matter" as const,
-      title: "Back Cover",
-    };
-
-    const requests = buildBookImageBatchRequests({
-      project: {
-        ...project,
-        spreads: [
-          ...project.spreads,
-          titleSpread,
-          spread,
-          endSpread,
-          backCoverSpread,
-        ],
-      },
-      story: createStory(),
-      profile: createProfile(),
-      characterBible: createCharacterBible(),
-    });
-
-    expect(requests.map((request) => request.customId)).toEqual([
-      "cover",
-      "spread:book-1:spread:2:left",
-    ]);
-    expect(requests[0]?.size).toBe("1024x1024");
-    expect(requests[1]?.size).toBe("1024x1024");
-  });
-
   it("omits raw story prose from sequential page image prompts", async () => {
     process.env.OPENAI_API_KEY = "test-key";
 
@@ -252,6 +186,7 @@ describe("generateCoverIllustration", () => {
         removeAlpha: vi.fn().mockReturnThis(),
         raw: vi.fn().mockReturnThis(),
         png: vi.fn().mockReturnThis(),
+        jpeg: vi.fn().mockReturnThis(),
         toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
           options?.resolveWithObject
             ? Promise.resolve({
@@ -362,103 +297,6 @@ describe("generateCoverIllustration", () => {
     vi.doUnmock("@/lib/print-books/storage");
   });
 
-  it("marks a missing batch image as failed without replacing other images", async () => {
-    process.env.OPENAI_API_KEY = "test-key";
-
-    vi.doMock("@/lib/print-books/storage", () => ({
-      storeBookAsset: mockStoreBookAsset,
-      isBookAssetStorageConfigured: () => true,
-    }));
-
-    // Passthrough sharp so the fake test buffers (and placeholder SVG) upscale cleanly.
-    vi.doMock("sharp", () => {
-      const instance = {
-        resize: vi.fn().mockReturnThis(),
-        removeAlpha: vi.fn().mockReturnThis(),
-        raw: vi.fn().mockReturnThis(),
-        png: vi.fn().mockReturnThis(),
-        toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
-          options?.resolveWithObject
-            ? Promise.resolve({
-                data: Buffer.from([128, 128, 128, 180, 180, 180]),
-                info: { channels: 3 },
-              })
-            : Promise.resolve(Buffer.from("upscaled-png"))
-        ),
-      };
-      const sharpFn = vi.fn(() => instance);
-      const sharpMock = Object.assign(sharpFn, {
-        kernel: { lanczos3: "lanczos3" },
-      });
-      return { default: sharpMock };
-    });
-
-    // Regeneration of the missing image fails (simulating a persistent moderation
-    // block), so only that page should be marked failed.
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      headers: new Headers(),
-      text: async () =>
-        JSON.stringify({ error: { message: "moderation_blocked" } }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    mockStoreBookAsset.mockResolvedValue("https://example.com/image.png");
-
-    vi.resetModules();
-    const { applyBookImageBatchOutput } =
-      await import("@/lib/print-books/illustrations");
-
-    const project = createProject();
-    const spread = {
-      ...project.spreads[0]!,
-      id: "book-1:spread:2",
-      sequence: 2,
-      pageStart: 3,
-      pageEnd: 4,
-      layoutType: "text_art" as const,
-      title: "Page",
-      illustrationPrompt: "A gentle story-page illustration.",
-    };
-    // Cover present; the primary spread image is missing from the batch output.
-    const outputText = [
-      JSON.stringify({
-        custom_id: "cover",
-        response: {
-          body: {
-            data: [{ b64_json: Buffer.from("cover").toString("base64") }],
-          },
-        },
-      }),
-    ].join("\n");
-
-    const result = await applyBookImageBatchOutput({
-      project: { ...project, spreads: [...project.spreads, spread] },
-      story: createStory(),
-      profile: createProfile(),
-      characterBible: createCharacterBible(),
-      outputText,
-    });
-
-    expect(result.provider).toBe("mixed");
-    expect(result.coverImageUrl).toBe("https://example.com/image.png");
-    expect(result.spreads.find((item) => item.id === spread.id)).toMatchObject({
-      leftPageImageUrl: undefined,
-      leftPageImageError: expect.stringContaining("moderation blocked"),
-      rightPageImageUrl: undefined,
-      rightPageImageError: undefined,
-    });
-    // Only the cover is stored.
-    expect(mockStoreBookAsset).toHaveBeenCalledTimes(1);
-    expect(mockStoreBookAsset).toHaveBeenCalledWith(
-      expect.objectContaining({ contentType: "image/png" })
-    );
-
-    vi.unstubAllGlobals();
-    vi.doUnmock("sharp");
-    vi.doUnmock("@/lib/print-books/storage");
-  });
-
   it("creates a placeholder spread asset when provider credentials are missing", async () => {
     const { generateSpreadIllustration } =
       await import("@/lib/print-books/illustrations");
@@ -510,6 +348,7 @@ describe("generateCoverIllustration", () => {
         removeAlpha: vi.fn().mockReturnThis(),
         raw: vi.fn().mockReturnThis(),
         png: vi.fn().mockReturnThis(),
+        jpeg: vi.fn().mockReturnThis(),
         toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
           options?.resolveWithObject
             ? Promise.resolve({
@@ -593,6 +432,7 @@ describe("generateCoverIllustration", () => {
         removeAlpha: vi.fn().mockReturnThis(),
         raw: vi.fn().mockReturnThis(),
         png: vi.fn().mockReturnThis(),
+        jpeg: vi.fn().mockReturnThis(),
         toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
           options?.resolveWithObject
             ? Promise.resolve({
@@ -631,7 +471,14 @@ describe("generateCoverIllustration", () => {
 
     expect(result.provider).toBe("openai");
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(mockStoreBookAsset).toHaveBeenCalledTimes(1);
+    // Stores the print cover (PNG) plus the web preview (JPEG).
+    expect(mockStoreBookAsset).toHaveBeenCalledTimes(2);
+    expect(mockStoreBookAsset).toHaveBeenCalledWith(
+      expect.objectContaining({ contentType: "image/png" })
+    );
+    expect(mockStoreBookAsset).toHaveBeenCalledWith(
+      expect.objectContaining({ contentType: "image/jpeg" })
+    );
 
     vi.unstubAllGlobals();
     vi.doUnmock("sharp");

@@ -517,8 +517,13 @@ export default function BookStatusPanel({
     setReaderIndex(lastIdx);
   }, [completedArtworkCount, isActiveBuild, artworkPreviews]);
 
+  // Only warn about mixed art when there are actual placeholder images that
+  // need repair. A successful individual redo also sets artMode="mixed" but
+  // doesn't leave any placeholders, so we must not false-positive in that case.
   const hasMixedArt =
-    displayStatus === "ready" && project.assets.artMode === "mixed";
+    displayStatus === "ready" &&
+    project.assets.artMode === "mixed" &&
+    getRepairImageTargets(spreadPreviews).length > 0;
   const hasImageGenerationFailure =
     project.errorCode === "illustrating:image_failed" &&
     failedImageTargets.length > 0;
@@ -701,7 +706,7 @@ export default function BookStatusPanel({
                     type="button"
                     onClick={submitRedoPrompt}
                     disabled={Boolean(regeneratingImage)}
-                    className="rounded-full bg-night-800 px-5 py-3 text-sm font-bold text-cream-50 disabled:opacity-50"
+                    className="rounded-full bg-night-800 px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
                   >
                     Redo image
                   </button>
@@ -932,7 +937,7 @@ export default function BookStatusPanel({
                     type="button"
                     onClick={submitRedoPrompt}
                     disabled={Boolean(regeneratingImage)}
-                    className="rounded-full bg-night-800 px-5 py-3 text-sm font-bold text-cream-50 disabled:opacity-50"
+                    className="rounded-full bg-night-800 px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
                   >
                     Redo image
                   </button>
@@ -950,7 +955,7 @@ export default function BookStatusPanel({
               className="mt-0.5 h-5 w-5 animate-spin rounded-full border-2 border-star-200 border-t-star-600"
               aria-hidden="true"
             />
-            <div>
+            <div className="flex-1">
               <p className="font-bold text-star-800">
                 {startingBuild && project.status === "queued"
                   ? t("startingTitle")
@@ -966,6 +971,16 @@ export default function BookStatusPanel({
               <p className="mt-2 text-xs font-medium uppercase tracking-wide text-star-700">
                 {t("safeToLeave")}
               </p>
+              {!startingBuild ? (
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  disabled={retrying}
+                  className="mt-3 text-xs font-bold text-star-700 underline underline-offset-2 hover:text-star-900 disabled:opacity-50"
+                >
+                  {retrying ? "Retrying…" : "Stuck? Retry build"}
+                </button>
+              ) : null}
             </div>
           </div>
         </div>

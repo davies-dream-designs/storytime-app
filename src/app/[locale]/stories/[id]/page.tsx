@@ -394,12 +394,12 @@ export default async function StoryPage({
           <StoryReader story={story} />
         )}
 
-        {/* Book build progress — when book exists but not yet ready */}
-        {existingBook && !isBookReady ? (
+        {/* Book status panel — shown during build AND when ready (for export actions + artwork redo) */}
+        {existingBook ? (
           <div className="mt-8">
             <BookStatusPanel
               initialProject={existingBook}
-              initialIsReady={false}
+              initialIsReady={isBookReady}
             />
           </div>
         ) : null}

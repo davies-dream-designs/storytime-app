@@ -1348,6 +1348,7 @@ async function buildPrintPdf(input: {
   geometry?: PdfPageGeometry;
   minPageCount?: number;
   includeCoverFrontMatter?: boolean;
+  includeCoverPage?: boolean;
   textArtInterior?: boolean;
 }): Promise<Uint8Array> {
   const geometry = input.geometry ?? STORYCOT_PDF_GEOMETRY;
@@ -1357,6 +1358,26 @@ async function buildPrintPdf(input: {
   const { serif, serifBold, sans, sansBold } =
     await loadEmbeddedPdfFonts(pdfDoc);
   const theme = pickPlaceholderTheme(input.story);
+
+  // Add the generated cover image as the first page of the digital PDF.
+  if (input.includeCoverPage) {
+    const coverSpread = input.project.spreads.find(
+      (s) => s.title === "Cover" || s.sequence === 1
+    );
+    if (coverSpread && hasPrintableArt(coverSpread, "cover")) {
+      const coverPage = pdfDoc.addPage([pageWidth, pageHeight]);
+      await drawFrontispiecePage({
+        pdfDoc,
+        page: coverPage,
+        spread: coverSpread,
+        story: input.story,
+        pageWidth,
+        pageHeight,
+        sans,
+        branded: true,
+      });
+    }
+  }
 
   for (const spread of input.project.spreads) {
     if (spread.title === "Cover") {
@@ -1799,6 +1820,7 @@ export async function generateBookPdfs(input: {
   const printBytes = await buildPrintPdf({
     ...input,
     includeCoverFrontMatter: false,
+    includeCoverPage: true,
     textArtInterior: true,
   });
   const shouldGenerateLuluPdfs = process.env.STORYCOT_PRINT_PROVIDER === "lulu";

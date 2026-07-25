@@ -33,17 +33,12 @@ export const buildBook = inngest.createFunction(
 
     for (let i = 0; i < MAX_ADVANCE_STEPS; i += 1) {
       const result = await step.run(`advance-${i}`, async () => {
-        const { job, shouldContinue, waitMs } =
-          await processBookBuildJob(jobId);
-        return { shouldContinue, status: job.status, waitMs };
+        const { job, shouldContinue } = await processBookBuildJob(jobId);
+        return { shouldContinue, status: job.status };
       });
 
       if (!result.shouldContinue) {
         return { jobId, status: result.status, steps: i + 1 };
-      }
-
-      if (result.waitMs) {
-        await step.sleep(`wait-${i}`, result.waitMs);
       }
     }
 

@@ -7,17 +7,12 @@ import { generateCharacterBible } from "@/lib/print-books/characterBible";
 import { composePrintBookSpreads } from "@/lib/print-books/composer";
 import {
   applySpreadIllustration,
-  applyBookImageBatchOutput,
-  downloadBookImageBatchOutput,
   generateCoverIllustration,
   generateSpreadPageIllustration,
   generateSpreadIllustration,
   getIllustrationConcurrency,
   isBookStoryIllustrationSpread,
   isGeneratedIllustrationConfigured,
-  retrieveBookImageBatch,
-  shouldUseImageBatch,
-  submitBookImageBatch,
 } from "@/lib/print-books/illustrations";
 import { generateBookPdfs } from "@/lib/print-books/pdf";
 import { generateBookEpub } from "@/lib/print-books/epub";
@@ -43,7 +38,6 @@ import type {
 } from "@/types/printBook";
 
 export const BOOK_JOB_STALE_MS = 20_000;
-export const BOOK_IMAGE_BATCH_POLL_WAIT_MS = 60_000;
 
 function getNowIso() {
   return new Date().toISOString();
@@ -240,86 +234,6 @@ async function regenerateProjectArt(input: {
 }) {
   const totalArtSteps = input.project.spreads.length;
   const currentCursor = input.project.assets.artGenerationCursor ?? 0;
-
-  // OpenAI uses the durable Batch API path. FLUX (and the placeholder fallback)
-  // fall through to the per-spread cursor path below, one spread per step.
-  if (shouldUseImageBatch()) {
-    const existingBatch = input.project.assets.openAIImageBatch;
-
-    if (!existingBatch) {
-      const batch = await submitBookImageBatch(input);
-      return db.bookProjects.update(input.id, {
-        status: "illustrating",
-        currentStageLabel: `Queued final art batch with ${batch.requestCount} images...`,
-        characterBible: input.characterBible,
-        completedSpreads: 0,
-        totalSpreads: totalArtSteps,
-        assets: {
-          ...input.project.assets,
-          artMode: "generated",
-          lastBuildMode: input.buildMode,
-          artGenerationCursor: 0,
-          artGenerationTotal: totalArtSteps,
-          openAIImageBatch: batch,
-        },
-      });
-    }
-
-    const batch = await retrieveBookImageBatch(existingBatch);
-
-    if (
-      batch.status === "failed" ||
-      batch.status === "expired" ||
-      batch.status === "cancelled"
-    ) {
-      throw new Error(
-        `OpenAI image batch ${batch.batchId} ended with status ${batch.status}`
-      );
-    }
-
-    if (batch.status !== "completed") {
-      return db.bookProjects.update(input.id, {
-        status: "illustrating",
-        currentStageLabel: "Waiting for final art batch...",
-        characterBible: input.characterBible,
-        completedSpreads: 0,
-        totalSpreads: totalArtSteps,
-        assets: {
-          ...input.project.assets,
-          artMode: "generated",
-          lastBuildMode: input.buildMode,
-          artGenerationCursor: 0,
-          artGenerationTotal: totalArtSteps,
-          openAIImageBatch: batch,
-        },
-      });
-    }
-
-    const outputText = await downloadBookImageBatchOutput(batch);
-    const illustrated = await applyBookImageBatchOutput({
-      ...input,
-      outputText,
-    });
-
-    return db.bookProjects.update(input.id, {
-      status: "composing",
-      currentStageLabel: getBookProjectStageLabel("composing"),
-      beats: input.project.beats,
-      characterBible: input.characterBible,
-      spreads: illustrated.spreads,
-      completedSpreads: totalArtSteps,
-      totalSpreads: totalArtSteps,
-      assets: {
-        ...input.project.assets,
-        coverImageUrl: illustrated.coverImageUrl,
-        artMode: illustrated.provider === "openai" ? "generated" : "mixed",
-        lastBuildMode: input.buildMode,
-        artGenerationCursor: undefined,
-        artGenerationTotal: totalArtSteps,
-        openAIImageBatch: batch,
-      },
-    });
-  }
 
   if (currentCursor >= totalArtSteps) {
     return db.bookProjects.update(input.id, {
@@ -914,7 +828,7 @@ export async function continueBookBuildJob(jobId: string) {
   const result = await processBookBuildJob(jobId);
 
   if (result.shouldContinue) {
-    scheduleBookBuildJobContinuation(jobId, result.waitMs);
+    scheduleBookBuildJobContinuation(jobId);
   }
 
   return result;
@@ -1029,10 +943,6 @@ export async function enqueueBookBuildJob(input: {
         input.mode === "art"
           ? billableProject.spreads.length
           : billableProject.assets.artGenerationTotal,
-      openAIImageBatch:
-        input.mode === "art" || input.mode === "full"
-          ? undefined
-          : billableProject.assets.openAIImageBatch,
     },
   });
 
@@ -1188,17 +1098,10 @@ export async function processBookBuildJob(jobId: string) {
       }
     }
 
-    const waitingForImageBatch =
-      !terminalProject &&
-      nextProject.status === "illustrating" &&
-      nextProject.assets.openAIImageBatch &&
-      nextProject.assets.openAIImageBatch.status !== "completed";
-
     return {
       job: updatedJob,
       project: finalProject ?? nextProject,
       shouldContinue: !terminalProject,
-      waitMs: waitingForImageBatch ? BOOK_IMAGE_BATCH_POLL_WAIT_MS : undefined,
     };
   } catch (error) {
     const message =

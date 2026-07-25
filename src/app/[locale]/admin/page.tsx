@@ -33,9 +33,9 @@ export default async function AdminPage() {
   return (
     <>
       <Nav />
-      <main className="mx-auto max-w-5xl px-5 py-10">
-        <h1 className="font-display text-3xl font-bold text-night-800 mb-2">
-          Admin — Failed Books
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-5 sm:py-10">
+        <h1 className="font-display text-2xl font-bold text-night-800 mb-2 sm:text-3xl">
+          Admin
         </h1>
         <p className="mb-8 text-night-400 text-sm">
           {dbReady
@@ -62,15 +62,15 @@ export default async function AdminPage() {
                 className="rounded-2xl border border-night-100 bg-white p-6 shadow-sm"
               >
                 <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
-                  <div>
-                    <p className="font-mono text-xs text-night-400">
+                  <div className="min-w-0">
+                    <p className="font-mono text-xs text-night-400 truncate max-w-[200px] sm:max-w-none">
                       {p!.id}
                     </p>
-                    <p className="text-sm text-night-500 mt-0.5">
+                    <p className="text-xs text-night-500 mt-0.5 truncate max-w-[200px] sm:max-w-none">
                       user: <span className="font-mono">{p!.userId}</span>
                     </p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right shrink-0">
                     <span className="inline-block rounded-full bg-blush-100 px-3 py-1 text-xs font-bold text-blush-700">
                       {p!.errorCode ?? "unknown"}
                     </span>

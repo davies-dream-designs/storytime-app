@@ -87,6 +87,7 @@ export default async function PrintProductOptions({
           <PrintCheckoutButton
             projectId={project.id}
             productKey={quote.key}
+            priceAud={quote.priceAud}
             disabled={!quote.isWithinSpecs || !orderingAvailable}
             label={orderingAvailable ? undefined : t("comingSoon")}
           />

@@ -147,7 +147,7 @@ function luluErrorMessage(body: unknown) {
   return "Lulu request failed.";
 }
 
-async function getLuluAccessToken() {
+export async function getLuluAccessToken() {
   const now = Date.now();
   if (cachedToken && cachedToken.expiresAt > now + 30_000) {
     return cachedToken.token;
@@ -312,7 +312,7 @@ export function buildLuluPrintJobPayload(input: {
           },
           pod_package_id: productSpec.packageId,
         },
-        quantity: 1,
+        quantity: order.quantity ?? 1,
         title: order.productLabel,
       },
     ],

@@ -1,70 +1,94 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const { store } = vi.hoisted(() => ({
-  store: new Map<string, unknown>(),
-}));
-
-vi.mock("@vercel/kv", () => ({
-  kv: {
-    get: vi.fn(async (key: string) => store.get(key) ?? null),
-    set: vi.fn(async (key: string, value: unknown) => {
-      store.set(key, value);
-    }),
-    setnx: vi.fn(async (key: string, value: unknown) => {
-      if (store.has(key)) return 0;
-      store.set(key, value);
-      return 1;
-    }),
-    del: vi.fn(async (key: string) => {
-      store.delete(key);
-    }),
-  },
-}));
+import { beforeEach, describe, expect, it } from "vitest";
+import { createMemoryDb } from "@/tests/helpers/memoryDb";
+import type { BookProject, BookBuildJob } from "@/types/printBook";
 
 describe("db delete cascades", () => {
+  let db: ReturnType<typeof createMemoryDb>;
+
   beforeEach(() => {
-    vi.resetModules();
-    store.clear();
+    db = createMemoryDb();
   });
 
-  it("deleting a story also removes its book projects and indexes", async () => {
-    const { db } = await import("@/lib/db");
-    store.set("stories", [
-      {
-        id: "story-1",
-        userId: "user-1",
-        shareToken: "share-1",
-      },
-    ]);
-    store.set("share:share-1", "story-1");
-    store.set("bookProjectByStory:story-1", ["book-1"]);
-    store.set("bookProjectByUser:user-1", ["book-1"]);
-    store.set("bookProject:book-1", {
+  it("deleting a story also removes its book projects and build jobs", async () => {
+    await db.stories.create({
+      id: "story-1",
+      userId: "user-1",
+      title: "Test Story",
+      profileId: "profile-1",
+      profileName: "Bailey",
+      pages: [],
+      wordCount: 0,
+      theme: "bravery",
+      notes: "",
+      shareToken: "share-1",
+      createdAt: new Date().toISOString(),
+    });
+
+    const project: BookProject = {
       id: "book-1",
       userId: "user-1",
       sourceStoryId: "story-1",
-      assets: { proofVersion: 0 },
+      profileId: "profile-1",
+      ageBand: "6-8",
+      status: "ready",
+      trimSize: "storycot-dynamic-square",
+      pageCount: 24,
+      spreadCount: 12,
+      completedSpreads: 12,
+      totalSpreads: 12,
+      currentStageLabel: "Ready",
+      beats: [],
       spreads: [],
-    });
+      assets: { proofVersion: 0 },
+      retryCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    await db.bookProjects.create(project);
+
+    const job: BookBuildJob = {
+      id: "job-1",
+      projectId: "book-1",
+      userId: "user-1",
+      mode: "full",
+      status: "queued",
+      step: 0,
+      token: "tok",
+      baseUrl: "http://localhost",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    await db.bookBuildJobs.create(job);
 
     await expect(db.stories.delete("story-1")).resolves.toBe(true);
 
-    expect(store.get("stories")).toEqual([]);
-    expect(store.has("share:share-1")).toBe(false);
-    expect(store.has("bookProject:book-1")).toBe(false);
-    expect(store.has("bookProjectByStory:story-1")).toBe(false);
-    expect(store.has("bookProjectByUser:user-1")).toBe(false);
+    expect(await db.stories.getById("story-1")).toBeUndefined();
+    expect(await db.bookProjects.getById("book-1")).toBeUndefined();
+    expect(await db.bookBuildJobs.getById("job-1")).toBeUndefined();
   });
 
   it("claims a book ready email only once", async () => {
-    const { db } = await import("@/lib/db");
-    store.set("bookProject:book-1", {
+    const project: BookProject = {
       id: "book-1",
       userId: "user-1",
       sourceStoryId: "story-1",
-      assets: { proofVersion: 0 },
+      profileId: "profile-1",
+      ageBand: "6-8",
+      status: "ready",
+      trimSize: "storycot-dynamic-square",
+      pageCount: 24,
+      spreadCount: 12,
+      completedSpreads: 12,
+      totalSpreads: 12,
+      currentStageLabel: "Ready",
+      beats: [],
       spreads: [],
-    });
+      assets: { proofVersion: 0 },
+      retryCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    await db.bookProjects.create(project);
 
     const first = await db.bookProjects.claimReadyEmail(
       "book-1",
@@ -77,15 +101,9 @@ describe("db delete cascades", () => {
 
     expect(first?.assets.bookReadyEmailSentAt).toBe("2026-07-22T00:00:00.000Z");
     expect(second).toBeUndefined();
-    expect(store.get("bookProjectReadyEmail:book-1")).toBe(
+    const stored = await db.bookProjects.getById("book-1");
+    expect(stored?.assets.bookReadyEmailSentAt).toBe(
       "2026-07-22T00:00:00.000Z"
     );
-    expect(
-      (
-        store.get("bookProject:book-1") as {
-          assets: { bookReadyEmailSentAt?: string };
-        }
-      ).assets.bookReadyEmailSentAt
-    ).toBe("2026-07-22T00:00:00.000Z");
   });
 });

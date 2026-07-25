@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import Nav from "@/components/Nav";
 import { db } from "@/lib/db";
+import MigrationActions from "./MigrationActions";
 
 export const metadata = { title: "Admin — Storycot" };
 
@@ -13,10 +14,16 @@ export default async function AdminPage() {
   const user = await client.users.getUser(userId);
   if (user.privateMetadata.isAdmin !== true) notFound();
 
-  const failedIds = await db.bookProjects.getFailedIndex();
-  const projects = (
-    await Promise.all(failedIds.map((id) => db.bookProjects.getById(id)))
-  ).filter(Boolean);
+  let projects: Awaited<ReturnType<typeof db.bookProjects.getById>>[] = [];
+  let dbReady = true;
+  try {
+    const failedIds = await db.bookProjects.getFailedIndex();
+    projects = (
+      await Promise.all(failedIds.map((id) => db.bookProjects.getById(id)))
+    ).filter(Boolean);
+  } catch {
+    dbReady = false;
+  }
 
   return (
     <>
@@ -26,8 +33,12 @@ export default async function AdminPage() {
           Admin — Failed Books
         </h1>
         <p className="mb-8 text-night-400 text-sm">
-          {projects.length} failed project{projects.length !== 1 ? "s" : ""} (most recent first)
+          {dbReady
+            ? `${projects.length} failed project${projects.length !== 1 ? "s" : ""} (most recent first)`
+            : "DB not ready — run migration below first"}
         </p>
+
+        <MigrationActions />
 
         {projects.length === 0 ? (
           <div className="rounded-2xl border border-night-100 bg-white p-8 text-center text-night-400">

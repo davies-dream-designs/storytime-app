@@ -706,7 +706,7 @@ export default function BookStatusPanel({
                     type="button"
                     onClick={submitRedoPrompt}
                     disabled={Boolean(regeneratingImage)}
-                    className="rounded-full bg-night-800 px-5 py-3 text-sm font-bold text-cream-50 disabled:opacity-50"
+                    className="rounded-full bg-night-800 px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
                   >
                     Redo image
                   </button>
@@ -937,7 +937,7 @@ export default function BookStatusPanel({
                     type="button"
                     onClick={submitRedoPrompt}
                     disabled={Boolean(regeneratingImage)}
-                    className="rounded-full bg-night-800 px-5 py-3 text-sm font-bold text-cream-50 disabled:opacity-50"
+                    className="rounded-full bg-night-800 px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
                   >
                     Redo image
                   </button>

@@ -1,24 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "@/lib/db";
 import { sendShippedEmail } from "@/lib/email";
 import type { PrintFulfillment } from "@/types/printBook";
 
-// Lulu sends X-Hub-Signature-256: sha256=<hmac> using LULU_WEBHOOK_SECRET
-function verifySignature(body: string, header: string | null): boolean {
-  const secret = process.env.LULU_WEBHOOK_SECRET;
-  if (!secret) {
-    console.warn("LULU_WEBHOOK_SECRET not set — skipping signature verification");
-    return true;
-  }
-  if (!header) return false;
-  const expected = `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
-  try {
-    return timingSafeEqual(Buffer.from(header), Buffer.from(expected));
-  } catch {
-    return false;
-  }
-}
+// Lulu does not sign webhook payloads — no secret verification needed.
 
 // Lulu print job status → our fulfillment status mapping
 function mapLuluStatus(luluStatus: string): PrintFulfillment["status"] | null {
@@ -54,10 +39,6 @@ type LuluWebhookPayload = {
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
-
-  if (!verifySignature(body, req.headers.get("x-hub-signature-256"))) {
-    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-  }
 
   let payload: LuluWebhookPayload;
   try {

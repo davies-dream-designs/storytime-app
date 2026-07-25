@@ -29,7 +29,7 @@
   },
   "home": {
     "hero": "Bedtime stories made just for them.",
-    "heroSub": "Create personalised, AI-generated bedtime stories starring your child — with their favourite toys, animals, and adventures woven into every page.",
+    "heroSub": "Create personalised, AI-illustrated bedtime stories starring your child — with their favourite toys, animals, and adventures woven into every page. Listen along with narrated audio, or order a real hardcover book.",
     "ctaCreate": "Create your first story ✨",
     "ctaBrowse": "Browse stories",
     "featureTitle": "A story that's theirs alone",
@@ -38,10 +38,10 @@
     "feature1Desc": "Add your child's name, age, favourite toys, animals, and the lessons you want woven in.",
     "feature2Title": "AI story magic",
     "feature2Desc": "AI weaves their world into a 700–900 word bedtime story in seconds.",
-    "feature3Title": "Story library",
-    "feature3Desc": "Every story is saved. Re-read favourites any time, any night.",
-    "feature4Title": "Print as a book",
-    "feature4Desc": "Export any story as a beautiful PDF to print and keep forever.",
+    "feature3Title": "Illustrated books",
+    "feature3Desc": "Generate full AI artwork for every page spread. Download as illustrated PDF or EPUB, or listen to narrated audio with word-by-word highlighting.",
+    "feature4Title": "Hardcover books",
+    "feature4Desc": "Order a real printed hardcover delivered straight to your door. Choose 1–10 copies. Printed and shipped across Australia.",
     "themesTitle": "Stories with heart.",
     "themesSub": "Choose a theme and the story naturally teaches it.",
     "ctaTitle": "Ready for tonight's story?",
@@ -72,7 +72,9 @@
       "growth": "Growth",
       "resolution": "Resolution",
       "bedtime": "Bedtime"
-    }
+    },
+    "feature5Title": "Voice narration",
+    "feature5Desc": "Tap play and the story reads itself aloud — with each word lighting up as it is spoken. Perfect for bedtime on any device."
   },
   "dashboard": {
     "statProfiles": "Child profiles",
@@ -495,7 +497,8 @@
     "printProduction": "Production",
     "estimatedPrice": "Estimated AU print price",
     "printOrderingComingSoon": "Printed books are coming soon. You can still create and download your PDF or EPUB today.",
-    "comingSoon": "Coming soon"
+    "comingSoon": "Coming soon",
+    "failedContactLink": "Email us if you need help →"
   },
   "account": {
     "title": "Your account",

@@ -982,6 +982,12 @@ export default function BookStatusPanel({
           <p className="mt-2 text-sm text-blush-600">
             {t("failedPaymentNote")}
           </p>
+          <a
+            href="mailto:hello@storycot.com"
+            className="mt-2 inline-block text-sm font-bold text-blush-700 underline underline-offset-2 hover:text-blush-900"
+          >
+            {t("failedContactLink")}
+          </a>
           <Button
             variant="danger"
             size="compact"

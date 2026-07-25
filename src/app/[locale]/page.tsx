@@ -20,8 +20,9 @@ export default async function Home() {
   const features = [
     { icon: '👶', title: t('feature1Title'), body: t('feature1Desc') },
     { icon: '✨', title: t('feature2Title'), body: t('feature2Desc') },
-    { icon: '📚', title: t('feature3Title'), body: t('feature3Desc') },
-    { icon: '🖨️', title: t('feature4Title'), body: t('feature4Desc') },
+    { icon: '🎨', title: t('feature3Title'), body: t('feature3Desc') },
+    { icon: '🎧', title: t('feature5Title'), body: t('feature5Desc') },
+    { icon: '📖', title: t('feature4Title'), body: t('feature4Desc') },
   ]
 
   const arcSteps = [
@@ -130,7 +131,7 @@ export default async function Home() {
             {t('featureSub')}
           </p>
         </div>
-        <div className="mt-16 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-16 grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {features.map((f) => (
             <div
               key={f.title}
@@ -212,6 +213,11 @@ export default async function Home() {
           <p className="font-display text-lg font-bold text-white">Storycot</p>
         </div>
         <p className="text-sm">{t('footerTagline')}</p>
+        <div className="mt-3">
+          <Link href="/support" className="text-sm text-night-400 hover:text-night-200 transition">
+            Help &amp; FAQ
+          </Link>
+        </div>
       </footer>
     </main>
   )

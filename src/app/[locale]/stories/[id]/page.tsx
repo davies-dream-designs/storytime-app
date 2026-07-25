@@ -265,21 +265,35 @@ export default async function StoryPage({
             <p className="text-sm font-bold uppercase tracking-wide text-star-700">
               Print order
             </p>
-            <h2 className="mt-2 font-display text-3xl font-bold text-night-800">
-              {(() => {
-                const f = existingBook.printOrder!.fulfillment;
-                if (
-                  !f ||
-                  f.status === "not_configured" ||
-                  f.status === "ready_for_manual_review"
-                )
-                  return "Order received";
-                if (f.status === "submitted") return "Sent to print";
-                if (f.status === "failed") return "Order needs attention";
-                return "Order received";
-              })()}
-            </h2>
-            <p className="mt-1 text-night-500">
+            {/* Status stepper */}
+            {(() => {
+              const f = existingBook.printOrder!.fulfillment;
+              const isShipped = f?.status === "shipped" || f?.status === "delivered";
+              const isInProd = f?.status === "submitted";
+              const steps = [
+                { label: "Order received", done: true },
+                { label: "In production", done: isInProd || isShipped },
+                { label: "Shipped", done: isShipped },
+              ];
+              return (
+                <div className="mt-4 flex items-center gap-0">
+                  {steps.map((step, i) => (
+                    <div key={i} className="flex flex-1 items-center">
+                      <div className="flex flex-col items-center">
+                        <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${step.done ? "bg-star-600 text-white" : "bg-night-100 text-night-400"}`}>
+                          {step.done ? "✓" : i + 1}
+                        </div>
+                        <p className={`mt-1 text-center text-xs font-medium ${step.done ? "text-night-700" : "text-night-400"}`}>{step.label}</p>
+                      </div>
+                      {i < steps.length - 1 ? (
+                        <div className={`mb-4 h-0.5 flex-1 ${steps[i + 1]?.done ? "bg-star-400" : "bg-night-100"}`} />
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+            <p className="mt-4 text-sm text-night-500">
               {existingBook.printOrder.productLabel} ·{" "}
               {existingBook.printOrder.format} ·{" "}
               {existingBook.printOrder.amountAud.toLocaleString("en-AU", {
@@ -289,22 +303,34 @@ export default async function StoryPage({
             </p>
             {(() => {
               const f = existingBook.printOrder!.fulfillment;
+              if (f?.status === "shipped" || f?.status === "delivered") {
+                return (
+                  <div className="mt-5 space-y-3">
+                    <p className="leading-7 text-night-600">
+                      {f.status === "delivered"
+                        ? "Your book has been delivered. We hope your little one loves it!"
+                        : "Your book is on its way!"}
+                    </p>
+                    {f.trackingUrl ? (
+                      <a
+                        href={f.trackingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded-full bg-night-800 px-5 py-2.5 text-sm font-bold text-white hover:bg-night-700"
+                      >
+                        Track my parcel →
+                      </a>
+                    ) : null}
+                  </div>
+                );
+              }
               if (f?.status === "submitted") {
                 return (
                   <div className="mt-5 space-y-3">
                     <p className="leading-7 text-night-600">
-                      Your book is with the printer. Lulu will send you a
-                      dispatch email with tracking once it ships — check the
-                      inbox you used at checkout.
+                      Your book is in production. Check back here for shipping updates.
                     </p>
-                    <div className="rounded-2xl bg-white/70 px-4 py-3 text-sm text-night-600">
-                      <p className="font-semibold text-night-800">
-                        What to expect
-                      </p>
-                      <p className="mt-1">Production: 3–5 business days</p>
-                      <p>Delivery to Australia: a further 5–7 business days</p>
-                    </div>
-                    {f.externalOrderId ? (
+                      {f.externalOrderId ? (
                       <p className="text-xs text-night-400">
                         Printer ref: {f.externalOrderId}
                       </p>
@@ -333,16 +359,8 @@ export default async function StoryPage({
                 <div className="mt-5 space-y-3">
                   <p className="leading-7 text-night-600">
                     Payment received — your book is being prepared for print.
-                    You&apos;ll get a dispatch email with tracking once it
-                    ships.
+                    Check back here to follow your order status.
                   </p>
-                  <div className="rounded-2xl bg-white/70 px-4 py-3 text-sm text-night-600">
-                    <p className="font-semibold text-night-800">
-                      What to expect
-                    </p>
-                    <p className="mt-1">Production: 3–5 business days</p>
-                    <p>Delivery to Australia: a further 5–7 business days</p>
-                  </div>
                   {isAdmin ? (
                     <PrintFulfillmentResendButton
                       bookId={existingBook.id}

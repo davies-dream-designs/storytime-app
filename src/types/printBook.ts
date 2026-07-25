@@ -199,11 +199,15 @@ export interface PrintShippingAddress {
 
 export interface PrintFulfillment {
   provider: "peecho" | "lulu";
-  status: "not_configured" | "ready_for_manual_review" | "submitted" | "failed";
+  status: "not_configured" | "ready_for_manual_review" | "submitted" | "failed" | "shipped" | "delivered";
   preparedAt?: string;
   submittedAt?: string;
+  shippedAt?: string;
+  deliveredAt?: string;
   externalOrderId?: string;
   externalStatus?: string;
+  trackingUrl?: string;
+  carrier?: string;
   message?: string;
   payload?: unknown;
 }

@@ -3,6 +3,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import Nav from "@/components/Nav";
 import { db } from "@/lib/db";
 import MigrationActions from "./MigrationActions";
+import TestEmailActions from "./TestEmailActions";
 
 export const metadata = { title: "Admin — Storycot" };
 
@@ -38,6 +39,7 @@ export default async function AdminPage() {
             : "DB not ready — run migration below first"}
         </p>
 
+        <TestEmailActions />
         <MigrationActions />
 
         {projects.length === 0 ? (

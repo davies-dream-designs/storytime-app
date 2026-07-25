@@ -1,5 +1,5 @@
 import { eq, and, inArray, desc, isNull } from "drizzle-orm";
-import { pgClient } from "./client";
+import { getClient } from "./client";
 import * as schema from "./schema";
 import type { ChildProfile, Story, Character } from "@/types";
 import type { BookBuildJob, BookProject } from "@/types/printBook";
@@ -222,25 +222,25 @@ function bookBuildJobToRow(j: BookBuildJob) {
 export const db = {
   profiles: {
     async getAll(): Promise<ChildProfile[]> {
-      const rows = await pgClient.select().from(schema.profiles);
+      const rows = await getClient().select().from(schema.profiles);
       return rows.map(rowToProfile);
     },
     async getByUserId(userId: string): Promise<ChildProfile[]> {
-      const rows = await pgClient
+      const rows = await getClient()
         .select()
         .from(schema.profiles)
         .where(eq(schema.profiles.userId, userId));
       return rows.map(rowToProfile);
     },
     async getById(id: string): Promise<ChildProfile | undefined> {
-      const rows = await pgClient
+      const rows = await getClient()
         .select()
         .from(schema.profiles)
         .where(eq(schema.profiles.id, id));
       return rows[0] ? rowToProfile(rows[0]) : undefined;
     },
     async create(profile: ChildProfile): Promise<void> {
-      await pgClient.insert(schema.profiles).values(profileToRow(profile));
+      await getClient().insert(schema.profiles).values(profileToRow(profile));
     },
     async update(
       id: string,
@@ -249,14 +249,14 @@ export const db = {
       const current = await this.getById(id);
       if (!current) return undefined;
       const next = { ...current, ...updates };
-      await pgClient
+      await getClient()
         .update(schema.profiles)
         .set(profileToRow(next))
         .where(eq(schema.profiles.id, id));
       return next;
     },
     async delete(id: string): Promise<boolean> {
-      const result = await pgClient
+      const result = await getClient()
         .delete(schema.profiles)
         .where(eq(schema.profiles.id, id))
         .returning({ id: schema.profiles.id });
@@ -266,39 +266,39 @@ export const db = {
 
   stories: {
     async getAll(): Promise<Story[]> {
-      const rows = await pgClient.select().from(schema.stories);
+      const rows = await getClient().select().from(schema.stories);
       return rows.map(rowToStory);
     },
     async getByUserId(userId: string): Promise<Story[]> {
-      const rows = await pgClient
+      const rows = await getClient()
         .select()
         .from(schema.stories)
         .where(eq(schema.stories.userId, userId));
       return rows.map(rowToStory);
     },
     async getById(id: string): Promise<Story | undefined> {
-      const rows = await pgClient
+      const rows = await getClient()
         .select()
         .from(schema.stories)
         .where(eq(schema.stories.id, id));
       return rows[0] ? rowToStory(rows[0]) : undefined;
     },
     async getByProfileId(profileId: string): Promise<Story[]> {
-      const rows = await pgClient
+      const rows = await getClient()
         .select()
         .from(schema.stories)
         .where(eq(schema.stories.profileId, profileId));
       return rows.map(rowToStory);
     },
     async getByShareToken(token: string): Promise<Story | undefined> {
-      const rows = await pgClient
+      const rows = await getClient()
         .select()
         .from(schema.stories)
         .where(eq(schema.stories.shareToken, token));
       return rows[0] ? rowToStory(rows[0]) : undefined;
     },
     async create(story: Story): Promise<void> {
-      await pgClient.insert(schema.stories).values(storyToRow(story));
+      await getClient().insert(schema.stories).values(storyToRow(story));
     },
     async update(
       id: string,
@@ -307,14 +307,14 @@ export const db = {
       const current = await this.getById(id);
       if (!current) return undefined;
       const next = { ...current, ...updates };
-      await pgClient
+      await getClient()
         .update(schema.stories)
         .set(storyToRow(next))
         .where(eq(schema.stories.id, id));
       return next;
     },
     async setShareToken(id: string, token: string): Promise<void> {
-      await pgClient
+      await getClient()
         .update(schema.stories)
         .set({ shareToken: token })
         .where(eq(schema.stories.id, id));
@@ -324,7 +324,7 @@ export const db = {
       if (!story) return false;
       const books = await db.bookProjects.getByStoryId(id);
       await Promise.all(books.map((book) => db.bookProjects.delete(book.id)));
-      await pgClient
+      await getClient()
         .delete(schema.stories)
         .where(eq(schema.stories.id, id));
       return true;
@@ -333,32 +333,32 @@ export const db = {
 
   characters: {
     async getAll(): Promise<Character[]> {
-      const rows = await pgClient.select().from(schema.characters);
+      const rows = await getClient().select().from(schema.characters);
       return rows.map(rowToCharacter);
     },
     async getByUserId(userId: string): Promise<Character[]> {
-      const rows = await pgClient
+      const rows = await getClient()
         .select()
         .from(schema.characters)
         .where(eq(schema.characters.userId, userId));
       return rows.map(rowToCharacter);
     },
     async getByProfileId(profileId: string): Promise<Character[]> {
-      const rows = await pgClient
+      const rows = await getClient()
         .select()
         .from(schema.characters)
         .where(eq(schema.characters.profileId, profileId));
       return rows.map(rowToCharacter);
     },
     async getById(id: string): Promise<Character | undefined> {
-      const rows = await pgClient
+      const rows = await getClient()
         .select()
         .from(schema.characters)
         .where(eq(schema.characters.id, id));
       return rows[0] ? rowToCharacter(rows[0]) : undefined;
     },
     async create(character: Character): Promise<void> {
-      await pgClient.insert(schema.characters).values(characterToRow(character));
+      await getClient().insert(schema.characters).values(characterToRow(character));
     },
     async update(
       id: string,
@@ -367,14 +367,14 @@ export const db = {
       const current = await this.getById(id);
       if (!current) return undefined;
       const next = { ...current, ...updates };
-      await pgClient
+      await getClient()
         .update(schema.characters)
         .set(characterToRow(next))
         .where(eq(schema.characters.id, id));
       return next;
     },
     async delete(id: string): Promise<boolean> {
-      const result = await pgClient
+      const result = await getClient()
         .delete(schema.characters)
         .where(eq(schema.characters.id, id))
         .returning({ id: schema.characters.id });
@@ -384,33 +384,33 @@ export const db = {
 
   bookProjects: {
     async getById(id: string): Promise<BookProject | undefined> {
-      const rows = await pgClient
+      const rows = await getClient()
         .select()
         .from(schema.bookProjects)
         .where(eq(schema.bookProjects.id, id));
       return rows[0] ? rowToBookProject(rows[0]) : undefined;
     },
     async getByStoryId(sourceStoryId: string): Promise<BookProject[]> {
-      const rows = await pgClient
+      const rows = await getClient()
         .select()
         .from(schema.bookProjects)
         .where(eq(schema.bookProjects.sourceStoryId, sourceStoryId));
       return rows.map(rowToBookProject);
     },
     async getByUserId(userId: string): Promise<BookProject[]> {
-      const rows = await pgClient
+      const rows = await getClient()
         .select()
         .from(schema.bookProjects)
         .where(eq(schema.bookProjects.userId, userId));
       return rows.map(rowToBookProject);
     },
     async create(project: BookProject): Promise<void> {
-      await pgClient
+      await getClient()
         .insert(schema.bookProjects)
         .values(bookProjectToRow(project));
     },
     async replace(id: string, project: BookProject): Promise<void> {
-      await pgClient
+      await getClient()
         .update(schema.bookProjects)
         .set(bookProjectToRow(project))
         .where(eq(schema.bookProjects.id, id));
@@ -426,7 +426,7 @@ export const db = {
         ...updates,
         updatedAt: updates.updatedAt ?? new Date().toISOString(),
       };
-      await pgClient
+      await getClient()
         .update(schema.bookProjects)
         .set(bookProjectToRow(next))
         .where(eq(schema.bookProjects.id, id));
@@ -437,7 +437,7 @@ export const db = {
       sentAt: string
     ): Promise<BookProject | undefined> {
       // Atomic: only succeeds if book_ready_email_sent_at is currently NULL
-      const claimed = await pgClient
+      const claimed = await getClient()
         .update(schema.bookProjects)
         .set({ bookReadyEmailSentAt: sentAt })
         .where(
@@ -455,7 +455,7 @@ export const db = {
         ...base,
         assets: { ...base.assets, bookReadyEmailSentAt: sentAt },
       };
-      await pgClient
+      await getClient()
         .update(schema.bookProjects)
         .set({ assets: next.assets })
         .where(eq(schema.bookProjects.id, id));
@@ -465,7 +465,7 @@ export const db = {
       // No-op: failed books are queried by status in getFailedIndex
     },
     async getFailedIndex(): Promise<string[]> {
-      const rows = await pgClient
+      const rows = await getClient()
         .select({ id: schema.bookProjects.id })
         .from(schema.bookProjects)
         .where(eq(schema.bookProjects.status, "failed"))
@@ -477,10 +477,10 @@ export const db = {
       const project = await this.getById(id);
       if (!project) return false;
       await deleteBookProjectAssets(project);
-      await pgClient
+      await getClient()
         .delete(schema.bookBuildJobs)
         .where(eq(schema.bookBuildJobs.projectId, id));
-      await pgClient
+      await getClient()
         .delete(schema.bookProjects)
         .where(eq(schema.bookProjects.id, id));
       return true;
@@ -489,7 +489,7 @@ export const db = {
 
   bookBuildJobs: {
     async getById(id: string): Promise<BookBuildJob | undefined> {
-      const rows = await pgClient
+      const rows = await getClient()
         .select()
         .from(schema.bookBuildJobs)
         .where(eq(schema.bookBuildJobs.id, id));
@@ -498,7 +498,7 @@ export const db = {
     async getCurrentByProjectId(
       projectId: string
     ): Promise<BookBuildJob | undefined> {
-      const rows = await pgClient
+      const rows = await getClient()
         .select()
         .from(schema.bookBuildJobs)
         .where(
@@ -512,12 +512,12 @@ export const db = {
       return rows[0] ? rowToBookBuildJob(rows[0]) : undefined;
     },
     async create(job: BookBuildJob): Promise<void> {
-      await pgClient
+      await getClient()
         .insert(schema.bookBuildJobs)
         .values(bookBuildJobToRow(job));
     },
     async replace(id: string, job: BookBuildJob): Promise<void> {
-      await pgClient
+      await getClient()
         .update(schema.bookBuildJobs)
         .set(bookBuildJobToRow(job))
         .where(eq(schema.bookBuildJobs.id, id));
@@ -533,7 +533,7 @@ export const db = {
         ...updates,
         updatedAt: updates.updatedAt ?? new Date().toISOString(),
       };
-      await pgClient
+      await getClient()
         .update(schema.bookBuildJobs)
         .set(bookBuildJobToRow(next))
         .where(eq(schema.bookBuildJobs.id, id));

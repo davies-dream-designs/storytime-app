@@ -950,7 +950,7 @@ export default function BookStatusPanel({
               className="mt-0.5 h-5 w-5 animate-spin rounded-full border-2 border-star-200 border-t-star-600"
               aria-hidden="true"
             />
-            <div>
+            <div className="flex-1">
               <p className="font-bold text-star-800">
                 {startingBuild && project.status === "queued"
                   ? t("startingTitle")
@@ -966,6 +966,16 @@ export default function BookStatusPanel({
               <p className="mt-2 text-xs font-medium uppercase tracking-wide text-star-700">
                 {t("safeToLeave")}
               </p>
+              {!startingBuild && project.status !== "queued" ? (
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  disabled={retrying}
+                  className="mt-3 text-xs font-bold text-star-700 underline underline-offset-2 hover:text-star-900 disabled:opacity-50"
+                >
+                  {retrying ? "Retrying…" : "Stuck? Retry build"}
+                </button>
+              ) : null}
             </div>
           </div>
         </div>

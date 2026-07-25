@@ -58,11 +58,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       baseUrl: req.nextUrl.origin,
     })
 
-    console.log(`[build] Created job ${job.id} for project ${project.id}, mode=${buildMode}, DB=${(process.env.storycot_DATABASE_URL ?? process.env.DATABASE_URL ?? '').split('@').pop()?.split('/')[0] ?? 'unknown'}`)
-
     await inngest.send({ name: INNGEST_EVENTS.bookBuildRequested, data: { jobId: job.id } })
-
-    console.log(`[build] Inngest event sent for job ${job.id}`)
 
     return NextResponse.json(queuedProject)
   } catch (error) {

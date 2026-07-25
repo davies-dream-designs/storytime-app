@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import Nav from "@/components/Nav";
 import { db } from "@/lib/db";
+import MigrationActions from "./MigrationActions";
 
 export const metadata = { title: "Admin — Storycot" };
 
@@ -28,6 +29,8 @@ export default async function AdminPage() {
         <p className="mb-8 text-night-400 text-sm">
           {projects.length} failed project{projects.length !== 1 ? "s" : ""} (most recent first)
         </p>
+
+        <MigrationActions />
 
         {projects.length === 0 ? (
           <div className="rounded-2xl border border-night-100 bg-white p-8 text-center text-night-400">

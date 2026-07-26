@@ -304,7 +304,8 @@
         "desc": "Longer read-aloud · richer story and detailed scenes"
       }
     },
-    "exportText": "Ekspor teks"
+    "exportText": "Ekspor teks",
+    "shareFacebook": "Facebook"
   },
   "books": {
     "createButton": "Hasilkan PDF bergambar",

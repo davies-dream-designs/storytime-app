@@ -304,7 +304,8 @@
         "desc": "Longer read-aloud · richer story and detailed scenes"
       }
     },
-    "exportText": "导出文本"
+    "exportText": "导出文本",
+    "shareFacebook": "Facebook"
   },
   "books": {
     "createButton": "生成插图 PDF",

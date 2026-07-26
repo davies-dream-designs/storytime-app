@@ -19,7 +19,9 @@ export default function Nav() {
   const refreshCredits = useCallback(() => {
     fetch("/api/user/credits")
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d) setCreditInfo(d as { credits: number; isAdmin: boolean }); })
+      .then((d) => {
+        if (d) setCreditInfo(d as { credits: number; isAdmin: boolean });
+      })
       .catch(() => {});
   }, []);
 
@@ -30,7 +32,8 @@ export default function Nav() {
 
   useEffect(() => {
     window.addEventListener("storycot:credits-updated", refreshCredits);
-    return () => window.removeEventListener("storycot:credits-updated", refreshCredits);
+    return () =>
+      window.removeEventListener("storycot:credits-updated", refreshCredits);
   }, [refreshCredits]);
   const pathname = usePathname();
   const t = useTranslations("nav");
@@ -55,10 +58,18 @@ export default function Nav() {
         ? "bg-night-700 text-moon-200 shadow-sm shadow-night-700/20"
         : "text-night-700 hover:bg-night-50"
     }`;
+  const publicLinks = [
+    { href: "/support", label: "FAQ" },
+    { href: "/privacy", label: "Privacy" },
+    { href: "/terms", label: "Terms" },
+  ];
 
   return (
     <header className="sticky top-0 z-30 border-b border-night-100 bg-parchment/90 backdrop-blur">
-      <nav aria-label="Site navigation" className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 pr-6">
+      <nav
+        aria-label="Site navigation"
+        className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 pr-6"
+      >
         <Link
           href={logoHref}
           className="flex items-center gap-2 font-display text-xl font-bold text-night-700"
@@ -128,11 +139,31 @@ export default function Nav() {
                   Admin
                 </Link>
               ) : null}
+              {publicLinks.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={isActive(item.href) ? "page" : undefined}
+                  className={navLinkClass(item.href)}
+                >
+                  {item.label}
+                </Link>
+              ))}
               <LanguageSwitcher />
               <UserButton />
             </>
           ) : (
             <>
+              {publicLinks.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={isActive(item.href) ? "page" : undefined}
+                  className={navLinkClass(item.href)}
+                >
+                  {item.label}
+                </Link>
+              ))}
               <LanguageSwitcher />
               <SignInButton mode="modal">
                 <button className={buttonClassName({ size: "compact" })}>
@@ -162,40 +193,6 @@ export default function Nav() {
                 </Link>
               ) : null}
               <UserButton />
-              <button
-                onClick={() => setOpen((o) => !o)}
-                className="rounded-lg p-2 text-night-600 transition hover:bg-night-100"
-                aria-label={open ? t("closeMenu") : t("openMenu")}
-              >
-                {open ? (
-                  <svg
-                    width="22"
-                    height="22"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  >
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                ) : (
-                  <svg
-                    width="22"
-                    height="22"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  >
-                    <line x1="3" y1="6" x2="21" y2="6" />
-                    <line x1="3" y1="12" x2="21" y2="12" />
-                    <line x1="3" y1="18" x2="21" y2="18" />
-                  </svg>
-                )}
-              </button>
             </>
           ) : (
             <SignInButton mode="modal">
@@ -204,65 +201,114 @@ export default function Nav() {
               </button>
             </SignInButton>
           )}
+          <button
+            onClick={() => setOpen((o) => !o)}
+            className="rounded-lg p-2 text-night-600 transition hover:bg-night-100"
+            aria-label={open ? t("closeMenu") : t("openMenu")}
+          >
+            {open ? (
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            ) : (
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              >
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            )}
+          </button>
         </div>
       </nav>
 
       {/* Mobile drawer */}
-      {open && isSignedIn && (
+      {open && (
         <div className="sm:hidden border-t border-night-100 bg-parchment/95 backdrop-blur px-4 py-3 flex flex-col gap-1">
-          <Link
-            href="/dashboard"
-            aria-current={isActive("/dashboard") ? "page" : undefined}
-            onClick={() => setOpen(false)}
-            className={mobileLinkClass("/dashboard")}
-          >
-            {t("dashboard")}
-          </Link>
-          <Link
-            href="/profiles"
-            aria-current={isActive("/profiles") ? "page" : undefined}
-            onClick={() => setOpen(false)}
-            className={mobileLinkClass("/profiles")}
-          >
-            {t("profilesMobile")}
-          </Link>
-          <Link
-            href="/stories"
-            aria-current={isActive("/stories") ? "page" : undefined}
-            onClick={() => setOpen(false)}
-            className={mobileLinkClass("/stories")}
-          >
-            {t("storiesMobile")}
-          </Link>
-          <Link
-            href="/account"
-            aria-current={isActive("/account") ? "page" : undefined}
-            onClick={() => setOpen(false)}
-            className={`flex items-center justify-between ${mobileLinkClass("/account")}`}
-          >
-            {t("accountMobile")}
-            {creditInfo && !creditInfo.isAdmin ? (
-              <span
-                className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                  creditInfo.credits === 0
-                    ? "bg-red-100 text-red-600"
-                    : "bg-night-100 text-night-600"
-                }`}
+          {isSignedIn ? (
+            <>
+              <Link
+                href="/dashboard"
+                aria-current={isActive("/dashboard") ? "page" : undefined}
+                onClick={() => setOpen(false)}
+                className={mobileLinkClass("/dashboard")}
               >
-                {creditInfo.credits} ✨
-              </span>
-            ) : null}
-          </Link>
-          {creditInfo?.isAdmin ? (
-            <Link
-              href="/admin"
-              aria-current={isActive("/admin") ? "page" : undefined}
-              onClick={() => setOpen(false)}
-              className={mobileLinkClass("/admin")}
-            >
-              Admin
-            </Link>
+                {t("dashboard")}
+              </Link>
+              <Link
+                href="/profiles"
+                aria-current={isActive("/profiles") ? "page" : undefined}
+                onClick={() => setOpen(false)}
+                className={mobileLinkClass("/profiles")}
+              >
+                {t("profilesMobile")}
+              </Link>
+              <Link
+                href="/stories"
+                aria-current={isActive("/stories") ? "page" : undefined}
+                onClick={() => setOpen(false)}
+                className={mobileLinkClass("/stories")}
+              >
+                {t("storiesMobile")}
+              </Link>
+              <Link
+                href="/account"
+                aria-current={isActive("/account") ? "page" : undefined}
+                onClick={() => setOpen(false)}
+                className={`flex items-center justify-between ${mobileLinkClass("/account")}`}
+              >
+                {t("accountMobile")}
+                {creditInfo && !creditInfo.isAdmin ? (
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                      creditInfo.credits === 0
+                        ? "bg-red-100 text-red-600"
+                        : "bg-night-100 text-night-600"
+                    }`}
+                  >
+                    {creditInfo.credits} ✨
+                  </span>
+                ) : null}
+              </Link>
+              {creditInfo?.isAdmin ? (
+                <Link
+                  href="/admin"
+                  aria-current={isActive("/admin") ? "page" : undefined}
+                  onClick={() => setOpen(false)}
+                  className={mobileLinkClass("/admin")}
+                >
+                  Admin
+                </Link>
+              ) : null}
+            </>
           ) : null}
+          {publicLinks.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={isActive(item.href) ? "page" : undefined}
+              onClick={() => setOpen(false)}
+              className={mobileLinkClass(item.href)}
+            >
+              {item.label}
+            </Link>
+          ))}
           <Link
             href="/stories/new"
             onClick={() => setOpen(false)}

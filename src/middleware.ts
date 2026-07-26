@@ -12,6 +12,9 @@ const isPublicRoute = createRouteMatcher([
   `/(${localePattern})`,
   `/(${localePattern})/sign-in(.*)`,
   `/(${localePattern})/sign-up(.*)`,
+  `/(${localePattern})/support(.*)`,
+  `/(${localePattern})/privacy(.*)`,
+  `/(${localePattern})/terms(.*)`,
   `/(${localePattern})/s/(.*)`,
   `/(${localePattern})/gift/(.*)`,
   // Non-prefixed sign-in/up — Clerk may redirect here; intl will then redirect to /en/

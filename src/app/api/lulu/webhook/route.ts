@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendShippedEmail } from "@/lib/email";
+import { logEvent } from "@/lib/logEvent";
 import type { PrintFulfillment } from "@/types/printBook";
 
 // Lulu does not sign webhook payloads — no secret verification needed.
@@ -118,6 +119,21 @@ export async function POST(req: NextRequest) {
     luluStatus: luluStatusName,
     ourStatus: newStatus,
   });
+
+  // A rejected/cancelled print job means a paying customer's order won't ship —
+  // surface it as a high-priority issue in the admin panel.
+  if (newStatus === "failed") {
+    await logEvent({
+      code: "print.fulfillment_failed",
+      message: `Lulu reported print job ${luluStatusName} for order ${externalId}`,
+      userId: project.userId,
+      userEmail: project.printOrder.shipping?.email ?? null,
+      entityType: "print_order",
+      entityId: projectId,
+      source: "lulu/webhook",
+      context: { luluStatus: luluStatusName, externalId },
+    });
+  }
 
   // Send shipped notification email (fire-and-forget)
   if (newStatus === "shipped") {

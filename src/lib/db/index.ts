@@ -1,8 +1,10 @@
-import { eq, and, inArray, desc, isNull, isNotNull } from "drizzle-orm";
+import { eq, and, inArray, desc, isNull, isNotNull, gte, or, ilike } from "drizzle-orm";
 import { getClient } from "./client";
 import * as schema from "./schema";
 import type { ChildProfile, Story, Character } from "@/types";
 import type { BookBuildJob, BookProject, PrintBookOrder } from "@/types/printBook";
+import type { ErrorEventRecord, ErrorEventFilters } from "@/lib/errors";
+import { SEVERITY_RANK, type ErrorSeverity } from "@/lib/errors";
 import { deleteBookProjectAssets } from "@/lib/print-books/storage";
 
 // ── Row ↔ type converters ─────────────────────────────────────────────────────
@@ -214,6 +216,29 @@ function bookBuildJobToRow(j: BookBuildJob) {
     completedAt: j.completedAt ?? null,
     createdAt: j.createdAt,
     updatedAt: j.updatedAt,
+  };
+}
+
+type ErrorEventRow = typeof schema.errorEvents.$inferSelect;
+
+function rowToErrorEvent(row: ErrorEventRow): ErrorEventRecord {
+  return {
+    id: row.id,
+    createdAt: row.createdAt,
+    domain: row.domain,
+    code: row.code,
+    severity: row.severity,
+    userId: row.userId ?? undefined,
+    userEmail: row.userEmail ?? undefined,
+    entityType: row.entityType ?? undefined,
+    entityId: row.entityId ?? undefined,
+    message: row.message,
+    rawError: row.rawError ?? undefined,
+    context: row.context ?? undefined,
+    source: row.source ?? undefined,
+    resolvedAt: row.resolvedAt ?? undefined,
+    resolvedBy: row.resolvedBy ?? undefined,
+    note: row.note ?? undefined,
   };
 }
 
@@ -513,6 +538,134 @@ export const db = {
         printOrder: r.printOrder as PrintBookOrder,
         updatedAt: r.updatedAt,
       }));
+    },
+  },
+
+  errorEvents: {
+    async create(input: {
+      id: string;
+      createdAt: string;
+      domain: string;
+      code: string;
+      severity: string;
+      userId?: string | null;
+      userEmail?: string | null;
+      entityType?: string | null;
+      entityId?: string | null;
+      message: string;
+      rawError?: string | null;
+      context?: Record<string, unknown> | null;
+      source?: string | null;
+    }): Promise<void> {
+      await getClient()
+        .insert(schema.errorEvents)
+        .values({
+          id: input.id,
+          createdAt: input.createdAt,
+          domain: input.domain,
+          code: input.code,
+          severity: input.severity,
+          userId: input.userId ?? null,
+          userEmail: input.userEmail ?? null,
+          entityType: input.entityType ?? null,
+          entityId: input.entityId ?? null,
+          message: input.message,
+          rawError: input.rawError ?? null,
+          context: input.context ?? null,
+          source: input.source ?? null,
+          resolvedAt: null,
+          resolvedBy: null,
+          note: null,
+        });
+    },
+
+    async list(filters: ErrorEventFilters = {}): Promise<ErrorEventRecord[]> {
+      const conds = [];
+      if (filters.domain)
+        conds.push(eq(schema.errorEvents.domain, filters.domain));
+      if (filters.code) conds.push(eq(schema.errorEvents.code, filters.code));
+      if (filters.userId)
+        conds.push(eq(schema.errorEvents.userId, filters.userId));
+      if (filters.entityId)
+        conds.push(eq(schema.errorEvents.entityId, filters.entityId));
+      if (filters.since)
+        conds.push(gte(schema.errorEvents.createdAt, filters.since));
+      if (filters.resolved === true)
+        conds.push(isNotNull(schema.errorEvents.resolvedAt));
+      if (filters.resolved === false)
+        conds.push(isNull(schema.errorEvents.resolvedAt));
+      if (filters.minSeverity) {
+        const allowed = (Object.keys(SEVERITY_RANK) as ErrorSeverity[]).filter(
+          (s) => SEVERITY_RANK[s] >= SEVERITY_RANK[filters.minSeverity!]
+        );
+        conds.push(inArray(schema.errorEvents.severity, allowed));
+      }
+      if (filters.search) {
+        const q = `%${filters.search}%`;
+        conds.push(
+          or(
+            ilike(schema.errorEvents.message, q),
+            ilike(schema.errorEvents.userEmail, q),
+            ilike(schema.errorEvents.userId, q),
+            ilike(schema.errorEvents.entityId, q),
+            ilike(schema.errorEvents.code, q)
+          )!
+        );
+      }
+      const rows = await getClient()
+        .select()
+        .from(schema.errorEvents)
+        .where(conds.length ? and(...conds) : undefined)
+        .orderBy(desc(schema.errorEvents.createdAt))
+        .limit(Math.min(filters.limit ?? 200, 500));
+      return rows.map(rowToErrorEvent);
+    },
+
+    async getById(id: string): Promise<ErrorEventRecord | undefined> {
+      const rows = await getClient()
+        .select()
+        .from(schema.errorEvents)
+        .where(eq(schema.errorEvents.id, id));
+      return rows[0] ? rowToErrorEvent(rows[0]) : undefined;
+    },
+
+    async resolve(
+      id: string,
+      resolvedBy: string,
+      note?: string
+    ): Promise<ErrorEventRecord | undefined> {
+      const rows = await getClient()
+        .update(schema.errorEvents)
+        .set({
+          resolvedAt: new Date().toISOString(),
+          resolvedBy,
+          note: note ?? null,
+        })
+        .where(eq(schema.errorEvents.id, id))
+        .returning();
+      return rows[0] ? rowToErrorEvent(rows[0]) : undefined;
+    },
+
+    async reopen(id: string): Promise<ErrorEventRecord | undefined> {
+      const rows = await getClient()
+        .update(schema.errorEvents)
+        .set({ resolvedAt: null, resolvedBy: null })
+        .where(eq(schema.errorEvents.id, id))
+        .returning();
+      return rows[0] ? rowToErrorEvent(rows[0]) : undefined;
+    },
+
+    /** Counts of UNRESOLVED events grouped by severity — for the admin header. */
+    async unresolvedSummary(): Promise<Record<string, number>> {
+      const rows = await getClient()
+        .select({ severity: schema.errorEvents.severity })
+        .from(schema.errorEvents)
+        .where(isNull(schema.errorEvents.resolvedAt))
+        .limit(1000);
+      return rows.reduce<Record<string, number>>((acc, r) => {
+        acc[r.severity] = (acc[r.severity] ?? 0) + 1;
+        return acc;
+      }, {});
     },
   },
 

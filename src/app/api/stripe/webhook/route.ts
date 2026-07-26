@@ -13,6 +13,7 @@ import {
   retrieveSessionWhenShippingIsMissing,
 } from "@/lib/stripe/checkoutShipping";
 import { sendPrintOrderConfirmedEmail } from "@/lib/email";
+import { logEvent } from "@/lib/logEvent";
 import type { PrintBookOrder } from "@/types/printBook";
 
 export async function POST(req: NextRequest) {
@@ -39,7 +40,12 @@ export async function POST(req: NextRequest) {
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
-  } catch {
+  } catch (err) {
+    await logEvent({
+      error: err,
+      code: "payment.signature_invalid",
+      source: "stripe/webhook",
+    });
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
@@ -169,7 +175,19 @@ export async function POST(req: NextRequest) {
               amountAud: quote.priceAud,
               trackUrl: `${appUrl}/stories/${project.sourceStoryId}`,
               appUrl,
-            }).catch((err) => console.error("Print order confirmation email failed (non-fatal)", err));
+            }).catch((err) => {
+              console.error("Print order confirmation email failed (non-fatal)", err);
+              void logEvent({
+                error: err,
+                code: "payment.confirmation_email_failed",
+                userId,
+                userEmail: customerEmail,
+                entityType: "book",
+                entityId: project.id,
+                source: "stripe/webhook",
+                context: { checkoutSessionId: session.id },
+              });
+            });
           }
         }
       }

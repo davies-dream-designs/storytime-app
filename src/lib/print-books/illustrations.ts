@@ -1,5 +1,6 @@
 import sharp from "sharp";
 import type { ChildProfile, Story } from "@/types";
+import { AppError } from "@/lib/errors";
 import type {
   BookProject,
   BookSpread,
@@ -376,16 +377,22 @@ function shouldTryNextImageModel(status: number, bodyText: string): boolean {
   );
 }
 
-class ModerationBlockedError extends Error {
+class ModerationBlockedError extends AppError {
   constructor(model: string) {
-    super(`OpenAI moderation blocked image for ${model}`);
+    super("book.image_moderation_blocked", {
+      message: `OpenAI moderation blocked image for ${model}`,
+      context: { model },
+    });
     this.name = "ModerationBlockedError";
   }
 }
 
-class UnusableGeneratedImageError extends Error {
+class UnusableGeneratedImageError extends AppError {
   constructor(reason: string) {
-    super(`Generated image failed quality check: ${reason}`);
+    super("book.image_unusable", {
+      message: `Generated image failed quality check: ${reason}`,
+      context: { reason },
+    });
     this.name = "UnusableGeneratedImageError";
   }
 }
@@ -454,7 +461,9 @@ async function generateOpenAIImage(input: {
 }): Promise<Buffer> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
+    throw new AppError("system.config_missing", {
+      message: "OPENAI_API_KEY is not configured",
+    });
   }
 
   const models = getPreferredOpenAIImageModels();
@@ -504,7 +513,13 @@ async function generateOpenAIImage(input: {
           index < models.length - 1 &&
           shouldTryNextImageModel(response.status, errorBody);
         if (canFallback) break;
-        throw new Error(lastErrorMessage);
+        throw new AppError(
+          response.status === 429 ? "book.image_rate_limited" : "external.openai_error",
+          {
+            message: lastErrorMessage,
+            context: { model, status: response.status },
+          }
+        );
       }
 
       const payload = (await response.json()) as {
@@ -513,16 +528,17 @@ async function generateOpenAIImage(input: {
 
       const base64Image = payload.data?.[0]?.b64_json;
       if (!base64Image) {
-        throw new Error(
-          `OpenAI image generation returned no image data for ${model}`
-        );
+        throw new AppError("external.openai_error", {
+          message: `OpenAI image generation returned no image data for ${model}`,
+          context: { model },
+        });
       }
 
       return Buffer.from(base64Image, "base64");
     }
   }
 
-  throw new Error(lastErrorMessage);
+  throw new AppError("external.openai_error", { message: lastErrorMessage });
 }
 
 // ---------------------------------------------------------------------------

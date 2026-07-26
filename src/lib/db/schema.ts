@@ -126,6 +126,40 @@ export const bookProjects = pgTable(
   ]
 );
 
+export const errorEvents = pgTable(
+  "error_events",
+  {
+    id: text("id").primaryKey(),
+    createdAt: text("created_at").notNull(),
+    // Classification (see src/lib/errors.ts)
+    domain: text("domain").notNull(),
+    code: text("code").notNull(),
+    severity: text("severity").notNull(),
+    // Who + what it relates to (for customer lookup / "someone called")
+    userId: text("user_id"),
+    userEmail: text("user_email"),
+    entityType: text("entity_type"), // "story" | "book" | "print_order" | ...
+    entityId: text("entity_id"),
+    // Details
+    message: text("message").notNull(), // developer-facing summary
+    rawError: text("raw_error"), // stack / upstream body
+    context: jsonb("context").$type<Record<string, unknown>>(),
+    source: text("source"), // where it was logged (route/pipeline name)
+    // Triage
+    resolvedAt: text("resolved_at"),
+    resolvedBy: text("resolved_by"),
+    note: text("note"),
+  },
+  (t) => [
+    index("error_events_created_at_idx").on(t.createdAt),
+    index("error_events_domain_idx").on(t.domain),
+    index("error_events_severity_idx").on(t.severity),
+    index("error_events_user_id_idx").on(t.userId),
+    index("error_events_entity_id_idx").on(t.entityId),
+    index("error_events_resolved_at_idx").on(t.resolvedAt),
+  ]
+);
+
 export const bookBuildJobs = pgTable(
   "book_build_jobs",
   {

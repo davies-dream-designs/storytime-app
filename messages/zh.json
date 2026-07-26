@@ -497,7 +497,8 @@
     "printProduction": "生产",
     "estimatedPrice": "澳大利亚预计印刷价格",
     "printOrderingComingSoon": "印刷书籍即将上线。您今天仍然可以创建并下载 PDF 或 EPUB。",
-    "comingSoon": "即将推出"
+    "comingSoon": "即将推出",
+    "failedContactLink": "Email us if you need help ->"
   },
   "account": {
     "title": "您的账户",

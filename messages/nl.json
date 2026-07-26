@@ -497,7 +497,8 @@
     "printProduction": "Productie",
     "estimatedPrice": "Geschatte AU-drukprijs",
     "printOrderingComingSoon": "Gedrukte boeken komen binnenkort. Je kunt vandaag nog je PDF of EPUB maken en downloaden.",
-    "comingSoon": "Binnenkort beschikbaar"
+    "comingSoon": "Binnenkort beschikbaar",
+    "failedContactLink": "Email us if you need help ->"
   },
   "account": {
     "title": "Uw account",

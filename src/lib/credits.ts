@@ -5,6 +5,7 @@ import { getStorycotIllustrationCountForAgeBand } from "@/lib/print-books/printP
 import type { BookBilling, BookProject } from "@/types/printBook";
 
 const DEFAULT_CREDITS = 3;
+const MAX_REDEEMED_GIFT_MARKERS = 100;
 
 function getCredits(value: unknown) {
   return typeof value === "number" && Number.isFinite(value)
@@ -39,6 +40,42 @@ export async function adjustUserCredits(
     privateMetadata: { credits: next },
   });
   return next;
+}
+
+export async function redeemGiftCredits(
+  userId: string,
+  giftOrderId: string,
+  credits: number
+): Promise<number> {
+  const client = await clerkClient();
+  const user = await client.users.getUser(userId);
+  const redeemedGiftOrderIds = Array.isArray(
+    user.privateMetadata.redeemedGiftOrderIds
+  )
+    ? user.privateMetadata.redeemedGiftOrderIds.filter(
+        (value): value is string => typeof value === "string"
+      )
+    : [];
+  const currentCredits = getCredits(user.privateMetadata.credits);
+
+  if (redeemedGiftOrderIds.includes(giftOrderId)) {
+    return currentCredits;
+  }
+
+  const nextRedeemedGiftOrderIds = [
+    ...redeemedGiftOrderIds.slice(-(MAX_REDEEMED_GIFT_MARKERS - 1)),
+    giftOrderId,
+  ];
+  const nextCredits = Math.max(0, currentCredits + credits);
+
+  await client.users.updateUserMetadata(userId, {
+    privateMetadata: {
+      credits: nextCredits,
+      redeemedGiftOrderIds: nextRedeemedGiftOrderIds,
+    },
+  });
+
+  return nextCredits;
 }
 
 export async function chargeImageRegenerationCredit(

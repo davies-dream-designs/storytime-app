@@ -10,10 +10,12 @@ const { mockAuth, mockCreateSession, mockGetUser } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
 }));
 
-const { mockGetBookProjectById, mockUpdateBookProject } = vi.hoisted(() => ({
-  mockGetBookProjectById: vi.fn(),
-  mockUpdateBookProject: vi.fn(),
-}));
+const { mockGetBookProjectById, mockUpdateBookProject, mockCreateGiftOrder } =
+  vi.hoisted(() => ({
+    mockGetBookProjectById: vi.fn(),
+    mockUpdateBookProject: vi.fn(),
+    mockCreateGiftOrder: vi.fn(),
+  }));
 
 const { mockGetStoryById } = vi.hoisted(() => ({
   mockGetStoryById: vi.fn(),
@@ -47,6 +49,9 @@ vi.mock("@/lib/db", () => ({
       getById: mockGetBookProjectById,
       update: mockUpdateBookProject,
     },
+    giftOrders: {
+      create: mockCreateGiftOrder,
+    },
   },
 }));
 
@@ -70,6 +75,7 @@ describe("stripe checkout", () => {
       ipPolicy: { riskLevel: "clear", printAllowed: true, reasons: [] },
     });
     mockUpdateBookProject.mockResolvedValue(undefined);
+    mockCreateGiftOrder.mockResolvedValue(undefined);
   });
 
   it("returns users to the current request origin and locale instead of configured production URL", async () => {
@@ -167,6 +173,66 @@ describe("stripe checkout", () => {
         locale: "auto",
         success_url: "https://dev.storycot.com/account?success=1",
         cancel_url: "https://dev.storycot.com/account?canceled=1",
+      })
+    );
+  });
+
+  it("creates a gift credit checkout and stores the gift token for redemption", async () => {
+    mockGetUser.mockResolvedValue({
+      privateMetadata: { isAdmin: false },
+      primaryEmailAddress: { emailAddress: "buyer@example.com" },
+    });
+    const { POST } = await import("@/app/api/stripe/checkout/route");
+
+    const res = await POST(
+      new NextRequest("https://dev.storycot.com/api/stripe/checkout", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://dev.storycot.com",
+          referer: "https://dev.storycot.com/en/account",
+          cookie: "storycot_ref=user_referrer1",
+        },
+        body: JSON.stringify({
+          type: "gift_credits",
+          pack: "starter",
+          recipientEmail: "Grandma@Example.com",
+          recipientName: "Grandma",
+          message: "For bedtime.",
+        }),
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockCreateSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customer_email: "buyer@example.com",
+        success_url: expect.stringMatching(
+          /^https:\/\/dev\.storycot\.com\/en\/gift\/[A-Za-z0-9_-]+\?gift_success=1$/
+        ),
+        cancel_url: "https://dev.storycot.com/en/account?gift_canceled=1",
+        metadata: expect.objectContaining({
+          checkoutType: "gift_credits",
+          credits: "10",
+          recipientEmail: "grandma@example.com",
+          recipientName: "Grandma",
+          referralReferrerUserId: "user_referrer1",
+        }),
+      })
+    );
+    expect(mockCreateGiftOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        purchaserUserId: "user-1",
+        purchaserEmail: "buyer@example.com",
+        recipientEmail: "grandma@example.com",
+        recipientName: "Grandma",
+        message: "For bedtime.",
+        packId: "starter",
+        credits: 10,
+        amountAud: 499,
+        status: "checkout_started",
+        checkoutSessionId: "cs_test_123",
+        referralReferrerUserId: "user_referrer1",
       })
     );
   });

@@ -497,7 +497,8 @@
     "printProduction": "Produksi",
     "estimatedPrice": "Perkiraan harga cetak AU",
     "printOrderingComingSoon": "Buku cetak segera hadir. Anda masih bisa membuat dan mengunduh PDF atau EPUB hari ini.",
-    "comingSoon": "Segera hadir"
+    "comingSoon": "Segera hadir",
+    "failedContactLink": "Email us if you need help ->"
   },
   "account": {
     "title": "Akun Anda",

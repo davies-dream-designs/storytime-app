@@ -1,8 +1,24 @@
-import { eq, and, inArray, desc, isNull, isNotNull, gte, or, ilike } from "drizzle-orm";
+import {
+  eq,
+  and,
+  inArray,
+  desc,
+  isNull,
+  isNotNull,
+  gte,
+  lt,
+  or,
+  ilike,
+} from "drizzle-orm";
 import { getClient } from "./client";
 import * as schema from "./schema";
 import type { ChildProfile, Story, Character } from "@/types";
-import type { BookBuildJob, BookProject, PrintBookOrder } from "@/types/printBook";
+import type {
+  BookBuildJob,
+  BookProject,
+  PrintBookOrder,
+} from "@/types/printBook";
+import type { GiftOrder } from "@/types/gift";
 import type { ErrorEventRecord, ErrorEventFilters } from "@/lib/errors";
 import { SEVERITY_RANK, type ErrorSeverity } from "@/lib/errors";
 import { deleteBookProjectAssets } from "@/lib/print-books/storage";
@@ -14,6 +30,7 @@ type StoryRow = typeof schema.stories.$inferSelect;
 type CharacterRow = typeof schema.characters.$inferSelect;
 type BookProjectRow = typeof schema.bookProjects.$inferSelect;
 type BookBuildJobRow = typeof schema.bookBuildJobs.$inferSelect;
+type GiftOrderRow = typeof schema.giftOrders.$inferSelect;
 
 function rowToProfile(row: ProfileRow): ChildProfile {
   return {
@@ -219,6 +236,56 @@ function bookBuildJobToRow(j: BookBuildJob) {
   };
 }
 
+function rowToGiftOrder(row: GiftOrderRow): GiftOrder {
+  return {
+    id: row.id,
+    token: row.token,
+    purchaserUserId: row.purchaserUserId,
+    purchaserEmail: row.purchaserEmail ?? undefined,
+    recipientEmail: row.recipientEmail,
+    recipientName: row.recipientName ?? undefined,
+    message: row.message ?? undefined,
+    packId: row.packId,
+    credits: row.credits,
+    amountAud: row.amountAud,
+    status: row.status,
+    checkoutSessionId: row.checkoutSessionId ?? undefined,
+    paymentIntentId: row.paymentIntentId ?? undefined,
+    referralReferrerUserId: row.referralReferrerUserId ?? undefined,
+    referralGrantedAt: row.referralGrantedAt ?? undefined,
+    paidAt: row.paidAt ?? undefined,
+    redeemedByUserId: row.redeemedByUserId ?? undefined,
+    redeemedAt: row.redeemedAt ?? undefined,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function giftOrderToRow(gift: GiftOrder) {
+  return {
+    id: gift.id,
+    token: gift.token,
+    purchaserUserId: gift.purchaserUserId,
+    purchaserEmail: gift.purchaserEmail ?? null,
+    recipientEmail: gift.recipientEmail,
+    recipientName: gift.recipientName ?? null,
+    message: gift.message ?? null,
+    packId: gift.packId,
+    credits: gift.credits,
+    amountAud: gift.amountAud,
+    status: gift.status,
+    checkoutSessionId: gift.checkoutSessionId ?? null,
+    paymentIntentId: gift.paymentIntentId ?? null,
+    referralReferrerUserId: gift.referralReferrerUserId ?? null,
+    referralGrantedAt: gift.referralGrantedAt ?? null,
+    paidAt: gift.paidAt ?? null,
+    redeemedByUserId: gift.redeemedByUserId ?? null,
+    redeemedAt: gift.redeemedAt ?? null,
+    createdAt: gift.createdAt,
+    updatedAt: gift.updatedAt,
+  };
+}
+
 type ErrorEventRow = typeof schema.errorEvents.$inferSelect;
 
 function rowToErrorEvent(row: ErrorEventRow): ErrorEventRecord {
@@ -349,9 +416,7 @@ export const db = {
       if (!story) return false;
       const books = await db.bookProjects.getByStoryId(id);
       await Promise.all(books.map((book) => db.bookProjects.delete(book.id)));
-      await getClient()
-        .delete(schema.stories)
-        .where(eq(schema.stories.id, id));
+      await getClient().delete(schema.stories).where(eq(schema.stories.id, id));
       return true;
     },
   },
@@ -383,7 +448,9 @@ export const db = {
       return rows[0] ? rowToCharacter(rows[0]) : undefined;
     },
     async create(character: Character): Promise<void> {
-      await getClient().insert(schema.characters).values(characterToRow(character));
+      await getClient()
+        .insert(schema.characters)
+        .values(characterToRow(character));
     },
     async update(
       id: string,
@@ -538,6 +605,155 @@ export const db = {
         printOrder: r.printOrder as PrintBookOrder,
         updatedAt: r.updatedAt,
       }));
+    },
+  },
+
+  giftOrders: {
+    async getByToken(token: string): Promise<GiftOrder | undefined> {
+      const rows = await getClient()
+        .select()
+        .from(schema.giftOrders)
+        .where(eq(schema.giftOrders.token, token));
+      return rows[0] ? rowToGiftOrder(rows[0]) : undefined;
+    },
+    async getByCheckoutSessionId(
+      checkoutSessionId: string
+    ): Promise<GiftOrder | undefined> {
+      const rows = await getClient()
+        .select()
+        .from(schema.giftOrders)
+        .where(eq(schema.giftOrders.checkoutSessionId, checkoutSessionId));
+      return rows[0] ? rowToGiftOrder(rows[0]) : undefined;
+    },
+    async create(gift: GiftOrder): Promise<void> {
+      await getClient().insert(schema.giftOrders).values(giftOrderToRow(gift));
+    },
+    async update(
+      id: string,
+      updates: Partial<GiftOrder>
+    ): Promise<GiftOrder | undefined> {
+      const currentRows = await getClient()
+        .select()
+        .from(schema.giftOrders)
+        .where(eq(schema.giftOrders.id, id));
+      const current = currentRows[0]
+        ? rowToGiftOrder(currentRows[0])
+        : undefined;
+      if (!current) return undefined;
+      const next: GiftOrder = {
+        ...current,
+        ...updates,
+        updatedAt: updates.updatedAt ?? new Date().toISOString(),
+      };
+      await getClient()
+        .update(schema.giftOrders)
+        .set(giftOrderToRow(next))
+        .where(eq(schema.giftOrders.id, id));
+      return next;
+    },
+    async claimRedeemed(
+      token: string,
+      userId: string,
+      redeemedAt: string
+    ): Promise<GiftOrder | undefined> {
+      const staleRedeemingBefore = new Date(
+        Date.now() - 2 * 60 * 1000
+      ).toISOString();
+      const rows = await getClient()
+        .update(schema.giftOrders)
+        .set({
+          status: "redeeming",
+          redeemedByUserId: userId,
+          redeemedAt: null,
+          updatedAt: redeemedAt,
+        })
+        .where(
+          and(
+            eq(schema.giftOrders.token, token),
+            or(
+              eq(schema.giftOrders.status, "paid"),
+              and(
+                eq(schema.giftOrders.status, "redeeming"),
+                eq(schema.giftOrders.redeemedByUserId, userId),
+                lt(schema.giftOrders.updatedAt, staleRedeemingBefore)
+              )
+            )
+          )
+        )
+        .returning();
+      return rows[0] ? rowToGiftOrder(rows[0]) : undefined;
+    },
+    async finalizeRedeemed(
+      id: string,
+      userId: string,
+      redeemedAt: string
+    ): Promise<GiftOrder | undefined> {
+      const rows = await getClient()
+        .update(schema.giftOrders)
+        .set({
+          status: "redeemed",
+          redeemedByUserId: userId,
+          redeemedAt,
+          updatedAt: redeemedAt,
+        })
+        .where(
+          and(
+            eq(schema.giftOrders.id, id),
+            eq(schema.giftOrders.status, "redeeming"),
+            eq(schema.giftOrders.redeemedByUserId, userId)
+          )
+        )
+        .returning();
+      return rows[0] ? rowToGiftOrder(rows[0]) : undefined;
+    },
+    async releaseRedeemClaim(
+      id: string,
+      userId: string
+    ): Promise<GiftOrder | undefined> {
+      const now = new Date().toISOString();
+      const rows = await getClient()
+        .update(schema.giftOrders)
+        .set({
+          status: "paid",
+          redeemedByUserId: null,
+          redeemedAt: null,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(schema.giftOrders.id, id),
+            eq(schema.giftOrders.status, "redeeming"),
+            eq(schema.giftOrders.redeemedByUserId, userId)
+          )
+        )
+        .returning();
+      return rows[0] ? rowToGiftOrder(rows[0]) : undefined;
+    },
+    async claimPaid(
+      token: string,
+      purchaserUserId: string,
+      paidAt: string,
+      checkoutSessionId: string,
+      paymentIntentId?: string
+    ): Promise<GiftOrder | undefined> {
+      const rows = await getClient()
+        .update(schema.giftOrders)
+        .set({
+          status: "paid",
+          checkoutSessionId,
+          paymentIntentId: paymentIntentId ?? null,
+          paidAt,
+          updatedAt: paidAt,
+        })
+        .where(
+          and(
+            eq(schema.giftOrders.token, token),
+            eq(schema.giftOrders.purchaserUserId, purchaserUserId),
+            eq(schema.giftOrders.status, "checkout_started")
+          )
+        )
+        .returning();
+      return rows[0] ? rowToGiftOrder(rows[0]) : undefined;
     },
   },
 

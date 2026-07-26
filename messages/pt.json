@@ -497,7 +497,8 @@
     "printProduction": "Produção",
     "estimatedPrice": "Preço estimado de impressão AU",
     "printOrderingComingSoon": "Livros impressos em breve. Você ainda pode criar e baixar seu PDF ou EPUB hoje.",
-    "comingSoon": "Em breve"
+    "comingSoon": "Em breve",
+    "failedContactLink": "Email us if you need help ->"
   },
   "account": {
     "title": "Sua conta",

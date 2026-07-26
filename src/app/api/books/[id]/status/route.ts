@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
+import { dispatchBookBuildJob } from "@/lib/print-books/jobs";
 
 export async function GET(
   _req: NextRequest,
@@ -14,6 +15,16 @@ export async function GET(
   const project = await db.bookProjects.getById(id);
   if (!project || project.userId !== userId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  if (
+    project.assets.activeJobId &&
+    project.assets.activeJobStatus === "queued"
+  ) {
+    const job = await db.bookBuildJobs.getById(project.assets.activeJobId);
+    if (job?.status === "queued") {
+      await dispatchBookBuildJob(job);
+    }
   }
 
   return NextResponse.json({
@@ -38,7 +49,9 @@ export async function GET(
         sequence: s.sequence,
         title: s.title,
         layoutType: s.layoutType,
-        thumbnailUrl: s.thumbnailUrl ?? s.imageUrl ?? undefined,
+        thumbnailUrl:
+          s.thumbnailUrl ?? s.leftPageWebImageUrl ?? s.imageUrl ?? undefined,
+        webImageUrl: s.leftPageWebImageUrl ?? s.thumbnailUrl ?? undefined,
         leftPageImageUrl: s.leftPageImageUrl ?? s.imageUrl ?? undefined,
         rightPageImageUrl: undefined,
         leftPageImageError: s.leftPageImageError,

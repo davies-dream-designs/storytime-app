@@ -62,24 +62,42 @@ describe("preparePrintFulfillment", () => {
   beforeEach(() => {
     process.env = { ...previousEnv };
     delete process.env.STORYCOT_PRINT_PROVIDER;
-    delete process.env.STORYCOT_PRODIGI_SOFTCOVER_SKU;
+    delete process.env.STORYCOT_PEECHO_SOFTCOVER_OFFERING_ID;
     delete process.env.LULU_CONTACT_EMAIL;
     delete process.env.LULU_SHIPPING_LEVEL;
   });
 
-  it("keeps paid orders safe when supplier SKUs are not configured", () => {
+  it("prepares a Lulu payload by default when Lulu assets are available", () => {
     const fulfillment = preparePrintFulfillment({
       project: createProject(),
       order: createOrder(),
     });
 
-    expect(fulfillment.status).toBe("not_configured");
-    expect(fulfillment.provider).toBe("prodigi");
-    expect(fulfillment.message).toContain("Prodigi SKU is not configured");
+    expect(fulfillment.status).toBe("ready_for_manual_review");
+    expect(fulfillment.provider).toBe("lulu");
+    expect(fulfillment.payload).toMatchObject({
+      contact_email: "hello@storycot.com",
+      external_id: "storycot-book-1",
+      line_items: [
+        {
+          external_id: "book-1-softcover",
+          printable_normalization: {
+            cover: {
+              source_url: "https://assets.storycot.test/book-1-lulu-cover.pdf",
+            },
+            interior: {
+              source_url: "https://assets.storycot.test/book-1-lulu-print.pdf",
+            },
+          },
+        },
+      ],
+      shipping_level: "MAIL",
+    });
   });
 
-  it("prepares a Prodigi payload with public PDFs and page count", () => {
-    process.env.STORYCOT_PRODIGI_SOFTCOVER_SKU = "BOOK-SQUARE-SOFT";
+  it("prepares a Peecho payload with public PDFs and page count", () => {
+    process.env.STORYCOT_PRINT_PROVIDER = "peecho";
+    process.env.STORYCOT_PEECHO_SOFTCOVER_OFFERING_ID = "12345";
 
     const fulfillment = preparePrintFulfillment({
       project: createProject(),
@@ -87,23 +105,21 @@ describe("preparePrintFulfillment", () => {
     });
 
     expect(fulfillment.status).toBe("ready_for_manual_review");
+    expect(fulfillment.provider).toBe("peecho");
     expect(fulfillment.payload).toMatchObject({
-      merchantReference: "storycot-book-1",
-      shippingMethod: "Standard",
-      items: [
+      purchase_order: "storycot-book-1",
+      item_details: [
         {
-          sku: "BOOK-SQUARE-SOFT",
-          assets: [
-            {
-              printArea: "default",
-              url: "https://assets.storycot.test/book-1-print.pdf",
-              pageCount: 24,
+          item_reference: "book-1-softcover",
+          offering_id: 12345,
+          file_details: {
+            content_url: "https://assets.storycot.test/book-1-print.pdf",
+            number_of_pages: 24,
+            spine_details: {
+              custom_spine_url:
+                "https://assets.storycot.test/book-1-cover.pdf",
             },
-            {
-              printArea: "cover",
-              url: "https://assets.storycot.test/book-1-cover.pdf",
-            },
-          ],
+          },
         },
       ],
     });

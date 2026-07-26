@@ -10,10 +10,29 @@ const { mockConstructEvent, mockRetrieveSession, mockSubmitPrintFulfillment } =
     mockSubmitPrintFulfillment: vi.fn(),
   }));
 
+const { mockGetUser, mockUpdateUserMetadata } = vi.hoisted(() => ({
+  mockGetUser: vi.fn(),
+  mockUpdateUserMetadata: vi.fn(),
+}));
+
+const { mockSendGiftCreditsEmail, mockSendPrintOrderConfirmedEmail } =
+  vi.hoisted(() => ({
+    mockSendGiftCreditsEmail: vi.fn(),
+    mockSendPrintOrderConfirmedEmail: vi.fn(),
+  }));
+
 const mockDb = {
   bookProjects: {
     getById: vi.fn(),
     update: vi.fn(),
+  },
+  giftOrders: {
+    claimPaid: vi.fn(),
+    getByToken: vi.fn(),
+    update: vi.fn(),
+  },
+  stories: {
+    getById: vi.fn(),
   },
 };
 
@@ -34,7 +53,12 @@ vi.mock("stripe", () => ({
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: vi.fn(),
+  clerkClient: vi.fn(async () => ({
+    users: {
+      getUser: mockGetUser,
+      updateUserMetadata: mockUpdateUserMetadata,
+    },
+  })),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -43,6 +67,11 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/print-books/fulfillment", () => ({
   submitPrintFulfillment: mockSubmitPrintFulfillment,
+}));
+
+vi.mock("@/lib/email", () => ({
+  sendGiftCreditsEmail: mockSendGiftCreditsEmail,
+  sendPrintOrderConfirmedEmail: mockSendPrintOrderConfirmedEmail,
 }));
 
 function createProject(): BookProject {
@@ -113,6 +142,31 @@ describe("Stripe checkout webhook", () => {
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_123";
     mockDb.bookProjects.getById.mockResolvedValue(createProject());
     mockDb.bookProjects.update.mockResolvedValue(undefined);
+    mockDb.giftOrders.claimPaid.mockResolvedValue(undefined);
+    mockDb.giftOrders.getByToken.mockResolvedValue(undefined);
+    mockDb.giftOrders.update.mockImplementation(async (_id, updates) => ({
+      id: "gift-1",
+      token: "gift-token",
+      purchaserUserId: "user-1",
+      recipientEmail: "recipient@example.com",
+      packId: "starter",
+      credits: 10,
+      amountAud: 499,
+      status: "paid",
+      referralReferrerUserId: "user-referrer",
+      createdAt: "2026-07-20T00:00:00.000Z",
+      updatedAt: "2026-07-20T00:00:00.000Z",
+      ...updates,
+    }));
+    mockDb.stories.getById.mockResolvedValue({ title: "Moonlight Garden" });
+    mockGetUser.mockResolvedValue({
+      firstName: "Buyer",
+      primaryEmailAddress: { emailAddress: "buyer@example.com" },
+      privateMetadata: { credits: 4 },
+    });
+    mockUpdateUserMetadata.mockResolvedValue(undefined);
+    mockSendGiftCreditsEmail.mockResolvedValue(undefined);
+    mockSendPrintOrderConfirmedEmail.mockResolvedValue(undefined);
     mockSubmitPrintFulfillment.mockResolvedValue({
       provider: "lulu",
       status: "submitted",
@@ -232,5 +286,102 @@ describe("Stripe checkout webhook", () => {
         }),
       }),
     });
+  });
+
+  it("marks gift credits paid and grants a referral reward without crediting the buyer", async () => {
+    mockDb.giftOrders.claimPaid.mockResolvedValue({
+      id: "gift-1",
+      token: "gift-token",
+      purchaserUserId: "user-1",
+      purchaserEmail: "buyer@example.com",
+      recipientEmail: "recipient@example.com",
+      recipientName: "Nana",
+      message: "Enjoy bedtime.",
+      packId: "starter",
+      credits: 10,
+      amountAud: 499,
+      status: "checkout_started",
+      checkoutSessionId: "cs_test_123",
+      referralReferrerUserId: "user-referrer",
+      createdAt: "2026-07-20T00:00:00.000Z",
+      updatedAt: "2026-07-20T00:00:00.000Z",
+    });
+    mockGetUser.mockResolvedValueOnce({
+      privateMetadata: { credits: 2 },
+    });
+    mockGetUser.mockResolvedValueOnce({
+      firstName: "Buyer",
+      primaryEmailAddress: { emailAddress: "buyer@example.com" },
+      privateMetadata: { credits: 4 },
+    });
+    mockConstructEvent.mockReturnValue({
+      type: "checkout.session.completed",
+      data: {
+        object: createCheckoutSession({
+          metadata: {
+            checkoutType: "gift_credits",
+            userId: "user-1",
+            giftToken: "gift-token",
+            credits: "10",
+          },
+        }),
+      },
+    });
+
+    const { POST } = await import("@/app/api/stripe/webhook/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/stripe/webhook", {
+        method: "POST",
+        headers: { "stripe-signature": "sig_test" },
+        body: "{}",
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockDb.giftOrders.claimPaid).toHaveBeenCalledWith(
+      "gift-token",
+      "user-1",
+      expect.any(String),
+      "cs_test_123",
+      "pi_test_123"
+    );
+    expect(mockUpdateUserMetadata).toHaveBeenCalledWith("user-referrer", {
+      privateMetadata: { credits: 3 },
+    });
+    expect(mockUpdateUserMetadata).not.toHaveBeenCalledWith(
+      "user-1",
+      expect.anything()
+    );
+    expect(mockSendGiftCreditsEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not repeat gift referral or email side effects for duplicate checkout webhooks", async () => {
+    mockDb.giftOrders.claimPaid.mockResolvedValue(undefined);
+    mockConstructEvent.mockReturnValue({
+      type: "checkout.session.completed",
+      data: {
+        object: createCheckoutSession({
+          metadata: {
+            checkoutType: "gift_credits",
+            userId: "user-1",
+            giftToken: "gift-token",
+            credits: "10",
+          },
+        }),
+      },
+    });
+
+    const { POST } = await import("@/app/api/stripe/webhook/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/stripe/webhook", {
+        method: "POST",
+        headers: { "stripe-signature": "sig_test" },
+        body: "{}",
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockUpdateUserMetadata).not.toHaveBeenCalled();
+    expect(mockSendGiftCreditsEmail).not.toHaveBeenCalled();
   });
 });

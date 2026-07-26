@@ -497,7 +497,8 @@
     "printProduction": "Üretim",
     "estimatedPrice": "Tahmini AU baskı fiyatı",
     "printOrderingComingSoon": "Basılı kitaplar yakında geliyor. PDF veya EPUB'unuzu bugün hâlâ oluşturabilir ve indirebilirsiniz.",
-    "comingSoon": "Yakında"
+    "comingSoon": "Yakında",
+    "failedContactLink": "Email us if you need help ->"
   },
   "account": {
     "title": "Hesabınız",

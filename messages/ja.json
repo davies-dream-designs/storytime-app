@@ -497,7 +497,8 @@
     "printProduction": "制作",
     "estimatedPrice": "AU推定印刷価格",
     "printOrderingComingSoon": "印刷本は近日公開予定です。今すぐPDFやEPUBを作成してダウンロードできます。",
-    "comingSoon": "近日公開"
+    "comingSoon": "近日公開",
+    "failedContactLink": "Email us if you need help ->"
   },
   "account": {
     "title": "あなたのアカウント",

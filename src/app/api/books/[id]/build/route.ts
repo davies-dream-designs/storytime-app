@@ -58,7 +58,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       baseUrl: req.nextUrl.origin,
     })
 
-    await inngest.send({ name: INNGEST_EVENTS.bookBuildRequested, data: { jobId: job.id } })
+    await inngest.send({ name: INNGEST_EVENTS.bookBuildRequested, data: { jobId: job.id, userId: project.userId } })
 
     return NextResponse.json(queuedProject)
   } catch (error) {

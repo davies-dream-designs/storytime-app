@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale } from "next-intl";
 import { useTranslations } from "next-intl";
 import Button from "@/components/ui/Button";
 
 export default function ShareButton({ storyId }: { storyId: string }) {
   const [state, setState] = useState<"idle" | "loading" | "copied">("idle");
   const t = useTranslations("stories");
+  const locale = useLocale();
 
   async function handleShare() {
     setState("loading");
@@ -15,7 +17,7 @@ export default function ShareButton({ storyId }: { storyId: string }) {
         method: "POST",
       });
       const { token } = await res.json();
-      const url = `${window.location.origin}/s/${token}`;
+      const url = `${window.location.origin}/${locale}/s/${token}`;
       await navigator.clipboard.writeText(url);
       setState("copied");
       setTimeout(() => setState("idle"), 2500);
@@ -37,7 +39,12 @@ export default function ShareButton({ storyId }: { storyId: string }) {
             ? "…"
             : t("shareIdle")}
       </Button>
-      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+      <span
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
         {state === "copied" ? t("shareLinkCopied") : ""}
       </span>
     </>

@@ -52,6 +52,25 @@ interface GeneratedStory {
   pages: StoryPage[];
 }
 
+function removeDashPunctuation(value: string): string {
+  return value
+    .replace(/[\u2013\u2014]/g, " ")
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function normalizeGeneratedStory(story: GeneratedStory): GeneratedStory {
+  return {
+    title: removeDashPunctuation(story.title),
+    pages: story.pages.map((page) => ({
+      ...page,
+      text: removeDashPunctuation(page.text),
+      illustrationPrompt: removeDashPunctuation(page.illustrationPrompt),
+    })),
+  };
+}
+
 export function buildStoryPrompt(input: GenerateStoryInput): string {
   const {
     profile,
@@ -132,6 +151,94 @@ Respond ONLY with valid JSON — no markdown, no extra text:
 Split into ${len.pages} pages. Each page: ${len.sentencesPerPage} sentences.`;
 }
 
+export function buildStoryPostCheckPrompt(
+  input: GenerateStoryInput,
+  story: GeneratedStory
+): string {
+  const language = LOCALE_LANGUAGE[input.locale ?? "en"] ?? "English";
+
+  return `You are Storycot's final children's-book editor.
+
+Copyedit this generated bedtime story so it is author-ready for a parent to read aloud.
+
+Required checks:
+1. Fix grammar, spelling, punctuation, repeated words, awkward wording, and malformed dialogue.
+2. Make dialogue attribution accurate and natural. If ${input.profile.name} is the speaker, use "${input.profile.name} said" or an equivalent accurate tag. Do not attribute speech to the wrong character.
+3. Keep the child's exact name as ${input.profile.name}. Do not rename the child.
+4. Preserve the story's warmth, bedtime tone, age suitability, approximate length, page count, and page numbers.
+5. Remove every em dash and en dash. Use commas, periods, or simpler sentence breaks instead.
+6. Remove or rewrite any surviving franchise, brand, celebrity, copyrighted character, trademarked world, logo, catchphrase, or recognisable likeness into original Storycot-safe characters and settings.
+7. Keep every illustrationPrompt image-safe and original. Do not mention protected names, studios, brands, franchises, lookalike traits, unsafe scenes, private body areas, bathing, toilets, injury, danger, restraint, or text in the image.
+8. Write in ${language}.
+
+Respond ONLY with valid JSON matching this exact shape. Do not add markdown or commentary:
+{
+  "title": "A short magical title",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "text": "Polished story text",
+      "illustrationPrompt": "Polished image-safe illustration prompt"
+    }
+  ]
+}
+
+Story JSON to polish:
+${JSON.stringify(story, null, 2)}`;
+}
+
+function validatePostCheckedStory(
+  original: GeneratedStory,
+  checked: GeneratedStory
+): GeneratedStory {
+  if (!checked.title?.trim()) {
+    throw new Error("Story post-check returned no title");
+  }
+  if (checked.pages.length !== original.pages.length) {
+    throw new Error("Story post-check changed page count");
+  }
+
+  for (let i = 0; i < checked.pages.length; i += 1) {
+    const originalPage = original.pages[i];
+    const checkedPage = checked.pages[i];
+    if (!originalPage || !checkedPage) {
+      throw new Error("Story post-check returned invalid pages");
+    }
+    if (checkedPage.pageNumber !== originalPage.pageNumber) {
+      throw new Error("Story post-check changed page numbers");
+    }
+    if (!checkedPage.text?.trim() || !checkedPage.illustrationPrompt?.trim()) {
+      throw new Error("Story post-check returned incomplete page content");
+    }
+  }
+
+  return normalizeGeneratedStory(checked);
+}
+
+async function postCheckStory(
+  input: GenerateStoryInput,
+  story: GeneratedStory
+): Promise<GeneratedStory> {
+  const normalized = normalizeGeneratedStory(story);
+  const message = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 4096,
+    messages: [
+      { role: "user", content: buildStoryPostCheckPrompt(input, normalized) },
+    ],
+  });
+
+  const content = message.content[0];
+  if (content.type !== "text") {
+    throw new Error("Unexpected response type from story post-check");
+  }
+
+  return validatePostCheckedStory(
+    normalized,
+    parseGeneratedStory(content.text.trim())
+  );
+}
+
 export async function generateStory(
   input: GenerateStoryInput
 ): Promise<GeneratedStory> {
@@ -145,20 +252,7 @@ export async function generateStory(
   if (content.type !== "text")
     throw new Error("Unexpected response type from AI");
 
-  const raw = content.text.trim();
-  let story: GeneratedStory;
-  try {
-    story = JSON.parse(raw) as GeneratedStory;
-  } catch {
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("Could not parse story from AI response");
-    story = JSON.parse(match[0]) as GeneratedStory;
-  }
-  story.pages = story.pages.map((p) => ({
-    ...p,
-    text: p.text.replace(/\s*—\s*/g, " ").trim(),
-  }));
-  return story;
+  return postCheckStory(input, parseGeneratedStory(content.text.trim()));
 }
 
 function parseGeneratedStory(raw: string): GeneratedStory {
@@ -250,7 +344,7 @@ export async function streamStory(
   });
 
   const raw = await stream.finalText();
-  return parseGeneratedStory(raw.trim());
+  return postCheckStory(input, parseGeneratedStory(raw.trim()));
 }
 
 export async function generateSuggestions(

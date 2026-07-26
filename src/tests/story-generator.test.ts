@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ChildProfile, Character } from "@/types";
-import { buildStoryPrompt } from "@/lib/storyGenerator";
+import {
+  buildStoryPostCheckPrompt,
+  buildStoryPrompt,
+  normalizeGeneratedStory,
+} from "@/lib/storyGenerator";
 
 vi.mock("@anthropic-ai/sdk", () => ({
   default: vi.fn(() => ({})),
@@ -78,5 +82,61 @@ describe("buildStoryPrompt", () => {
 
     expect(prompt).not.toContain("Bluey");
     expect(prompt).toContain("Pip");
+  });
+});
+
+describe("story post-check", () => {
+  it("instructs the final editor to fix grammar, attribution, dashes, and IP leaks", () => {
+    const prompt = buildStoryPostCheckPrompt(
+      {
+        profile: createProfile(),
+        characters: [],
+        theme: "kindness",
+        notes: "",
+        storyPreset: "moonlit-adventures",
+        locale: "en",
+      },
+      {
+        title: "Bailey and the Bluey Cave",
+        pages: [
+          {
+            pageNumber: 1,
+            text: "Bailey smiled — then Bluey said hello.",
+            illustrationPrompt: "Bluey in a cosy cave.",
+          },
+        ],
+      }
+    );
+
+    expect(prompt).toContain("Fix grammar, spelling, punctuation");
+    expect(prompt).toContain("dialogue attribution accurate");
+    expect(prompt).toContain("Bailey said");
+    expect(prompt).toContain("Remove every em dash and en dash");
+    expect(prompt).toContain("Remove or rewrite any surviving franchise");
+    expect(prompt).toContain("valid JSON");
+  });
+
+  it("removes em and en dashes from generated story fields", () => {
+    expect(
+      normalizeGeneratedStory({
+        title: "Bailey — Moon Helper",
+        pages: [
+          {
+            pageNumber: 1,
+            text: "Bailey waved — the lantern glowed.",
+            illustrationPrompt: "A moonlit room – warm and safe.",
+          },
+        ],
+      })
+    ).toEqual({
+      title: "Bailey Moon Helper",
+      pages: [
+        {
+          pageNumber: 1,
+          text: "Bailey waved the lantern glowed.",
+          illustrationPrompt: "A moonlit room warm and safe.",
+        },
+      ],
+    });
   });
 });

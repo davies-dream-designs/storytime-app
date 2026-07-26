@@ -23,6 +23,24 @@ export async function getUserCredits(
   };
 }
 
+/**
+ * Admin action: adjust a user's credit balance by `delta` (can be negative).
+ * Clamps at zero. Returns the new balance.
+ */
+export async function adjustUserCredits(
+  userId: string,
+  delta: number
+): Promise<number> {
+  const client = await clerkClient();
+  const user = await client.users.getUser(userId);
+  const currentCredits = getCredits(user.privateMetadata.credits);
+  const next = Math.max(0, currentCredits + delta);
+  await client.users.updateUserMetadata(userId, {
+    privateMetadata: { credits: next },
+  });
+  return next;
+}
+
 export async function chargeImageRegenerationCredit(
   userId: string
 ): Promise<{ credits: number; isAdmin: boolean }> {

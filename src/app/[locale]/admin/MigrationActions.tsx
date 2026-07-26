@@ -57,22 +57,16 @@ export default function MigrationActions() {
   return (
     <section className="rounded-2xl border border-night-100 bg-white p-6 shadow-sm mb-8">
       <h2 className="font-display text-xl font-bold text-night-800 mb-1">
-        Database Migration (KV → Postgres)
+        Database Migrations
       </h2>
       <p className="text-sm text-night-400 mb-5">
-        Run these in order. Step 1 creates tables, step 2 copies data. Safe to
-        re-run — uses{" "}
-        <span className="font-mono">IF NOT EXISTS</span> /{" "}
-        <span className="font-mono">onConflictDoNothing</span>.
+        One-off schema updates. Safe to re-run — each uses{" "}
+        <span className="font-mono">IF NOT EXISTS</span>.
       </p>
       <div className="flex flex-col gap-4">
         <MigrationButton
-          label="1. Apply schema (create tables)"
-          endpoint="/api/admin/migrate-pg-schema"
-        />
-        <MigrationButton
-          label="2. Migrate KV data → Postgres"
-          endpoint="/api/admin/migrate-pg"
+          label="Create error log table (error_events)"
+          endpoint="/api/admin/migrate-error-events"
         />
       </div>
     </section>

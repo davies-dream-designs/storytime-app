@@ -8,6 +8,7 @@ import {
   buildLuluPrintJobPayload,
   submitLuluPrintJob,
 } from "@/lib/print-books/lulu";
+import { logEvent } from "@/lib/logEvent";
 
 type FulfillmentProvider = PrintFulfillment["provider"];
 
@@ -157,6 +158,22 @@ export async function submitPrintFulfillment(input: {
       status: fulfillment.status,
       message: fulfillment.message,
     });
+    await logEvent({
+      code: fulfillment.message?.toLowerCase().includes("shipping")
+        ? "print.shipping_missing"
+        : "print.fulfillment_config_missing",
+      message: fulfillment.message ?? "Print fulfillment not ready for submission",
+      userId: input.project.userId,
+      userEmail: input.order.shipping?.email ?? null,
+      entityType: "print_order",
+      entityId: input.project.id,
+      source: "print/fulfillment",
+      context: {
+        productKey: input.order.productKey,
+        provider: fulfillment.provider,
+        status: fulfillment.status,
+      },
+    });
     return fulfillment;
   }
 
@@ -186,6 +203,20 @@ export async function submitPrintFulfillment(input: {
       productKey: input.order.productKey,
       provider: fulfillment.provider,
       error: error instanceof Error ? error.message : String(error),
+    });
+    await logEvent({
+      error,
+      code: "print.fulfillment_failed",
+      userId: input.project.userId,
+      userEmail: input.order.shipping?.email ?? null,
+      entityType: "print_order",
+      entityId: input.project.id,
+      source: "print/fulfillment",
+      context: {
+        productKey: input.order.productKey,
+        provider: fulfillment.provider,
+        amountAud: input.order.amountAud,
+      },
     });
     return {
       ...fulfillment,

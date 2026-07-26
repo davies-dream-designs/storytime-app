@@ -14,6 +14,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // `server-only` throws when imported outside an RSC bundle; stub it in tests
+      // so server modules that guard themselves with it remain importable.
+      "server-only": path.resolve(__dirname, "./src/tests/stubs/server-only.ts"),
     },
   },
 });

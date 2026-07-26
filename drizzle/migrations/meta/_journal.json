@@ -8,6 +8,13 @@
       "when": 1784946167702,
       "tag": "0000_long_patch",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785040200885,
+      "tag": "0001_error_events",
+      "breakpoints": true
     }
   ]
 }

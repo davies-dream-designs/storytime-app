@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { STORY_CREDIT_COST } from "@/lib/pricing";
 import { streamStory } from "@/lib/storyGenerator";
 import { assessGeneratedStoryIp } from "@/lib/ipGuardrails";
+import { logEvent } from "@/lib/logEvent";
 import type { StoryPage } from "@/types";
 
 function sendEvent(
@@ -39,6 +40,14 @@ export async function POST(
     await db.stories.update(id, {
       status: "failed",
       generationError: "ANTHROPIC_API_KEY not configured",
+    });
+    await logEvent({
+      code: "story.config_missing",
+      message: "ANTHROPIC_API_KEY not configured",
+      userId,
+      entityType: "story",
+      entityId: id,
+      source: "story/stream",
     });
     return new Response("ANTHROPIC_API_KEY not configured", { status: 503 });
   }
@@ -141,6 +150,16 @@ export async function POST(
         await db.stories.update(id, {
           status: "failed",
           generationError: message,
+        });
+        await logEvent({
+          error: err,
+          fallbackCode: "story.generation_failed",
+          userId,
+          userEmail: user.primaryEmailAddress?.emailAddress ?? null,
+          entityType: "story",
+          entityId: id,
+          source: "story/stream",
+          context: { theme: story.theme, profileId: story.profileId },
         });
         sendEvent(controller, "error", { error: message });
         controller.close();

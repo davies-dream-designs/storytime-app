@@ -35,8 +35,8 @@ function isStorySpread(spread: BookSpread): boolean {
 function imageForSpread(spread: BookSpread): string | undefined {
   const imageUrl =
     spread.leftPageWebImageUrl ??
-    spread.leftPageImageUrl ??
     spread.thumbnailUrl ??
+    spread.leftPageImageUrl ??
     spread.imageUrl;
   return isPlaceholderImage(imageUrl) ? undefined : imageUrl;
 }

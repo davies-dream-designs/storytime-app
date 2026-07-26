@@ -49,7 +49,9 @@ export async function GET(
         sequence: s.sequence,
         title: s.title,
         layoutType: s.layoutType,
-        thumbnailUrl: s.thumbnailUrl ?? s.imageUrl ?? undefined,
+        thumbnailUrl:
+          s.thumbnailUrl ?? s.leftPageWebImageUrl ?? s.imageUrl ?? undefined,
+        webImageUrl: s.leftPageWebImageUrl ?? s.thumbnailUrl ?? undefined,
         leftPageImageUrl: s.leftPageImageUrl ?? s.imageUrl ?? undefined,
         rightPageImageUrl: undefined,
         leftPageImageError: s.leftPageImageError,

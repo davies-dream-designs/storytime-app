@@ -16,6 +16,7 @@ type SpreadPreview = {
   sequence: number;
   title?: string;
   thumbnailUrl?: string;
+  webImageUrl?: string;
   leftPageImageUrl?: string;
   rightPageImageUrl?: string;
   leftPageImageError?: string;
@@ -64,7 +65,7 @@ function getFailedImageTargets(spreads: SpreadPreview[]): ExpandedImage[] {
       sequence: preview.sequence,
       title: preview.title,
       side: "left",
-      url: preview.leftPageImageUrl,
+      url: getPreviewDisplayUrl(preview),
     }));
 }
 
@@ -72,6 +73,15 @@ function isPlaceholderImageUrl(url?: string): boolean {
   if (!url) return false;
   const lower = url.toLowerCase();
   return lower.startsWith("data:image/svg") || lower.endsWith(".svg");
+}
+
+function getPreviewDisplayUrl(preview?: SpreadPreview) {
+  return (
+    preview?.webImageUrl ??
+    preview?.thumbnailUrl ??
+    preview?.leftPageImageUrl ??
+    preview?.rightPageImageUrl
+  );
 }
 
 function getRepairImageTargets(spreads: SpreadPreview[]): ExpandedImage[] {
@@ -87,7 +97,7 @@ function getRepairImageTargets(spreads: SpreadPreview[]): ExpandedImage[] {
       sequence: preview.sequence,
       title: preview.title,
       side: "left",
-      url: preview.leftPageImageUrl,
+      url: getPreviewDisplayUrl(preview),
     }));
 }
 
@@ -111,7 +121,8 @@ function getSpreadPreviews(project: BookProject): SpreadPreview[] {
       id: s.id,
       sequence: s.sequence,
       title: s.title,
-      thumbnailUrl: s.thumbnailUrl ?? s.imageUrl,
+      thumbnailUrl: s.thumbnailUrl ?? s.leftPageWebImageUrl ?? s.imageUrl,
+      webImageUrl: s.leftPageWebImageUrl ?? s.thumbnailUrl,
       leftPageImageUrl: s.leftPageImageUrl ?? s.imageUrl,
       rightPageImageUrl: undefined,
       leftPageImageError: s.leftPageImageError,
@@ -162,7 +173,7 @@ export default function BookStatusPanel({
       spreadPreviews.map((preview) => ({
         preview,
         side: "left",
-        url: preview.leftPageImageUrl,
+        url: getPreviewDisplayUrl(preview),
         error: preview.leftPageImageError,
       })),
     [spreadPreviews]
@@ -400,7 +411,7 @@ export default function BookStatusPanel({
       );
       const nextUrl =
         image.side === "left"
-          ? nextPreview?.leftPageImageUrl
+          ? getPreviewDisplayUrl(nextPreview)
           : nextPreview?.rightPageImageUrl;
       if (nextUrl) setExpandedImage({ ...image, url: nextUrl });
       window.dispatchEvent(new CustomEvent("storycot:credits-updated"));
@@ -547,7 +558,11 @@ export default function BookStatusPanel({
           <p className="text-sm font-bold uppercase tracking-wide text-star-600">
             {t("statusLabel")}
           </p>
-          <h2 className="mt-2 font-display text-3xl font-bold text-night-800" aria-live="polite" aria-atomic="true">
+          <h2
+            className="mt-2 font-display text-3xl font-bold text-night-800"
+            aria-live="polite"
+            aria-atomic="true"
+          >
             {stageLabel}
           </h2>
           <p className="mt-2 text-night-500">
@@ -618,7 +633,9 @@ export default function BookStatusPanel({
                 >
                   <button
                     type="button"
-                    onClick={() => (url ? openArtworkPreview(index) : undefined)}
+                    onClick={() =>
+                      url ? openArtworkPreview(index) : undefined
+                    }
                     className="block aspect-square w-full overflow-hidden bg-night-100"
                     aria-label={`Open ${displayLabel}`}
                   >
@@ -654,11 +671,7 @@ export default function BookStatusPanel({
                         }
                         className="w-full rounded-full bg-white px-1 py-0.5 text-xs font-bold text-night-600 shadow-sm disabled:opacity-50"
                       >
-                        {isRegenerating
-                          ? "…"
-                          : isFreeRetry
-                            ? "Retry"
-                            : "Redo"}
+                        {isRegenerating ? "…" : isFreeRetry ? "Retry" : "Redo"}
                       </button>
                     </div>
                   ) : null}
@@ -667,14 +680,25 @@ export default function BookStatusPanel({
             })}
           </div>
           {imageError ? (
-            <p role="alert" className="mt-3 rounded-xl bg-blush-100 px-4 py-3 text-sm font-bold text-blush-700">
+            <p
+              role="alert"
+              className="mt-3 rounded-xl bg-blush-100 px-4 py-3 text-sm font-bold text-blush-700"
+            >
               {imageError}
             </p>
           ) : null}
           {redoTarget ? (
-            <div className="fixed inset-0 z-50 flex items-end bg-night-900/50 px-4 pb-4 sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="redo-dialog-title">
+            <div
+              className="fixed inset-0 z-50 flex items-end bg-night-900/50 px-4 pb-4 sm:items-center sm:justify-center sm:p-6"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="redo-dialog-title"
+            >
               <div className="w-full max-w-lg rounded-3xl bg-white p-5 shadow-xl">
-                <h3 id="redo-dialog-title" className="text-xl font-black text-night-900">
+                <h3
+                  id="redo-dialog-title"
+                  className="text-xl font-black text-night-900"
+                >
                   What should change?
                 </h3>
                 <p className="mt-2 text-sm font-medium text-night-500">
@@ -791,7 +815,9 @@ export default function BookStatusPanel({
                           </>
                         ) : (
                           <>
-                            <span className="text-4xl" aria-hidden="true">🎨</span>
+                            <span className="text-4xl" aria-hidden="true">
+                              🎨
+                            </span>
                             <p className="mt-2 text-sm font-medium text-night-400">
                               {artwork.error ?? "Illustration pending"}
                             </p>
@@ -812,7 +838,7 @@ export default function BookStatusPanel({
                 ) : null}
 
                 {/* Redo row */}
-                {(artwork.error || canRegenerate) ? (
+                {artwork.error || canRegenerate ? (
                   <div className="flex items-center justify-between gap-3 border-t border-night-50 px-5 py-3">
                     {artwork.error ? (
                       <p className="flex-1 text-xs font-medium text-blush-700">
@@ -897,15 +923,26 @@ export default function BookStatusPanel({
           </div>
 
           {imageError ? (
-            <p role="alert" className="mt-4 rounded-xl bg-blush-100 px-4 py-3 text-sm font-bold text-blush-700">
+            <p
+              role="alert"
+              className="mt-4 rounded-xl bg-blush-100 px-4 py-3 text-sm font-bold text-blush-700"
+            >
               {imageError}
             </p>
           ) : null}
 
           {redoTarget ? (
-            <div className="fixed inset-0 z-50 flex items-end bg-night-900/50 px-4 pb-4 sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="redo-dialog-title">
+            <div
+              className="fixed inset-0 z-50 flex items-end bg-night-900/50 px-4 pb-4 sm:items-center sm:justify-center sm:p-6"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="redo-dialog-title"
+            >
               <div className="w-full max-w-lg rounded-3xl bg-white p-5 shadow-xl">
-                <h3 id="redo-dialog-title" className="text-xl font-black text-night-900">
+                <h3
+                  id="redo-dialog-title"
+                  className="text-xl font-black text-night-900"
+                >
                   What should change?
                 </h3>
                 <p className="mt-2 text-sm font-medium text-night-500">
@@ -1106,7 +1143,10 @@ export default function BookStatusPanel({
               </div>
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-              <p id="expanded-image-dialog-title" className="text-sm font-bold text-night-700">
+              <p
+                id="expanded-image-dialog-title"
+                className="text-sm font-bold text-night-700"
+              >
                 {expandedImage.displayLabel ?? "Selected illustration"}
                 {expandedImage.index !== undefined ? (
                   <span className="ml-2 font-medium text-night-400">

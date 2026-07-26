@@ -12,7 +12,10 @@ import {
   getSessionCountry,
   retrieveSessionWhenShippingIsMissing,
 } from "@/lib/stripe/checkoutShipping";
-import { sendPrintOrderConfirmedEmail } from "@/lib/email";
+import {
+  sendGiftCreditsEmail,
+  sendPrintOrderConfirmedEmail,
+} from "@/lib/email";
 import { logEvent } from "@/lib/logEvent";
 import type { PrintBookOrder } from "@/types/printBook";
 
@@ -103,6 +106,21 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      if (checkoutType === "gift_credits" && session.metadata?.giftToken) {
+        const gift = await db.giftOrders.getByToken(session.metadata.giftToken);
+        if (gift) {
+          await db.giftOrders.update(gift.id, {
+            status: "refunded",
+            checkoutSessionId: session.id,
+            paymentIntentId:
+              typeof session.payment_intent === "string"
+                ? session.payment_intent
+                : undefined,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      }
+
       return NextResponse.json({ received: true, refunded: true });
     }
 
@@ -120,6 +138,88 @@ export async function POST(req: NextRequest) {
           });
         }
       }
+    } else if (checkoutType === "gift_credits") {
+      const giftToken = session.metadata?.giftToken;
+      if (giftToken && userId) {
+        const gift = await db.giftOrders.getByToken(giftToken);
+        if (gift && gift.purchaserUserId === userId) {
+          const now = new Date().toISOString();
+          const wasAlreadyPaid = Boolean(gift.paidAt);
+          const updatedGift = await db.giftOrders.update(gift.id, {
+            status: gift.status === "redeemed" ? "redeemed" : "paid",
+            checkoutSessionId: session.id,
+            paymentIntentId:
+              typeof session.payment_intent === "string"
+                ? session.payment_intent
+                : undefined,
+            paidAt: gift.paidAt ?? now,
+            updatedAt: now,
+          });
+
+          if (
+            updatedGift?.referralReferrerUserId &&
+            !updatedGift.referralGrantedAt &&
+            !wasAlreadyPaid &&
+            updatedGift.referralReferrerUserId !== userId
+          ) {
+            const client = await clerkClient();
+            const referrer = await client.users.getUser(
+              updatedGift.referralReferrerUserId
+            );
+            const current =
+              (referrer.privateMetadata.credits as number | undefined) ?? 3;
+            await client.users.updateUserMetadata(
+              updatedGift.referralReferrerUserId,
+              {
+                privateMetadata: { credits: current + 1 },
+              }
+            );
+            await db.giftOrders.update(updatedGift.id, {
+              referralGrantedAt: now,
+            });
+          }
+
+          if (wasAlreadyPaid) {
+            return NextResponse.json({ received: true });
+          }
+
+          const appUrl =
+            process.env.NEXT_PUBLIC_APP_URL ?? "https://storycot.com";
+          const purchaser = await (async () => {
+            try {
+              const client = await clerkClient();
+              return await client.users.getUser(userId);
+            } catch {
+              return undefined;
+            }
+          })();
+          void sendGiftCreditsEmail({
+            toEmail: gift.recipientEmail,
+            toName: gift.recipientName,
+            fromName:
+              purchaser?.firstName ??
+              purchaser?.primaryEmailAddress?.emailAddress ??
+              gift.purchaserEmail ??
+              "Someone",
+            credits: gift.credits,
+            message: gift.message,
+            redeemUrl: `${appUrl.replace(/\/$/, "")}/gift/${gift.token}`,
+            appUrl,
+          }).catch((err) => {
+            console.error("Gift email failed (non-fatal)", err);
+            void logEvent({
+              error: err,
+              code: "payment.confirmation_email_failed",
+              userId,
+              userEmail: gift.recipientEmail,
+              entityType: "gift_order",
+              entityId: gift.id,
+              source: "stripe/webhook",
+              context: { checkoutSessionId: session.id },
+            });
+          });
+        }
+      }
     } else if (checkoutType === "print_book") {
       const projectId = session.metadata?.projectId;
       const productKey = session.metadata?.productKey;
@@ -127,7 +227,10 @@ export async function POST(req: NextRequest) {
         const project = await db.bookProjects.getById(projectId);
         if (project && project.userId === userId) {
           const quote = quotePrintProduct(project, productKey);
-          const quantity = Math.min(10, Math.max(1, parseInt(session.metadata?.quantity ?? "1", 10) || 1));
+          const quantity = Math.min(
+            10,
+            Math.max(1, parseInt(session.metadata?.quantity ?? "1", 10) || 1)
+          );
           const printOrder: PrintBookOrder = {
             productKey: quote.key,
             productLabel: quote.label,
@@ -166,17 +269,23 @@ export async function POST(req: NextRequest) {
           // Fire-and-forget — email failure must never break the webhook response.
           const customerEmail = printOrder.shipping?.email;
           if (customerEmail) {
-            const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://storycot.com";
+            const appUrl =
+              process.env.NEXT_PUBLIC_APP_URL ?? "https://storycot.com";
             void sendPrintOrderConfirmedEmail({
               toEmail: customerEmail,
               toName: printOrder.shipping?.name ?? "there",
-              storyTitle: (await db.stories.getById(project.sourceStoryId))?.title ?? "Your story",
+              storyTitle:
+                (await db.stories.getById(project.sourceStoryId))?.title ??
+                "Your story",
               productLabel: quote.label,
               amountAud: quote.priceAud,
               trackUrl: `${appUrl}/stories/${project.sourceStoryId}`,
               appUrl,
             }).catch((err) => {
-              console.error("Print order confirmation email failed (non-fatal)", err);
+              console.error(
+                "Print order confirmation email failed (non-fatal)",
+                err
+              );
               void logEvent({
                 error: err,
                 code: "payment.confirmation_email_failed",

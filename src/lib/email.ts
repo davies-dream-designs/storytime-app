@@ -152,15 +152,29 @@ export async function sendPrintOrderConfirmedEmail(input: {
   const client = getClient();
   if (!client) return;
 
-  const { toEmail, toName, storyTitle, productLabel, amountAud, trackUrl, appUrl } = input;
-  const logoUrl = joinUrl(getOriginUrl(getEmailAssetOrigin()), "/nav-icon-light.png");
+  const {
+    toEmail,
+    toName,
+    storyTitle,
+    productLabel,
+    amountAud,
+    trackUrl,
+    appUrl,
+  } = input;
+  const logoUrl = joinUrl(
+    getOriginUrl(getEmailAssetOrigin()),
+    "/nav-icon-light.png"
+  );
   const safeName = escapeHtml(toName);
   const safeTitle = escapeHtml(storyTitle);
   const safeProduct = escapeHtml(productLabel);
   const safeTrackUrl = escapeHtml(trackUrl);
   const safeAppUrl = escapeHtml(appUrl);
   const safeLogoUrl = escapeHtml(logoUrl);
-  const safeAmount = amountAud.toLocaleString("en-AU", { style: "currency", currency: "AUD" });
+  const safeAmount = amountAud.toLocaleString("en-AU", {
+    style: "currency",
+    currency: "AUD",
+  });
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -260,6 +274,68 @@ export async function sendPrintOrderConfirmedEmail(input: {
   });
 }
 
+export async function sendGiftCreditsEmail(input: {
+  toEmail: string;
+  toName?: string;
+  fromName?: string;
+  credits: number;
+  message?: string;
+  redeemUrl: string;
+  appUrl: string;
+}) {
+  const client = getClient();
+  if (!client) return;
+
+  const safeName = input.toName?.trim() || "there";
+  const fromName = input.fromName?.trim() || "Someone";
+  const giftLabel =
+    input.credits === 1
+      ? "1 Storycot credit"
+      : `${input.credits} Storycot credits`;
+  const safeRedeemUrl = escapeHtml(input.redeemUrl);
+  const messageHtml = input.message
+    ? `<p style="margin: 18px 0 0; padding: 14px 16px; border-radius: 16px; background: #fff7d6; color: #43345f; font-size: 15px; line-height: 1.5;">${escapeHtml(input.message)}</p>`
+    : "";
+  const html = `
+  <div style="margin:0; padding:0; background:#f8f4e8;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f8f4e8; padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px; background:#ffffff; border-radius:28px; overflow:hidden; font-family:Arial,sans-serif; color:#17122f;">
+            <tr>
+              <td style="background:#17122f; padding:28px 30px; color:#f8dc7a;">
+                <div style="font-size:24px; font-weight:800;">Storycot</div>
+                <div style="margin-top:8px; color:#d9d4f1; font-size:15px;">A bedtime story gift is waiting</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:30px;">
+                <h1 style="margin:0; font-size:28px; line-height:1.15; color:#17122f;">${escapeHtml(fromName)} sent you ${escapeHtml(giftLabel)}</h1>
+                <p style="margin:16px 0 0; color:#4b4265; font-size:16px; line-height:1.55;">Hi ${escapeHtml(safeName)}, redeem your gift to create personalised bedtime stories for the little one in your life.</p>
+                ${messageHtml}
+                <p style="margin:26px 0;">
+                  <a href="${safeRedeemUrl}" style="display:inline-block; background:#f8dc7a; color:#17122f; text-decoration:none; font-weight:800; padding:14px 22px; border-radius:999px;">Redeem your gift</a>
+                </p>
+                <p style="margin:0; color:#817994; font-size:13px; line-height:1.5;">If the button does not work, open this link:<br>${safeRedeemUrl}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </div>`;
+
+  const text = `Hi ${safeName}, ${fromName} sent you ${giftLabel} for Storycot.\n\nRedeem your gift: ${input.redeemUrl}\n\n${input.message ? `${input.message}\n\n` : ""}The Storycot Team`;
+
+  await client.emails.send({
+    from: "Storycot <hello@storycot.com>",
+    to: input.toEmail,
+    subject: `${fromName} sent you a Storycot gift`,
+    html,
+    text,
+  });
+}
+
 export async function sendShippedEmail(input: {
   toEmail: string;
   toName: string;
@@ -273,8 +349,20 @@ export async function sendShippedEmail(input: {
   const client = getClient();
   if (!client) return;
 
-  const { toEmail, toName, storyTitle, productLabel, trackingUrl, carrier, trackUrl, appUrl } = input;
-  const logoUrl = joinUrl(getOriginUrl(getEmailAssetOrigin()), "/nav-icon-light.png");
+  const {
+    toEmail,
+    toName,
+    storyTitle,
+    productLabel,
+    trackingUrl,
+    carrier,
+    trackUrl,
+    appUrl,
+  } = input;
+  const logoUrl = joinUrl(
+    getOriginUrl(getEmailAssetOrigin()),
+    "/nav-icon-light.png"
+  );
   const safeName = escapeHtml(toName);
   const safeTitle = escapeHtml(storyTitle);
   const safeProduct = escapeHtml(productLabel);
@@ -323,7 +411,9 @@ export async function sendShippedEmail(input: {
                 Hi ${safeName}, your <strong>${safeProduct}</strong> has left the printer and is heading your way.
               </p>
 
-              ${safeTrackingUrl ? `
+              ${
+                safeTrackingUrl
+                  ? `
               <!-- Tracking -->
               <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
                 <tr>
@@ -333,7 +423,9 @@ export async function sendShippedEmail(input: {
                   </td>
                 </tr>
               </table>
-              ` : ""}
+              `
+                  : ""
+              }
 
               <!-- CTA -->
               <table cellpadding="0" cellspacing="0" width="100%">

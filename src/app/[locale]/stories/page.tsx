@@ -5,7 +5,7 @@ import Nav from "@/components/Nav";
 import StoryLibrary from "@/components/StoryLibrary";
 import { db } from "@/lib/db";
 
-export const metadata = { title: "My Stories — Storycot" };
+export const metadata = { title: "My Stories - Storycot" };
 
 export default async function StoriesPage() {
   const { userId } = await auth();
@@ -21,7 +21,11 @@ export default async function StoriesPage() {
   return (
     <>
       <Nav />
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-5 py-10">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto max-w-6xl px-5 py-10"
+      >
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="font-display text-4xl font-bold text-night-800">

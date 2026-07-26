@@ -4,7 +4,7 @@ import { sendShippedEmail } from "@/lib/email";
 import { logEvent } from "@/lib/logEvent";
 import type { PrintFulfillment } from "@/types/printBook";
 
-// Lulu does not sign webhook payloads — no secret verification needed.
+// Lulu does not sign webhook payloads - no secret verification needed.
 
 // Lulu print job status → our fulfillment status mapping
 function mapLuluStatus(luluStatus: string): PrintFulfillment["status"] | null {
@@ -54,8 +54,10 @@ export async function POST(req: NextRequest) {
   }
 
   const data = payload.data;
-  const luluStatusName = typeof data?.status?.name === "string" ? data.status.name : null;
-  const externalId = typeof data?.external_id === "string" ? data.external_id : null;
+  const luluStatusName =
+    typeof data?.status?.name === "string" ? data.status.name : null;
+  const externalId =
+    typeof data?.external_id === "string" ? data.external_id : null;
 
   if (!luluStatusName) {
     return NextResponse.json({ received: true });
@@ -73,7 +75,10 @@ export async function POST(req: NextRequest) {
     : null;
 
   if (!projectId) {
-    console.warn("Lulu webhook: could not resolve project from external_id", externalId);
+    console.warn(
+      "Lulu webhook: could not resolve project from external_id",
+      externalId
+    );
     return NextResponse.json({ received: true });
   }
 
@@ -98,7 +103,11 @@ export async function POST(req: NextRequest) {
     status: newStatus,
     externalStatus,
     ...(newStatus === "shipped" || newStatus === "delivered"
-      ? { shippedAt: project.printOrder.fulfillment.shippedAt ?? new Date().toISOString() }
+      ? {
+          shippedAt:
+            project.printOrder.fulfillment.shippedAt ??
+            new Date().toISOString(),
+        }
       : {}),
     ...(newStatus === "delivered"
       ? { deliveredAt: new Date().toISOString() }
@@ -120,7 +129,7 @@ export async function POST(req: NextRequest) {
     ourStatus: newStatus,
   });
 
-  // A rejected/cancelled print job means a paying customer's order won't ship —
+  // A rejected/cancelled print job means a paying customer's order won't ship -
   // surface it as a high-priority issue in the admin panel.
   if (newStatus === "failed") {
     await logEvent({

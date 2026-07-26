@@ -9,7 +9,7 @@ import PrintOrdersSection from "./PrintOrdersSection";
 import IssuesSection from "./IssuesSection";
 import CustomerLookup from "./CustomerLookup";
 
-export const metadata = { title: "Admin — Storycot" };
+export const metadata = { title: "Admin - Storycot" };
 
 export default async function AdminPage() {
   const { userId } = await auth();
@@ -20,7 +20,8 @@ export default async function AdminPage() {
   if (user.privateMetadata.isAdmin !== true) notFound();
 
   let projects: Awaited<ReturnType<typeof db.bookProjects.getById>>[] = [];
-  let printOrders: Awaited<ReturnType<typeof db.bookProjects.getPrintOrders>> = [];
+  let printOrders: Awaited<ReturnType<typeof db.bookProjects.getPrintOrders>> =
+    [];
   let dbReady = true;
   try {
     const failedIds = await db.bookProjects.getFailedIndex();
@@ -43,7 +44,7 @@ export default async function AdminPage() {
         <p className="mb-8 text-night-400 text-sm">
           {dbReady
             ? `${projects.length} failed project${projects.length !== 1 ? "s" : ""} (most recent first)`
-            : "DB not ready — run migration below first"}
+            : "DB not ready - run migration below first"}
         </p>
 
         <IssuesSection />
@@ -101,7 +102,7 @@ export default async function AdminPage() {
                 </div>
 
                 <p className="text-sm font-medium text-night-700 mb-2">
-                  User saw: &ldquo;{p!.errorMessage ?? "—"}&rdquo;
+                  User saw: &ldquo;{p!.errorMessage ?? "-"}&rdquo;
                 </p>
 
                 {p!.rawError ? (

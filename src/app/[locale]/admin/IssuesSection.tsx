@@ -84,7 +84,9 @@ export default function IssuesSection() {
   return (
     <div className="rounded-2xl border border-night-100 bg-white p-4 sm:p-6 shadow-sm mb-6">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
-        <h2 className="font-display text-xl font-bold text-night-800">Issues</h2>
+        <h2 className="font-display text-xl font-bold text-night-800">
+          Issues
+        </h2>
         <button
           onClick={load}
           className="rounded-full border border-night-200 px-3 py-1 text-xs font-bold text-night-500 hover:bg-night-50"
@@ -95,9 +97,7 @@ export default function IssuesSection() {
 
       {/* Unresolved summary */}
       <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
-        <span className="text-night-400">
-          {unresolvedTotal} unresolved
-        </span>
+        <span className="text-night-400">{unresolvedTotal} unresolved</span>
         {SEVERITIES.slice()
           .reverse()
           .filter((s) => summary[s])
@@ -176,13 +176,17 @@ export default function IssuesSection() {
       </div>
 
       {error && (
-        <p className="mb-3 rounded-lg bg-red-50 p-2 text-sm text-red-700">{error}</p>
+        <p className="mb-3 rounded-lg bg-red-50 p-2 text-sm text-red-700">
+          {error}
+        </p>
       )}
 
       {loading ? (
         <p className="py-6 text-center text-night-400">Loading…</p>
       ) : events.length === 0 ? (
-        <p className="py-6 text-center text-night-400">No issues match. Nice.</p>
+        <p className="py-6 text-center text-night-400">
+          No issues match. Nice.
+        </p>
       ) : (
         <ul className="flex flex-col gap-3">
           {events.map((ev) => (
@@ -270,7 +274,9 @@ function EventRow({
   return (
     <li
       className={`rounded-xl border p-3 ${
-        resolved ? "border-night-100 bg-night-50/40 opacity-70" : "border-night-100 bg-white"
+        resolved
+          ? "border-night-100 bg-night-50/40 opacity-70"
+          : "border-night-100 bg-white"
       }`}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -278,10 +284,14 @@ function EventRow({
           <span
             className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${SEVERITY_STYLES[severity]}`}
           >
-            <span className={`h-1.5 w-1.5 rounded-full ${SEVERITY_DOT[severity]}`} />
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${SEVERITY_DOT[severity]}`}
+            />
             {severity}
           </span>
-          <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${DOMAIN_STYLE}`}>
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-bold ${DOMAIN_STYLE}`}
+          >
             {event.domain}
           </span>
           <span className="font-mono text-xs text-night-600">{event.code}</span>
@@ -315,7 +325,9 @@ function EventRow({
             {event.entityType}: {event.entityId}
           </span>
         )}
-        {event.source && <span className="text-night-400">via {event.source}</span>}
+        {event.source && (
+          <span className="text-night-400">via {event.source}</span>
+        )}
       </div>
 
       {(event.rawError || event.context) && (
@@ -339,7 +351,7 @@ function EventRow({
       {event.note && (
         <p className="mt-2 text-xs text-night-500">
           <span className="font-bold">Note:</span> {event.note}
-          {event.resolvedBy ? ` — ${event.resolvedBy}` : ""}
+          {event.resolvedBy ? ` - ${event.resolvedBy}` : ""}
         </p>
       )}
 

@@ -258,7 +258,7 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          // Fire-and-forget — email failure must never break the webhook response.
+          // Fire-and-forget - email failure must never break the webhook response.
           const customerEmail = printOrder.shipping?.email;
           if (customerEmail) {
             const appUrl =

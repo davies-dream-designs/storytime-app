@@ -68,14 +68,17 @@ export interface LogEventInput {
 
 /**
  * Record an error/event to the central log. Best-effort and defensive: it never
- * throws and never blocks the caller's failure path — if logging itself fails we
+ * throws and never blocks the caller's failure path - if logging itself fails we
  * fall back to console so we don't mask the original problem.
  */
 export async function logEvent(input: LogEventInput): Promise<void> {
   try {
     const app: AppError | undefined =
       input.error !== undefined
-        ? toAppError(input.error, (input.fallbackCode ?? "system.unknown") as ErrorCode)
+        ? toAppError(
+            input.error,
+            (input.fallbackCode ?? "system.unknown") as ErrorCode
+          )
         : undefined;
 
     const code = input.code ?? app?.code ?? "system.unknown";
@@ -117,9 +120,7 @@ export async function logEvent(input: LogEventInput): Promise<void> {
         entityId: input.entityId ?? null,
         userEmail: input.userEmail ?? null,
         source: input.source ?? null,
-      }).catch((e) =>
-        console.error("[logEvent] alert email failed", e)
-      );
+      }).catch((e) => console.error("[logEvent] alert email failed", e));
     }
   } catch (err) {
     // Never let logging break the request. Surface to server logs instead.

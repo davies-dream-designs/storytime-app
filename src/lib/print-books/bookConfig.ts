@@ -1,5 +1,5 @@
 // Single source of truth for all Storycot book dimensions, illustration targets, and print constraints.
-// Every other print-books module derives its values from here — nothing hardcoded elsewhere.
+// Every other print-books module derives its values from here - nothing hardcoded elsewhere.
 
 export const BOOK_SPEC = {
   // Physical trim (21cm × 21cm square)
@@ -22,7 +22,7 @@ export const BOOK_SPEC = {
   minPageCount: 20,
   maxPageCount: 122,
 
-  // Illustration request sizes — both cover and interior are square to match the square trim.
+  // Illustration request sizes - both cover and interior are square to match the square trim.
   // Portrait generation would waste resolution on a square panel and result in cropping.
   coverIllustrationOpenAISize: "1024x1024" as const,
   interiorIllustrationOpenAISize: "1024x1024" as const,

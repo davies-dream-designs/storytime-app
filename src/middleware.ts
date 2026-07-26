@@ -17,7 +17,7 @@ const isPublicRoute = createRouteMatcher([
   `/(${localePattern})/terms(.*)`,
   `/(${localePattern})/s/(.*)`,
   `/(${localePattern})/gift/(.*)`,
-  // Non-prefixed sign-in/up — Clerk may redirect here; intl will then redirect to /en/
+  // Non-prefixed sign-in/up - Clerk may redirect here; intl will then redirect to /en/
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/api/stripe/webhook",
@@ -30,7 +30,7 @@ export default clerkMiddleware(async (auth, req) => {
 
   const intlResponse = handleI18n(req);
 
-  // Return locale redirects immediately — don't auth-check paths being redirected
+  // Return locale redirects immediately - don't auth-check paths being redirected
   // (e.g. /sign-in → /en/sign-in must not hit auth.protect first)
   if (intlResponse && intlResponse.status >= 300 && intlResponse.status < 400) {
     return intlResponse;

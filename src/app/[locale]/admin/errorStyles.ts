@@ -18,7 +18,7 @@ export const SEVERITY_DOT: Record<ErrorSeverity, string> = {
 export const DOMAIN_STYLE = "bg-blush-100 text-blush-700";
 
 export function formatAuDateTime(iso?: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   return new Date(iso).toLocaleString("en-AU", {
     timeZone: "Australia/Adelaide",
     dateStyle: "short",

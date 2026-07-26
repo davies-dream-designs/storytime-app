@@ -6,7 +6,7 @@ import CreditPacks from "./CreditPacks";
 import GiftCredits from "./GiftCredits";
 import ShareSection from "@/components/ShareSection";
 
-export const metadata = { title: "Account — Storycot" };
+export const metadata = { title: "Account - Storycot" };
 
 export default async function AccountPage({
   searchParams,
@@ -56,7 +56,7 @@ export default async function AccountPage({
         )}
         {gift_canceled && (
           <div className="mt-6 rounded-2xl bg-night-50 border border-night-200 px-5 py-4 text-sm text-night-500">
-            Gift checkout was cancelled — no charge was made.
+            Gift checkout was cancelled - no charge was made.
           </div>
         )}
 

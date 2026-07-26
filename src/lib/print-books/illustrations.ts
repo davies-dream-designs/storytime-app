@@ -27,7 +27,7 @@ export function isGeneratedIllustrationConfigured(): boolean {
 }
 
 // How many spreads to illustrate concurrently per cursor step.
-// Default 3 — safe for Tier 2+ (10 RPM). Raise via ILLUSTRATION_CONCURRENCY:
+// Default 3 - safe for Tier 2+ (10 RPM). Raise via ILLUSTRATION_CONCURRENCY:
 //   Tier 3 (50 RPM):  5
 //   Tier 4 (100 RPM): 10+
 export function getIllustrationConcurrency(): number {
@@ -514,7 +514,9 @@ async function generateOpenAIImage(input: {
           shouldTryNextImageModel(response.status, errorBody);
         if (canFallback) break;
         throw new AppError(
-          response.status === 429 ? "book.image_rate_limited" : "external.openai_error",
+          response.status === 429
+            ? "book.image_rate_limited"
+            : "external.openai_error",
           {
             message: lastErrorMessage,
             context: { model, status: response.status },
@@ -617,7 +619,7 @@ function buildPageIllustrationPrompt(input: {
           `User correction for this redo: ${correctionNote}. Apply this correction while preserving the character bible, story moment, and art style.`,
         ]
       : []),
-    // Variation is the critical instruction — stated explicitly.
+    // Variation is the critical instruction - stated explicitly.
     "Illustrate this specific story moment. The depicted scene, character action, setting detail, and emotional tone must match the illustration direction above. This image must look meaningfully different from every other page in the book. Keep only the child's face shape, hair colour, skin tone, and core outfit exactly consistent. No text, lettering, or page numbers inside the art.",
   ].join(" ");
 }
@@ -694,7 +696,7 @@ export async function generateCoverIllustration(input: {
         upscaled = await generateAndUpscale(prompt);
       } catch (err) {
         if (!(err instanceof UnusableGeneratedImageError)) throw err;
-        console.warn(`${err.message} — retrying cover generation once.`);
+        console.warn(`${err.message} - retrying cover generation once.`);
         upscaled = await generateAndUpscale(prompt);
       }
 
@@ -727,10 +729,10 @@ export async function generateCoverIllustration(input: {
         throw err;
       }
 
-      // Retry with a stripped prompt — the character bible or cover scene is
+      // Retry with a stripped prompt - the character bible or cover scene is
       // the most common moderation trigger. Same strategy as spread fallback.
       console.warn(
-        "Cover generation was blocked or unusable — retrying with simplified prompt.",
+        "Cover generation was blocked or unusable - retrying with simplified prompt.",
         { error: getImageFailureMessage(err) }
       );
       const fallbackPrompt = buildCoverIllustrationPrompt({
@@ -756,7 +758,10 @@ export async function generateCoverIllustration(input: {
         return {
           coverImageUrl,
           coverWebImageUrl,
-          spreads: replaceCoverSpreadImage(input.project.spreads, coverImageUrl),
+          spreads: replaceCoverSpreadImage(
+            input.project.spreads,
+            coverImageUrl
+          ),
           provider: "openai",
         };
       } catch (retryErr) {
@@ -796,7 +801,11 @@ export async function generateSpreadPageIllustration(input: {
   spread: BookSpread;
   side: "left" | "right";
   correctionNote?: string;
-}): Promise<{ url: string; webUrl?: string; provider: "openai" | "placeholder" }> {
+}): Promise<{
+  url: string;
+  webUrl?: string;
+  provider: "openai" | "placeholder";
+}> {
   const { project, spread, side } = input;
   const suffix = side === "left" ? "-left" : "-right";
   const base = `books/${project.id}/spreads/${spread.sequence}`;
@@ -818,9 +827,17 @@ export async function generateSpreadPageIllustration(input: {
     const printPathname = generatedImagePathname(base, suffix);
     const webPathname = `${printPathname.replace(/\.png$/, "")}-web.jpg`;
     const [url, webUrl] = await Promise.all([
-      storeBookAsset({ pathname: printPathname, body: upscaled, contentType: "image/png" }),
+      storeBookAsset({
+        pathname: printPathname,
+        body: upscaled,
+        contentType: "image/png",
+      }),
       webImageBuffer(upscaled).then((web) =>
-        storeBookAsset({ pathname: webPathname, body: web, contentType: "image/jpeg" })
+        storeBookAsset({
+          pathname: webPathname,
+          body: web,
+          contentType: "image/jpeg",
+        })
       ),
     ]);
     return { url, webUrl };
@@ -835,7 +852,7 @@ export async function generateSpreadPageIllustration(input: {
     } catch (err) {
       if (!(err instanceof UnusableGeneratedImageError)) throw err;
       console.warn(
-        `${err.message} — retrying spread ${spread.sequence} ${side} page once.`
+        `${err.message} - retrying spread ${spread.sequence} ${side} page once.`
       );
       upscaled = await generateAndUpscale(prompt);
     }
@@ -848,7 +865,7 @@ export async function generateSpreadPageIllustration(input: {
     ) {
       throw err;
     }
-    // Retry without page text — the text is the most common moderation trigger.
+    // Retry without page text - the text is the most common moderation trigger.
     const fallbackPrompt = buildPageIllustrationPrompt({
       ...input,
       omitPageText: true,

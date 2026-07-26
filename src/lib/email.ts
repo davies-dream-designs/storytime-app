@@ -129,12 +129,12 @@ export async function sendBookReadyEmail(input: {
 </body>
 </html>`;
 
-  const text = `Hi ${toName}, your illustrated storybook "${storyTitle}" is ready!\n\nView it here: ${bookUrl}\n\n— The Storycot Team`;
+  const text = `Hi ${toName}, your illustrated storybook "${storyTitle}" is ready!\n\nView it here: ${bookUrl}\n\n- The Storycot Team`;
 
   await client.emails.send({
     from: "Storycot <noreply@storycot.com>",
     to: toEmail,
-    subject: `Your Storycot book is ready — ${storyTitle}`,
+    subject: `Your Storycot book is ready - ${storyTitle}`,
     html,
     text,
   });
@@ -240,7 +240,7 @@ export async function sendPrintOrderConfirmedEmail(input: {
               </table>
 
               <p style="margin:20px 0 0;font-size:13px;color:#7c6dc8;text-align:center;line-height:1.5;">
-                Your order status is updated here as it moves through production.<br />No need to wait for emails — just check back anytime.
+                Your order status is updated here as it moves through production.<br />No need to wait for emails - just check back anytime.
               </p>
 
             </td>
@@ -263,12 +263,12 @@ export async function sendPrintOrderConfirmedEmail(input: {
 </body>
 </html>`;
 
-  const text = `Hi ${toName}, your ${productLabel} of "${storyTitle}" is confirmed (${safeAmount}).\n\nYour book will be printed and shipped to you. We'll email you when it's on its way.\n\nTrack your order anytime at: ${trackUrl}\n\n— The Storycot Team`;
+  const text = `Hi ${toName}, your ${productLabel} of "${storyTitle}" is confirmed (${safeAmount}).\n\nYour book will be printed and shipped to you. We'll email you when it's on its way.\n\nTrack your order anytime at: ${trackUrl}\n\n- The Storycot Team`;
 
   await client.emails.send({
     from: "Storycot <noreply@storycot.com>",
     to: toEmail,
-    subject: `Order confirmed — ${storyTitle} hardcover`,
+    subject: `Order confirmed - ${storyTitle} hardcover`,
     html,
     text,
   });
@@ -440,7 +440,7 @@ export async function sendShippedEmail(input: {
               </table>
 
               <p style="margin:20px 0 0;font-size:13px;color:#7c6dc8;text-align:center;line-height:1.5;">
-                Your full order history and status live here — check back anytime.
+                Your full order history and status live here - check back anytime.
               </p>
 
             </td>
@@ -464,12 +464,12 @@ export async function sendShippedEmail(input: {
 </html>`;
 
   const trackingLine = trackingUrl ? `\nTrack your parcel: ${trackingUrl}` : "";
-  const text = `Hi ${toName}, your ${productLabel} of "${storyTitle}" is on its way!${trackingLine}\n\nView your order status: ${trackUrl}\n\n— The Storycot Team`;
+  const text = `Hi ${toName}, your ${productLabel} of "${storyTitle}" is on its way!${trackingLine}\n\nView your order status: ${trackUrl}\n\n- The Storycot Team`;
 
   await client.emails.send({
     from: "Storycot <noreply@storycot.com>",
     to: toEmail,
-    subject: `Your Storycot book is on its way — ${storyTitle}`,
+    subject: `Your Storycot book is on its way - ${storyTitle}`,
     html,
     text,
   });

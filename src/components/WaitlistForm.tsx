@@ -4,7 +4,11 @@ import { useState } from "react";
 
 type Status = "idle" | "loading" | "success" | "error";
 
-export default function WaitlistForm({ variant = "light" }: { variant?: "light" | "dark" }) {
+export default function WaitlistForm({
+  variant = "light",
+}: {
+  variant?: "light" | "dark";
+}) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState("");
@@ -25,11 +29,13 @@ export default function WaitlistForm({ variant = "light" }: { variant?: "light" 
         return;
       }
       setStatus("success");
-      setMessage("You're on the list! We'll roar when the Kickstarter is live. 🦖");
+      setMessage(
+        "You're on the list! We'll roar when the Kickstarter is live. 🦖"
+      );
       setEmail("");
     } catch {
       setStatus("error");
-      setMessage("Network hiccup — please try again.");
+      setMessage("Network hiccup - please try again.");
     }
   }
 
@@ -76,14 +82,18 @@ export default function WaitlistForm({ variant = "light" }: { variant?: "light" 
         </button>
       </div>
       {status === "error" && (
-        <p className="mt-2 px-2 text-sm font-semibold text-tang-500" role="alert">
+        <p
+          className="mt-2 px-2 text-sm font-semibold text-tang-500"
+          role="alert"
+        >
           {message}
         </p>
       )}
       <p
         className={`mt-3 px-2 text-sm ${dark ? "text-slime-100/60" : "text-ink/50"}`}
       >
-        No spam, ever. Just first dibs on the Kickstarter and early-bird pricing.
+        No spam, ever. Just first dibs on the Kickstarter and early-bird
+        pricing.
       </p>
     </form>
   );

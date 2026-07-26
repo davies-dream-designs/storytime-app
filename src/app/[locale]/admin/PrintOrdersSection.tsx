@@ -9,7 +9,7 @@ type PrintOrderRow = {
 };
 
 function formatAuDate(iso?: string): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   return new Date(iso).toLocaleString("en-AU", {
     timeZone: "Australia/Adelaide",
     dateStyle: "short",
@@ -39,7 +39,9 @@ const FULFILLMENT_STATUS_STYLES: Record<PrintFulfillment["status"], string> = {
 function OrderStatusBadge({ status }: { status: PrintBookOrder["status"] }) {
   const styles = ORDER_STATUS_STYLES[status] ?? "bg-night-100 text-night-500";
   return (
-    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-bold ${styles}`}>
+    <span
+      className={`inline-block rounded-full px-2 py-0.5 text-xs font-bold ${styles}`}
+    >
       {status.replace(/_/g, " ")}
     </span>
   );
@@ -47,10 +49,18 @@ function OrderStatusBadge({ status }: { status: PrintBookOrder["status"] }) {
 
 function FulfillmentBadge({ fulfillment }: { fulfillment?: PrintFulfillment }) {
   if (!fulfillment)
-    return <span className="inline-block rounded-full bg-night-100 px-2 py-0.5 text-xs font-medium text-night-400">none</span>;
-  const styles = FULFILLMENT_STATUS_STYLES[fulfillment.status] ?? "bg-night-100 text-night-500";
+    return (
+      <span className="inline-block rounded-full bg-night-100 px-2 py-0.5 text-xs font-medium text-night-400">
+        none
+      </span>
+    );
+  const styles =
+    FULFILLMENT_STATUS_STYLES[fulfillment.status] ??
+    "bg-night-100 text-night-500";
   return (
-    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${styles}`}>
+    <span
+      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${styles}`}
+    >
       {fulfillment.status.replace(/_/g, " ")}
     </span>
   );
@@ -64,8 +74,12 @@ function OrderCard({ id, userId, printOrder: o }: PrintOrderRow) {
       {/* Header row: date + status badges */}
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-sm font-medium text-night-700">{formatAuDate(o.paidAt ?? o.checkoutStartedAt)}</p>
-          <p className="font-mono text-xs text-night-400 mt-0.5">{id.slice(0, 14)}…</p>
+          <p className="text-sm font-medium text-night-700">
+            {formatAuDate(o.paidAt ?? o.checkoutStartedAt)}
+          </p>
+          <p className="font-mono text-xs text-night-400 mt-0.5">
+            {id.slice(0, 14)}…
+          </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
           <OrderStatusBadge status={o.status} />
@@ -75,32 +89,49 @@ function OrderCard({ id, userId, printOrder: o }: PrintOrderRow) {
 
       {/* Customer */}
       <div>
-        <p className="text-xs font-bold uppercase tracking-wide text-night-400 mb-0.5">Customer</p>
+        <p className="text-xs font-bold uppercase tracking-wide text-night-400 mb-0.5">
+          Customer
+        </p>
         {ship ? (
           <>
-            <p className="text-sm font-medium text-night-700">{ship.name ?? "—"}</p>
-            <p className="text-xs text-night-500">{ship.email ?? "—"}</p>
+            <p className="text-sm font-medium text-night-700">
+              {ship.name ?? "-"}
+            </p>
+            <p className="text-xs text-night-500">{ship.email ?? "-"}</p>
             {ship.line1 && (
-              <p className="text-xs text-night-400">{[ship.line1, ship.city, ship.state, ship.postalCode].filter(Boolean).join(", ")}</p>
+              <p className="text-xs text-night-400">
+                {[ship.line1, ship.city, ship.state, ship.postalCode]
+                  .filter(Boolean)
+                  .join(", ")}
+              </p>
             )}
           </>
         ) : (
-          <p className="font-mono text-xs text-night-400">user: {userId.slice(0, 14)}…</p>
+          <p className="font-mono text-xs text-night-400">
+            user: {userId.slice(0, 14)}…
+          </p>
         )}
       </div>
 
       {/* Product + amount */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-night-400 mb-0.5">Product</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-night-400 mb-0.5">
+            Product
+          </p>
           <p className="text-sm text-night-700">{o.productLabel}</p>
           <p className="text-xs text-night-400">
-            {o.pageCount}pp{o.quantity && o.quantity > 1 ? ` × ${o.quantity} copies` : ""}
+            {o.pageCount}pp
+            {o.quantity && o.quantity > 1 ? ` × ${o.quantity} copies` : ""}
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xs font-bold uppercase tracking-wide text-night-400 mb-0.5">Amount</p>
-          <p className="text-sm font-bold text-night-800">{formatAud(o.amountAud)}</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-night-400 mb-0.5">
+            Amount
+          </p>
+          <p className="text-sm font-bold text-night-800">
+            {formatAud(o.amountAud)}
+          </p>
         </div>
       </div>
 
@@ -108,7 +139,9 @@ function OrderCard({ id, userId, printOrder: o }: PrintOrderRow) {
       {(ful?.externalOrderId || ful?.trackingUrl) && (
         <div>
           {ful.externalOrderId && (
-            <p className="font-mono text-xs text-night-400">Ref: {ful.externalOrderId}</p>
+            <p className="font-mono text-xs text-night-400">
+              Ref: {ful.externalOrderId}
+            </p>
           )}
           {ful.trackingUrl && (
             <a
@@ -126,12 +159,19 @@ function OrderCard({ id, userId, printOrder: o }: PrintOrderRow) {
   );
 }
 
-export default function PrintOrdersSection({ orders }: { orders: PrintOrderRow[] }) {
+export default function PrintOrdersSection({
+  orders,
+}: {
+  orders: PrintOrderRow[];
+}) {
   return (
     <div className="rounded-2xl border border-night-100 bg-white p-4 sm:p-6 shadow-sm mb-6">
-      <h2 className="font-display text-xl font-bold text-night-800 mb-1">Print Orders</h2>
+      <h2 className="font-display text-xl font-bold text-night-800 mb-1">
+        Print Orders
+      </h2>
       <p className="text-sm text-night-400 mb-5">
-        {orders.length} order{orders.length !== 1 ? "s" : ""} (most recent first)
+        {orders.length} order{orders.length !== 1 ? "s" : ""} (most recent
+        first)
       </p>
 
       {orders.length === 0 ? (
@@ -140,7 +180,9 @@ export default function PrintOrdersSection({ orders }: { orders: PrintOrderRow[]
         <>
           {/* Mobile: cards */}
           <div className="flex flex-col gap-3 sm:hidden">
-            {orders.map((row) => <OrderCard key={row.id} {...row} />)}
+            {orders.map((row) => (
+              <OrderCard key={row.id} {...row} />
+            ))}
           </div>
 
           {/* sm+: table */}
@@ -164,40 +206,64 @@ export default function PrintOrdersSection({ orders }: { orders: PrintOrderRow[]
                   return (
                     <tr key={id} className="align-top">
                       <td className="py-3 pr-4">
-                        <p className="text-night-700 whitespace-nowrap">{formatAuDate(o.paidAt ?? o.checkoutStartedAt)}</p>
-                        <p className="font-mono text-xs text-night-400 mt-0.5">{id.slice(0, 12)}…</p>
+                        <p className="text-night-700 whitespace-nowrap">
+                          {formatAuDate(o.paidAt ?? o.checkoutStartedAt)}
+                        </p>
+                        <p className="font-mono text-xs text-night-400 mt-0.5">
+                          {id.slice(0, 12)}…
+                        </p>
                       </td>
                       <td className="py-3 pr-4">
                         {ship ? (
                           <>
-                            <p className="text-night-700 font-medium">{ship.name ?? "—"}</p>
-                            <p className="text-night-400 text-xs">{ship.email ?? "—"}</p>
+                            <p className="text-night-700 font-medium">
+                              {ship.name ?? "-"}
+                            </p>
+                            <p className="text-night-400 text-xs">
+                              {ship.email ?? "-"}
+                            </p>
                           </>
                         ) : (
-                          <p className="text-night-400 font-mono text-xs">user: {userId.slice(0, 12)}…</p>
+                          <p className="text-night-400 font-mono text-xs">
+                            user: {userId.slice(0, 12)}…
+                          </p>
                         )}
                       </td>
                       <td className="py-3 pr-4">
                         <p className="text-night-700">{o.productLabel}</p>
                         <p className="text-xs text-night-400">
-                          {o.pageCount}pp{o.quantity && o.quantity > 1 ? ` × ${o.quantity}` : ""}
+                          {o.pageCount}pp
+                          {o.quantity && o.quantity > 1
+                            ? ` × ${o.quantity}`
+                            : ""}
                         </p>
                       </td>
-                      <td className="py-3 pr-4 whitespace-nowrap font-medium text-night-700">{formatAud(o.amountAud)}</td>
-                      <td className="py-3 pr-4"><OrderStatusBadge status={o.status} /></td>
+                      <td className="py-3 pr-4 whitespace-nowrap font-medium text-night-700">
+                        {formatAud(o.amountAud)}
+                      </td>
+                      <td className="py-3 pr-4">
+                        <OrderStatusBadge status={o.status} />
+                      </td>
                       <td className="py-3 pr-4">
                         <FulfillmentBadge fulfillment={ful} />
                         {ful?.externalOrderId && (
-                          <p className="font-mono text-xs text-night-400 mt-1">{ful.externalOrderId}</p>
+                          <p className="font-mono text-xs text-night-400 mt-1">
+                            {ful.externalOrderId}
+                          </p>
                         )}
                       </td>
                       <td className="py-3">
                         {ful?.trackingUrl ? (
-                          <a href={ful.trackingUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 underline hover:text-blue-800">
+                          <a
+                            href={ful.trackingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 underline hover:text-blue-800"
+                          >
                             Track ({ful.carrier ?? "carrier"})
                           </a>
                         ) : (
-                          <span className="text-xs text-night-300">—</span>
+                          <span className="text-xs text-night-300">-</span>
                         )}
                       </td>
                     </tr>

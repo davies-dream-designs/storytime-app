@@ -99,7 +99,7 @@ ${originalCharacters.map((c) => `- ${c.name}: ${c.description}. Personality: ${c
       : "";
 
   const premiseSection = premise
-    ? `\n\nStory premise (this is the spine — follow it closely):
+    ? `\n\nStory premise (this is the spine - follow it closely):
 ${premise}`
     : "";
 
@@ -125,9 +125,9 @@ Write the story in ${language}. Write a warm, age-appropriate bedtime story that
 4. Is approximately ${len.words} words total
 5. Has a positive, cosy tone ending with ${profile.name} settling down to sleep
 6. Naturally weaves in the theme: ${theme || "a gentle adventure"}
-7. Feels FRESH and DIFFERENT from typical stories — surprise us with the opening
+7. Feels FRESH and DIFFERENT from typical stories - surprise us with the opening
 8. Uses some warm repetition suitable for young children
-9. Does NOT include "The End", "Sweet dreams", "Goodnight", or any closing sign-off in the story text — the last page ends naturally with the child drifting to sleep
+9. Does NOT include "The End", "Sweet dreams", "Goodnight", or any closing sign-off in the story text - the last page ends naturally with the child drifting to sleep
 10. Avoids scenes that could look unsafe or sensitive when illustrated: no bathing, toilets, undressing, visible underwear/nappies, medical treatment, injuries, restraint, scary peril, weapons, drowning, or a child alone in risky water.
 11. Keeps ${profile.name} visibly clothed, safe, comfortable, and supervised or clearly secure in every visual moment. If water appears, keep it shallow/calm and frame ${profile.name} safely on dry ground or with a trusted adult nearby.
 12. Avoids close-up descriptions of private/sensitive body areas. Do not focus illustration prompts on feet, bare skin, mud on body parts, vulnerability, fear, hiding, or being watched.
@@ -136,7 +136,7 @@ Write the story in ${language}. Write a warm, age-appropriate bedtime story that
 
 ${ipSection}
 
-Respond ONLY with valid JSON — no markdown, no extra text:
+Respond ONLY with valid JSON - no markdown, no extra text:
 {
   "title": "A short magical title",
   "pages": [
@@ -374,14 +374,14 @@ ${avoidSection}
 Generate exactly 3 unique, imaginative bedtime story ideas for ${profile.name}.
 Each should:
 - Use DIFFERENT elements from their profile (don't repeat the same toys/places across all 3)
-- Have a fresh, specific premise — not generic ("goes on an adventure")
+- Have a fresh, specific premise - not generic ("goes on an adventure")
 - Be warm and cosy, suitable for bedtime
 - Feel genuinely different from each other in setting, tone, and focus
 
 Write the title and premise in ${language}.
-The "theme" field must always be a single English word (e.g. bravery, kindness, curiosity) — this is used as a database key.
+The "theme" field must always be a single English word (e.g. bravery, kindness, curiosity) - this is used as a database key.
 
-Respond ONLY with valid JSON — no markdown, no extra text:
+Respond ONLY with valid JSON - no markdown, no extra text:
 [
   {
     "title": "Short catchy title",

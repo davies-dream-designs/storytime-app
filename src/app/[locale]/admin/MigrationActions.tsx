@@ -60,7 +60,7 @@ export default function MigrationActions() {
         Database Migrations
       </h2>
       <p className="text-sm text-night-400 mb-5">
-        One-off schema updates. Safe to re-run — each uses{" "}
+        One-off schema updates. Safe to re-run - each uses{" "}
         <span className="font-mono">IF NOT EXISTS</span>.
       </p>
       <div className="flex flex-col gap-4">

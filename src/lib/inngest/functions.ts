@@ -10,7 +10,7 @@ const MAX_ADVANCE_STEPS = 80;
  * Durable book-build pipeline.
  *
  * Replaces the fragile Next.js `after()` self-continuation chain: Inngest owns
- * durability, retries and — crucially — a global concurrency cap so we stop
+ * durability, retries and - crucially - a global concurrency cap so we stop
  * multiple simultaneous builds from stampeding OpenAI's image rate limit.
  *
  * It reuses the existing stage machine (`processBookBuildJob`), advancing one

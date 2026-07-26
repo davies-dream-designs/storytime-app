@@ -22,7 +22,7 @@ export function hasDownloadableBookExport(
 }
 
 // A spread that gets a custom generated illustration. This MUST match the
-// illustration loop (isBookStoryIllustrationSpread) — front/end matter pages
+// illustration loop (isBookStoryIllustrationSpread) - front/end matter pages
 // (e.g. the "The End" closing page) are never illustrated, so they must not be
 // required to have an image, or the book can never reach "ready".
 export function isGeneratedBookPageSpread(
@@ -36,7 +36,9 @@ export function isGeneratedBookPageSpread(
 }
 
 export function hasUnresolvedGeneratedBookPageImages(
-  spreads: Array<Pick<BookSpread, "layoutType" | "imageUrl" | "leftPageImageUrl">>
+  spreads: Array<
+    Pick<BookSpread, "layoutType" | "imageUrl" | "leftPageImageUrl">
+  >
 ) {
   return spreads.some(
     (spread) =>

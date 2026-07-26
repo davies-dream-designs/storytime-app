@@ -49,7 +49,7 @@ export async function checkRatelimit(
       );
     }
   } catch {
-    // If KV is unavailable, fail open — don't block the user.
+    // If KV is unavailable, fail open - don't block the user.
   }
   return null;
 }

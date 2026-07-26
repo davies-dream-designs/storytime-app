@@ -114,7 +114,7 @@ describe("stripe checkout", () => {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          // no origin header — iOS Safari omits it for same-origin fetches
+          // no origin header - iOS Safari omits it for same-origin fetches
           referer: "https://dev.storycot.com/en/account",
         },
         body: JSON.stringify({ pack: "starter" }),

@@ -182,7 +182,7 @@ export default function BookStatusPanel({
     (preview) => preview.url
   ).length;
 
-  // Text from initial project — doesn't change during build
+  // Text from initial project - doesn't change during build
   const spreadTextMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const s of initialProject.spreads) {
@@ -301,7 +301,7 @@ export default function BookStatusPanel({
         ) {
           if (!initialIsReady) {
             // Hard reload so the server-rendered BookReader section mounts
-            // correctly — soft refresh can leave isReady stale, especially
+            // correctly - soft refresh can leave isReady stale, especially
             // when the orientation changes during the transition.
             window.location.reload();
             return;
@@ -605,7 +605,7 @@ export default function BookStatusPanel({
       </div>
 
       {artworkPreviews.length > 0 && displayStatus === "ready" ? (
-        /* Compact thumbnail grid — shown when ready (BookReader handles reading above) */
+        /* Compact thumbnail grid - shown when ready (BookReader handles reading above) */
         <div className="mt-6">
           <div className="mb-3 flex items-center justify-between gap-4">
             <p className="text-xs font-bold uppercase tracking-wide text-night-400">
@@ -870,7 +870,7 @@ export default function BookStatusPanel({
                           ? "Working…"
                           : isFreeRetry
                             ? "Retry free"
-                            : "Redo — 1 credit"}
+                            : "Redo - 1 credit"}
                       </button>
                     ) : null}
                   </div>

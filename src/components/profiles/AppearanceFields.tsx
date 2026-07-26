@@ -53,7 +53,7 @@ function SelectField<T extends string>({
         }
         className="w-full rounded-xl border border-night-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-star-400 focus:ring-2 focus:ring-star-200"
       >
-        <option value="">—</option>
+        <option value="">-</option>
         {options.map((option) => (
           <option key={option} value={option}>
             {getAppearanceOptionLabel(option)}

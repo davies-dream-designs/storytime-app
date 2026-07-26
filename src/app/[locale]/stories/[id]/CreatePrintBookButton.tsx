@@ -66,7 +66,7 @@ export default function CreatePrintBookButton({
       const project = (await createRes.json()) as { id: string };
 
       // Kick off the build. A 409 means this book can't be fully rebuilt and
-      // needs the "retry failed images" panel instead — that's expected, so we
+      // needs the "retry failed images" panel instead - that's expected, so we
       // just refresh and let that panel appear rather than surfacing an error.
       const buildRes = await fetch(`/api/books/${project.id}/build`, {
         method: "POST",
@@ -75,7 +75,9 @@ export default function CreatePrintBookButton({
         const buildData = (await buildRes.json().catch(() => null)) as {
           error?: string;
         } | null;
-        throw new Error(buildData?.error ?? `Build failed (${buildRes.status})`);
+        throw new Error(
+          buildData?.error ?? `Build failed (${buildRes.status})`
+        );
       }
 
       // Refresh so the server re-renders with the book's status panel in place
@@ -122,7 +124,10 @@ export default function CreatePrintBookButton({
   if (!hasEnoughCredits) {
     if (compact) {
       return (
-        <Link href="/account" className="storycot-btn storycot-btn-secondary border-blush-200 bg-blush-50 text-blush-700 hover:bg-blush-100">
+        <Link
+          href="/account"
+          className="storycot-btn storycot-btn-secondary border-blush-200 bg-blush-50 text-blush-700 hover:bg-blush-100"
+        >
           Top up credits
         </Link>
       );
@@ -133,7 +138,7 @@ export default function CreatePrintBookButton({
         <div className="mb-3 max-w-md rounded-2xl border border-blush-200 bg-blush-100 px-4 py-3 text-sm">
           <p className="font-bold text-blush-700">Not enough credits</p>
           <p className="mt-1 text-blush-600">
-            You have {userCredits} credit{userCredits === 1 ? "" : "s"} — this
+            You have {userCredits} credit{userCredits === 1 ? "" : "s"} - this
             book costs {credits}. Top up to unlock illustrations.
           </p>
         </div>
@@ -157,7 +162,9 @@ export default function CreatePrintBookButton({
           {loading ? t("creatingButton") : t("createButton")}
         </Button>
         {error ? (
-          <p role="alert" className="mt-2 text-xs font-bold text-blush-600">{error}</p>
+          <p role="alert" className="mt-2 text-xs font-bold text-blush-600">
+            {error}
+          </p>
         ) : null}
       </>
     );

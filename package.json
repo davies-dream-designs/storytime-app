@@ -16,7 +16,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.113.0",
+    "@anthropic-ai/sdk": "^0.115.0",
     "@clerk/localizations": "^4.13.6",
     "@clerk/nextjs": "^7.5.22",
     "@neondatabase/serverless": "^1.1.0",
@@ -61,7 +61,7 @@
     "@vitejs/plugin-react": "^4.5.2",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.39.5",
-    "eslint-config-next": "15.5.21",
+    "eslint-config-next": "15.5.22",
     "jsdom": "^26.1.0",
     "prettier": "^3.9.6",
     "tailwindcss": "^4.1.10",

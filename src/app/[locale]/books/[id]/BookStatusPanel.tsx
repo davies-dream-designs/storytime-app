@@ -1122,7 +1122,7 @@ export default function BookStatusPanel({
                   <Button
                     variant="secondary"
                     size="compact"
-                    onClick={() => handleRegenerateImage(expandedImage)}
+                    onClick={() => openRedoPrompt(expandedImage)}
                     disabled={
                       Boolean(regeneratingImage) || Boolean(activeJobStatus)
                     }
@@ -1130,7 +1130,7 @@ export default function BookStatusPanel({
                     {regeneratingImage ===
                     `${expandedImage.spreadId}:${expandedImage.side}`
                       ? "Regenerating…"
-                      : "Regenerate for 1 credit"}
+                      : "Redo"}
                   </Button>
                 ) : null}
                 <Button

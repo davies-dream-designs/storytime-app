@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { adjustUserCredits } from "@/lib/credits";
+import { redeemGiftCredits } from "@/lib/credits";
 import { db } from "@/lib/db";
 
 export async function POST(
@@ -39,21 +39,25 @@ export async function POST(
         { status: 409 }
       );
     }
+    if (existing.status === "redeeming") {
+      return NextResponse.json(
+        {
+          error: "This gift is already being redeemed. Please try again soon.",
+        },
+        { status: 409 }
+      );
+    }
     return NextResponse.json(
       { error: "This gift is no longer available." },
       { status: 409 }
     );
   }
 
+  let credits: number;
   try {
-    const credits = await adjustUserCredits(userId, gift.credits);
-    return NextResponse.json({ success: true, credits, added: gift.credits });
+    credits = await redeemGiftCredits(userId, gift.id, gift.credits);
   } catch (err) {
-    await db.giftOrders.update(gift.id, {
-      status: "paid",
-      redeemedByUserId: undefined,
-      redeemedAt: undefined,
-    });
+    await db.giftOrders.releaseRedeemClaim(gift.id, userId);
     return NextResponse.json(
       {
         error:
@@ -64,4 +68,22 @@ export async function POST(
       { status: 500 }
     );
   }
+
+  const redeemedAt = new Date().toISOString();
+  const finalized = await db.giftOrders.finalizeRedeemed(
+    gift.id,
+    userId,
+    redeemedAt
+  );
+  if (!finalized) {
+    return NextResponse.json(
+      {
+        error:
+          "Credits were added, but the gift is still finalizing. Please refresh shortly.",
+      },
+      { status: 202 }
+    );
+  }
+
+  return NextResponse.json({ success: true, credits, added: gift.credits });
 }

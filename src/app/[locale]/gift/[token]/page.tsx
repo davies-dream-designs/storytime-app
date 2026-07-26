@@ -18,6 +18,7 @@ export default async function GiftRedeemPage({
   if (!gift) notFound();
 
   const isPaid = gift.status === "paid";
+  const isRedeeming = gift.status === "redeeming";
   const isRedeemed = gift.status === "redeemed";
   const returnPath = `/${locale}/gift/${token}`;
   const signUpHref = `/sign-up?redirect_url=${encodeURIComponent(returnPath)}`;
@@ -90,6 +91,12 @@ export default async function GiftRedeemPage({
             {isRedeemed ? (
               <p className="mt-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-700">
                 This gift has already been redeemed.
+              </p>
+            ) : null}
+
+            {isRedeeming ? (
+              <p className="mt-6 rounded-xl border border-star-200 bg-star-50 px-4 py-3 text-sm font-bold text-star-800">
+                This gift is being redeemed. Please refresh shortly.
               </p>
             ) : null}
 

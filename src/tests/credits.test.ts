@@ -129,4 +129,33 @@ describe("illustrated book credits", () => {
     });
     expect(project.billing?.status).toBe("refunded");
   });
+
+  it("redeems gift credits once per gift order id", async () => {
+    mockGetUser.mockResolvedValue({
+      privateMetadata: { credits: 4, redeemedGiftOrderIds: ["gift-1"] },
+    });
+
+    const { redeemGiftCredits } = await import("@/lib/credits");
+    const credits = await redeemGiftCredits("user-1", "gift-1", 10);
+
+    expect(credits).toBe(4);
+    expect(mockUpdateUserMetadata).not.toHaveBeenCalled();
+  });
+
+  it("records the gift order id when redeeming gift credits", async () => {
+    mockGetUser.mockResolvedValue({
+      privateMetadata: { credits: 4, redeemedGiftOrderIds: ["gift-0"] },
+    });
+
+    const { redeemGiftCredits } = await import("@/lib/credits");
+    const credits = await redeemGiftCredits("user-1", "gift-1", 10);
+
+    expect(credits).toBe(14);
+    expect(mockUpdateUserMetadata).toHaveBeenCalledWith("user-1", {
+      privateMetadata: {
+        credits: 14,
+        redeemedGiftOrderIds: ["gift-0", "gift-1"],
+      },
+    });
+  });
 });

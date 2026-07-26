@@ -1636,9 +1636,13 @@ async function buildCoverPdf(input: {
   const coverSpread = input.project.spreads.find(
     (spread) => spread.sequence === 1
   );
+  const rawLuluCoverUrl = input.project.assets.coverImageUrl || coverSpread?.imageUrl;
+  const luluCoverUrl = isRasterHttpUrl(rawLuluCoverUrl ?? "")
+    ? rawLuluCoverUrl
+    : (input.project.assets.coverWebImageUrl ?? rawLuluCoverUrl);
   const image = await embedSpreadImage(
     pdfDoc,
-    input.project.assets.coverImageUrl || coverSpread?.imageUrl,
+    luluCoverUrl,
     { maxDrawWidthPt: pageWidth, maxDrawHeightPt: pageHeight }
   );
   const backCoverX = 0;

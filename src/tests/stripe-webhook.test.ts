@@ -15,6 +15,9 @@ const mockDb = {
     getById: vi.fn(),
     update: vi.fn(),
   },
+  stories: {
+    getById: vi.fn(),
+  },
 };
 
 vi.mock("stripe", () => ({
@@ -113,6 +116,7 @@ describe("Stripe checkout webhook", () => {
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_123";
     mockDb.bookProjects.getById.mockResolvedValue(createProject());
     mockDb.bookProjects.update.mockResolvedValue(undefined);
+    mockDb.stories.getById.mockResolvedValue({ title: "Moonlight Garden" });
     mockSubmitPrintFulfillment.mockResolvedValue({
       provider: "lulu",
       status: "submitted",

@@ -279,7 +279,7 @@ describe("generateBookPdfs", () => {
     const printPdfBody = mockStoreBookAsset.mock.calls[1]?.[0]?.body;
     expect(printPdfBody).toBeTruthy();
     const printPdf = await PDFDocument.load(new Uint8Array(printPdfBody));
-    expect(printPdf.getPageCount()).toBe(5);
+    expect(printPdf.getPageCount()).toBe(6);
   });
 
   it("does not add art pages for placeholder-only illustration slots", async () => {
@@ -304,7 +304,7 @@ describe("generateBookPdfs", () => {
     const printPdfBody = mockStoreBookAsset.mock.calls[1]?.[0]?.body;
     expect(printPdfBody).toBeTruthy();
     const printPdf = await PDFDocument.load(new Uint8Array(printPdfBody));
-    expect(printPdf.getPageCount()).toBe(4);
+    expect(printPdf.getPageCount()).toBe(5);
   });
 
   it("exports art pages for hero, quiet, and text-art story spreads", async () => {
@@ -360,7 +360,7 @@ describe("generateBookPdfs", () => {
     const printPdfBody = mockStoreBookAsset.mock.calls[1]?.[0]?.body;
     expect(printPdfBody).toBeTruthy();
     const printPdf = await PDFDocument.load(new Uint8Array(printPdfBody));
-    expect(printPdf.getPageCount()).toBe(9);
+    expect(printPdf.getPageCount()).toBe(10);
   });
 
   it("exports Lulu-specific PDFs with a padded 24-page interior", async () => {
@@ -428,7 +428,7 @@ describe("generateBookPdfs", () => {
     const standardPrintPdf = await PDFDocument.load(
       new Uint8Array(standardPrintPdfBody)
     );
-    expect(standardPrintPdf.getPageCount()).toBe(5);
+    expect(standardPrintPdf.getPageCount()).toBe(6);
   });
 
   it("fits long story text inside the printable text panel", async () => {

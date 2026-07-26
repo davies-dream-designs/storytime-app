@@ -497,7 +497,8 @@
     "printProduction": "Производство",
     "estimatedPrice": "Ориентировочная цена печати AU",
     "printOrderingComingSoon": "Печатные книги скоро появятся. Вы уже можете создать и загрузить PDF или EPUB.",
-    "comingSoon": "Скоро"
+    "comingSoon": "Скоро",
+    "failedContactLink": "Email us if you need help ->"
   },
   "account": {
     "title": "Ваш аккаунт",

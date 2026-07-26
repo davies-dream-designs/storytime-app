@@ -6,6 +6,7 @@ import { STORY_CREDIT_COST } from "@/lib/pricing";
 import { streamStory } from "@/lib/storyGenerator";
 import { assessGeneratedStoryIp } from "@/lib/ipGuardrails";
 import { logEvent } from "@/lib/logEvent";
+import { storyRatelimit, checkRatelimit } from "@/lib/ratelimit";
 import type { StoryPage } from "@/types";
 
 function sendEvent(
@@ -35,6 +36,9 @@ export async function POST(
   if (story.status === "ready") {
     return Response.json(story);
   }
+
+  const rateLimitRes = await checkRatelimit(storyRatelimit, userId);
+  if (rateLimitRes) return rateLimitRes;
 
   if (!process.env.ANTHROPIC_API_KEY) {
     await db.stories.update(id, {

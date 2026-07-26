@@ -105,6 +105,12 @@ export default function PrintCheckoutButton({
           {error}
         </p>
       ) : null}
+
+      {!disabled && (
+        <p className="text-center text-xs text-night-400">
+          🇦🇺 Print orders ship to Australian addresses only.
+        </p>
+      )}
     </div>
   );
 }

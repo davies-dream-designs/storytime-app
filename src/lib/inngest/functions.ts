@@ -22,9 +22,12 @@ const MAX_ADVANCE_STEPS = 80;
 export const buildBook = inngest.createFunction(
   {
     id: "build-book",
-    // Keep one build active while Batch API polling is new; this can be raised
-    // once production behavior is understood.
-    concurrency: { limit: 1 },
+    concurrency: [
+      // Max 3 builds running globally at once (keeps OpenAI RPM headroom).
+      { limit: 3 },
+      // Max 1 build per user so no single account can hog the queue.
+      { limit: 1, key: "event.data.userId" },
+    ],
     retries: 3,
     triggers: [{ event: INNGEST_EVENTS.bookBuildRequested }],
   },

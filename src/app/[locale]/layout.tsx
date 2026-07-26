@@ -8,6 +8,8 @@ import { getClerkLocalization } from "@/i18n/clerk";
 import { isLocale } from "@/i18n/locales";
 import { GlobalPendingProvider } from "@/components/GlobalPending";
 import { storycotTheme } from "@/lib/theme";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "../globals.css";
 
 const fredoka = Fredoka({
@@ -91,6 +93,8 @@ export default async function LocaleLayout({
               Skip to main content
             </a>
             <GlobalPendingProvider>{children}</GlobalPendingProvider>
+            <Analytics />
+            <SpeedInsights />
           </body>
         </html>
       </NextIntlClientProvider>

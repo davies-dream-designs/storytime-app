@@ -5,7 +5,7 @@ import { getAdminIdentity } from "@/lib/adminAuth";
 
 // Idempotent creation of the `error_events` table + indexes. Mirrors
 // drizzle/migrations/0001_error_events.sql, but written with IF NOT EXISTS so
-// it's safe to run (and re-run) from the admin panel — same pattern as the
+// it's safe to run (and re-run) from the admin panel - same pattern as the
 // original KV→Postgres schema button.
 const STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "error_events" (

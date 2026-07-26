@@ -13,10 +13,13 @@ type Result = { ok: true } | { ok: false; status: number; error: string };
 const FAILURE: Result = {
   ok: false,
   status: 502,
-  error: "We couldn't save your email just now — please try again.",
+  error: "We couldn't save your email just now - please try again.",
 };
 
-export async function addToWaitlist(email: string, source: string): Promise<Result> {
+export async function addToWaitlist(
+  email: string,
+  source: string
+): Promise<Result> {
   if (process.env.LOOPS_API_KEY) {
     try {
       const payload: {
@@ -52,7 +55,11 @@ export async function addToWaitlist(email: string, source: string): Promise<Resu
   }
 
   // No Loops configured: append locally (dev smoke test).
-  const record = JSON.stringify({ email, source, at: new Date().toISOString() });
+  const record = JSON.stringify({
+    email,
+    source,
+    at: new Date().toISOString(),
+  });
   try {
     await mkdir(dirname(STORE_PATH), { recursive: true });
     await appendFile(STORE_PATH, record + "\n", "utf8");

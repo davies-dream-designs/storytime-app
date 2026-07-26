@@ -1,7 +1,7 @@
 import Nav from "@/components/Nav";
 
 export const metadata = {
-  title: "Help & FAQ — Storycot",
+  title: "Help & FAQ - Storycot",
 };
 
 interface FAQItem {
@@ -9,13 +9,7 @@ interface FAQItem {
   a: string;
 }
 
-function FAQSection({
-  title,
-  items,
-}: {
-  title: string;
-  items: FAQItem[];
-}) {
+function FAQSection({ title, items }: { title: string; items: FAQItem[] }) {
   return (
     <section className="mt-12">
       <h2 className="font-display text-2xl font-bold text-night-800 mb-6">
@@ -44,7 +38,7 @@ export default function SupportPage() {
     },
     {
       q: "How do I generate a story?",
-      a: "Create a child profile first — add their name, age, interests, and anything else that makes them unique. Then hit \"New Story\", pick a theme, and Storycot will write a personalised bedtime story just for them.",
+      a: 'Create a child profile first - add their name, age, interests, and anything else that makes them unique. Then hit "New Story", pick a theme, and Storycot will write a personalised bedtime story just for them.',
     },
     {
       q: "Can I create profiles for more than one child?",
@@ -52,7 +46,7 @@ export default function SupportPage() {
     },
     {
       q: "Do I need an account to use Storycot?",
-      a: "Yes — you'll need to sign up so your stories and profiles are saved and ready whenever you need them.",
+      a: "Yes - you'll need to sign up so your stories and profiles are saved and ready whenever you need them.",
     },
   ];
 
@@ -67,11 +61,11 @@ export default function SupportPage() {
     },
     {
       q: "Can I download my illustrated book?",
-      a: "Yes — once illustrations are ready, you can download your book as a PDF or EPUB from the book page. Downloads are available for 180 days after your book is ready.",
+      a: "Yes - once illustrations are ready, you can download your book as a PDF or EPUB from the book page. Downloads are available for 180 days after your book is ready.",
     },
     {
       q: "What happens if the illustrations fail to generate?",
-      a: "No worries — Storycot will automatically retry. If it fails completely after retrying, your 8 credits are refunded to your account. You won't lose anything.",
+      a: "No worries - Storycot will automatically retry. If it fails completely after retrying, your 8 credits are refunded to your account. You won't lose anything.",
     },
   ];
 
@@ -86,7 +80,7 @@ export default function SupportPage() {
     },
     {
       q: "Does voice narration cost extra credits?",
-      a: "No — it's part of the digital download unlock. Once you've paid for the download, narration is included at no extra cost.",
+      a: "No - it's part of the digital download unlock. Once you've paid for the download, narration is included at no extra cost.",
     },
   ];
 
@@ -101,19 +95,19 @@ export default function SupportPage() {
     },
     {
       q: "How long does delivery take?",
-      a: "Lulu handles printing and shipping, and delivery times can vary. We don't commit to a specific timeframe, but Storycot will send you an email when your order has shipped — with tracking details if they're available.",
+      a: "Lulu handles printing and shipping, and delivery times can vary. We don't commit to a specific timeframe, but Storycot will send you an email when your order has shipped - with tracking details if they're available.",
     },
     {
       q: "Can I order multiple copies?",
-      a: "Yes — you can order between 1 and 10 copies of the same book in a single order. Great for gifts.",
+      a: "Yes - you can order between 1 and 10 copies of the same book in a single order. Great for gifts.",
     },
     {
-      q: "I'm not in Australia — can I still order a print book?",
+      q: "I'm not in Australia - can I still order a print book?",
       a: "Not yet. Print orders are available to Australian addresses only right now. If you place an order from outside Australia, you'll be automatically refunded. We hope to expand to more countries in the future.",
     },
     {
       q: "What if there's a problem with my print order?",
-      a: "If something goes wrong with your order, our team is automatically notified and will get it sorted. You don't need to do anything — but if you want to follow up, you're always welcome to reach out at hello@storycot.com.",
+      a: "If something goes wrong with your order, our team is automatically notified and will get it sorted. You don't need to do anything - but if you want to follow up, you're always welcome to reach out at hello@storycot.com.",
     },
   ];
 
@@ -123,7 +117,7 @@ export default function SupportPage() {
       a: "Head to your Account page and choose a credit pack. Payments are processed securely through Stripe. Credits are added to your account as soon as payment is confirmed.",
     },
     {
-      q: "I was refunded for being outside Australia — what happened?",
+      q: "I was refunded for being outside Australia - what happened?",
       a: "Print books are only available for delivery to Australian addresses. If you checked out from another country, your order was automatically refunded. No action needed on your end.",
     },
     {
@@ -135,8 +129,11 @@ export default function SupportPage() {
   return (
     <>
       <Nav />
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-5 py-14">
-
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto max-w-2xl px-5 py-14"
+      >
         {/* Hero */}
         <div className="mb-2">
           <h1 className="font-display text-4xl font-bold text-night-800">
@@ -174,7 +171,6 @@ export default function SupportPage() {
             hello@storycot.com
           </a>
         </div>
-
       </main>
     </>
   );

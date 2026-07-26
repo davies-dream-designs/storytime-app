@@ -871,7 +871,7 @@ export const db = {
       return rows[0] ? rowToErrorEvent(rows[0]) : undefined;
     },
 
-    /** Counts of UNRESOLVED events grouped by severity — for the admin header. */
+    /** Counts of UNRESOLVED events grouped by severity - for the admin header. */
     async unresolvedSummary(): Promise<Record<string, number>> {
       const rows = await getClient()
         .select({ severity: schema.errorEvents.severity })

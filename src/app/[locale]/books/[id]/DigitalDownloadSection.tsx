@@ -49,7 +49,7 @@ export default function DigitalDownloadSection({
     return (
       <div className="rounded-2xl border border-green-200 bg-green-50 p-5">
         <p className="text-xs font-bold uppercase tracking-wide text-green-700">
-          Digital download — unlocked
+          Digital download - unlocked
         </p>
         <p className="mt-1 font-display text-xl font-bold text-night-800">
           {storyTitle}
@@ -86,7 +86,9 @@ export default function DigitalDownloadSection({
           ) : null}
         </div>
         {hasEpub ? (
-          <p className="mt-3 text-sm leading-6 text-night-500">{t("epubHelp")}</p>
+          <p className="mt-3 text-sm leading-6 text-night-500">
+            {t("epubHelp")}
+          </p>
         ) : null}
       </div>
     );
@@ -102,36 +104,46 @@ export default function DigitalDownloadSection({
         <p className="text-sm text-night-400">AUD · one-time</p>
       </div>
       <p className="mt-2 text-sm leading-6 text-night-500">
-        Download your illustrated book as a high-quality PDF and EPUB — read on
+        Download your illustrated book as a high-quality PDF and EPUB - read on
         any device, keep forever.
       </p>
       <ul className="mt-3 space-y-1.5 text-sm text-night-600">
         <li className="flex items-center gap-2">
-          <span className="text-green-500" aria-hidden="true">✓</span>
-          Illustrated PDF — full colour, print-ready
+          <span className="text-green-500" aria-hidden="true">
+            ✓
+          </span>
+          Illustrated PDF - full colour, print-ready
         </li>
         <li className="flex items-center gap-2">
-          <span className="text-green-500" aria-hidden="true">✓</span>
-          EPUB — for Kindle, Apple Books, or any e-reader
+          <span className="text-green-500" aria-hidden="true">
+            ✓
+          </span>
+          EPUB - for Kindle, Apple Books, or any e-reader
         </li>
         <li className="flex items-center gap-2">
-          <span className="text-green-500" aria-hidden="true">✓</span>
-          Illustrations ZIP — all artwork to print or share
+          <span className="text-green-500" aria-hidden="true">
+            ✓
+          </span>
+          Illustrations ZIP - all artwork to print or share
         </li>
         <li className="flex items-center gap-2">
-          <span className="text-green-500" aria-hidden="true">✓</span>
-          Yours forever — no subscription needed
+          <span className="text-green-500" aria-hidden="true">
+            ✓
+          </span>
+          Yours forever - no subscription needed
         </li>
       </ul>
       {error ? (
-        <p role="alert" className="mt-3 text-sm font-bold text-blush-600">{error}</p>
+        <p role="alert" className="mt-3 text-sm font-bold text-blush-600">
+          {error}
+        </p>
       ) : null}
       <button
         onClick={startCheckout}
         disabled={loading}
         className="storycot-btn storycot-btn-primary mt-4 w-full justify-center disabled:opacity-60"
       >
-        {loading ? "Opening checkout…" : "Unlock digital download — $9.95"}
+        {loading ? "Opening checkout…" : "Unlock digital download - $9.95"}
       </button>
       <p className="mt-2 text-center text-xs text-night-400">
         Secure payment via Stripe · AUD pricing · Australian customers

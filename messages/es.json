@@ -46,7 +46,7 @@
     "themesSub": "Elige un tema y el cuento lo enseña de forma natural.",
     "ctaTitle": "¿Listo para el cuento de esta noche?",
     "ctaSub": "Crea un perfil, elige un tema y ten un cuento mágico listo en menos de un minuto.",
-    "ctaButton": "Comenzar — es gratis ✨",
+    "ctaButton": "Comenzar - es gratis ✨",
     "openApp": "Abrir app",
     "arcTitle": "Cada cuento tiene un arco perfecto.",
     "arcSub": "La IA sigue una estructura probada que mantiene a los niños comprometidos y termina con calma.",
@@ -74,7 +74,7 @@
       "bedtime": "Buenas noches"
     },
     "feature5Title": "Narración de voz",
-    "feature5Desc": "Toca reproducir y el cuento se lee solo en voz alta — cada palabra se ilumina al pronunciarse. Perfecto para la hora de dormir en cualquier dispositivo."
+    "feature5Desc": "Toca reproducir y el cuento se lee solo en voz alta - cada palabra se ilumina al pronunciarse. Perfecto para la hora de dormir en cualquier dispositivo."
   },
   "dashboard": {
     "statProfiles": "Perfiles de niños",
@@ -228,7 +228,7 @@
     "errorNoIdea": "Elige una idea o escribe la tuya",
     "generateButton2": "✨ Generar cuento",
     "generating": "✨ Escribiendo el cuento…",
-    "generatingSub": "Tejiendo un cuento mágico — esto toma unos 15–20 segundos.",
+    "generatingSub": "Tejiendo un cuento mágico - esto toma unos 15–20 segundos.",
     "generatingTitle": "Tejiendo tu cuento",
     "generatingFor": "Cuento para {name}",
     "generatingStepStarting": "Preparando los detalles del cuento",
@@ -459,9 +459,9 @@
     "deleteError": "No pudimos eliminar este PDF ilustrado.",
     "estimateTitle": "Illustration estimate",
     "estimateBody": "{credits} credits for about {pages} pages and {illustrations} custom illustrations. Credits cover the digital illustrated book; print is chosen separately afterwards.",
-    "estimateBodyTinyTales": "{credits} credits · Tiny Tales — a simple source story expanded into about {pages} illustrated book pages with {illustrations} custom illustrations. Print is chosen separately afterwards.",
-    "estimateBodyMoonlitAdventures": "{credits} credits · Moonlit Adventures — a balanced source story expanded into about {pages} illustrated book pages with {illustrations} custom illustrations. Print is chosen separately afterwards.",
-    "estimateBodyEpicSagas": "{credits} credits · Epic Sagas — a richer source story expanded into about {pages} illustrated book pages with {illustrations} custom illustrations. Print is chosen separately afterwards.",
+    "estimateBodyTinyTales": "{credits} credits · Tiny Tales - a simple source story expanded into about {pages} illustrated book pages with {illustrations} custom illustrations. Print is chosen separately afterwards.",
+    "estimateBodyMoonlitAdventures": "{credits} credits · Moonlit Adventures - a balanced source story expanded into about {pages} illustrated book pages with {illustrations} custom illustrations. Print is chosen separately afterwards.",
+    "estimateBodyEpicSagas": "{credits} credits · Epic Sagas - a richer source story expanded into about {pages} illustrated book pages with {illustrations} custom illustrations. Print is chosen separately afterwards.",
     "journeyLabel": "Your book journey",
     "journeyStoryTitle": "Story",
     "journeyStoryDone": "Your personalised story is written.",
@@ -474,7 +474,7 @@
     "printOptionsTitle": "Order a printed book",
     "printOptionsSub": "Illustrations are already paid for with credits. These print prices only estimate Australian printing, binding, and fulfilment for the finished book.",
     "readyLabel": "Your illustrated book is ready to order.",
-    "orderedLabel": "Order placed — your book is with the printer.",
+    "orderedLabel": "Order placed - your book is with the printer.",
     "viewFullScreen": "Ver en pantalla completa",
     "tapToExpand": "Toca para ampliar",
     "illustrationComingSoon": "Ilustración próximamente",
@@ -489,7 +489,7 @@
     "listenToStory": "Escuchar el cuento en voz alta",
     "listenShort": "Escuchar",
     "pauseNarration": "Pausar narración",
-    "readingAloud": "Leyendo en voz alta — avanza automáticamente cada página",
+    "readingAloud": "Leyendo en voz alta - avanza automáticamente cada página",
     "narrationUpsellTitle": "Escucha tu cuento leído en voz alta",
     "narrationUpsellSub": "Incluido con la Descarga Digital · $9,99",
     "printFormat": "Formato",
@@ -502,8 +502,8 @@
   },
   "account": {
     "title": "Tu cuenta",
-    "paymentSuccess": "✅ ¡Pago exitoso — tus créditos han sido agregados!",
-    "paymentCancelled": "Pago cancelado — no se realizó ningún cargo.",
+    "paymentSuccess": "✅ ¡Pago exitoso - tus créditos han sido agregados!",
+    "paymentCancelled": "Pago cancelado - no se realizó ningún cargo.",
     "creditsUnlimited": "∞",
     "creditsAdmin": "ilimitados (admin)",
     "creditSingle": "crédito restante",
@@ -540,7 +540,7 @@
   "share": {
     "createdFor": "Un cuento creado especialmente para",
     "ctaTitle": "Crea un cuento para tu pequeño",
-    "ctaSub": "Storycot genera cuentos de buenas noches personalizados en segundos — adaptados al nombre, edad y cosas favoritas de tu hijo.",
+    "ctaSub": "Storycot genera cuentos de buenas noches personalizados en segundos - adaptados al nombre, edad y cosas favoritas de tu hijo.",
     "ctaButton": "Obtén 3 cuentos gratis →",
     "footer": "Hecho con Storycot · storycot.com · Cada niño merece un cuento hecho para ellos.",
     "createOwn": "Crea tu propio cuento →"

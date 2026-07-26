@@ -76,13 +76,15 @@ export const ERROR_REGISTRY = {
     domain: "book",
     severity: "error",
     retryable: true,
-    userMessage: "We hit a snag planning the book. Hit retry — it usually clears up.",
+    userMessage:
+      "We hit a snag planning the book. Hit retry - it usually clears up.",
   },
   "book.bible_failed": {
     domain: "book",
     severity: "error",
     retryable: true,
-    userMessage: "The character setup didn't finish. Retry to pick up where it left off.",
+    userMessage:
+      "The character setup didn't finish. Retry to pick up where it left off.",
   },
   "book.illustration_failed": {
     domain: "book",
@@ -96,19 +98,21 @@ export const ERROR_REGISTRY = {
     severity: "warning",
     retryable: true,
     userMessage:
-      "One of the illustrations was blocked by content safety. Retry — we'll simplify the prompt.",
+      "One of the illustrations was blocked by content safety. Retry - we'll simplify the prompt.",
   },
   "book.image_unusable": {
     domain: "book",
     severity: "warning",
     retryable: true,
-    userMessage: "An illustration came back blank or corrupt. Retry to regenerate it.",
+    userMessage:
+      "An illustration came back blank or corrupt. Retry to regenerate it.",
   },
   "book.image_rate_limited": {
     domain: "external",
     severity: "warning",
     retryable: true,
-    userMessage: "We're being rate-limited by the image service. Retry in a moment.",
+    userMessage:
+      "We're being rate-limited by the image service. Retry in a moment.",
   },
   "book.cover_failed": {
     domain: "book",
@@ -120,7 +124,8 @@ export const ERROR_REGISTRY = {
     domain: "system",
     severity: "error",
     retryable: true,
-    userMessage: "We couldn't save an illustration. Retry — it's usually transient.",
+    userMessage:
+      "We couldn't save an illustration. Retry - it's usually transient.",
   },
   "book.compose_failed": {
     domain: "book",
@@ -165,7 +170,8 @@ export const ERROR_REGISTRY = {
     domain: "print",
     severity: "critical",
     retryable: true,
-    userMessage: "There was a problem submitting your print order. We've been notified.",
+    userMessage:
+      "There was a problem submitting your print order. We've been notified.",
   },
   "print.fulfillment_config_missing": {
     domain: "system",
@@ -231,7 +237,8 @@ export const ERROR_REGISTRY = {
     domain: "external",
     severity: "warning",
     retryable: true,
-    userMessage: "Narration couldn't be generated right now. Try again shortly.",
+    userMessage:
+      "Narration couldn't be generated right now. Try again shortly.",
   },
 
   // ── System / infrastructure ───────────────────────────────────────────────
@@ -258,11 +265,13 @@ export const ERROR_REGISTRY = {
 export type ErrorCode = keyof typeof ERROR_REGISTRY;
 
 /**
- * Resolve metadata for any code string — including legacy codes stored on old
+ * Resolve metadata for any code string - including legacy codes stored on old
  * rows (e.g. "illustrating:image_failed") and codes we've never seen. Never
  * throws, so the admin panel can always render a badge.
  */
-export function getErrorCodeMeta(code: string | null | undefined): ErrorCodeMeta & {
+export function getErrorCodeMeta(
+  code: string | null | undefined
+): ErrorCodeMeta & {
   code: string;
   known: boolean;
 } {
@@ -281,7 +290,9 @@ export function getErrorCodeMeta(code: string | null | undefined): ErrorCodeMeta
   };
 }
 
-function inferDomainFromLegacyCode(code: string | null | undefined): ErrorDomain {
+function inferDomainFromLegacyCode(
+  code: string | null | undefined
+): ErrorDomain {
   if (!code) return "system";
   const c = code.toLowerCase();
   // Legacy book codes look like "illustrating:image_failed", "planning_failed".
@@ -364,7 +375,11 @@ export function toAppError(
 ): AppError {
   if (err instanceof AppError) return err;
   const message =
-    err instanceof Error ? err.message : typeof err === "string" ? err : "Unknown error";
+    err instanceof Error
+      ? err.message
+      : typeof err === "string"
+        ? err
+        : "Unknown error";
   return new AppError(fallback, { message, cause: err });
 }
 

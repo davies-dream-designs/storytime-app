@@ -17,7 +17,7 @@ export async function generateMetadata({
   const shared = await getSharedStoryByToken(token);
   if (!shared) return {};
 
-  const title = `${shared.story.title} — a Storycot story`;
+  const title = `${shared.story.title} - a Storycot story`;
   const description = `A personalised bedtime story created especially for ${shared.story.profileName}.`;
   const url = `/${locale}/s/${token}`;
   const imageUrl = `/${locale}/s/${token}/opengraph-image`;

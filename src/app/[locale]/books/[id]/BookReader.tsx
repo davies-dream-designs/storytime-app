@@ -25,17 +25,15 @@ function isPlaceholder(url?: string): boolean {
 function getReaderSpreads(project: BookProject): ReaderSpread[] {
   const seen = new Set<string>();
   const story: ReaderSpread[] = project.spreads
-    .filter(
-      (s: BookSpread) => {
-        if (seen.has(s.id)) return false;
-        seen.add(s.id);
-        return (
-          s.layoutType === "text_art" ||
-          s.layoutType === "hero" ||
-          s.layoutType === "quiet"
-        );
-      }
-    )
+    .filter((s: BookSpread) => {
+      if (seen.has(s.id)) return false;
+      seen.add(s.id);
+      return (
+        s.layoutType === "text_art" ||
+        s.layoutType === "hero" ||
+        s.layoutType === "quiet"
+      );
+    })
     .sort((a, b) => a.sequence - b.sequence)
     .map((s) => ({
       id: s.id,
@@ -48,7 +46,8 @@ function getReaderSpreads(project: BookProject): ReaderSpread[] {
     }));
 
   // Prepend cover as first page if available
-  const coverUrl = project.assets.coverWebImageUrl ?? project.assets.coverImageUrl;
+  const coverUrl =
+    project.assets.coverWebImageUrl ?? project.assets.coverImageUrl;
   if (coverUrl && !isPlaceholder(coverUrl)) {
     story.unshift({
       id: "cover",
@@ -64,7 +63,13 @@ function getReaderSpreads(project: BookProject): ReaderSpread[] {
   return story;
 }
 
-export default function BookReader({ project, isAdmin = false }: { project: BookProject; isAdmin?: boolean }) {
+export default function BookReader({
+  project,
+  isAdmin = false,
+}: {
+  project: BookProject;
+  isAdmin?: boolean;
+}) {
   const spreads = useMemo(() => getReaderSpreads(project), [project]);
   const [index, setIndex] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
@@ -77,7 +82,9 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const wordsRef = useRef<WordTiming[]>([]);
-  const preloadCache = useRef<Map<string, Promise<{ audioUrl: string; words: WordTiming[] } | null>>>(new Map());
+  const preloadCache = useRef<
+    Map<string, Promise<{ audioUrl: string; words: WordTiming[] } | null>>
+  >(new Map());
 
   const total = spreads.length;
   const spread = spreads[index];
@@ -119,13 +126,15 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
   // Track orientation for fullscreen split-panel layout
   useEffect(() => {
     if (!fullscreen) return;
-    function update() { setIsLandscape(window.innerWidth > window.innerHeight); }
+    function update() {
+      setIsLandscape(window.innerWidth > window.innerHeight);
+    }
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, [fullscreen]);
 
-  // Narration engine — runs whenever narrating, index, or voice changes
+  // Narration engine - runs whenever narrating, index, or voice changes
   useEffect(() => {
     if (!narrating) return;
 
@@ -182,7 +191,11 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
 
         // Preload the next spread's audio while this one plays
         const nextSpread = spreads[index + 1];
-        if (nextSpread && nextSpread.id !== "cover" && !preloadCache.current.has(nextSpread.id)) {
+        if (
+          nextSpread &&
+          nextSpread.id !== "cover" &&
+          !preloadCache.current.has(nextSpread.id)
+        ) {
           const nextText = [nextSpread.leftPageText, nextSpread.rightPageText]
             .filter(Boolean)
             .join(" ")
@@ -190,7 +203,14 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
           if (nextText) {
             const nextUrl = `/api/books/${project.id}/narrate?spreadId=${encodeURIComponent(nextSpread.id)}&voiceId=${encodeURIComponent(DEFAULT_NARRATION_VOICE_ID)}`;
             const promise = fetch(nextUrl)
-              .then((r) => (r.ok ? (r.json() as Promise<{ audioUrl: string; words: WordTiming[] }>) : null))
+              .then((r) =>
+                r.ok
+                  ? (r.json() as Promise<{
+                      audioUrl: string;
+                      words: WordTiming[];
+                    }>)
+                  : null
+              )
               .catch(() => null);
             preloadCache.current.set(nextSpread.id, promise);
             // Also hint the browser to buffer the audio once we have the URL
@@ -210,7 +230,10 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
           // Highlight the last word whose start time has passed (no gaps between words)
           let idx = -1;
           for (let i = ws.length - 1; i >= 0; i--) {
-            if (ws[i]!.start <= t) { idx = i; break; }
+            if (ws[i]!.start <= t) {
+              idx = i;
+              break;
+            }
           }
           setCurrentWordIndex(idx);
         });
@@ -249,18 +272,28 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
   if (!spread || total === 0) return null;
 
   const hasImage = spread.imageUrl && !isPlaceholder(spread.imageUrl);
-  const pageText = [spread.leftPageText, spread.rightPageText].filter(Boolean).join(" ").trim();
-  const hasPurchased = isAdmin || Boolean(project.assets.digitalDownloadUnlockedAt);
-  const canNarrate = hasPurchased && spreads.some((s) => s.leftPageText || s.rightPageText);
-  const showNarrationUpsell = !hasPurchased && spreads.some((s) => s.leftPageText || s.rightPageText);
+  const pageText = [spread.leftPageText, spread.rightPageText]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  const hasPurchased =
+    isAdmin || Boolean(project.assets.digitalDownloadUnlockedAt);
+  const canNarrate =
+    hasPurchased && spreads.some((s) => s.leftPageText || s.rightPageText);
+  const showNarrationUpsell =
+    !hasPurchased && spreads.some((s) => s.leftPageText || s.rightPageText);
 
   return (
     <div className="select-none">
       {/* Main reader card */}
-      <div className={`overflow-hidden rounded-3xl border border-night-100 bg-white shadow-xl${pageText ? " lg:flex lg:min-h-[480px]" : ""}`}>
+      <div
+        className={`overflow-hidden rounded-3xl border border-night-100 bg-white shadow-xl${pageText ? " lg:flex lg:min-h-[480px]" : ""}`}
+      >
         {/* Image panel */}
         {hasImage ? (
-          <div className={`relative aspect-square w-full overflow-hidden max-h-[55vh]${pageText ? " lg:aspect-auto lg:max-h-none lg:w-[55%] lg:shrink-0" : " lg:max-h-[75vh]"}`}>
+          <div
+            className={`relative aspect-square w-full overflow-hidden max-h-[55vh]${pageText ? " lg:aspect-auto lg:max-h-none lg:w-[55%] lg:shrink-0" : " lg:max-h-[75vh]"}`}
+          >
             <Image
               src={spread.imageUrl!}
               alt={spread.title ?? t("pageOf", { page: index + 1, total })}
@@ -271,7 +304,7 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
               priority={index === 0}
               onContextMenu={(e) => e.preventDefault()}
             />
-            {/* Transparent overlay — blocks right-click/long-press, captures expand tap */}
+            {/* Transparent overlay - blocks right-click/long-press, captures expand tap */}
             <div
               className="absolute inset-0 cursor-pointer"
               onClick={() => setFullscreen(true)}
@@ -313,14 +346,21 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
           </div>
         )}
 
-        {/* Text + indicator (right side on desktop) — hidden for cover/pages without text */}
+        {/* Text + indicator (right side on desktop) - hidden for cover/pages without text */}
         {pageText ? (
           <div className="flex flex-col lg:flex-1">
             <div className="flex-1 border-t border-night-50 px-7 pb-8 pt-6 lg:border-t-0 lg:border-l lg:flex lg:items-center">
               <p className="font-display text-xl font-medium leading-relaxed text-night-800">
                 {words.length > 0
                   ? words.map((w, i) => (
-                      <span key={i} className={i === currentWordIndex ? "rounded-sm bg-yellow-200" : ""}>
+                      <span
+                        key={i}
+                        className={
+                          i === currentWordIndex
+                            ? "rounded-sm bg-yellow-200"
+                            : ""
+                        }
+                      >
                         {w.word}{" "}
                       </span>
                     ))
@@ -328,7 +368,9 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
               </p>
             </div>
             <div className="border-t border-night-50 px-7 py-3 text-center">
-              <p className="text-xs text-night-300">{t("pageOf", { page: index + 1, total })}</p>
+              <p className="text-xs text-night-300">
+                {t("pageOf", { page: index + 1, total })}
+              </p>
             </div>
           </div>
         ) : null}
@@ -428,16 +470,31 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
           className="mt-4 flex items-center gap-3 rounded-2xl border border-night-100 bg-white/60 px-5 py-4 backdrop-blur-sm"
         >
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-night-100 text-night-500">
-            <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5 translate-x-0.5">
+            <svg
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="h-5 w-5 translate-x-0.5"
+            >
               <path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
             </svg>
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold text-night-800">{t("narrationUpsellTitle")}</p>
+            <p className="text-xs font-semibold text-night-800">
+              {t("narrationUpsellTitle")}
+            </p>
             <p className="text-xs text-night-400">{t("narrationUpsellSub")}</p>
           </div>
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0 text-night-300" aria-hidden="true">
-            <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+          <svg
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="h-4 w-4 shrink-0 text-night-300"
+            aria-hidden="true"
+          >
+            <path
+              fillRule="evenodd"
+              d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+              clipRule="evenodd"
+            />
           </svg>
         </a>
       ) : null}
@@ -448,36 +505,66 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
           className={`fixed inset-0 z-50 flex bg-black lg:flex-row lg:bg-white ${isLandscape ? "flex-row" : "flex-col"}`}
           style={{ WebkitTouchCallout: "none" } as React.CSSProperties}
         >
-          {/* Portrait-only top bar — hidden in landscape (controls move to text panel) */}
+          {/* Portrait-only top bar - hidden in landscape (controls move to text panel) */}
           {!isLandscape ? (
             <div className="flex shrink-0 items-center justify-between px-4 py-3 lg:hidden">
-              <p className="text-sm font-bold text-white/60">{index + 1} / {total}</p>
+              <p className="text-sm font-bold text-white/60">
+                {index + 1} / {total}
+              </p>
               <div className="flex items-center gap-2">
                 {canNarrate ? (
                   <button
-                    onClick={() => { if (narrating) { setNarrating(false); stopAudio(); } else { setNarrating(true); } }}
+                    onClick={() => {
+                      if (narrating) {
+                        setNarrating(false);
+                        stopAudio();
+                      } else {
+                        setNarrating(true);
+                      }
+                    }}
                     disabled={isLoadingAudio}
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-50"
-                    aria-label={narrating ? t("pauseNarration") : t("listenShort")}
+                    aria-label={
+                      narrating ? t("pauseNarration") : t("listenShort")
+                    }
                   >
-                    {isLoadingAudio ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" /> : narrating ? (
-                      <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4"><rect x="4" y="3" width="4" height="14" rx="1" /><rect x="12" y="3" width="4" height="14" rx="1" /></svg>
+                    {isLoadingAudio ? (
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    ) : narrating ? (
+                      <svg
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        className="h-4 w-4"
+                      >
+                        <rect x="4" y="3" width="4" height="14" rx="1" />
+                        <rect x="12" y="3" width="4" height="14" rx="1" />
+                      </svg>
                     ) : (
-                      <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 translate-x-0.5"><path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
+                      <svg
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        className="h-4 w-4 translate-x-0.5"
+                      >
+                        <path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                      </svg>
                     )}
                   </button>
                 ) : null}
-                <button onClick={() => setFullscreen(false)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20" aria-label={tc("close")}>✕</button>
+                <button
+                  onClick={() => setFullscreen(false)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+                  aria-label={tc("close")}
+                >
+                  ✕
+                </button>
               </div>
             </div>
           ) : null}
 
-          {/* Image panel — portrait: full width square; landscape: full height square; desktop: full height square */}
+          {/* Image panel - portrait: full width square; landscape: full height square; desktop: full height square */}
           <div
             className={`relative min-h-0 flex-shrink-0${
-              isLandscape
-                ? " h-full aspect-square"
-                : " w-full aspect-square"
+              isLandscape ? " h-full aspect-square" : " w-full aspect-square"
             }${pageText ? " lg:h-screen lg:aspect-square lg:flex-none lg:shrink-0" : " lg:flex-1"}`}
           >
             {hasImage ? (
@@ -493,88 +580,176 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
               />
             ) : (
               <div className="flex h-full items-center justify-center">
-                <p className="text-white/40 lg:text-night-400">{t("noIllustration")}</p>
+                <p className="text-white/40 lg:text-night-400">
+                  {t("noIllustration")}
+                </p>
               </div>
             )}
 
             {/* Invisible tap zones for prev/next */}
-            <button onClick={prev} disabled={index === 0} className="absolute inset-y-0 left-0 w-1/3 opacity-0" aria-hidden="true" tabIndex={-1} />
-            <button onClick={next} disabled={index === total - 1} className="absolute inset-y-0 right-0 w-1/3 opacity-0" aria-hidden="true" tabIndex={-1} />
+            <button
+              onClick={prev}
+              disabled={index === 0}
+              className="absolute inset-y-0 left-0 w-1/3 opacity-0"
+              aria-hidden="true"
+              tabIndex={-1}
+            />
+            <button
+              onClick={next}
+              disabled={index === total - 1}
+              className="absolute inset-y-0 right-0 w-1/3 opacity-0"
+              aria-hidden="true"
+              tabIndex={-1}
+            />
 
-            {/* Arrow hints — visible on portrait + desktop, hidden on landscape mobile */}
+            {/* Arrow hints - visible on portrait + desktop, hidden on landscape mobile */}
             {index > 0 ? (
               <button
                 onClick={prev}
                 className={`absolute left-3 top-1/2 -translate-y-1/2 h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 ${isLandscape ? "hidden lg:flex" : "flex"}`}
                 aria-label={t("previousPage")}
-              >‹</button>
+              >
+                ‹
+              </button>
             ) : null}
             {index < total - 1 ? (
               <button
                 onClick={next}
                 className={`absolute right-3 top-1/2 -translate-y-1/2 h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 ${isLandscape ? "hidden lg:flex" : "flex"}`}
                 aria-label={t("nextPage")}
-              >›</button>
+              >
+                ›
+              </button>
             ) : null}
           </div>
 
-          {/* Text + nav panel — portrait: flex-1 below image; landscape + desktop: right panel */}
+          {/* Text + nav panel - portrait: flex-1 below image; landscape + desktop: right panel */}
           {pageText ? (
-            <div className={`flex flex-1 flex-col overflow-hidden bg-black lg:bg-white lg:border-l lg:border-night-100${isLandscape ? " border-l border-white/10" : ""}`}>
-              {/* Controls row — landscape mobile + desktop */}
+            <div
+              className={`flex flex-1 flex-col overflow-hidden bg-black lg:bg-white lg:border-l lg:border-night-100${isLandscape ? " border-l border-white/10" : ""}`}
+            >
+              {/* Controls row - landscape mobile + desktop */}
               {isLandscape ? (
                 <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3 lg:hidden">
-                  <p className="text-sm font-medium text-white/60">{index + 1} / {total}</p>
+                  <p className="text-sm font-medium text-white/60">
+                    {index + 1} / {total}
+                  </p>
                   <div className="flex items-center gap-2">
                     {canNarrate ? (
                       <button
-                        onClick={() => { if (narrating) { setNarrating(false); stopAudio(); } else { setNarrating(true); } }}
+                        onClick={() => {
+                          if (narrating) {
+                            setNarrating(false);
+                            stopAudio();
+                          } else {
+                            setNarrating(true);
+                          }
+                        }}
                         disabled={isLoadingAudio}
                         className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-50"
-                        aria-label={narrating ? t("pauseNarration") : t("listenShort")}
+                        aria-label={
+                          narrating ? t("pauseNarration") : t("listenShort")
+                        }
                       >
-                        {isLoadingAudio ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" /> : narrating ? (
-                          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4"><rect x="4" y="3" width="4" height="14" rx="1" /><rect x="12" y="3" width="4" height="14" rx="1" /></svg>
+                        {isLoadingAudio ? (
+                          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        ) : narrating ? (
+                          <svg
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            className="h-4 w-4"
+                          >
+                            <rect x="4" y="3" width="4" height="14" rx="1" />
+                            <rect x="12" y="3" width="4" height="14" rx="1" />
+                          </svg>
                         ) : (
-                          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 translate-x-0.5"><path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
+                          <svg
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            className="h-4 w-4 translate-x-0.5"
+                          >
+                            <path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                          </svg>
                         )}
                       </button>
                     ) : null}
-                    <button onClick={() => setFullscreen(false)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20" aria-label={tc("close")}>✕</button>
+                    <button
+                      onClick={() => setFullscreen(false)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+                      aria-label={tc("close")}
+                    >
+                      ✕
+                    </button>
                   </div>
                 </div>
               ) : null}
 
               {/* Desktop controls row */}
               <div className="hidden lg:flex shrink-0 items-center justify-between border-b border-night-100 px-6 py-4">
-                <p className="text-sm font-medium text-night-400">{index + 1} / {total}</p>
+                <p className="text-sm font-medium text-night-400">
+                  {index + 1} / {total}
+                </p>
                 <div className="flex items-center gap-2">
                   {canNarrate ? (
                     <button
-                      onClick={() => { if (narrating) { setNarrating(false); stopAudio(); } else { setNarrating(true); } }}
+                      onClick={() => {
+                        if (narrating) {
+                          setNarrating(false);
+                          stopAudio();
+                        } else {
+                          setNarrating(true);
+                        }
+                      }}
                       disabled={isLoadingAudio}
                       className="flex h-9 w-9 items-center justify-center rounded-full border border-night-200 text-night-700 hover:bg-night-50 disabled:opacity-50"
-                      aria-label={narrating ? t("pauseNarration") : t("listenShort")}
+                      aria-label={
+                        narrating ? t("pauseNarration") : t("listenShort")
+                      }
                     >
-                      {isLoadingAudio ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-night-700 border-t-transparent" /> : narrating ? (
-                        <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4"><rect x="4" y="3" width="4" height="14" rx="1" /><rect x="12" y="3" width="4" height="14" rx="1" /></svg>
+                      {isLoadingAudio ? (
+                        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-night-700 border-t-transparent" />
+                      ) : narrating ? (
+                        <svg
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          className="h-4 w-4"
+                        >
+                          <rect x="4" y="3" width="4" height="14" rx="1" />
+                          <rect x="12" y="3" width="4" height="14" rx="1" />
+                        </svg>
                       ) : (
-                        <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 translate-x-0.5"><path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
+                        <svg
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          className="h-4 w-4 translate-x-0.5"
+                        >
+                          <path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                        </svg>
                       )}
                     </button>
                   ) : null}
-                  <button onClick={() => setFullscreen(false)} className="flex h-9 w-9 items-center justify-center rounded-full border border-night-200 text-night-700 hover:bg-night-50" aria-label={tc("close")}>✕</button>
+                  <button
+                    onClick={() => setFullscreen(false)}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-night-200 text-night-700 hover:bg-night-50"
+                    aria-label={tc("close")}
+                  >
+                    ✕
+                  </button>
                 </div>
               </div>
 
-              {/* Story text — vertically centred, fills available space */}
+              {/* Story text - vertically centred, fills available space */}
               <div className="flex flex-1 items-center overflow-y-auto px-5 py-5 lg:px-8 lg:py-8">
                 <p className="font-display text-lg font-medium leading-relaxed text-white/95 lg:text-2xl lg:text-night-800">
                   {words.length > 0
                     ? words.map((w, i) => (
                         <span
                           key={i}
-                          className={i === currentWordIndex ? "font-bold text-yellow-300 lg:font-normal lg:rounded-sm lg:bg-yellow-200 lg:text-inherit" : ""}
+                          className={
+                            i === currentWordIndex
+                              ? "font-bold text-yellow-300 lg:font-normal lg:rounded-sm lg:bg-yellow-200 lg:text-inherit"
+                              : ""
+                          }
                         >
                           {w.word}{" "}
                         </span>
@@ -588,7 +763,11 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
                 {spreads.map((_, i) => (
                   <button
                     key={i}
-                    onClick={() => { setNarrating(false); stopAudio(); setIndex(i); }}
+                    onClick={() => {
+                      setNarrating(false);
+                      stopAudio();
+                      setIndex(i);
+                    }}
                     aria-label={t("goToPage", { page: i + 1 })}
                     className={`shrink-0 rounded-full transition-all ${
                       i === index
@@ -599,21 +778,23 @@ export default function BookReader({ project, isAdmin = false }: { project: Book
                 ))}
               </div>
             </div>
-          ) : (
-            /* No text (cover page) — portrait nav dots below image */
-            !isLandscape ? (
-              <div className="flex shrink-0 flex-nowrap items-center gap-1.5 overflow-x-auto px-4 py-3 lg:hidden [&::-webkit-scrollbar]:hidden">
-                {spreads.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => { setNarrating(false); stopAudio(); setIndex(i); }}
-                    aria-label={t("goToPage", { page: i + 1 })}
-                    className={`h-1.5 shrink-0 rounded-full transition-all ${i === index ? "w-5 bg-white" : "w-1.5 bg-white/30 hover:bg-white/50"}`}
-                  />
-                ))}
-              </div>
-            ) : null
-          )}
+          ) : /* No text (cover page) - portrait nav dots below image */
+          !isLandscape ? (
+            <div className="flex shrink-0 flex-nowrap items-center gap-1.5 overflow-x-auto px-4 py-3 lg:hidden [&::-webkit-scrollbar]:hidden">
+              {spreads.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    setNarrating(false);
+                    stopAudio();
+                    setIndex(i);
+                  }}
+                  aria-label={t("goToPage", { page: i + 1 })}
+                  className={`h-1.5 shrink-0 rounded-full transition-all ${i === index ? "w-5 bg-white" : "w-1.5 bg-white/30 hover:bg-white/50"}`}
+                />
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

@@ -2,7 +2,7 @@ import Nav from "@/components/Nav";
 import Link from "next/link";
 
 export const metadata = {
-  title: "Privacy Policy — Storycot",
+  title: "Privacy Policy - Storycot",
 };
 
 const EFFECTIVE = "26 July 2026";
@@ -48,7 +48,7 @@ export default function PrivacyPage() {
         <Section title="1. What information we collect">
           <p>
             <strong>Account information:</strong> Your email address and name,
-            collected when you sign up via email or Google (handled by Clerk —
+            collected when you sign up via email or Google (handled by Clerk -
             see their privacy policy).
           </p>
           <p>
@@ -95,7 +95,7 @@ export default function PrivacyPage() {
 
         <Section title="3. Children's information">
           <p>
-            Storycot is a service for adults to create content for children — it
+            Storycot is a service for adults to create content for children - it
             is not directed at children themselves. We collect children&apos;s
             names, ages, and interests only because you provide them to
             personalise stories. This information is:
@@ -127,36 +127,36 @@ export default function PrivacyPage() {
           <p>We use the following third-party services to operate Storycot:</p>
           <ul className="list-disc pl-5 space-y-1">
             <li>
-              <strong>Clerk</strong> — authentication and account management
+              <strong>Clerk</strong> - authentication and account management
             </li>
             <li>
-              <strong>Anthropic</strong> — AI story generation (story text and
+              <strong>Anthropic</strong> - AI story generation (story text and
               themes are sent to generate content; child names and personal
               details are included in the prompt)
             </li>
             <li>
-              <strong>OpenAI</strong> — AI illustration generation (story scene
+              <strong>OpenAI</strong> - AI illustration generation (story scene
               descriptions are sent to generate images)
             </li>
             <li>
-              <strong>ElevenLabs</strong> — voice narration generation
+              <strong>ElevenLabs</strong> - voice narration generation
             </li>
             <li>
-              <strong>Stripe</strong> — payment processing
+              <strong>Stripe</strong> - payment processing
             </li>
             <li>
-              <strong>Lulu</strong> — print fulfillment (name and shipping
+              <strong>Lulu</strong> - print fulfillment (name and shipping
               address shared for print orders)
             </li>
             <li>
-              <strong>Resend</strong> — transactional email delivery
+              <strong>Resend</strong> - transactional email delivery
             </li>
             <li>
-              <strong>Vercel</strong> — hosting, storage, and anonymised
+              <strong>Vercel</strong> - hosting, storage, and anonymised
               analytics
             </li>
             <li>
-              <strong>Neon</strong> — database hosting (your data is stored in
+              <strong>Neon</strong> - database hosting (your data is stored in
               Neon&apos;s Postgres infrastructure)
             </li>
           </ul>
@@ -202,7 +202,7 @@ export default function PrivacyPage() {
           <p>
             Storycot uses cookies and local storage for authentication (Clerk)
             and to remember your session. Vercel Analytics uses anonymised
-            identifiers — no advertising cookies are used.
+            identifiers - no advertising cookies are used.
           </p>
         </Section>
 

@@ -77,7 +77,7 @@ function getProjectArtMode(input: {
 // Must match the illustration loop (isBookStoryIllustrationSpread): only
 // text_art/hero/quiet spreads get custom art. Front/end matter pages (Title,
 // "The End", Back Cover) are never illustrated, so they must not be treated as
-// missing an image — otherwise the finalize gate never passes.
+// missing an image - otherwise the finalize gate never passes.
 function isGeneratedPageSpread(spread: BookSpread) {
   return (
     spread.layoutType === "text_art" ||
@@ -143,7 +143,7 @@ function stageFailureToErrorCode(stageCode: string): ErrorCode {
 
 function userMessageForErrorCode(errorCode: string): string {
   if (errorCode.startsWith("planning"))
-    return "We hit a snag planning the book. Hit retry — it usually clears up.";
+    return "We hit a snag planning the book. Hit retry - it usually clears up.";
   if (errorCode.startsWith("bible"))
     return "The character setup didn't finish. Retry to pick up where it left off.";
   if (errorCode.startsWith("illustrating"))
@@ -363,11 +363,12 @@ async function regenerateProjectArt(input: {
     )
   );
 
-  // Auto-retry any failed spreads once before moving on — heals transient
+  // Auto-retry any failed spreads once before moving on - heals transient
   // 429s and network blips without locking the build in image_failed state.
   const finalResults = await Promise.all(
     windowResults.map((result, i) => {
-      if (!result || !result.spread.leftPageImageError) return Promise.resolve(result);
+      if (!result || !result.spread.leftPageImageError)
+        return Promise.resolve(result);
       const s = spreadWindow[i]!;
       return generateSpreadIllustration({
         project: input.project,
@@ -391,9 +392,7 @@ async function regenerateProjectArt(input: {
 
   const nextCursor = currentCursor + spreadWindow.length;
   const spreadProviders = illustratedSpreads
-    .filter(
-      (s) => s.sequence > 1 && (s.leftPageImageUrl ?? s.imageUrl)
-    )
+    .filter((s) => s.sequence > 1 && (s.leftPageImageUrl ?? s.imageUrl))
     .map((s) => {
       const url = s.leftPageImageUrl ?? s.imageUrl ?? "";
       return url.includes("/spreads/") && url.endsWith(".png")
@@ -813,7 +812,9 @@ export async function regenerateBookSpreadPageImage(input: {
     leftPageImageUrl:
       input.side === "left" ? generated.url : spread.leftPageImageUrl,
     leftPageWebImageUrl:
-      input.side === "left" ? (generated.webUrl ?? undefined) : spread.leftPageWebImageUrl,
+      input.side === "left"
+        ? (generated.webUrl ?? undefined)
+        : spread.leftPageWebImageUrl,
     rightPageImageUrl:
       input.side === "right" ? generated.url : spread.rightPageImageUrl,
     leftPageImageError:
@@ -1123,7 +1124,7 @@ export async function processBookBuildJob(jobId: string) {
         }
         finalProject = claimedProject;
 
-        // Fire-and-forget — email failure must never break the build.
+        // Fire-and-forget - email failure must never break the build.
         after(async () => {
           try {
             const { clerkClient } = await import("@clerk/nextjs/server");

@@ -31,10 +31,14 @@ import BookStatusPanel from "../../books/[id]/BookStatusPanel";
 import DigitalDownloadSection from "../../books/[id]/DigitalDownloadSection";
 import PrintFulfillmentResendButton from "../../books/[id]/PrintFulfillmentResendButton";
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const story = await db.stories.getById(id);
-  return { title: story ? `${story.title} — Storycot` : "Story — Storycot" };
+  return { title: story ? `${story.title} - Storycot` : "Story - Storycot" };
 }
 
 export default async function StoryPage({
@@ -46,7 +50,8 @@ export default async function StoryPage({
 }) {
   const { userId } = await auth();
   const { id, locale } = await params;
-  const query = await (searchParams ?? Promise.resolve({} as StoryPageSearchParams));
+  const query = await (searchParams ??
+    Promise.resolve({} as StoryPageSearchParams));
   const [t, tBooks] = await Promise.all([
     getTranslations("stories"),
     getTranslations("books"),
@@ -92,24 +97,33 @@ export default async function StoryPage({
   const isBookReady = effectiveProjectStatus === "ready";
   const printOrderingAvailable = canStartPrintCheckout(isAdmin);
   const printRestricted = isStoryPrintRestricted(story);
-  const fileRetention = existingBook ? getBookFileRetentionState(existingBook) : null;
+  const fileRetention = existingBook
+    ? getBookFileRetentionState(existingBook)
+    : null;
   const hasPrintPdf = Boolean(existingBook?.assets.printPdfUrl);
   const hasEpub = Boolean(existingBook?.assets.epubUrl);
-  const hasIllustrationsZip = existingBook?.spreads.some(
-    (s) =>
-      (s.layoutType === "text_art" ||
-        s.layoutType === "hero" ||
-        s.layoutType === "quiet") &&
-      s.leftPageImageUrl &&
-      !s.leftPageImageUrl.endsWith(".svg") &&
-      !s.leftPageImageUrl.startsWith("data:image/svg")
-  ) ?? false;
-  const hasDigitalDownload = Boolean(existingBook?.assets.digitalDownloadUnlockedAt);
+  const hasIllustrationsZip =
+    existingBook?.spreads.some(
+      (s) =>
+        (s.layoutType === "text_art" ||
+          s.layoutType === "hero" ||
+          s.layoutType === "quiet") &&
+        s.leftPageImageUrl &&
+        !s.leftPageImageUrl.endsWith(".svg") &&
+        !s.leftPageImageUrl.startsWith("data:image/svg")
+    ) ?? false;
+  const hasDigitalDownload = Boolean(
+    existingBook?.assets.digitalDownloadUnlockedAt
+  );
 
   return (
     <>
       <Nav />
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-4xl px-5 py-10">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto max-w-4xl px-5 py-10"
+      >
         {/* Title + actions */}
         <div className="mb-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -180,10 +194,12 @@ export default async function StoryPage({
             </div>
           </div>
 
-          {/* Estimate info — shown when no book yet */}
+          {/* Estimate info - shown when no book yet */}
           {isReady && !existingBook && (
             <div className="mt-3 max-w-md rounded-2xl border border-star-200 bg-star-50 px-4 py-3 text-sm text-night-600">
-              <p className="font-bold text-night-800">{tBooks("estimateTitle")}</p>
+              <p className="font-bold text-night-800">
+                {tBooks("estimateTitle")}
+              </p>
               <p className="mt-1">
                 {story.storyPreset === "tiny-tales"
                   ? tBooks("estimateBodyTinyTales", {
@@ -212,7 +228,7 @@ export default async function StoryPage({
             </div>
           )}
 
-          {/* Text exports dropdown — always visible when story is ready */}
+          {/* Text exports dropdown - always visible when story is ready */}
           {isReady && (
             <div className="mt-3">
               <StoryTextExports storyId={id} storyTitle={story.title} />
@@ -274,7 +290,8 @@ export default async function StoryPage({
             {/* Status stepper */}
             {(() => {
               const f = existingBook.printOrder!.fulfillment;
-              const isShipped = f?.status === "shipped" || f?.status === "delivered";
+              const isShipped =
+                f?.status === "shipped" || f?.status === "delivered";
               const isInProd = f?.status === "submitted";
               const steps = [
                 { label: "Order received", done: true },
@@ -286,13 +303,21 @@ export default async function StoryPage({
                   {steps.map((step, i) => (
                     <div key={i} className="flex flex-1 items-center">
                       <div className="flex flex-col items-center">
-                        <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${step.done ? "bg-star-600 text-white" : "bg-night-100 text-night-400"}`}>
+                        <div
+                          className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${step.done ? "bg-star-600 text-white" : "bg-night-100 text-night-400"}`}
+                        >
                           {step.done ? "✓" : i + 1}
                         </div>
-                        <p className={`mt-1 text-center text-xs font-medium ${step.done ? "text-night-700" : "text-night-400"}`}>{step.label}</p>
+                        <p
+                          className={`mt-1 text-center text-xs font-medium ${step.done ? "text-night-700" : "text-night-400"}`}
+                        >
+                          {step.label}
+                        </p>
                       </div>
                       {i < steps.length - 1 ? (
-                        <div className={`mb-4 h-0.5 flex-1 ${steps[i + 1]?.done ? "bg-star-400" : "bg-night-100"}`} />
+                        <div
+                          className={`mb-4 h-0.5 flex-1 ${steps[i + 1]?.done ? "bg-star-400" : "bg-night-100"}`}
+                        />
                       ) : null}
                     </div>
                   ))}
@@ -334,9 +359,10 @@ export default async function StoryPage({
                 return (
                   <div className="mt-5 space-y-3">
                     <p className="leading-7 text-night-600">
-                      Your book is in production. Check back here for shipping updates.
+                      Your book is in production. Check back here for shipping
+                      updates.
                     </p>
-                      {f.externalOrderId ? (
+                    {f.externalOrderId ? (
                       <p className="text-xs text-night-400">
                         Printer ref: {f.externalOrderId}
                       </p>
@@ -349,7 +375,7 @@ export default async function StoryPage({
                   <>
                     <p className="mt-4 leading-7 text-blush-600">
                       There was a problem sending your order to the printer. Our
-                      team has been notified and will sort it out — no further
+                      team has been notified and will sort it out - no further
                       action needed from you.
                     </p>
                     <a
@@ -370,7 +396,7 @@ export default async function StoryPage({
               return (
                 <div className="mt-5 space-y-3">
                   <p className="leading-7 text-night-600">
-                    Payment received — your book is being prepared for print.
+                    Payment received - your book is being prepared for print.
                     Check back here to follow your order status.
                   </p>
                   {isAdmin ? (
@@ -385,7 +411,7 @@ export default async function StoryPage({
           </section>
         ) : null}
 
-        {/* Reader — illustrated when book ready, text-only otherwise */}
+        {/* Reader - illustrated when book ready, text-only otherwise */}
         {isBookReady && existingBook && existingBook.spreads.length > 0 ? (
           <section className="mb-8">
             <BookReader project={existingBook} isAdmin={isAdmin} />
@@ -394,7 +420,7 @@ export default async function StoryPage({
           <StoryReader story={story} />
         )}
 
-        {/* Book status panel — shown during build AND when ready (for export actions + artwork redo) */}
+        {/* Book status panel - shown during build AND when ready (for export actions + artwork redo) */}
         {existingBook ? (
           <div className="mt-8">
             <BookStatusPanel
@@ -404,7 +430,7 @@ export default async function StoryPage({
           </div>
         ) : null}
 
-        {/* Purchases + downloads — when book is ready */}
+        {/* Purchases + downloads - when book is ready */}
         {isBookReady && existingBook ? (
           <section className="mt-8">
             <h2 className="mb-2 font-display text-2xl font-bold text-night-800">
@@ -455,7 +481,7 @@ export default async function StoryPage({
                       </h3>
                       <p className="mt-3 text-sm leading-6 text-night-500">
                         A giftable keepsake edition with a rigid casewrap cover
-                        and premium colour pages — printed and delivered to
+                        and premium colour pages - printed and delivered to
                         Australia.
                       </p>
                       <div className="mt-4 rounded-2xl bg-night-50 p-4">

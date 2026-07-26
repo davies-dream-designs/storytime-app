@@ -34,7 +34,13 @@ type LookupResult = {
     } | null;
     updatedAt: string;
   }[];
-  errors?: { id: string; code: string; severity: string; message: string; createdAt: string }[];
+  errors?: {
+    id: string;
+    code: string;
+    severity: string;
+    message: string;
+    createdAt: string;
+  }[];
 };
 
 export default function CustomerLookup() {
@@ -92,7 +98,8 @@ export default function CustomerLookup() {
         Customer lookup
       </h2>
       <p className="text-sm text-night-400 mb-3">
-        Search by email, user id, or a story/book id — everything about them in one spot.
+        Search by email, user id, or a story/book id - everything about them in
+        one spot.
       </p>
 
       <form onSubmit={search} className="flex gap-2">
@@ -126,18 +133,24 @@ export default function CustomerLookup() {
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <p className="text-sm font-bold text-night-800">
-                  {result.user.name ?? "—"}
+                  {result.user.name ?? "-"}
                   {result.user.isAdmin && (
                     <span className="ml-2 rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700">
                       admin
                     </span>
                   )}
                 </p>
-                <p className="text-xs text-night-500">{result.user.email ?? "—"}</p>
-                <p className="font-mono text-xs text-night-400">{result.user.id}</p>
+                <p className="text-xs text-night-500">
+                  {result.user.email ?? "-"}
+                </p>
+                <p className="font-mono text-xs text-night-400">
+                  {result.user.id}
+                </p>
               </div>
               <div className="text-right">
-                <p className="text-xs font-bold uppercase text-night-400">Credits</p>
+                <p className="text-xs font-bold uppercase text-night-400">
+                  Credits
+                </p>
                 <p className="text-lg font-bold text-night-800">
                   {result.user.credits}
                 </p>
@@ -189,7 +202,7 @@ export default function CustomerLookup() {
                     {b.printOrder && (
                       <span>
                         order: {b.printOrder.status}/
-                        {b.printOrder.fulfillmentStatus ?? "—"} · $
+                        {b.printOrder.fulfillmentStatus ?? "-"} · $
                         {b.printOrder.amountAud}
                       </span>
                     )}

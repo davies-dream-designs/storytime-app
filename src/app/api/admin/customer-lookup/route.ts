@@ -7,7 +7,7 @@ import { getUserCredits } from "@/lib/credits";
 /**
  * Look up everything about one customer from a single query string: an email, a
  * Clerk user id, or a story/book id. Returns their profile, credits, stories,
- * books, print orders and recent errors — the "someone rang up" screen.
+ * books, print orders and recent errors - the "someone rang up" screen.
  */
 export async function GET(req: NextRequest) {
   if (!(await getAdminIdentity())) {
@@ -16,14 +16,20 @@ export async function GET(req: NextRequest) {
 
   const q = req.nextUrl.searchParams.get("q")?.trim();
   if (!q) {
-    return NextResponse.json({ error: "Provide a `q` query." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Provide a `q` query." },
+      { status: 400 }
+    );
   }
 
   const client = await clerkClient();
   let userId: string | null = null;
 
   if (q.includes("@")) {
-    const list = await client.users.getUserList({ emailAddress: [q], limit: 1 });
+    const list = await client.users.getUserList({
+      emailAddress: [q],
+      limit: 1,
+    });
     userId = list.data[0]?.id ?? null;
   } else if (q.startsWith("user_")) {
     userId = q;
@@ -54,8 +60,7 @@ export async function GET(req: NextRequest) {
     user: {
       id: userId,
       email: user?.primaryEmailAddress?.emailAddress ?? null,
-      name:
-        [user?.firstName, user?.lastName].filter(Boolean).join(" ") || null,
+      name: [user?.firstName, user?.lastName].filter(Boolean).join(" ") || null,
       credits,
       isAdmin: user?.privateMetadata.isAdmin === true,
     },

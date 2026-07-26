@@ -31,7 +31,7 @@ describe("sendBookReadyEmail", () => {
     expect(mockSend).toHaveBeenCalledWith(
       expect.objectContaining({
         from: "Storycot <noreply@storycot.com>",
-        subject: "Your Storycot book is ready — Firefly Forest Walk",
+        subject: "Your Storycot book is ready - Firefly Forest Walk",
       })
     );
     const message = mockSend.mock.calls[0]?.[0];

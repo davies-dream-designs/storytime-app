@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { formatAudCents } from "@/lib/creditPacks";
 import RedeemGiftButton from "./RedeemGiftButton";
 
-export const metadata = { title: "Redeem Gift — Storycot" };
+export const metadata = { title: "Redeem Gift - Storycot" };
 
 export default async function GiftRedeemPage({
   params,

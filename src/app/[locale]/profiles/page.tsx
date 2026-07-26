@@ -5,7 +5,7 @@ import Nav from "@/components/Nav";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 import { db } from "@/lib/db";
 
-export const metadata = { title: "Profiles — Storycot" };
+export const metadata = { title: "Profiles - Storycot" };
 
 export default async function ProfilesPage() {
   const { userId } = await auth();
@@ -27,7 +27,11 @@ export default async function ProfilesPage() {
   return (
     <>
       <Nav />
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-5 py-10">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto max-w-6xl px-5 py-10"
+      >
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="font-display text-4xl font-bold text-night-800">
@@ -81,8 +85,12 @@ export default async function ProfilesPage() {
                               (now.getFullYear() - dob.getFullYear()) * 12 +
                               (now.getMonth() - dob.getMonth());
                             return totalMonths < 12
-                              ? tCommon("monthsOld", { months: Math.max(totalMonths, 0) })
-                              : tCommon("yearsOld", { years: Math.floor(totalMonths / 12) });
+                              ? tCommon("monthsOld", {
+                                  months: Math.max(totalMonths, 0),
+                                })
+                              : tCommon("yearsOld", {
+                                  years: Math.floor(totalMonths / 12),
+                                });
                           }
                           return t("ageLabel", { age: profile.age });
                         })()}

@@ -519,8 +519,9 @@ Physical hardcovered books via [Lulu](https://lulu.com). Requirements before imp
 - API integration for order placement + fulfilment
 
 ### AI illustrations
-AI-generated art for each story page (e.g. via Replicate/DALL-E). This unlocks Lulu printing
-and makes the print PDF significantly more premium.
+AI-generated art is available for illustrated books, web preview images, downloadable PDFs/EPUBs,
+and Lulu-ready print exports. Remaining work here is QA polish, cost monitoring, and fallback
+handling as generation volume grows.
 
 ### Clerk Billing (tiering)
 Subscription tiers if usage requires it. The `clerk-billing` skill handles this end-to-end.
@@ -548,13 +549,14 @@ Set up GBP for `storycot.com` to appear in local search.
 
 - [ ] **Clerk branding** — logo + brand colour in Clerk Dashboard for both instances:
   Application → Settings (logo) + Customization → Emails
-- [ ] **Merge `feat/stripe-billing` → `main`** — go live
+- [ ] **Admin/live payment smoke test** — confirm live Stripe + Lulu order flow with a controlled
+  admin purchase before making public launch announcements.
 
 ### 🟢 Post-launch
 
-- [ ] **Lulu integration** — needs AI illustrations first
-- [ ] **AI illustrations** — one image per story page
 - [ ] **Birthday credits** — +1 credit + email on child's birthday
+- [ ] **Voice narration** — ElevenLabs narration stored with the story/book
+- [ ] **Age-based print layout variations** — tune book structure by child age band
 - [ ] **Google Business Profile** — storycot.com local search presence
 - [ ] **Fix Dependabot alert** — 1 moderate vulnerability on `main` branch
 

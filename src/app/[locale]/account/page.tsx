@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import Nav from "@/components/Nav";
 import CreditPacks from "./CreditPacks";
+import GiftCredits from "./GiftCredits";
 import ShareSection from "@/components/ShareSection";
 
 export const metadata = { title: "Account — Storycot" };
@@ -10,12 +11,16 @@ export const metadata = { title: "Account — Storycot" };
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ success?: string; canceled?: string }>;
+  searchParams: Promise<{
+    success?: string;
+    canceled?: string;
+    gift_canceled?: string;
+  }>;
 }) {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
 
-  const [{ success, canceled }, t, client] = await Promise.all([
+  const [{ success, canceled, gift_canceled }, t, client] = await Promise.all([
     searchParams,
     getTranslations("account"),
     clerkClient(),
@@ -27,7 +32,11 @@ export default async function AccountPage({
   return (
     <>
       <Nav />
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-5 py-14">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto max-w-2xl px-5 py-14"
+      >
         <h1 className="font-display text-4xl font-bold text-night-800">
           {t("title")}
         </h1>
@@ -43,6 +52,11 @@ export default async function AccountPage({
         {canceled && (
           <div className="mt-6 rounded-2xl bg-night-50 border border-night-200 px-5 py-4 text-sm text-night-500">
             {t("paymentCancelled")}
+          </div>
+        )}
+        {gift_canceled && (
+          <div className="mt-6 rounded-2xl bg-night-50 border border-night-200 px-5 py-4 text-sm text-night-500">
+            Gift checkout was cancelled — no charge was made.
           </div>
         )}
 
@@ -108,6 +122,7 @@ export default async function AccountPage({
           showPaidPacks={!isAdmin}
           showFreeTopUp={isAdmin || process.env.VERCEL_ENV !== "production"}
         />
+        {!isAdmin ? <GiftCredits /> : null}
         <ShareSection userId={userId} />
       </main>
     </>

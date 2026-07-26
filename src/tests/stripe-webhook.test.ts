@@ -10,9 +10,18 @@ const { mockConstructEvent, mockRetrieveSession, mockSubmitPrintFulfillment } =
     mockSubmitPrintFulfillment: vi.fn(),
   }));
 
+const { mockGetUser, mockUpdateUserMetadata } = vi.hoisted(() => ({
+  mockGetUser: vi.fn(),
+  mockUpdateUserMetadata: vi.fn(),
+}));
+
 const mockDb = {
   bookProjects: {
     getById: vi.fn(),
+    update: vi.fn(),
+  },
+  giftOrders: {
+    getByToken: vi.fn(),
     update: vi.fn(),
   },
   stories: {
@@ -37,7 +46,12 @@ vi.mock("stripe", () => ({
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: vi.fn(),
+  clerkClient: vi.fn(async () => ({
+    users: {
+      getUser: mockGetUser,
+      updateUserMetadata: mockUpdateUserMetadata,
+    },
+  })),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -116,7 +130,28 @@ describe("Stripe checkout webhook", () => {
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_123";
     mockDb.bookProjects.getById.mockResolvedValue(createProject());
     mockDb.bookProjects.update.mockResolvedValue(undefined);
+    mockDb.giftOrders.getByToken.mockResolvedValue(undefined);
+    mockDb.giftOrders.update.mockImplementation(async (_id, updates) => ({
+      id: "gift-1",
+      token: "gift-token",
+      purchaserUserId: "user-1",
+      recipientEmail: "recipient@example.com",
+      packId: "starter",
+      credits: 10,
+      amountAud: 499,
+      status: "paid",
+      referralReferrerUserId: "user-referrer",
+      createdAt: "2026-07-20T00:00:00.000Z",
+      updatedAt: "2026-07-20T00:00:00.000Z",
+      ...updates,
+    }));
     mockDb.stories.getById.mockResolvedValue({ title: "Moonlight Garden" });
+    mockGetUser.mockResolvedValue({
+      firstName: "Buyer",
+      primaryEmailAddress: { emailAddress: "buyer@example.com" },
+      privateMetadata: { credits: 4 },
+    });
+    mockUpdateUserMetadata.mockResolvedValue(undefined);
     mockSubmitPrintFulfillment.mockResolvedValue({
       provider: "lulu",
       status: "submitted",
@@ -236,5 +271,71 @@ describe("Stripe checkout webhook", () => {
         }),
       }),
     });
+  });
+
+  it("marks gift credits paid and grants a referral reward without crediting the buyer", async () => {
+    mockDb.giftOrders.getByToken.mockResolvedValue({
+      id: "gift-1",
+      token: "gift-token",
+      purchaserUserId: "user-1",
+      purchaserEmail: "buyer@example.com",
+      recipientEmail: "recipient@example.com",
+      recipientName: "Nana",
+      message: "Enjoy bedtime.",
+      packId: "starter",
+      credits: 10,
+      amountAud: 499,
+      status: "checkout_started",
+      checkoutSessionId: "cs_test_123",
+      referralReferrerUserId: "user-referrer",
+      createdAt: "2026-07-20T00:00:00.000Z",
+      updatedAt: "2026-07-20T00:00:00.000Z",
+    });
+    mockGetUser.mockResolvedValueOnce({
+      privateMetadata: { credits: 2 },
+    });
+    mockGetUser.mockResolvedValueOnce({
+      firstName: "Buyer",
+      primaryEmailAddress: { emailAddress: "buyer@example.com" },
+      privateMetadata: { credits: 4 },
+    });
+    mockConstructEvent.mockReturnValue({
+      type: "checkout.session.completed",
+      data: {
+        object: createCheckoutSession({
+          metadata: {
+            checkoutType: "gift_credits",
+            userId: "user-1",
+            giftToken: "gift-token",
+            credits: "10",
+          },
+        }),
+      },
+    });
+
+    const { POST } = await import("@/app/api/stripe/webhook/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/stripe/webhook", {
+        method: "POST",
+        headers: { "stripe-signature": "sig_test" },
+        body: "{}",
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockDb.giftOrders.update).toHaveBeenCalledWith(
+      "gift-1",
+      expect.objectContaining({
+        status: "paid",
+        paidAt: expect.any(String),
+      })
+    );
+    expect(mockUpdateUserMetadata).toHaveBeenCalledWith("user-referrer", {
+      privateMetadata: { credits: 3 },
+    });
+    expect(mockUpdateUserMetadata).not.toHaveBeenCalledWith(
+      "user-1",
+      expect.anything()
+    );
   });
 });

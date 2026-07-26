@@ -3,33 +3,9 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { usePendingUI } from "@/components/GlobalPending";
+import { CREDIT_PACKS } from "@/lib/creditPacks";
 
-const PACKS = [
-  {
-    id: "starter",
-    label: "Starter",
-    credits: 10,
-    price: "$4.99",
-    priceNote: "AUD",
-    popular: false,
-  },
-  {
-    id: "family",
-    label: "Family",
-    credits: 30,
-    price: "$11.99",
-    priceNote: "AUD",
-    popular: true,
-  },
-  {
-    id: "pro",
-    label: "Bedtime Pro",
-    credits: 100,
-    price: "$29.99",
-    priceNote: "AUD",
-    popular: false,
-  },
-] as const;
+const PACKS = Object.values(CREDIT_PACKS);
 
 export default function CreditPacks({
   showPaidPacks = true,

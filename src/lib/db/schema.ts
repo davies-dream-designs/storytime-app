@@ -7,11 +7,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type { ChildAppearance } from "@/types/profileAppearance";
-import type {
-  StoryPage,
-  StoryIpPolicy,
-  StoryPreset,
-} from "@/types";
+import type { StoryPage, StoryIpPolicy, StoryPreset } from "@/types";
 import type {
   AgeBand,
   Beat,
@@ -24,6 +20,7 @@ import type {
   BookBuildMode,
   BookBuildJobStatus,
 } from "@/types/printBook";
+import type { GiftOrderStatus } from "@/types/gift";
 
 export const profiles = pgTable(
   "profiles",
@@ -34,8 +31,14 @@ export const profiles = pgTable(
     age: integer("age").notNull().default(0),
     dateOfBirth: text("date_of_birth"),
     appearance: jsonb("appearance").$type<ChildAppearance>(),
-    favouriteCharacters: text("favourite_characters").array().notNull().default([]),
-    favouriteActivities: text("favourite_activities").array().notNull().default([]),
+    favouriteCharacters: text("favourite_characters")
+      .array()
+      .notNull()
+      .default([]),
+    favouriteActivities: text("favourite_activities")
+      .array()
+      .notNull()
+      .default([]),
     favouriteAnimals: text("favourite_animals").array().notNull().default([]),
     favouritePlaces: text("favourite_places").array().notNull().default([]),
     lessons: text("lessons").array().notNull().default([]),
@@ -157,6 +160,39 @@ export const errorEvents = pgTable(
     index("error_events_user_id_idx").on(t.userId),
     index("error_events_entity_id_idx").on(t.entityId),
     index("error_events_resolved_at_idx").on(t.resolvedAt),
+  ]
+);
+
+export const giftOrders = pgTable(
+  "gift_orders",
+  {
+    id: text("id").primaryKey(),
+    token: text("token").notNull(),
+    purchaserUserId: text("purchaser_user_id").notNull(),
+    purchaserEmail: text("purchaser_email"),
+    recipientEmail: text("recipient_email").notNull(),
+    recipientName: text("recipient_name"),
+    message: text("message"),
+    packId: text("pack_id").notNull(),
+    credits: integer("credits").notNull(),
+    amountAud: integer("amount_aud_cents").notNull(),
+    status: text("status").$type<GiftOrderStatus>().notNull(),
+    checkoutSessionId: text("checkout_session_id"),
+    paymentIntentId: text("payment_intent_id"),
+    referralReferrerUserId: text("referral_referrer_user_id"),
+    referralGrantedAt: text("referral_granted_at"),
+    paidAt: text("paid_at"),
+    redeemedByUserId: text("redeemed_by_user_id"),
+    redeemedAt: text("redeemed_at"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("gift_orders_token_idx").on(t.token),
+    index("gift_orders_purchaser_user_id_idx").on(t.purchaserUserId),
+    index("gift_orders_recipient_email_idx").on(t.recipientEmail),
+    index("gift_orders_checkout_session_id_idx").on(t.checkoutSessionId),
+    index("gift_orders_status_idx").on(t.status),
   ]
 );
 

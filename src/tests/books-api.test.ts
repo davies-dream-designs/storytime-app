@@ -282,6 +282,27 @@ describe("/api/books/[id] and /status", () => {
   });
 
   it("returns a lightweight status payload", async () => {
+    mockDb.bookProjects.getById.mockResolvedValue({
+      ...createBookProject(),
+      spreads: [
+        {
+          id: "spread-1",
+          bookProjectId: "book-1",
+          sequence: 2,
+          pageStart: 3,
+          pageEnd: 4,
+          layoutType: "text_art",
+          title: "Garden",
+          leftPageText: "Mila walked into the garden.",
+          rightPageText: "",
+          sceneBrief: "Garden",
+          illustrationPrompt: "Garden",
+          leftPageImageUrl: "https://assets.example.com/print.png",
+          leftPageWebImageUrl: "https://assets.example.com/web.jpg",
+          thumbnailUrl: "https://assets.example.com/thumb.jpg",
+        },
+      ],
+    });
     const { GET } = await import("@/app/api/books/[id]/status/route");
     const res = await GET(
       new NextRequest("http://localhost/api/books/book-1/status"),
@@ -297,6 +318,11 @@ describe("/api/books/[id] and /status", () => {
       status: "queued",
       completedSpreads: 0,
       totalSpreads: 14,
+    });
+    expect(body.spreadPreviews[0]).toMatchObject({
+      thumbnailUrl: "https://assets.example.com/thumb.jpg",
+      webImageUrl: "https://assets.example.com/web.jpg",
+      leftPageImageUrl: "https://assets.example.com/print.png",
     });
   });
 

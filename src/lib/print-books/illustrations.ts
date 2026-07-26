@@ -195,8 +195,22 @@ export function buildCoverIllustrationPrompt(input: {
   profile: ChildProfile;
   characterBible: CharacterBible;
   coverSpread?: BookSpread;
+  omitSceneDetails?: boolean;
 }): string {
   const { story, profile, characterBible, coverSpread } = input;
+
+  if (input.omitSceneDetails) {
+    // Simplified fallback used when the full prompt is moderation-blocked.
+    return [
+      `Book title: ${story.title}.`,
+      `A personalised bedtime story for ${profile.name}.`,
+      `Age band: ${input.project.ageBand}.`,
+      `Theme: ${story.theme || "gentle bedtime adventure"}.`,
+      "Create a square children's picture-book front cover with a warm, gentle bedtime illustration style.",
+      "Do not render any visible publisher logo or extra text into the art itself.",
+    ].join(" ");
+  }
+
   const sceneDirection =
     coverSpread?.illustrationPrompt ??
     `Front cover for "${story.title}" starring ${profile.name}.`;
@@ -697,10 +711,50 @@ export async function generateCoverIllustration(input: {
         throw err;
       }
 
+      // Retry with a stripped prompt — the character bible or cover scene is
+      // the most common moderation trigger. Same strategy as spread fallback.
       console.warn(
-        "Cover generation was blocked or unusable; using safe branded cover fallback.",
+        "Cover generation was blocked or unusable — retrying with simplified prompt.",
         { error: getImageFailureMessage(err) }
       );
+      const fallbackPrompt = buildCoverIllustrationPrompt({
+        ...input,
+        omitSceneDetails: true,
+      });
+      try {
+        const retryUpscaled = await generateAndUpscale(fallbackPrompt);
+        const [coverImageUrl, coverWebImageUrl] = await Promise.all([
+          storeBookAsset({
+            pathname: `books/${input.project.id}/cover.png`,
+            body: retryUpscaled,
+            contentType: "image/png",
+          }),
+          webImageBuffer(retryUpscaled).then((web) =>
+            storeBookAsset({
+              pathname: `books/${input.project.id}/cover-web.jpg`,
+              body: web,
+              contentType: "image/jpeg",
+            })
+          ),
+        ]);
+        return {
+          coverImageUrl,
+          coverWebImageUrl,
+          spreads: replaceCoverSpreadImage(input.project.spreads, coverImageUrl),
+          provider: "openai",
+        };
+      } catch (retryErr) {
+        if (
+          !(retryErr instanceof ModerationBlockedError) &&
+          !(retryErr instanceof UnusableGeneratedImageError)
+        ) {
+          throw retryErr;
+        }
+        console.warn(
+          "Cover generation blocked on retry too; using safe branded cover fallback.",
+          { error: getImageFailureMessage(retryErr) }
+        );
+      }
     }
   }
 

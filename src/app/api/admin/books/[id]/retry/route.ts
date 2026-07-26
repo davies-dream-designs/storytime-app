@@ -56,7 +56,7 @@ export async function POST(
     });
     await inngest.send({
       name: INNGEST_EVENTS.bookBuildRequested,
-      data: { jobId: job.id },
+      data: { jobId: job.id, userId: project.userId },
     });
     return NextResponse.json({ project: queuedProject, mode: buildMode });
   } catch (error) {

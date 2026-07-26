@@ -213,9 +213,15 @@ export default async function Home() {
           <p className="font-display text-lg font-bold text-white">Storycot</p>
         </div>
         <p className="text-sm">{t('footerTagline')}</p>
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-1">
           <Link href="/support" className="text-sm text-night-400 hover:text-night-200 transition">
             Help &amp; FAQ
+          </Link>
+          <Link href="/privacy" className="text-sm text-night-400 hover:text-night-200 transition">
+            Privacy
+          </Link>
+          <Link href="/terms" className="text-sm text-night-400 hover:text-night-200 transition">
+            Terms
           </Link>
         </div>
       </footer>

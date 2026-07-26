@@ -8,6 +8,7 @@ import {
   reserveIllustratedBookCredits,
 } from "@/lib/credits";
 import { db } from "@/lib/db";
+import { imageRatelimit, checkRatelimit } from "@/lib/ratelimit";
 import { regenerateBookSpreadPageImage } from "@/lib/print-books/jobs";
 import type { BookProject } from "@/types/printBook";
 
@@ -49,6 +50,9 @@ export async function POST(
     typeof payload.correctionNote === "string"
       ? payload.correctionNote.trim().slice(0, 500)
       : undefined;
+
+  const rateLimitRes = await checkRatelimit(imageRatelimit, userId);
+  if (rateLimitRes) return rateLimitRes;
 
   let charged = false;
   let reservedBookCharge = false;

@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { Resend } from "resend";
 import {
   AppError,
   getErrorCodeMeta,
@@ -9,6 +10,41 @@ import {
   type ErrorDomain,
   type ErrorSeverity,
 } from "@/lib/errors";
+
+const ALERT_TO = "hello@daviesdreamdesigns.com";
+const ALERT_FROM = "Storycot Alerts <noreply@storycot.com>";
+
+async function sendCriticalAlert(input: {
+  code: string;
+  domain: string;
+  message: string;
+  entityType?: string | null;
+  entityId?: string | null;
+  userEmail?: string | null;
+  source?: string | null;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return;
+  const resend = new Resend(apiKey);
+  const label = [input.entityType, input.entityId].filter(Boolean).join(" ");
+  const adminUrl = process.env.NEXT_PUBLIC_APP_URL
+    ? `${process.env.NEXT_PUBLIC_APP_URL}/admin`
+    : "https://storycot.com/admin";
+  await resend.emails.send({
+    from: ALERT_FROM,
+    to: ALERT_TO,
+    subject: `🚨 [Storycot] ${input.code}`,
+    html: `
+      <p><strong>Code:</strong> ${input.code}</p>
+      <p><strong>Domain:</strong> ${input.domain}</p>
+      <p><strong>Message:</strong> ${input.message}</p>
+      ${input.userEmail ? `<p><strong>Customer:</strong> ${input.userEmail}</p>` : ""}
+      ${label ? `<p><strong>Entity:</strong> ${label}</p>` : ""}
+      ${input.source ? `<p><strong>Source:</strong> ${input.source}</p>` : ""}
+      <p><a href="${adminUrl}">Open admin panel →</a></p>
+    `.trim(),
+  });
+}
 
 export interface LogEventInput {
   /** Explicit classification code. Optional if `error` is an AppError. */
@@ -65,6 +101,26 @@ export async function logEvent(input: LogEventInput): Promise<void> {
       context: Object.keys(context).length ? context : null,
       source: input.source ?? null,
     });
+
+    // Fire an alert email for critical severity or print/payment failures so
+    // Jake hears about it before the customer calls.
+    const shouldAlert =
+      meta.severity === "critical" ||
+      (meta.severity === "error" &&
+        (meta.domain === "print" || meta.domain === "payment"));
+    if (shouldAlert) {
+      sendCriticalAlert({
+        code,
+        domain: meta.domain,
+        message: input.message ?? app?.message ?? meta.userMessage,
+        entityType: input.entityType ?? null,
+        entityId: input.entityId ?? null,
+        userEmail: input.userEmail ?? null,
+        source: input.source ?? null,
+      }).catch((e) =>
+        console.error("[logEvent] alert email failed", e)
+      );
+    }
   } catch (err) {
     // Never let logging break the request. Surface to server logs instead.
     console.error("[logEvent] failed to persist error event", err, {

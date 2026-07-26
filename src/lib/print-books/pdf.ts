@@ -962,9 +962,13 @@ async function drawDigitalCoverPage(input: {
   // Background
   page.drawRectangle({ x: 0, y: 0, width: pageWidth, height: pageHeight, color: theme.sky });
 
-  // Cover image — full-bleed, clipped to page
+  // Cover image — full-bleed, clipped to page. Prefer the print PNG; fall back
+  // to the web JPEG when the PNG is missing or is still an SVG placeholder.
   const coverSpread = project.spreads.find((s) => s.sequence === 1 || s.title === "Cover");
-  const coverImageUrl = project.assets.coverImageUrl ?? coverSpread?.imageUrl;
+  const rawCoverUrl = project.assets.coverImageUrl ?? coverSpread?.imageUrl;
+  const coverImageUrl = isRasterHttpUrl(rawCoverUrl ?? "")
+    ? rawCoverUrl
+    : (project.assets.coverWebImageUrl ?? rawCoverUrl);
   const image = await embedSpreadImage(pdfDoc, coverImageUrl, {
     maxDrawWidthPt: pageWidth,
     maxDrawHeightPt: pageHeight,

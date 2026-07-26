@@ -6,6 +6,8 @@ import MigrationActions from "./MigrationActions";
 import TestEmailActions from "./TestEmailActions";
 import LuluWebhookActions from "./LuluWebhookActions";
 import PrintOrdersSection from "./PrintOrdersSection";
+import IssuesSection from "./IssuesSection";
+import CustomerLookup from "./CustomerLookup";
 
 export const metadata = { title: "Admin — Storycot" };
 
@@ -26,8 +28,9 @@ export default async function AdminPage() {
       await Promise.all(failedIds.map((id) => db.bookProjects.getById(id)))
     ).filter(Boolean);
     printOrders = await db.bookProjects.getPrintOrders();
-  } catch {
+  } catch (err) {
     dbReady = false;
+    console.error("[admin] failed to load failed books / print orders", err);
   }
 
   return (
@@ -43,6 +46,9 @@ export default async function AdminPage() {
             : "DB not ready — run migration below first"}
         </p>
 
+        <IssuesSection />
+        <CustomerLookup />
+
         <LuluWebhookActions />
         <TestEmailActions />
 
@@ -50,6 +56,13 @@ export default async function AdminPage() {
 
         <MigrationActions />
 
+        <h2 className="font-display text-xl font-bold text-night-800 mb-1">
+          Failed book builds
+        </h2>
+        <p className="mb-3 text-sm text-night-400">
+          Current failed state per book (includes builds from before the event
+          log existed). Live errors are in Issues above.
+        </p>
         {projects.length === 0 ? (
           <div className="rounded-2xl border border-night-100 bg-white p-8 text-center text-night-400">
             No failed books. Nice.

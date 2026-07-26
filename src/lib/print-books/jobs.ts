@@ -26,6 +26,8 @@ import { BOOK_SPEC } from "@/lib/print-books/bookConfig";
 import { getEffectiveBookProjectStatus } from "@/lib/print-books/readiness";
 import { getBookProjectStageLabel } from "@/lib/print-books/status";
 import { sendBookReadyEmail } from "@/lib/email";
+import { logEvent } from "@/lib/logEvent";
+import { AppError, type ErrorCode } from "@/lib/errors";
 import type {
   BookArtMode,
   BookBuildJob,
@@ -128,6 +130,17 @@ function getQueuedStageLabel(mode: BookBuildMode, project: BookProject) {
   }
 }
 
+// Map a coarse stage-derived failure code to a specific taxonomy code used for
+// the event log. The book row keeps the stage code (recovery UI keys off it);
+// the event log gets the richer classification.
+function stageFailureToErrorCode(stageCode: string): ErrorCode {
+  if (stageCode.startsWith("planning")) return "book.planning_failed";
+  if (stageCode.startsWith("bible")) return "book.bible_failed";
+  if (stageCode.startsWith("illustrating")) return "book.illustration_failed";
+  if (stageCode.startsWith("proofing")) return "book.proofing_failed";
+  return "book.illustration_failed";
+}
+
 function userMessageForErrorCode(errorCode: string): string {
   if (errorCode.startsWith("planning"))
     return "We hit a snag planning the book. Hit retry — it usually clears up.";
@@ -144,7 +157,8 @@ async function markJobProjectFailure(
   project: BookProject,
   jobId: string,
   errorCode: string,
-  message: string
+  message: string,
+  cause?: unknown
 ) {
   await refundIllustratedBookCredits(project);
 
@@ -171,13 +185,26 @@ async function markJobProjectFailure(
     }),
     db.bookProjects.addToFailedIndex(project.id),
   ]);
+
+  await logEvent({
+    error: cause,
+    code: cause instanceof AppError ? cause.code : undefined,
+    fallbackCode: stageFailureToErrorCode(errorCode),
+    message,
+    userId: project.userId,
+    entityType: "book",
+    entityId: project.id,
+    source: "book/build",
+    context: { stageCode: errorCode, jobId, retryCount: project.retryCount },
+  });
 }
 
 async function markExportJobFailure(
   project: BookProject,
   jobId: string,
   errorCode: string,
-  message: string
+  message: string,
+  cause?: unknown
 ) {
   await db.bookProjects.update(project.id, {
     status: project.status,
@@ -201,6 +228,18 @@ async function markExportJobFailure(
     status: "failed",
     errorMessage: message,
     completedAt: getNowIso(),
+  });
+
+  await logEvent({
+    error: cause,
+    code: cause instanceof AppError ? cause.code : undefined,
+    fallbackCode: stageFailureToErrorCode(errorCode),
+    message,
+    userId: project.userId,
+    entityType: "book",
+    entityId: project.id,
+    source: "book/exports",
+    context: { stageCode: errorCode, jobId },
   });
 }
 
@@ -756,6 +795,16 @@ export async function regenerateBookSpreadPageImage(input: {
       ...failedImagePatch,
       spreads: applySpreadIllustration(project.spreads, failedSpread),
     });
+    await logEvent({
+      error: err,
+      code: err instanceof AppError ? err.code : undefined,
+      fallbackCode: "book.illustration_failed",
+      userId: project.userId,
+      entityType: "book",
+      entityId: project.id,
+      source: "book/image-regenerate",
+      context: { spreadId: spread.id, side: input.side },
+    });
     throw err;
   }
 
@@ -1126,9 +1175,9 @@ export async function processBookBuildJob(jobId: string) {
                 : "proofing_failed";
 
     if (runningJob.mode === "finalize" || runningJob.mode === "exports") {
-      await markExportJobFailure(project, job.id, failureCode, message);
+      await markExportJobFailure(project, job.id, failureCode, message, error);
     } else {
-      await markJobProjectFailure(project, job.id, failureCode, message);
+      await markJobProjectFailure(project, job.id, failureCode, message, error);
     }
     throw error;
   }

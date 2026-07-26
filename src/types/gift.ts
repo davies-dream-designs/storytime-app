@@ -1,5 +1,5 @@
 export type GiftOrderStatus =
-  "checkout_started" | "paid" | "redeemed" | "refunded";
+  "checkout_started" | "paid" | "redeeming" | "redeemed" | "refunded";
 
 export interface GiftOrder {
   id: string;

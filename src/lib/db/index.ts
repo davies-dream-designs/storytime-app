@@ -6,6 +6,7 @@ import {
   isNull,
   isNotNull,
   gte,
+  lt,
   or,
   ilike,
 } from "drizzle-orm";
@@ -655,6 +656,38 @@ export const db = {
       userId: string,
       redeemedAt: string
     ): Promise<GiftOrder | undefined> {
+      const staleRedeemingBefore = new Date(
+        Date.now() - 2 * 60 * 1000
+      ).toISOString();
+      const rows = await getClient()
+        .update(schema.giftOrders)
+        .set({
+          status: "redeeming",
+          redeemedByUserId: userId,
+          redeemedAt: null,
+          updatedAt: redeemedAt,
+        })
+        .where(
+          and(
+            eq(schema.giftOrders.token, token),
+            or(
+              eq(schema.giftOrders.status, "paid"),
+              and(
+                eq(schema.giftOrders.status, "redeeming"),
+                eq(schema.giftOrders.redeemedByUserId, userId),
+                lt(schema.giftOrders.updatedAt, staleRedeemingBefore)
+              )
+            )
+          )
+        )
+        .returning();
+      return rows[0] ? rowToGiftOrder(rows[0]) : undefined;
+    },
+    async finalizeRedeemed(
+      id: string,
+      userId: string,
+      redeemedAt: string
+    ): Promise<GiftOrder | undefined> {
       const rows = await getClient()
         .update(schema.giftOrders)
         .set({
@@ -665,8 +698,58 @@ export const db = {
         })
         .where(
           and(
+            eq(schema.giftOrders.id, id),
+            eq(schema.giftOrders.status, "redeeming"),
+            eq(schema.giftOrders.redeemedByUserId, userId)
+          )
+        )
+        .returning();
+      return rows[0] ? rowToGiftOrder(rows[0]) : undefined;
+    },
+    async releaseRedeemClaim(
+      id: string,
+      userId: string
+    ): Promise<GiftOrder | undefined> {
+      const now = new Date().toISOString();
+      const rows = await getClient()
+        .update(schema.giftOrders)
+        .set({
+          status: "paid",
+          redeemedByUserId: null,
+          redeemedAt: null,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(schema.giftOrders.id, id),
+            eq(schema.giftOrders.status, "redeeming"),
+            eq(schema.giftOrders.redeemedByUserId, userId)
+          )
+        )
+        .returning();
+      return rows[0] ? rowToGiftOrder(rows[0]) : undefined;
+    },
+    async claimPaid(
+      token: string,
+      purchaserUserId: string,
+      paidAt: string,
+      checkoutSessionId: string,
+      paymentIntentId?: string
+    ): Promise<GiftOrder | undefined> {
+      const rows = await getClient()
+        .update(schema.giftOrders)
+        .set({
+          status: "paid",
+          checkoutSessionId,
+          paymentIntentId: paymentIntentId ?? null,
+          paidAt,
+          updatedAt: paidAt,
+        })
+        .where(
+          and(
             eq(schema.giftOrders.token, token),
-            eq(schema.giftOrders.status, "paid")
+            eq(schema.giftOrders.purchaserUserId, purchaserUserId),
+            eq(schema.giftOrders.status, "checkout_started")
           )
         )
         .returning();

@@ -141,25 +141,21 @@ export async function POST(req: NextRequest) {
     } else if (checkoutType === "gift_credits") {
       const giftToken = session.metadata?.giftToken;
       if (giftToken && userId) {
-        const gift = await db.giftOrders.getByToken(giftToken);
-        if (gift && gift.purchaserUserId === userId) {
-          const now = new Date().toISOString();
-          const wasAlreadyPaid = Boolean(gift.paidAt);
-          const updatedGift = await db.giftOrders.update(gift.id, {
-            status: gift.status === "redeemed" ? "redeemed" : "paid",
-            checkoutSessionId: session.id,
-            paymentIntentId:
-              typeof session.payment_intent === "string"
-                ? session.payment_intent
-                : undefined,
-            paidAt: gift.paidAt ?? now,
-            updatedAt: now,
-          });
+        const now = new Date().toISOString();
+        const updatedGift = await db.giftOrders.claimPaid(
+          giftToken,
+          userId,
+          now,
+          session.id,
+          typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : undefined
+        );
 
+        if (updatedGift) {
           if (
-            updatedGift?.referralReferrerUserId &&
+            updatedGift.referralReferrerUserId &&
             !updatedGift.referralGrantedAt &&
-            !wasAlreadyPaid &&
             updatedGift.referralReferrerUserId !== userId
           ) {
             const client = await clerkClient();
@@ -179,10 +175,6 @@ export async function POST(req: NextRequest) {
             });
           }
 
-          if (wasAlreadyPaid) {
-            return NextResponse.json({ received: true });
-          }
-
           const appUrl =
             process.env.NEXT_PUBLIC_APP_URL ?? "https://storycot.com";
           const purchaser = await (async () => {
@@ -194,16 +186,16 @@ export async function POST(req: NextRequest) {
             }
           })();
           void sendGiftCreditsEmail({
-            toEmail: gift.recipientEmail,
-            toName: gift.recipientName,
+            toEmail: updatedGift.recipientEmail,
+            toName: updatedGift.recipientName,
             fromName:
               purchaser?.firstName ??
               purchaser?.primaryEmailAddress?.emailAddress ??
-              gift.purchaserEmail ??
+              updatedGift.purchaserEmail ??
               "Someone",
-            credits: gift.credits,
-            message: gift.message,
-            redeemUrl: `${appUrl.replace(/\/$/, "")}/gift/${gift.token}`,
+            credits: updatedGift.credits,
+            message: updatedGift.message,
+            redeemUrl: `${appUrl.replace(/\/$/, "")}/gift/${updatedGift.token}`,
             appUrl,
           }).catch((err) => {
             console.error("Gift email failed (non-fatal)", err);
@@ -211,9 +203,9 @@ export async function POST(req: NextRequest) {
               error: err,
               code: "payment.confirmation_email_failed",
               userId,
-              userEmail: gift.recipientEmail,
+              userEmail: updatedGift.recipientEmail,
               entityType: "gift_order",
-              entityId: gift.id,
+              entityId: updatedGift.id,
               source: "stripe/webhook",
               context: { checkoutSessionId: session.id },
             });

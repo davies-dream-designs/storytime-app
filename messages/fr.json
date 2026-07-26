@@ -304,7 +304,8 @@
         "desc": "Longer read-aloud · richer story and detailed scenes"
       }
     },
-    "exportText": "Exporter le texte"
+    "exportText": "Exporter le texte",
+    "shareFacebook": "Facebook"
   },
   "books": {
     "createButton": "Générer le PDF illustré",

@@ -21,6 +21,21 @@ const { mockGetStoryById } = vi.hoisted(() => ({
   mockGetStoryById: vi.fn(),
 }));
 
+const { mockQuoteLuluPrintJob } = vi.hoisted(() => ({
+  mockQuoteLuluPrintJob: vi.fn(),
+}));
+
+const printShipping = {
+  name: "Print Reader",
+  email: "reader@example.com",
+  phone: "+61 2 5555 0100",
+  line1: "1 Story Street",
+  city: "Sydney",
+  state: "NSW",
+  postalCode: "2000",
+  countryCode: "AU",
+};
+
 vi.mock("@clerk/nextjs/server", () => ({
   auth: mockAuth,
   clerkClient: vi.fn(async () => ({
@@ -39,6 +54,15 @@ vi.mock("stripe", () => ({
     },
   })),
 }));
+
+vi.mock("@/lib/print-books/lulu", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/print-books/lulu")>();
+  return {
+    ...actual,
+    quoteLuluPrintJob: mockQuoteLuluPrintJob,
+  };
+});
 
 vi.mock("@/lib/db", () => ({
   db: {
@@ -76,6 +100,12 @@ describe("stripe checkout", () => {
     });
     mockUpdateBookProject.mockResolvedValue(undefined);
     mockCreateGiftOrder.mockResolvedValue(undefined);
+    mockQuoteLuluPrintJob.mockResolvedValue({
+      currency: "AUD",
+      shipping_cost: {
+        total_cost_incl_tax: "12.34",
+      },
+    });
   });
 
   it("returns users to the current request origin and locale instead of configured production URL", async () => {
@@ -266,6 +296,7 @@ describe("stripe checkout", () => {
           type: "print_book",
           projectId: "book-1",
           productKey: "hardcover",
+          shipping: printShipping,
         }),
       })
     );
@@ -279,9 +310,6 @@ describe("stripe checkout", () => {
         mode: "payment",
         success_url: "https://dev.storycot.com/en/books/book-1?print_success=1",
         cancel_url: "https://dev.storycot.com/en/books/book-1?print_canceled=1",
-        shipping_address_collection: {
-          allowed_countries: ["AU"],
-        },
         line_items: [
           expect.objectContaining({
             price_data: expect.objectContaining({
@@ -289,26 +317,87 @@ describe("stripe checkout", () => {
               unit_amount: 4435,
             }),
           }),
+          expect.objectContaining({
+            price_data: expect.objectContaining({
+              currency: "aud",
+              unit_amount: 1515,
+            }),
+            quantity: 1,
+          }),
         ],
         metadata: expect.objectContaining({
           checkoutType: "print_book",
           projectId: "book-1",
           productKey: "hardcover",
-          amountAud: "44.35",
+          amountAud: "59.50",
+          subtotalAud: "44.35",
+          shippingAmountAud: "15.15",
         }),
       })
     );
+    const checkoutParams = (
+      mockCreateSession as unknown as {
+        mock: { calls: Array<[Record<string, unknown>]> };
+      }
+    ).mock.calls[0]?.[0];
+    expect(checkoutParams).not.toHaveProperty("shipping_address_collection");
     expect(mockUpdateBookProject).toHaveBeenCalledWith(
       "book-1",
       expect.objectContaining({
         printOrder: expect.objectContaining({
           status: "checkout_started",
           productKey: "hardcover",
-          amountAud: 44.35,
+          amountAud: 59.5,
+          subtotalAud: 44.35,
+          shippingAmountAud: 15.15,
+          shipping: expect.objectContaining({
+            line1: "1 Story Street",
+            countryCode: "AU",
+          }),
           checkoutSessionId: "cs_test_123",
         }),
       })
     );
+  });
+
+  it("rejects print checkout until an Australian shipping address is supplied", async () => {
+    mockGetBookProjectById.mockResolvedValue({
+      id: "book-1",
+      userId: "user-1",
+      status: "ready",
+      sourceStoryId: "story-1",
+      pageCount: 32,
+      spreadCount: 16,
+      assets: {
+        coverPdfUrl: "https://example.com/cover.pdf",
+        printPdfUrl: "https://example.com/print.pdf",
+        orderabilityState: "export_ready",
+      },
+    });
+
+    const { POST } = await import("@/app/api/stripe/checkout/route");
+
+    const res = await POST(
+      new NextRequest("https://dev.storycot.com/api/stripe/checkout", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://dev.storycot.com",
+          referer: "https://dev.storycot.com/en/books/book-1",
+        },
+        body: JSON.stringify({
+          type: "print_book",
+          projectId: "book-1",
+          productKey: "hardcover",
+        }),
+      })
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({
+      error: "Australian shipping address is required before checkout.",
+    });
+    expect(mockCreateSession).not.toHaveBeenCalled();
   });
 
   it("allows public print checkout in production when ordering is enabled", async () => {
@@ -344,6 +433,7 @@ describe("stripe checkout", () => {
           type: "print_book",
           projectId: "book-1",
           productKey: "hardcover",
+          shipping: printShipping,
         }),
       })
     );
@@ -383,6 +473,7 @@ describe("stripe checkout", () => {
           type: "print_book",
           projectId: "book-1",
           productKey: "hardcover",
+          shipping: printShipping,
         }),
       })
     );
@@ -426,6 +517,7 @@ describe("stripe checkout", () => {
           type: "print_book",
           projectId: "book-1",
           productKey: "softcover",
+          shipping: printShipping,
         }),
       })
     );
@@ -443,10 +535,30 @@ describe("stripe checkout", () => {
               unit_amount: 3015,
             }),
           }),
+          expect.objectContaining({
+            price_data: expect.objectContaining({
+              currency: "aud",
+              unit_amount: 1234,
+            }),
+            quantity: 1,
+          }),
         ],
         metadata: expect.objectContaining({
           productKey: "softcover",
-          amountAud: "30.15",
+          amountAud: "42.49",
+          subtotalAud: "30.15",
+          shippingAmountAud: "12.34",
+        }),
+      })
+    );
+    expect(mockQuoteLuluPrintJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pageCount: 32,
+        productKey: "softcover",
+        quantity: 1,
+        shipping: expect.objectContaining({
+          postalCode: "2000",
+          countryCode: "AU",
         }),
       })
     );
@@ -482,6 +594,7 @@ describe("stripe checkout", () => {
           type: "print_book",
           projectId: "book-1",
           productKey: "hardcover",
+          shipping: printShipping,
         }),
       })
     );
@@ -531,6 +644,7 @@ describe("stripe checkout", () => {
           type: "print_book",
           projectId: "book-1",
           productKey: "hardcover",
+          shipping: printShipping,
         }),
       })
     );

@@ -174,6 +174,8 @@ export interface PrintBookOrder {
   format: string;
   status: "checkout_started" | "paid" | "refunded";
   amountAud: number;
+  subtotalAud?: number;
+  shippingAmountAud?: number;
   pageCount: number;
   quantity?: number;
   checkoutSessionId?: string;
@@ -200,7 +202,13 @@ export interface PrintShippingAddress {
 
 export interface PrintFulfillment {
   provider: "peecho" | "lulu";
-  status: "not_configured" | "ready_for_manual_review" | "submitted" | "failed" | "shipped" | "delivered";
+  status:
+    | "not_configured"
+    | "ready_for_manual_review"
+    | "submitted"
+    | "failed"
+    | "shipped"
+    | "delivered";
   preparedAt?: string;
   submittedAt?: string;
   shippedAt?: string;

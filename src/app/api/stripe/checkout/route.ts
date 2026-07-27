@@ -9,8 +9,10 @@ import {
   quotePrintProduct,
 } from "@/lib/print-books/printProducts";
 import {
+  getLuluShippingAmountAud,
   hasLuluPrintAssets,
   isLuluPrintProvider,
+  quoteLuluPrintJob,
 } from "@/lib/print-books/lulu";
 import {
   canStartPrintCheckout,
@@ -18,6 +20,7 @@ import {
 } from "@/lib/print-books/launch";
 import { isStoryPrintRestricted } from "@/lib/ipGuardrails";
 import { CREDIT_PACKS, isCreditPackId } from "@/lib/creditPacks";
+import type { PrintShippingAddress } from "@/types/printBook";
 
 function getRequestOrigin(req: NextRequest) {
   const origin = req.headers.get("origin");
@@ -94,6 +97,44 @@ function generateGiftToken() {
   return randomBytes(18).toString("base64url");
 }
 
+function parsePrintShippingAddress(
+  value: unknown
+): PrintShippingAddress | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const input = value as Record<string, unknown>;
+  const line1 = cleanText(input.line1, 120);
+  const line2 = cleanText(input.line2, 120);
+  const city = cleanText(input.city, 80);
+  const state = cleanText(input.state, 40).toUpperCase();
+  const postalCode = cleanText(input.postalCode, 12);
+  const countryCode = cleanText(input.countryCode, 2).toUpperCase();
+  const name = cleanText(input.name, 120);
+  const email = cleanEmail(input.email);
+  const phone = cleanText(input.phone, 40);
+
+  if (
+    !line1 ||
+    !city ||
+    !postalCode ||
+    countryCode !== "AU" ||
+    (email && !isValidEmail(email))
+  ) {
+    return undefined;
+  }
+
+  return {
+    name: name || undefined,
+    email: email || undefined,
+    phone: phone || undefined,
+    line1,
+    line2: line2 || undefined,
+    city,
+    state: state || undefined,
+    postalCode,
+    countryCode: "AU",
+  };
+}
+
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId)
@@ -117,6 +158,7 @@ export async function POST(req: NextRequest) {
     recipientEmail?: string;
     recipientName?: string;
     message?: string;
+    shipping?: unknown;
   };
   const appUrl = getRequestOrigin(req);
   const locale = getRequestLocale(req);
@@ -365,14 +407,45 @@ export async function POST(req: NextRequest) {
     }
 
     const bookPath = getBookReturnPath(locale, project.id);
+    const shipping = parsePrintShippingAddress(body.shipping);
+    if (!shipping) {
+      return NextResponse.json(
+        { error: "Australian shipping address is required before checkout." },
+        { status: 400 }
+      );
+    }
+
+    let shippingAmountAud: number;
+    try {
+      if (isLuluPrintProvider()) {
+        const luluQuote = await quoteLuluPrintJob({
+          pageCount: quote.pageCount,
+          productKey: quote.key,
+          quantity,
+          shipping,
+        });
+        shippingAmountAud = getLuluShippingAmountAud(luluQuote);
+      } else {
+        shippingAmountAud = quote.estimatedShippingAud;
+      }
+    } catch (err) {
+      console.error("Print shipping quote failed", err);
+      return NextResponse.json(
+        {
+          error:
+            "We couldn't calculate shipping for that address. Please check it and try again.",
+        },
+        { status: 502 }
+      );
+    }
+
+    const subtotalAud = Number((quote.priceAud * quantity).toFixed(2));
+    const totalAud = Number((subtotalAud + shippingAmountAud).toFixed(2));
     const session = await stripe.checkout.sessions.create({
       locale: getStripeLocale(locale),
       payment_method_types: ["card"],
       mode: "payment",
       billing_address_collection: "required",
-      shipping_address_collection: {
-        allowed_countries: ["AU"],
-      },
       line_items: [
         {
           price_data: {
@@ -385,6 +458,17 @@ export async function POST(req: NextRequest) {
           },
           quantity,
         },
+        {
+          price_data: {
+            currency: "aud",
+            product_data: {
+              name: "Shipping",
+              description: "Australian print delivery",
+            },
+            unit_amount: Math.round(shippingAmountAud * 100),
+          },
+          quantity: 1,
+        },
       ],
       metadata: {
         checkoutType: "print_book",
@@ -395,7 +479,9 @@ export async function POST(req: NextRequest) {
         provider: quote.provider,
         format: quote.format,
         pageCount: quote.pageCount.toString(),
-        amountAud: quote.priceAud.toFixed(2),
+        amountAud: totalAud.toFixed(2),
+        subtotalAud: subtotalAud.toFixed(2),
+        shippingAmountAud: shippingAmountAud.toFixed(2),
         quantity: quantity.toString(),
       },
       success_url: `${appUrl}${bookPath}?print_success=1`,
@@ -409,9 +495,12 @@ export async function POST(req: NextRequest) {
         provider: quote.provider,
         format: quote.format,
         status: "checkout_started",
-        amountAud: quote.priceAud,
+        amountAud: totalAud,
+        subtotalAud,
+        shippingAmountAud,
         pageCount: quote.pageCount,
         quantity,
+        shipping,
         checkoutSessionId: session.id,
         checkoutStartedAt: new Date().toISOString(),
       },

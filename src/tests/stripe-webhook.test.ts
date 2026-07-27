@@ -288,6 +288,65 @@ describe("Stripe checkout webhook", () => {
     });
   });
 
+  it("uses the pre-quoted checkout shipping address before Stripe billing details", async () => {
+    mockDb.bookProjects.getById.mockResolvedValue({
+      ...createProject(),
+      printOrder: {
+        productKey: "softcover",
+        productLabel: "Softcover",
+        provider: "Lulu",
+        format: "8.5 square paperback",
+        status: "checkout_started",
+        amountAud: 42.49,
+        subtotalAud: 30.15,
+        shippingAmountAud: 12.34,
+        pageCount: 24,
+        checkoutSessionId: "cs_test_123",
+        shipping: {
+          name: "Quoted Parent",
+          email: "quoted@example.com",
+          line1: "1 Quoted Road",
+          city: "Adelaide",
+          state: "SA",
+          postalCode: "5000",
+          countryCode: "AU",
+        },
+      },
+    });
+    mockConstructEvent.mockReturnValue({
+      type: "checkout.session.completed",
+      data: {
+        object: createCheckoutSession(),
+      },
+    });
+    mockRetrieveSession.mockResolvedValue(createCheckoutSession());
+
+    const { POST } = await import("@/app/api/stripe/webhook/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/stripe/webhook", {
+        method: "POST",
+        headers: { "stripe-signature": "sig_test" },
+        body: "{}",
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockSubmitPrintFulfillment).toHaveBeenCalledWith({
+      project: expect.objectContaining({ id: "book-1" }),
+      order: expect.objectContaining({
+        amountAud: 42.49,
+        subtotalAud: 30.15,
+        shippingAmountAud: 12.34,
+        shipping: expect.objectContaining({
+          name: "Quoted Parent",
+          line1: "1 Quoted Road",
+          city: "Adelaide",
+          postalCode: "5000",
+        }),
+      }),
+    });
+  });
+
   it("marks gift credits paid and grants a referral reward without crediting the buyer", async () => {
     mockDb.giftOrders.claimPaid.mockResolvedValue({
       id: "gift-1",

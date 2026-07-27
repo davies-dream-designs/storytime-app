@@ -229,7 +229,21 @@ export async function POST(req: NextRequest) {
             provider: quote.provider,
             format: quote.format,
             status: "paid",
-            amountAud: quote.priceAud * quantity,
+            amountAud: Number(
+              session.metadata?.amountAud ??
+                project.printOrder?.amountAud ??
+                quote.priceAud * quantity
+            ),
+            subtotalAud: Number(
+              session.metadata?.subtotalAud ??
+                project.printOrder?.subtotalAud ??
+                quote.priceAud * quantity
+            ),
+            shippingAmountAud: Number(
+              session.metadata?.shippingAmountAud ??
+                project.printOrder?.shippingAmountAud ??
+                0
+            ),
             pageCount: quote.pageCount,
             quantity,
             checkoutSessionId: session.id,
@@ -238,7 +252,8 @@ export async function POST(req: NextRequest) {
                 ? session.payment_intent
                 : undefined,
             billingCountry,
-            shipping: getPrintShippingAddress(session),
+            shipping:
+              project.printOrder?.shipping ?? getPrintShippingAddress(session),
             paidAt: new Date().toISOString(),
           };
           const fulfillment = await submitPrintFulfillment({
@@ -270,7 +285,7 @@ export async function POST(req: NextRequest) {
                 (await db.stories.getById(project.sourceStoryId))?.title ??
                 "Your story",
               productLabel: quote.label,
-              amountAud: quote.priceAud,
+              amountAud: printOrder.amountAud,
               trackUrl: `${appUrl}/stories/${project.sourceStoryId}`,
               appUrl,
             }).catch((err) => {

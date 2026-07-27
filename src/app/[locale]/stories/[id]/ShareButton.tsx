@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useLocale } from "next-intl";
 import { useTranslations } from "next-intl";
-import Button from "@/components/ui/Button";
-import { buildFacebookShareUrl, buildSharedStoryUrl } from "@/lib/shareLinks";
+import Icon from "@/components/ui/Icon";
+import { buildSharedStoryUrl } from "@/lib/shareLinks";
 
 export default function ShareButton({ storyId }: { storyId: string }) {
   const [state, setState] = useState<"idle" | "loading" | "copied">("idle");
@@ -39,20 +39,6 @@ export default function ShareButton({ storyId }: { storyId: string }) {
     });
   }
 
-  async function shareToFacebook() {
-    await withShareUrl((url) => {
-      window.open(
-        buildFacebookShareUrl(url),
-        "_blank",
-        "noopener,noreferrer,width=680,height=560"
-      );
-      setState("idle");
-    }).catch(() => {
-      // Keep sharing non-blocking; the user can still copy the link.
-      setState("idle");
-    });
-  }
-
   async function handleShare() {
     if (navigator.share) {
       await withShareUrl(async (url) => {
@@ -71,26 +57,29 @@ export default function ShareButton({ storyId }: { storyId: string }) {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Button
+    <>
+      <button
+        type="button"
         onClick={handleShare}
         disabled={state === "loading"}
-        variant="secondary"
+        className="storycot-btn storycot-btn-secondary storycot-btn-compact"
       >
+        <Icon name="share" />
         {state === "copied"
           ? t("shareLinkCopied")
           : state === "loading"
             ? "…"
-            : t("shareIdle")}
-      </Button>
-      <Button
-        onClick={shareToFacebook}
+            : "Share"}
+      </button>
+      <button
+        type="button"
+        onClick={() => void copyShareLink()}
         disabled={state === "loading"}
-        variant="secondary"
-        aria-label={t("shareFacebook")}
+        className="storycot-btn storycot-btn-secondary storycot-btn-compact"
       >
-        {t("shareFacebook")}
-      </Button>
+        <Icon name="link" />
+        Copy link
+      </button>
       <span
         className="sr-only"
         role="status"
@@ -99,6 +88,6 @@ export default function ShareButton({ storyId }: { storyId: string }) {
       >
         {state === "copied" ? t("shareLinkCopied") : ""}
       </span>
-    </div>
+    </>
   );
 }

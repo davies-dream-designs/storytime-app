@@ -17,7 +17,21 @@ import {
   sendPrintOrderConfirmedEmail,
 } from "@/lib/email";
 import { logEvent } from "@/lib/logEvent";
-import type { PrintBookOrder } from "@/types/printBook";
+import type { PrintBookOrder, PrintFulfillment } from "@/types/printBook";
+
+function withoutStoredShipping(order: PrintBookOrder): PrintBookOrder {
+  const safeOrder = { ...order };
+  delete safeOrder.shipping;
+  return safeOrder;
+}
+
+function withoutStoredFulfillmentPayload(
+  fulfillment: PrintFulfillment
+): PrintFulfillment {
+  const safeFulfillment = { ...fulfillment };
+  delete safeFulfillment.payload;
+  return safeFulfillment;
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -84,10 +98,10 @@ export async function POST(req: NextRequest) {
           await db.bookProjects.update(project.id, {
             printOrder: {
               ...(project.printOrder ?? {
-                productKey: "softcover",
-                productLabel: "Printed book",
-                provider: "Storycot",
-                format: "Storycot printed book",
+                productKey: "hardcover",
+                productLabel: "Hardcover",
+                provider: "Lulu",
+                format: '8.5" square hardcover casewrap',
                 amountAud: Number(session.metadata.amountAud ?? 0),
                 pageCount: Number(
                   session.metadata.pageCount ?? project.pageCount
@@ -229,7 +243,21 @@ export async function POST(req: NextRequest) {
             provider: quote.provider,
             format: quote.format,
             status: "paid",
-            amountAud: quote.priceAud * quantity,
+            amountAud: Number(
+              session.metadata?.amountAud ??
+                project.printOrder?.amountAud ??
+                quote.priceAud * quantity
+            ),
+            subtotalAud: Number(
+              session.metadata?.subtotalAud ??
+                project.printOrder?.subtotalAud ??
+                quote.priceAud * quantity
+            ),
+            shippingAmountAud: Number(
+              session.metadata?.shippingAmountAud ??
+                project.printOrder?.shippingAmountAud ??
+                0
+            ),
             pageCount: quote.pageCount,
             quantity,
             checkoutSessionId: session.id,
@@ -247,8 +275,8 @@ export async function POST(req: NextRequest) {
           });
           await db.bookProjects.update(project.id, {
             printOrder: {
-              ...printOrder,
-              fulfillment,
+              ...withoutStoredShipping(printOrder),
+              fulfillment: withoutStoredFulfillmentPayload(fulfillment),
             },
             assets: {
               ...project.assets,
@@ -270,7 +298,7 @@ export async function POST(req: NextRequest) {
                 (await db.stories.getById(project.sourceStoryId))?.title ??
                 "Your story",
               productLabel: quote.label,
-              amountAud: quote.priceAud,
+              amountAud: printOrder.amountAud,
               trackUrl: `${appUrl}/stories/${project.sourceStoryId}`,
               appUrl,
             }).catch((err) => {

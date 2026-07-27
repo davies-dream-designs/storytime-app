@@ -35,10 +35,10 @@ function createProject(): BookProject {
 
 function createOrder(): PrintBookOrder {
   return {
-    productKey: "softcover",
-    productLabel: "Softcover",
-    provider: "Prodigi",
-    format: "21x21cm square softcover",
+    productKey: "hardcover",
+    productLabel: "Hardcover",
+    provider: "Lulu",
+    format: '8.5" square hardcover casewrap',
     status: "paid",
     amountAud: 29.95,
     pageCount: 24,
@@ -62,7 +62,7 @@ describe("preparePrintFulfillment", () => {
   beforeEach(() => {
     process.env = { ...previousEnv };
     delete process.env.STORYCOT_PRINT_PROVIDER;
-    delete process.env.STORYCOT_PEECHO_SOFTCOVER_OFFERING_ID;
+    delete process.env.STORYCOT_PEECHO_HARDCOVER_OFFERING_ID;
     delete process.env.LULU_CONTACT_EMAIL;
     delete process.env.LULU_SHIPPING_LEVEL;
   });
@@ -80,7 +80,7 @@ describe("preparePrintFulfillment", () => {
       external_id: "storycot-book-1",
       line_items: [
         {
-          external_id: "book-1-softcover",
+          external_id: "book-1-hardcover",
           printable_normalization: {
             cover: {
               source_url: "https://assets.storycot.test/book-1-lulu-cover.pdf",
@@ -97,7 +97,7 @@ describe("preparePrintFulfillment", () => {
 
   it("prepares a Peecho payload with public PDFs and page count", () => {
     process.env.STORYCOT_PRINT_PROVIDER = "peecho";
-    process.env.STORYCOT_PEECHO_SOFTCOVER_OFFERING_ID = "12345";
+    process.env.STORYCOT_PEECHO_HARDCOVER_OFFERING_ID = "12345";
 
     const fulfillment = preparePrintFulfillment({
       project: createProject(),
@@ -110,14 +110,13 @@ describe("preparePrintFulfillment", () => {
       purchase_order: "storycot-book-1",
       item_details: [
         {
-          item_reference: "book-1-softcover",
+          item_reference: "book-1-hardcover",
           offering_id: 12345,
           file_details: {
             content_url: "https://assets.storycot.test/book-1-print.pdf",
             number_of_pages: 24,
             spine_details: {
-              custom_spine_url:
-                "https://assets.storycot.test/book-1-cover.pdf",
+              custom_spine_url: "https://assets.storycot.test/book-1-cover.pdf",
             },
           },
         },
@@ -172,35 +171,6 @@ describe("preparePrintFulfillment", () => {
         country_code: "AU",
       },
       shipping_level: "MAIL",
-    });
-  });
-
-  it("prepares a Lulu softcover payload with the paperback package", () => {
-    process.env.STORYCOT_PRINT_PROVIDER = "lulu";
-
-    const fulfillment = preparePrintFulfillment({
-      project: createProject(),
-      order: {
-        ...createOrder(),
-        productKey: "softcover",
-        productLabel: "Softcover",
-        provider: "Lulu",
-        format: '8.5" square premium colour paperback',
-      },
-    });
-
-    expect(fulfillment.status).toBe("ready_for_manual_review");
-    expect(fulfillment.provider).toBe("lulu");
-    expect(fulfillment.payload).toMatchObject({
-      line_items: [
-        {
-          external_id: "book-1-softcover",
-          printable_normalization: {
-            pod_package_id: "0850X0850.FC.PRE.PB.080CW444.GXX",
-          },
-          title: "Softcover",
-        },
-      ],
     });
   });
 

@@ -3,6 +3,7 @@ import {
   buildLuluQuotePayload,
   getLuluBillablePageCount,
   getLuluCoverDimensions,
+  getLuluShippingAmountAud,
   quoteLuluPrintJob,
   resetLuluTokenCacheForTests,
 } from "@/lib/print-books/lulu";
@@ -90,6 +91,17 @@ describe("Lulu print API helpers", () => {
         ),
       })
     );
+  });
+
+  it("reads the shipping amount from Lulu cost calculation responses", () => {
+    expect(
+      getLuluShippingAmountAud({
+        currency: "AUD",
+        shipping_cost: {
+          total_cost_incl_tax: "15.15",
+        },
+      })
+    ).toBe(15.15);
   });
 
   it("requests cover dimensions with the billable page count", async () => {

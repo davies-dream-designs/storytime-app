@@ -112,7 +112,7 @@ function createCheckoutSession(
       checkoutType: "print_book",
       userId: "user-1",
       projectId: "book-1",
-      productKey: "softcover",
+      productKey: "hardcover",
     },
     payment_intent: "pi_test_123",
     customer_details: {
@@ -285,6 +285,64 @@ describe("Stripe checkout webhook", () => {
           countryCode: "AU",
         }),
       }),
+    });
+  });
+
+  it("uses Stripe shipping for fulfillment while keeping stored checkout totals", async () => {
+    mockDb.bookProjects.getById.mockResolvedValue({
+      ...createProject(),
+      printOrder: {
+        productKey: "hardcover",
+        productLabel: "Hardcover",
+        provider: "Lulu",
+        format: '8.5" square hardcover casewrap',
+        status: "checkout_started",
+        amountAud: 59.5,
+        subtotalAud: 44.35,
+        shippingAmountAud: 15.15,
+        pageCount: 24,
+        checkoutSessionId: "cs_test_123",
+      },
+    });
+    mockConstructEvent.mockReturnValue({
+      type: "checkout.session.completed",
+      data: {
+        object: createCheckoutSession(),
+      },
+    });
+    mockRetrieveSession.mockResolvedValue(createCheckoutSession());
+
+    const { POST } = await import("@/app/api/stripe/webhook/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/stripe/webhook", {
+        method: "POST",
+        headers: { "stripe-signature": "sig_test" },
+        body: "{}",
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockSubmitPrintFulfillment).toHaveBeenCalledWith({
+      project: expect.objectContaining({ id: "book-1" }),
+      order: expect.objectContaining({
+        amountAud: 59.5,
+        subtotalAud: 44.35,
+        shippingAmountAud: 15.15,
+        shipping: expect.objectContaining({
+          name: "Buyer Parent",
+          line1: "1 Billing St",
+          city: "Sydney",
+          postalCode: "2000",
+        }),
+      }),
+    });
+    const persistedPrintOrder = mockDb.bookProjects.update.mock.calls[0]?.[1]
+      ?.printOrder as Record<string, unknown>;
+    expect(persistedPrintOrder).not.toHaveProperty("shipping");
+    expect(persistedPrintOrder).toMatchObject({
+      amountAud: 59.5,
+      subtotalAud: 44.35,
+      shippingAmountAud: 15.15,
     });
   });
 

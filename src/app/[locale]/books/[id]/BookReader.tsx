@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
+import Icon from "@/components/ui/Icon";
 import type { BookProject, BookSpread } from "@/types/printBook";
 import { DEFAULT_NARRATION_VOICE_ID, type WordTiming } from "@/lib/elevenlabs";
 
@@ -337,7 +338,7 @@ export default function BookReader({
           <div className="flex items-center justify-center bg-moon-50 px-8 py-16 lg:w-[55%] lg:shrink-0">
             <div className="text-center">
               <span className="text-5xl" aria-hidden="true">
-                🎨
+                <Icon name="image" className="h-8 w-8" />
               </span>
               <p className="mt-3 text-sm font-medium text-night-400">
                 {t("illustrationComingSoon")}

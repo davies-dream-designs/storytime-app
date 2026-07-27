@@ -25,9 +25,8 @@ describe("print product policy", () => {
   });
 
   it("pads odd page counts to even for print products", () => {
-    expect(getAdjustedPageCountForProduct(20, "softcover")).toBe(20);
-    expect(getAdjustedPageCountForProduct(21, "softcover")).toBe(22);
     expect(getAdjustedPageCountForProduct(20, "hardcover")).toBe(20);
+    expect(getAdjustedPageCountForProduct(21, "hardcover")).toBe(22);
   });
 
   it("prices print separately from already-paid illustrations", () => {
@@ -35,22 +34,8 @@ describe("print product policy", () => {
     expect(hardcoverQuote.priceAud).toBe(39.95);
     expect(hardcoverQuote.provider).toBe("Lulu");
     expect(hardcoverQuote.format).toBe('8.5" square hardcover casewrap');
-    const softcoverQuote = quotePrintProduct({ pageCount: 24 }, "softcover");
-    expect(softcoverQuote.priceAud).toBe(26.95);
-    expect(softcoverQuote.provider).toBe("Lulu");
-    expect(softcoverQuote.format).toBe('8.5" square premium colour paperback');
-    expect(getPrintProductQuotes({ pageCount: 32 })).toHaveLength(3);
-  });
-
-  it("temporarily disables products without viable AU fulfillment", () => {
-    const softcoverQuote = quotePrintProduct({ pageCount: 24 }, "softcover");
-    expect(softcoverQuote.isWithinSpecs).toBe(true);
-
-    const layflatQuote = quotePrintProduct({ pageCount: 24 }, "layflat");
-    expect(layflatQuote.isWithinSpecs).toBe(false);
-    expect(layflatQuote.unsupportedReason).toContain(
-      "temporarily unavailable in Australia"
-    );
+    expect(getPrintProductQuotes({ pageCount: 32 })).toHaveLength(1);
+    expect(getPrintProductQuotes({ pageCount: 32 })[0]?.key).toBe("hardcover");
   });
 
   it("marks formats unavailable when the finished PDF is below the product minimum", () => {
@@ -68,20 +53,13 @@ describe("print product policy", () => {
     expect(hardcoverQuote.pageCount).toBe(20);
     expect(hardcoverQuote.needsPadding).toBe(false);
     expect(hardcoverQuote.isWithinSpecs).toBe(true);
-
-    expect(quotePrintProduct({ pageCount: 18 }, "layflat").isWithinSpecs).toBe(
-      false
-    );
-    expect(
-      quotePrintProduct({ pageCount: 18 }, "softcover").isWithinSpecs
-    ).toBe(false);
   });
 
   it("auto-pads odd page counts to even rather than blocking checkout", () => {
-    const softcoverQuote = quotePrintProduct({ pageCount: 19 }, "softcover");
-    expect(softcoverQuote.pageCount).toBe(20);
-    expect(softcoverQuote.needsPadding).toBe(true);
-    expect(softcoverQuote.paddingPages).toBe(1);
-    expect(softcoverQuote.isWithinSpecs).toBe(true);
+    const hardcoverQuote = quotePrintProduct({ pageCount: 21 }, "hardcover");
+    expect(hardcoverQuote.pageCount).toBe(22);
+    expect(hardcoverQuote.needsPadding).toBe(true);
+    expect(hardcoverQuote.paddingPages).toBe(1);
+    expect(hardcoverQuote.isWithinSpecs).toBe(true);
   });
 });

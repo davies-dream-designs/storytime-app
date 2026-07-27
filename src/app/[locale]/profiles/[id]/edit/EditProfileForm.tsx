@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Nav from "@/components/Nav";
 import Button from "@/components/ui/Button";
+import Icon from "@/components/ui/Icon";
 import { formStyles } from "@/components/ui/formStyles";
 import AppearanceFields from "@/components/profiles/AppearanceFields";
 import {
@@ -224,7 +225,14 @@ export default function EditProfileForm({
               Cancel
             </Button>
             <Button type="submit" disabled={saving} fullWidth>
-              {saving ? "Saving…" : "Save changes ✨"}
+              {saving ? (
+                "Saving…"
+              ) : (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <Icon name="sparkle" className="h-4 w-4" />
+                  Save changes
+                </span>
+              )}
             </Button>
           </div>
         </form>

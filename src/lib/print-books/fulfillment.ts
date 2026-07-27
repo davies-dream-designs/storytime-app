@@ -19,12 +19,8 @@ function getFulfillmentProvider(): FulfillmentProvider {
 
 function getPeechoOfferingId(productKey: PrintBookOrder["productKey"]) {
   switch (productKey) {
-    case "softcover":
-      return process.env.STORYCOT_PEECHO_SOFTCOVER_OFFERING_ID;
     case "hardcover":
       return process.env.STORYCOT_PEECHO_HARDCOVER_OFFERING_ID;
-    case "layflat":
-      return process.env.STORYCOT_PEECHO_LAYFLAT_OFFERING_ID;
   }
 }
 
@@ -162,7 +158,8 @@ export async function submitPrintFulfillment(input: {
       code: fulfillment.message?.toLowerCase().includes("shipping")
         ? "print.shipping_missing"
         : "print.fulfillment_config_missing",
-      message: fulfillment.message ?? "Print fulfillment not ready for submission",
+      message:
+        fulfillment.message ?? "Print fulfillment not ready for submission",
       userId: input.project.userId,
       userEmail: input.order.shipping?.email ?? null,
       entityType: "print_order",
@@ -222,9 +219,7 @@ export async function submitPrintFulfillment(input: {
       ...fulfillment,
       status: "failed",
       message:
-        error instanceof Error
-          ? error.message
-          : "Lulu submission failed.",
+        error instanceof Error ? error.message : "Lulu submission failed.",
     };
   }
 }

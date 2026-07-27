@@ -1,6 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import Icon from '@/components/ui/Icon'
 
 export default function PrintTrigger({ storyId }: { storyId: string }) {
   const t = useTranslations('print')
@@ -12,9 +13,10 @@ export default function PrintTrigger({ storyId }: { storyId: string }) {
       <div className="flex gap-3">
         <button
           onClick={() => window.print()}
-          className="rounded-full bg-moon-400 px-6 py-3 font-bold text-night-900 shadow-lg transition hover:bg-moon-300"
+          className="inline-flex items-center gap-2 rounded-full bg-moon-400 px-6 py-3 font-bold text-night-900 shadow-lg transition hover:bg-moon-300"
         >
-          🖨️ {t('printButton')}
+          <Icon name="print" />
+          {t('printButton')}
         </button>
         <a
           href={`/stories/${storyId}`}

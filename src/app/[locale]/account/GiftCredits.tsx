@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { usePendingUI } from "@/components/GlobalPending";
+import Icon from "@/components/ui/Icon";
 import { CREDIT_PACKS } from "@/lib/creditPacks";
 
 const PACKS = Object.values(CREDIT_PACKS);
@@ -59,8 +60,8 @@ export default function GiftCredits() {
   return (
     <section className="mt-8 rounded-3xl border border-moon-200 bg-white p-8 shadow-sm">
       <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-moon-100 text-2xl">
-          🎁
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-moon-100 text-night-700">
+          <Icon name="gift" className="h-6 w-6" />
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="font-display text-2xl font-bold text-night-800">

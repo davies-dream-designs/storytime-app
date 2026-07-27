@@ -135,7 +135,8 @@ export async function GET(
     });
   }
 
-  if (asset === "epub" && story) {
+  const url = getAsset(project, asset);
+  if (!url && asset === "epub" && story) {
     const profile = await db.profiles.getById(project.profileId);
     if (profile && profile.userId === userId) {
       const epub = await buildBookEpub({ project, story, profile });
@@ -149,7 +150,6 @@ export async function GET(
     }
   }
 
-  const url = getAsset(project, asset);
   if (!url) {
     if (project.assets.downloadableFilesArchivedAt) {
       return NextResponse.json(

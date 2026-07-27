@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import Button from "@/components/ui/Button";
+import Icon from "@/components/ui/Icon";
 import {
   getBookProjectDisplayStageLabel,
   getBookProjectProgress,
@@ -156,6 +157,7 @@ export default function BookStatusPanel({
   const [expandedImage, setExpandedImage] = useState<ExpandedImage | null>(
     null
   );
+  const [readyToolsOpen, setReadyToolsOpen] = useState(false);
   const [pollUntil, setPollUntil] = useState(0);
   const [startingBuild, setStartingBuild] = useState(false);
   const [readerIndex, setReaderIndex] = useState(0);
@@ -551,6 +553,316 @@ export default function BookStatusPanel({
       }).format(new Date(project.updatedAt))
     : null;
 
+  if (displayStatus === "ready" && !activeJobStatus) {
+    return (
+      <>
+        <section className="rounded-3xl border border-night-100 bg-white p-5 shadow-sm sm:flex sm:items-center sm:justify-between sm:gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-star-600">
+              Book tools
+            </p>
+            <p className="mt-1 text-sm leading-6 text-night-500">
+              Your preview is ready. Open these only if you want to redo artwork
+              or refresh export files.
+            </p>
+          </div>
+          <Button
+            variant="secondary"
+            className="mt-4 sm:mt-0"
+            onClick={() => setReadyToolsOpen(true)}
+          >
+            Edit artwork / exports
+          </Button>
+        </section>
+
+        {readyToolsOpen ? (
+          <div
+            className="fixed inset-0 z-50 flex items-end bg-night-900/55 px-4 pb-4 pt-12 backdrop-blur-sm sm:items-center sm:justify-center sm:p-6"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                setReadyToolsOpen(false);
+              }
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="ready-tools-title"
+              className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:p-6"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-star-600">
+                    Book tools
+                  </p>
+                  <h2
+                    id="ready-tools-title"
+                    className="mt-1 font-display text-2xl font-bold text-night-800"
+                  >
+                    Edit artwork and exports
+                  </h2>
+                  <p className="mt-1 text-sm leading-6 text-night-500">
+                    Redo individual illustrations only when something needs
+                    fixing. Refresh exports after artwork changes.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Close book tools"
+                  onClick={() => setReadyToolsOpen(false)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-night-50 text-lg font-bold text-night-500 transition hover:bg-night-100"
+                >
+                  X
+                </button>
+              </div>
+
+              {artworkPreviews.length > 0 ? (
+                <div className="mt-6">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-bold uppercase tracking-wide text-night-400">
+                      {completedArtworkCount} of {artworkPreviews.length}{" "}
+                      illustrations
+                    </p>
+                    <p className="text-xs font-bold text-night-400">
+                      Retry free · Redo finished: 1 credit
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                    {artworkPreviews.map(
+                      ({ preview, side, url, error }, index) => {
+                        const key = `${preview.id}:${side}`;
+                        const isRegenerating = regeneratingImage === key;
+                        const canRegenerate =
+                          !activeJobStatus &&
+                          preview.title !== "Cover" &&
+                          preview.title !== "Title" &&
+                          preview.title !== "Back Cover";
+                        const isFreeRetry = Boolean(error) || !url;
+                        const displayLabel = `Illustration ${index + 1}`;
+                        return (
+                          <div
+                            key={key}
+                            className="overflow-hidden rounded-xl border border-night-100 bg-night-50"
+                          >
+                            <button
+                              type="button"
+                              onClick={() =>
+                                url ? openArtworkPreview(index) : undefined
+                              }
+                              className="block aspect-square w-full overflow-hidden bg-night-100"
+                              aria-label={`Open ${displayLabel}`}
+                            >
+                              {url ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={url}
+                                  alt={displayLabel}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center bg-night-100 text-center text-xs font-bold text-night-400">
+                                  {error ? "!" : "..."}
+                                </div>
+                              )}
+                            </button>
+                            {canRegenerate ? (
+                              <div className="px-1 py-1.5 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    openRedoPrompt({
+                                      spreadId: preview.id,
+                                      sequence: preview.sequence,
+                                      title: preview.title,
+                                      side,
+                                      url,
+                                      displayLabel,
+                                      index,
+                                    })
+                                  }
+                                  disabled={
+                                    Boolean(regeneratingImage) ||
+                                    Boolean(activeJobStatus)
+                                  }
+                                  className="w-full rounded-full bg-white px-1 py-0.5 text-xs font-bold text-night-600 shadow-sm disabled:opacity-50"
+                                >
+                                  {isRegenerating
+                                    ? "..."
+                                    : isFreeRetry
+                                      ? "Retry"
+                                      : "Redo"}
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      }
+                    )}
+                  </div>
+                </div>
+              ) : null}
+
+              {imageError ? (
+                <p
+                  role="alert"
+                  className="mt-4 rounded-xl bg-blush-100 px-4 py-3 text-sm font-bold text-blush-700"
+                >
+                  {imageError}
+                </p>
+              ) : null}
+
+              {hasMixedArt ? (
+                <div className="mt-6 rounded-2xl border border-moon-200 bg-moon-100 p-4">
+                  <p className="font-bold text-night-700">
+                    {t("mixedArtTitle")}
+                  </p>
+                  <p className="mt-1 text-sm text-night-600">
+                    {t("mixedArtSub")}
+                  </p>
+                  <Button
+                    size="compact"
+                    onClick={handleRepairArt}
+                    disabled={repairingArt || Boolean(activeJobStatus)}
+                    className="mt-4"
+                  >
+                    {repairingArt
+                      ? t("repairingArtButton")
+                      : t("repairArtButton")}
+                  </Button>
+                </div>
+              ) : null}
+
+              <div className="mt-6 rounded-2xl border border-night-100 bg-night-50 p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
+                <div>
+                  <p className="text-sm font-bold text-night-700">
+                    Export files
+                  </p>
+                  <p className="mt-1 text-sm text-night-500">
+                    Refresh exports after artwork or layout changes.
+                  </p>
+                </div>
+                <div className="mt-4 grid gap-2 sm:mt-0 sm:grid-cols-2">
+                  <Button
+                    variant="secondary"
+                    onClick={handleRepairArt}
+                    disabled={repairingArt}
+                  >
+                    {repairingArt ? "Redoing art..." : "Redo art"}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={handleRegenerateExports}
+                    disabled={regeneratingExports}
+                  >
+                    {regeneratingExports
+                      ? "Refreshing PDFs..."
+                      : "Refresh PDFs"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {redoTarget ? (
+          <div
+            className="fixed inset-0 z-[60] flex items-end bg-night-900/50 px-4 pb-4 sm:items-center sm:justify-center sm:p-6"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="redo-dialog-title"
+          >
+            <div className="w-full max-w-lg rounded-3xl bg-white p-5 shadow-xl">
+              <h3
+                id="redo-dialog-title"
+                className="text-xl font-black text-night-900"
+              >
+                What should change?
+              </h3>
+              <p className="mt-2 text-sm font-medium text-night-500">
+                We will keep the same story moment, character details, and
+                style, then add your correction to the redo prompt.
+              </p>
+              <textarea
+                value={redoCorrectionNote}
+                onChange={(event) =>
+                  setRedoCorrectionNote(event.target.value.slice(0, 500))
+                }
+                rows={4}
+                aria-label="Correction note"
+                className="mt-4 w-full rounded-2xl border border-night-200 px-4 py-3 text-base font-medium text-night-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lilac-500 focus:border-lilac-500"
+                placeholder="e.g. Make the cape blue, show both boots, remove the extra toy, make Bailey face the bird..."
+              />
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRedoTarget(null);
+                    setRedoCorrectionNote("");
+                  }}
+                  className="rounded-full border border-night-200 bg-white px-5 py-3 text-sm font-bold text-night-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={submitRedoPrompt}
+                  disabled={Boolean(regeneratingImage)}
+                  className="rounded-full bg-night-800 px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
+                >
+                  Redo image
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {expandedImage ? (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-night-900/75 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="expanded-image-dialog-title"
+            onClick={() => setExpandedImage(null)}
+          >
+            <div
+              className="max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-3xl bg-white shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              {expandedImage.url ? (
+                <div className="relative bg-night-100">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={expandedImage.url}
+                    alt={
+                      expandedImage.displayLabel ?? "Selected illustration"
+                    }
+                    className="max-h-[76vh] w-full object-contain"
+                  />
+                </div>
+              ) : null}
+              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                <p
+                  id="expanded-image-dialog-title"
+                  className="text-sm font-bold text-night-700"
+                >
+                  {expandedImage.displayLabel ?? "Selected illustration"}
+                </p>
+                <Button
+                  variant="secondary"
+                  size="compact"
+                  onClick={() => setExpandedImage(null)}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </>
+    );
+  }
+
   return (
     <section className="rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
       <div className="flex items-start justify-between gap-4">
@@ -815,9 +1127,10 @@ export default function BookStatusPanel({
                           </>
                         ) : (
                           <>
-                            <span className="text-4xl" aria-hidden="true">
-                              🎨
-                            </span>
+                            <Icon
+                              name="image"
+                              className="mx-auto h-8 w-8 text-night-300"
+                            />
                             <p className="mt-2 text-sm font-medium text-night-400">
                               {artwork.error ?? "Illustration pending"}
                             </p>

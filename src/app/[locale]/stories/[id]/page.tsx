@@ -6,6 +6,7 @@ import Nav from "@/components/Nav";
 import FileDownloadButton from "@/components/FileDownloadButton";
 import DeleteStoryButton from "@/components/DeleteStoryButton";
 import PrintProductOptions from "@/components/PrintProductOptions";
+import Icon from "@/components/ui/Icon";
 import { getDateLocale } from "@/i18n/locales";
 import { db } from "@/lib/db";
 import { inferBookAgeBand } from "@/lib/print-books/ageBand";
@@ -31,27 +32,6 @@ import BookReader from "../../books/[id]/BookReader";
 import BookStatusPanel from "../../books/[id]/BookStatusPanel";
 import DigitalDownloadSection from "../../books/[id]/DigitalDownloadSection";
 import PrintFulfillmentResendButton from "../../books/[id]/PrintFulfillmentResendButton";
-
-function ToolbarIcon({ name }: { name: "file" | "plus" }) {
-  const paths = {
-    file: "M7 3h7l4 4v14H7V3z M14 3v5h4 M9 13h6 M9 17h6",
-    plus: "M12 5v14 M5 12h14",
-  };
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-4 w-4 shrink-0"
-      aria-hidden="true"
-    >
-      <path d={paths[name]} />
-    </svg>
-  );
-}
 
 export async function generateMetadata({
   params,
@@ -194,7 +174,7 @@ export default async function StoryPage({
               href={`/stories/new?profileId=${story.profileId}` as string}
               className="storycot-btn storycot-btn-primary storycot-btn-compact"
             >
-              <ToolbarIcon name="plus" />
+              <Icon name="plus" />
               New story
             </Link>
             {isReady ? (
@@ -223,7 +203,7 @@ export default async function StoryPage({
                       <FileDownloadButton
                         href={`/api/books/${existingBook.id}/download?asset=luluPrintPdf`}
                         className="storycot-btn storycot-btn-secondary storycot-btn-compact"
-                        icon={<ToolbarIcon name="file" />}
+                        icon={<Icon name="file" />}
                         label="Lulu interior"
                         pendingLabel={tBooks("downloadStarting")}
                       />
@@ -240,7 +220,7 @@ export default async function StoryPage({
                       <FileDownloadButton
                         href={`/api/books/${existingBook.id}/download?asset=luluCoverPdf`}
                         className="storycot-btn storycot-btn-secondary storycot-btn-compact"
-                        icon={<ToolbarIcon name="file" />}
+                        icon={<Icon name="file" />}
                         label="Lulu cover"
                         pendingLabel={tBooks("downloadStarting")}
                       />

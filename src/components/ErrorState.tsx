@@ -1,4 +1,5 @@
 import { Link } from "@/i18n/navigation";
+import Icon from "@/components/ui/Icon";
 
 type ErrorStateAction = {
   href: "/" | "/dashboard" | "/stories" | "/books";
@@ -34,8 +35,14 @@ export default function ErrorState({
           <div className="absolute bottom-5 right-4 flex h-16 w-16 items-center justify-center rounded-full bg-moon-200 font-display text-3xl text-night-800 shadow-md">
             ?
           </div>
-          <span className="absolute right-7 top-4 text-2xl">✨</span>
-          <span className="absolute bottom-8 left-6 text-xl">🌙</span>
+          <Icon
+            name="sparkle"
+            className="absolute right-7 top-4 h-6 w-6 text-star-500"
+          />
+          <Icon
+            name="book"
+            className="absolute bottom-8 left-6 h-5 w-5 text-night-500"
+          />
         </div>
       </div>
 

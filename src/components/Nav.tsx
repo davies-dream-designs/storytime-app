@@ -6,49 +6,8 @@ import { useAuth, SignInButton, UserButton } from "@clerk/nextjs";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import Icon, { type IconName } from "@/components/ui/Icon";
 import { buttonClassName } from "@/components/ui/buttonStyles";
-
-type IconName =
-  | "account"
-  | "admin"
-  | "book"
-  | "dashboard"
-  | "faq"
-  | "lock"
-  | "plus"
-  | "profile"
-  | "sparkle"
-  | "terms";
-
-function NavIcon({ name }: { name: IconName }) {
-  const paths: Record<IconName, string> = {
-    account: "M12 3l1.7 4.8 4.8 1.7-4.8 1.7L12 16l-1.7-4.8-4.8-1.7 4.8-1.7L12 3z M18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8L18 15z",
-    admin: "M12 3l7 3v5c0 4.1-2.8 7.9-7 9-4.2-1.1-7-4.9-7-9V6l7-3z M9.5 12.5l1.8 1.8 3.7-4.1",
-    book: "M5 5.5A3.5 3.5 0 018.5 2H20v16H8.5A3.5 3.5 0 005 21.5v-16z M5 5.5A3.5 3.5 0 001.5 2H1v16h.5A3.5 3.5 0 015 21.5",
-    dashboard: "M4 11l8-7 8 7v9a1 1 0 01-1 1h-5v-6H10v6H5a1 1 0 01-1-1v-9z",
-    faq: "M12 18h.01 M9.4 9a2.8 2.8 0 115 1.7c-.7.6-1.4 1.1-1.8 1.8-.3.4-.5.9-.5 1.5 M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-    lock: "M7 10V7a5 5 0 0110 0v3 M6 10h12v10H6V10z",
-    plus: "M12 5v14 M5 12h14",
-    profile: "M12 12a4 4 0 100-8 4 4 0 000 8z M4 21a8 8 0 0116 0",
-    sparkle: "M12 3l1.7 4.8 4.8 1.7-4.8 1.7L12 16l-1.7-4.8-4.8-1.7 4.8-1.7L12 3z",
-    terms: "M7 3h7l4 4v14H7V3z M14 3v5h4 M9 13h6 M9 17h6",
-  };
-
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-4 w-4 shrink-0"
-      aria-hidden="true"
-    >
-      <path d={paths[name]} />
-    </svg>
-  );
-}
 
 export default function Nav() {
   const { isSignedIn } = useAuth();
@@ -128,7 +87,7 @@ export default function Nav() {
       onClick={() => setOpen(false)}
       className={`flex items-center gap-3 ${mobileLinkClass(item.href)}`}
     >
-      <NavIcon name={item.icon} />
+      <Icon name={item.icon} />
       <span>{item.label}</span>
     </Link>
   );
@@ -143,7 +102,7 @@ export default function Nav() {
       aria-current={isActive(item.href) ? "page" : undefined}
       className={`whitespace-nowrap ${navLinkClass(item.href)}`}
     >
-      <NavIcon name={item.icon} />
+      <Icon name={item.icon} />
       <span>{item.label}</span>
     </Link>
   );
@@ -181,7 +140,7 @@ export default function Nav() {
                 className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-bold transition ${isActive("/account") ? "bg-night-700 text-moon-200 shadow-sm shadow-night-700/20" : "text-night-500 hover:bg-night-100"}`}
                 aria-label={t("accountCredits")}
               >
-                <NavIcon name="account" />
+                <Icon name="account" />
                 {creditInfo && !creditInfo.isAdmin ? (
                   <span
                     className={`min-w-[1.25rem] rounded-full px-1 text-center text-xs ${
@@ -200,7 +159,7 @@ export default function Nav() {
                   aria-current={isActive("/admin") ? "page" : undefined}
                   className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold transition ${isActive("/admin") ? "bg-night-700 text-moon-200" : "text-night-400 hover:bg-night-100"}`}
                 >
-                  <NavIcon name="admin" />
+                  <Icon name="admin" />
                   <span>Admin</span>
                 </Link>
               ) : null}
@@ -236,7 +195,8 @@ export default function Nav() {
                   }`}
                   aria-label={t("accountCredits")}
                 >
-                  ✨ {creditInfo.credits}
+                  <Icon name="account" className="h-3.5 w-3.5" />
+                  {creditInfo.credits}
                 </Link>
               ) : null}
               <UserButton />
@@ -298,7 +258,7 @@ export default function Nav() {
                 className={`flex items-center justify-between gap-3 ${mobileLinkClass("/account")}`}
               >
                 <span className="flex items-center gap-3">
-                  <NavIcon name="account" />
+                  <Icon name="account" />
                   {t("accountMobile")}
                 </span>
                 {creditInfo && !creditInfo.isAdmin ? (
@@ -309,7 +269,7 @@ export default function Nav() {
                         : "bg-night-100 text-night-600"
                     }`}
                   >
-                    {creditInfo.credits} ✨
+                    {creditInfo.credits}
                   </span>
                 ) : null}
               </Link>
@@ -320,7 +280,7 @@ export default function Nav() {
                   onClick={() => setOpen(false)}
                   className={`flex items-center gap-3 ${mobileLinkClass("/admin")}`}
                 >
-                  <NavIcon name="admin" />
+                  <Icon name="admin" />
                   <span>Admin</span>
                 </Link>
               ) : null}
@@ -334,7 +294,7 @@ export default function Nav() {
               className: "mt-2 w-full gap-2",
             })}
           >
-            <NavIcon name="plus" />
+            <Icon name="plus" />
             {t("newStory")}
           </Link>
         </div>

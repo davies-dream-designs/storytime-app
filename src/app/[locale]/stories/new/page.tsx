@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 import { useLocale } from "next-intl";
 import Nav from "@/components/Nav";
 import Button from "@/components/ui/Button";
+import Icon from "@/components/ui/Icon";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 import { choiceCardClassName, formStyles } from "@/components/ui/formStyles";
 import type { ChildProfile, StorySuggestion, StoryPreset } from "@/types";
@@ -406,7 +407,8 @@ function GenerateForm() {
             >
               {generating ? (
                 <span className="flex items-center justify-center gap-2">
-                  <span className="animate-spin">✨</span> {t("generating")}
+                  <Icon name="sparkle" className="h-4 w-4 animate-spin" />
+                  {t("generating")}
                 </span>
               ) : (
                 t("generateButton2")

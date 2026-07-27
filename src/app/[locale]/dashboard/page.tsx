@@ -7,6 +7,7 @@ import DashboardGreeting from "@/components/DashboardGreeting";
 export const metadata = { title: "Dashboard - Storycot" };
 import ReferralRedeemer from "@/components/ReferralRedeemer";
 import StoryCard from "@/components/StoryCard";
+import Icon, { type IconName } from "@/components/ui/Icon";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 import { db } from "@/lib/db";
 import { formatLocalShortDate } from "@/lib/dates";
@@ -45,13 +46,13 @@ export default async function Dashboard() {
             {
               label: t("statProfiles"),
               value: profiles.length,
-              icon: "👶",
+              icon: "profile",
               href: "/profiles",
             },
             {
               label: t("statStories"),
               value: stories.length,
-              icon: "📖",
+              icon: "book",
               href: "/stories",
             },
             {
@@ -59,7 +60,7 @@ export default async function Dashboard() {
               value: recentStories[0]
                 ? formatLocalShortDate(recentStories[0].createdAt)
                 : "-",
-              icon: "✨",
+              icon: "sparkle",
               href: recentStories[0]
                 ? `/stories/${recentStories[0].id}`
                 : "/stories",
@@ -71,7 +72,7 @@ export default async function Dashboard() {
               className="flex items-center gap-4 rounded-2xl border border-night-100 bg-white p-6 shadow-sm transition hover:shadow-md"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-night-50 text-2xl">
-                {stat.icon}
+                <Icon name={stat.icon as IconName} className="h-6 w-6" />
               </div>
               <div>
                 <p className="font-display text-2xl font-bold text-night-800">
@@ -88,9 +89,7 @@ export default async function Dashboard() {
             href="/stories/new"
             className="flex items-center gap-4 rounded-2xl bg-night-700 px-6 py-5 text-white transition hover:bg-night-600"
           >
-            <span className="text-3xl" aria-hidden>
-              ✨
-            </span>
+            <Icon name="plus" className="h-7 w-7" />
             <div>
               <p className="font-display text-lg font-bold">
                 {t("generateTitle")}
@@ -102,9 +101,7 @@ export default async function Dashboard() {
             href="/profiles/new"
             className="flex items-center gap-4 rounded-2xl border-2 border-dashed border-night-200 px-6 py-5 text-night-600 transition hover:border-night-400 hover:text-night-800"
           >
-            <span className="text-3xl" aria-hidden>
-              👶
-            </span>
+            <Icon name="profile" className="h-7 w-7" />
             <div>
               <p className="font-display text-lg font-bold">
                 {t("addProfileTitle")}
@@ -148,9 +145,10 @@ export default async function Dashboard() {
 
         {stories.length === 0 && profiles.length === 0 && (
           <div className="rounded-3xl border-2 border-dashed border-night-200 p-16 text-center">
-            <div className="text-5xl" aria-hidden>
-              ✨
-            </div>
+            <Icon
+              name="sparkle"
+              className="mx-auto h-10 w-10 text-star-500"
+            />
             <h2 className="mt-4 font-display text-2xl font-bold text-night-700">
               {t("emptyTitle")}
             </h2>

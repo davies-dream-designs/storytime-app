@@ -4,28 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import DownloadLink from "@/components/DownloadLink";
 import FileDownloadButton from "@/components/FileDownloadButton";
-
-function ExportIcon({ name }: { name: "book" | "download" | "file" }) {
-  const paths = {
-    book: "M5 5.5A3.5 3.5 0 018.5 2H20v16H8.5A3.5 3.5 0 005 21.5v-16z M5 5.5A3.5 3.5 0 001.5 2H1v16h.5A3.5 3.5 0 015 21.5",
-    download: "M12 3v12 M7 10l5 5 5-5 M5 21h14",
-    file: "M7 3h7l4 4v14H7V3z M14 3v5h4 M9 13h6 M9 17h6",
-  };
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-4 w-4 shrink-0"
-      aria-hidden="true"
-    >
-      <path d={paths[name]} />
-    </svg>
-  );
-}
+import Icon from "@/components/ui/Icon";
 
 export default function StoryTextExports({
   storyId,
@@ -70,7 +49,7 @@ export default function StoryTextExports({
           if (e.key === "ArrowDown") { e.preventDefault(); setOpen(true); }
         }}
       >
-        <ExportIcon name="download" />
+        <Icon name="download" />
         {t("exportText")}
         <svg
           viewBox="0 0 12 12"
@@ -103,13 +82,13 @@ export default function StoryTextExports({
             pendingLabel={t("downloadStarting")}
             onClick={() => setOpen(false)}
           >
-            <ExportIcon name="file" />
+            <Icon name="file" />
             {t("printButton")}
           </DownloadLink>
           <FileDownloadButton
             href={`/api/stories/${storyId}/epub`}
             shareTitle={storyTitle}
-            icon={<ExportIcon name="book" />}
+            icon={<Icon name="book" />}
             label={t("textEpubButton")}
             pendingLabel={t("downloadStarting")}
             className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-night-700 hover:bg-night-50 text-left"

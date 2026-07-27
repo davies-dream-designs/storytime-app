@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { ErrorEventRecord, ErrorSeverity } from "@/lib/errors";
+import Icon from "@/components/ui/Icon";
 import {
   SEVERITY_STYLES,
   SEVERITY_DOT,
@@ -359,21 +360,25 @@ function EventRow({
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {!resolved ? (
           <ActionButton onClick={resolve} busy={busy === "resolve"}>
-            ✓ Resolve
+            <Icon name="check" className="h-3.5 w-3.5" />
+            Resolve
           </ActionButton>
         ) : (
           <ActionButton onClick={reopen} busy={busy === "reopen"}>
-            ↺ Reopen
+            <Icon name="refresh" className="h-3.5 w-3.5" />
+            Reopen
           </ActionButton>
         )}
         {event.entityType === "book" && event.entityId && (
           <ActionButton onClick={retryBook} busy={busy === "retry"}>
-            ⟳ Retry build
+            <Icon name="refresh" className="h-3.5 w-3.5" />
+            Retry build
           </ActionButton>
         )}
         {event.entityType === "print_order" && event.entityId && (
           <ActionButton onClick={resendFulfillment} busy={busy === "resend"}>
-            🖨 Resubmit print
+            <Icon name="print" className="h-3.5 w-3.5" />
+            Resubmit print
           </ActionButton>
         )}
         {msg && <span className="text-xs text-night-500">{msg}</span>}
@@ -395,7 +400,7 @@ function ActionButton({
     <button
       onClick={onClick}
       disabled={busy}
-      className="rounded-full border border-night-200 px-3 py-1 text-xs font-bold text-night-600 hover:bg-night-50 disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 rounded-full border border-night-200 px-3 py-1 text-xs font-bold text-night-600 hover:bg-night-50 disabled:opacity-50"
     >
       {busy ? "…" : children}
     </button>

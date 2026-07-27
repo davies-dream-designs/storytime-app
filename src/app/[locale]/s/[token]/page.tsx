@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { buttonClassName } from "@/components/ui/buttonStyles";
+import Icon from "@/components/ui/Icon";
 import { getDateLocale } from "@/i18n/locales";
 import { getSharedStoryByToken } from "@/lib/sharedStory";
 import SharedNarrationButton from "./SharedNarrationButton";
@@ -74,7 +75,8 @@ export default async function SharedStoryPage({
             href="/"
             className="flex items-center gap-2 font-display text-xl font-bold text-night-800"
           >
-            <span>🌙</span> Storycot
+            <Icon name="book" className="h-5 w-5 text-star-500" />
+            Storycot
           </Link>
           <Link
             href="/sign-up"
@@ -100,9 +102,7 @@ export default async function SharedStoryPage({
             </div>
           ) : null}
           <div className="flex min-h-[320px] flex-col justify-center p-8 text-center lg:text-left">
-            <div className="text-5xl" aria-hidden>
-              🌙
-            </div>
+            <Icon name="book" className="h-12 w-12 text-moon-200" />
             <h1 className="mt-4 font-display text-3xl font-bold text-moon-200 sm:text-4xl">
               {story.title}
             </h1>
@@ -161,9 +161,7 @@ export default async function SharedStoryPage({
         </div>
 
         <div className="mt-12 rounded-3xl bg-gradient-to-br from-star-100 to-moon-100 p-8 text-center">
-          <div className="text-4xl" aria-hidden>
-            ✨
-          </div>
+          <Icon name="sparkle" className="mx-auto h-10 w-10 text-star-500" />
           <h2 className="mt-3 font-display text-2xl font-bold text-night-800">
             {t("ctaTitle")}
           </h2>

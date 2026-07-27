@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import Button from "@/components/ui/Button";
+import Icon from "@/components/ui/Icon";
 
 export default function CreatePrintBookButton({
   storyId,
@@ -128,6 +129,7 @@ export default function CreatePrintBookButton({
           href="/account"
           className="storycot-btn storycot-btn-secondary border-blush-200 bg-blush-50 text-blush-700 hover:bg-blush-100"
         >
+          <Icon name="account" />
           Top up credits
         </Link>
       );
@@ -143,7 +145,8 @@ export default function CreatePrintBookButton({
           </p>
         </div>
         <Link href="/account" className="storycot-btn storycot-btn-primary">
-          Top up credits →
+          <Icon name="account" />
+          Top up credits
         </Link>
       </div>
     );
@@ -159,6 +162,7 @@ export default function CreatePrintBookButton({
           disabled={loading}
           className="border-star-200 bg-star-50 text-star-700 hover:bg-star-100"
         >
+          <Icon name="image" />
           {loading ? t("creatingButton") : t("createButton")}
         </Button>
         {error ? (
@@ -182,6 +186,7 @@ export default function CreatePrintBookButton({
           error ? "w-full sm:w-auto" : ""
         }`}
       >
+        <Icon name="image" />
         {loading ? t("creatingButton") : t("createButton")}
       </Button>
       {error ? (
@@ -193,7 +198,8 @@ export default function CreatePrintBookButton({
               href="/account"
               className="storycot-btn storycot-btn-primary mt-3 inline-block text-sm"
             >
-              Top up credits →
+              <Icon name="account" />
+              Top up credits
             </Link>
           ) : null}
         </div>

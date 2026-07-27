@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import Button from "@/components/ui/Button";
+import Icon from "@/components/ui/Icon";
 import type { Story } from "@/types";
 
 export default function StoryReader({ story }: { story: Story }) {
@@ -116,9 +117,10 @@ export default function StoryReader({ story }: { story: Story }) {
             </p>
           ) : (
             <div className="flex min-h-44 flex-col items-center justify-center text-center">
-              <span className="text-4xl animate-pulse" aria-hidden="true">
-                ✨
-              </span>
+              <Icon
+                name="sparkle"
+                className="h-10 w-10 animate-pulse text-star-500"
+              />
               <p className="mt-4 font-display text-2xl font-bold text-night-800">
                 {t("streamingTitle")}
               </p>

@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
+import Icon from "@/components/ui/Icon";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 import { db } from "@/lib/db";
 import {
@@ -210,9 +211,7 @@ export default async function ProfilePage({
             </div>
             {stories.length === 0 ? (
               <div className="rounded-2xl border-2 border-dashed border-night-200 p-10 text-center">
-                <div className="text-3xl" aria-hidden>
-                  📖
-                </div>
+                <Icon name="book" className="mx-auto h-8 w-8 text-star-500" />
                 <p className="mt-3 font-display font-bold text-night-600">
                   {t("profileEmptyTitle")}
                 </p>
@@ -238,9 +237,10 @@ export default async function ProfilePage({
                     className="flex items-center justify-between rounded-2xl border border-night-100 bg-white p-5 transition hover:shadow-md"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-2xl flex-shrink-0" aria-hidden>
-                        📖
-                      </span>
+                      <Icon
+                        name="book"
+                        className="h-6 w-6 flex-shrink-0 text-star-500"
+                      />
                       <div className="min-w-0">
                         <p className="font-display font-bold text-night-800 truncate">
                           {story.title}
@@ -254,8 +254,9 @@ export default async function ProfilePage({
                         </p>
                       </div>
                     </div>
-                    <span className="ml-4 flex-shrink-0 text-sm text-night-300">
-                      {story.wordCount}w →
+                    <span className="ml-4 inline-flex flex-shrink-0 items-center gap-2 text-sm text-night-300">
+                      {story.wordCount}w
+                      <Icon name="arrowRight" className="h-4 w-4" />
                     </span>
                   </Link>
                 ))}

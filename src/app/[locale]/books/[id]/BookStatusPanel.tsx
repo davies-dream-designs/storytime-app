@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import Button from "@/components/ui/Button";
+import Icon from "@/components/ui/Icon";
 import {
   getBookProjectDisplayStageLabel,
   getBookProjectProgress,
@@ -1126,9 +1127,10 @@ export default function BookStatusPanel({
                           </>
                         ) : (
                           <>
-                            <span className="text-4xl" aria-hidden="true">
-                              🎨
-                            </span>
+                            <Icon
+                              name="image"
+                              className="mx-auto h-8 w-8 text-night-300"
+                            />
                             <p className="mt-2 text-sm font-medium text-night-400">
                               {artwork.error ?? "Illustration pending"}
                             </p>

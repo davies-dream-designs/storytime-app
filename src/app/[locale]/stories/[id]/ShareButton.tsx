@@ -67,7 +67,7 @@ export default function ShareButton({ storyId }: { storyId: string }) {
           ? t("shareLinkCopied")
           : state === "loading"
             ? "…"
-            : t("shareIdle")}
+            : "Share"}
       </button>
       <button
         type="button"

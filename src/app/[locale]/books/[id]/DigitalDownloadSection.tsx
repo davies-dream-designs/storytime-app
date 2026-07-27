@@ -69,11 +69,9 @@ export default function DigitalDownloadSection({
           {hasEpub ? (
             <FileDownloadButton
               href={`/api/books/${projectId}/download?asset=epub`}
-              shareTitle={storyTitle}
               label={t("epubButton")}
               pendingLabel={t("downloadStarting")}
               className="storycot-btn storycot-btn-secondary"
-              shareWhenAvailable
             />
           ) : null}
           {hasIllustrationsZip ? (

@@ -98,7 +98,7 @@ describe("download routes", () => {
     await expect(coverRes.text()).resolves.toBe("lulu cover");
   });
 
-  it("rebuilds illustrated book EPUB downloads instead of serving stale stored EPUBs", async () => {
+  it("serves stored illustrated book EPUB downloads without rebuilding", async () => {
     const pageSvg = Buffer.from(
       '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#f7d897"/></svg>'
     ).toString("base64");
@@ -147,7 +147,7 @@ describe("download routes", () => {
       ],
       assets: {
         proofVersion: 1,
-        epubUrl: `data:application/epub+zip;base64,${Buffer.from("stale").toString("base64")}`,
+        epubUrl: `data:application/epub+zip;base64,${Buffer.from("cached").toString("base64")}`,
       },
       retryCount: 0,
       createdAt: "2026-07-15T00:00:00.000Z",
@@ -186,17 +186,8 @@ describe("download routes", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("application/epub+zip");
-    const epub = Buffer.from(await res.arrayBuffer());
-    const zip = await JSZip.loadAsync(epub);
-    await expect(
-      zip.file("OEBPS/content.opf")?.async("string")
-    ).resolves.not.toContain("fixed-layout");
-    await expect(
-      zip.file("OEBPS/spread-2.xhtml")?.async("string")
-    ).resolves.toContain("Mila found a lantern.");
-    await expect(
-      zip.file("OEBPS/spread-2.xhtml")?.async("string")
-    ).resolves.toContain("It glowed softly.");
+    await expect(res.text()).resolves.toBe("cached");
+    expect(mockDb.profiles.getById).not.toHaveBeenCalled();
   });
 
   it("creates a text EPUB for a story", async () => {

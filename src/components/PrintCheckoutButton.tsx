@@ -1,9 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePendingUI } from "@/components/GlobalPending";
 import type { PrintProductKey } from "@/lib/print-books/printProducts";
 import type { PrintShippingAddress } from "@/types/printBook";
+
+type AddressSuggestion = {
+  placeId: string;
+  description: string;
+  mainText?: string;
+  secondaryText?: string;
+};
+
+type AddressDetailsResponse = {
+  address?: Pick<
+    PrintShippingAddress,
+    "line1" | "city" | "state" | "postalCode" | "countryCode"
+  >;
+  error?: string;
+};
 
 function formatAud(value: number) {
   return new Intl.NumberFormat("en-AU", {
@@ -38,7 +53,11 @@ export default function PrintCheckoutButton({
     countryCode: "AU",
   });
   const [loading, setLoading] = useState(false);
+  const [addressLoading, setAddressLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [error, setError] = useState("");
+  const addressRequestRef = useRef(0);
   const { startPending } = usePendingUI();
 
   function updateShipping(key: keyof PrintShippingAddress, value: string) {
@@ -46,6 +65,71 @@ export default function PrintCheckoutButton({
       ...current,
       [key]: key === "state" ? value.toUpperCase() : value,
     }));
+  }
+
+  useEffect(() => {
+    const input = shipping.line1.trim();
+    const requestId = addressRequestRef.current + 1;
+    addressRequestRef.current = requestId;
+
+    if (input.length < 3) {
+      setSuggestions([]);
+      setAddressLoading(false);
+      return;
+    }
+
+    setAddressLoading(true);
+    const timeout = window.setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/address/autocomplete?input=${encodeURIComponent(input)}`
+        );
+        const data = (await res.json()) as {
+          suggestions?: AddressSuggestion[];
+        };
+        if (addressRequestRef.current !== requestId) return;
+        setSuggestions(data.suggestions ?? []);
+        setShowSuggestions(true);
+      } catch {
+        if (addressRequestRef.current === requestId) {
+          setSuggestions([]);
+        }
+      } finally {
+        if (addressRequestRef.current === requestId) {
+          setAddressLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timeout);
+  }, [shipping.line1]);
+
+  async function selectSuggestion(suggestion: AddressSuggestion) {
+    setAddressLoading(true);
+    setError("");
+    try {
+      const res = await fetch(
+        `/api/address/details?placeId=${encodeURIComponent(suggestion.placeId)}`
+      );
+      const data = (await res.json()) as AddressDetailsResponse;
+      if (!res.ok || !data.address) {
+        throw new Error(data.error ?? "Could not read that address.");
+      }
+
+      setShipping((current) => ({
+        ...current,
+        ...data.address,
+        countryCode: "AU",
+      }));
+      setSuggestions([]);
+      setShowSuggestions(false);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not read that address."
+      );
+    } finally {
+      setAddressLoading(false);
+    }
   }
 
   async function startCheckout() {
@@ -122,19 +206,51 @@ export default function PrintCheckoutButton({
                 inputMode="email"
               />
             </label>
-            <label className="space-y-1 sm:col-span-2">
+            <label className="relative space-y-1 sm:col-span-2">
               <span className="text-xs font-bold uppercase tracking-wide text-night-500">
                 Address line 1
               </span>
               <input
                 value={shipping.line1}
-                onChange={(event) =>
-                  updateShipping("line1", event.target.value)
-                }
+                onBlur={() => {
+                  window.setTimeout(() => setShowSuggestions(false), 150);
+                }}
+                onChange={(event) => {
+                  updateShipping("line1", event.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(suggestions.length > 0)}
                 className="w-full rounded-lg border border-night-100 bg-white px-3 py-2 text-sm text-night-800 outline-none transition focus:border-moon-400"
                 autoComplete="address-line1"
                 required
               />
+              {showSuggestions && suggestions.length > 0 ? (
+                <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-lg border border-night-100 bg-white shadow-lg">
+                  {suggestions.map((suggestion) => (
+                    <button
+                      key={suggestion.placeId}
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => void selectSuggestion(suggestion)}
+                      className="block w-full px-3 py-2 text-left text-sm transition hover:bg-moon-50"
+                    >
+                      <span className="block font-bold text-night-800">
+                        {suggestion.mainText ?? suggestion.description}
+                      </span>
+                      {suggestion.secondaryText ? (
+                        <span className="block text-xs text-night-500">
+                          {suggestion.secondaryText}
+                        </span>
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {addressLoading ? (
+                <span className="absolute right-3 top-8 text-xs font-bold text-night-400">
+                  Finding...
+                </span>
+              ) : null}
             </label>
             <label className="space-y-1 sm:col-span-2">
               <span className="text-xs font-bold uppercase tracking-wide text-night-500">

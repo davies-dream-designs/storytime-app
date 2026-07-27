@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 export default function ShareSection({ userId }: { userId: string }) {
   const [copied, setCopied] = useState(false)
   const t = useTranslations('account')
-  const link = `https://storycot.com?ref=${userId}`
+  const link = `https://storycot.com.au?ref=${userId}`
 
   function copy() {
     navigator.clipboard.writeText(link).then(() => {

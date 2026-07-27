@@ -9,7 +9,7 @@ export default function SignUpPage() {
           <Image src="/icon-dark.svg" alt="" width={40} height={40} className="rounded-xl" aria-hidden />
           <span>Storycot</span>
         </div>
-        <SignUp />
+        <SignUp fallbackRedirectUrl="/dashboard" />
       </div>
     </div>
   )

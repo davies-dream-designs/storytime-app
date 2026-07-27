@@ -23,7 +23,7 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://storycot.com"),
+  metadataBase: new URL("https://storycot.com.au"),
   title: "Storycot — AI Bedtime Stories for Kids",
   description:
     "Create magical, personalised bedtime stories for your children with AI. Feature their favourite toys, animals, and adventures. Save and print as a beautiful storybook.",
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     title: "Storycot — AI Bedtime Stories for Kids",
     description:
       "Create magical, personalised bedtime stories for your children with AI.",
-    url: "https://storycot.com",
+    url: "https://storycot.com.au",
     siteName: "Storycot",
     images: [
       { url: "/og-image.png", width: 1200, height: 630, alt: "Storycot" },
@@ -74,6 +74,10 @@ export default async function LocaleLayout({
   return (
     <ClerkProvider
       localization={clerkLocalization}
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+      signInFallbackRedirectUrl="/dashboard"
+      signUpFallbackRedirectUrl="/dashboard"
       appearance={{
         variables: storycotTheme.clerk,
       }}

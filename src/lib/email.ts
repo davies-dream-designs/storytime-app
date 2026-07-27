@@ -28,7 +28,7 @@ function getOriginUrl(appUrl: string): string {
 }
 
 function getEmailAssetOrigin(): string {
-  return process.env.NEXT_PUBLIC_EMAIL_ASSET_ORIGIN ?? "https://storycot.com";
+  return process.env.NEXT_PUBLIC_EMAIL_ASSET_ORIGIN ?? "https://storycot.com.au";
 }
 
 export async function sendBookReadyEmail(input: {
@@ -117,7 +117,7 @@ export async function sendBookReadyEmail(input: {
             <td align="center" style="padding-top:24px;">
               <p style="margin:0;font-size:12px;color:#7c6dc8;">
                 You're receiving this because you created a book on
-                <a href="${safeAppUrl}" style="color:#7c3aed;">storycot.com</a>.
+                <a href="${safeAppUrl}" style="color:#7c3aed;">storycot.com.au</a>.
               </p>
             </td>
           </tr>
@@ -132,7 +132,7 @@ export async function sendBookReadyEmail(input: {
   const text = `Hi ${toName}, your illustrated storybook "${storyTitle}" is ready!\n\nView it here: ${bookUrl}\n\n— The Storycot Team`;
 
   await client.emails.send({
-    from: "Storycot <noreply@storycot.com>",
+    from: "Storycot <noreply@storycot.com.au>",
     to: toEmail,
     subject: `Your Storycot book is ready — ${storyTitle}`,
     html,

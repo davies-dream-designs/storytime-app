@@ -41,7 +41,7 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
           {t('createdFor', { name: story.profileName })}
         </p>
         <p className="mt-2 text-sm text-white/40">{dateStr}</p>
-        <p className="mt-12 text-xs text-white/25">Storycot · storycot.com</p>
+        <p className="mt-12 text-xs text-white/25">Storycot · storycot.com.au</p>
       </div>
 
       {/* Chapter-style opening page */}
@@ -85,7 +85,7 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
         <div className="mt-16 flex flex-col items-center gap-3 text-xs text-white/40">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/icon-dark.svg" alt="" width={48} height={48} style={{ borderRadius: '12px', opacity: 0.5 }} aria-hidden />
-          <p className="font-bold text-white/60">Storycot · storycot.com</p>
+          <p className="font-bold text-white/60">Storycot · storycot.com.au</p>
           <p>{t('tagline')}</p>
         </div>
       </div>

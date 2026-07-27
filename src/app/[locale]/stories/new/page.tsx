@@ -27,6 +27,74 @@ const THEME_EMOJIS: Record<string, string> = {
   perseverance: "💪",
 };
 
+const SAFETY_ERRORS: Record<
+  string,
+  { emoji: string; heading: string; sub: string }
+> = {
+  sexual_content: {
+    emoji: "🙈",
+    heading: "That idea's a little too grown-up!",
+    sub: "Try something magical — like a dragon who loves baking, or a robot on a secret mission.",
+  },
+  child_exploitation: {
+    emoji: "🛡️",
+    heading: "That one's a no-go for safety reasons.",
+    sub: "How about a brave explorer, a silly friendship, or a magical mystery instead?",
+  },
+  violence_or_peril: {
+    emoji: "🌈",
+    heading: "Storycot stories are all about warm adventures!",
+    sub: "Try a quest to find missing cookies, a journey to the moon, or a dancing cloud who makes it rain chocolate.",
+  },
+  self_harm: {
+    emoji: "💙",
+    heading: "That's one we can't work with.",
+    sub: "Let's make something beautiful instead — a story about courage, kindness, or a big cozy adventure.",
+  },
+  substances: {
+    emoji: "🍭",
+    heading: "No room for that in a kids' story!",
+    sub: "Try a candy-powered rocket, a talking cloud, or a puppy's first big day in the city.",
+  },
+  bathroom_or_bathing: {
+    emoji: "🛁",
+    heading: "Bathtime doesn't quite work in illustrated books!",
+    sub: "But a bubble-breathing dragon or a rubber duck detective? Now we're talking! 🦆",
+  },
+  hate_or_harassment: {
+    emoji: "💛",
+    heading: "Storycot is all about kindness and joy!",
+    sub: "Try a story about making new friends, celebrating differences, or going on a magical adventure together.",
+  },
+};
+
+function StoryErrorCard({
+  category,
+  message,
+}: {
+  category: string | null;
+  message: string;
+}) {
+  const matched = category ? SAFETY_ERRORS[category] : null;
+
+  if (matched) {
+    return (
+      <div className="rounded-2xl border-2 border-blush-200 bg-blush-50 px-5 py-4">
+        <p className="text-2xl">{matched.emoji}</p>
+        <p className="mt-2 font-display font-bold text-blush-700">
+          {matched.heading}
+        </p>
+        <p className="mt-1 text-sm text-blush-600">{matched.sub}</p>
+        <p className="mt-3 text-xs text-blush-400">
+          Edit your idea above and try again ✏️
+        </p>
+      </div>
+    );
+  }
+
+  return <p className={formStyles.error}>{message}</p>;
+}
+
 function GenerateForm() {
   const router = useRouter();
   const t = useTranslations("stories");
@@ -47,6 +115,7 @@ function GenerateForm() {
     useState<StoryPreset>("moonlit-adventures");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
+  const [errorCategory, setErrorCategory] = useState<string | null>(null);
   const [profilesError, setProfilesError] = useState("");
 
   useEffect(() => {
@@ -109,6 +178,7 @@ function GenerateForm() {
 
   async function handleGenerate() {
     setError("");
+    setErrorCategory(null);
     if (!profileId) {
       setError(t("errorNoProfile"));
       return;
@@ -142,13 +212,22 @@ function GenerateForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = (await res.json()) as { id?: string; error?: string };
+      const data = (await res.json()) as {
+        id?: string;
+        error?: string;
+        code?: string;
+        category?: string;
+      };
       if (!res.ok || !data.id) {
-        throw new Error(data.error ?? "Could not start the story");
+        setError(data.error ?? "Could not start the story");
+        setErrorCategory(data.category ?? null);
+        setGenerating(false);
+        return;
       }
       router.push(`/stories/${data.id}` as string);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
+      setErrorCategory(null);
       setGenerating(false);
     }
   }
@@ -395,7 +474,7 @@ function GenerateForm() {
             </div>
           )}
 
-          {error && <p className={formStyles.error}>{error}</p>}
+          {error && <StoryErrorCard category={errorCategory} message={error} />}
 
           {readyToGenerate && (
             <Button

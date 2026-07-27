@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fredoka, Nunito } from "next/font/google";
+import { headers } from "next/headers";
 import { ClerkProvider } from "@clerk/nextjs";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
@@ -18,6 +19,11 @@ const clerkAllowedRedirectOrigins = [
   "https://storycot.com.au",
   "https://www.storycot.com.au",
 ];
+const primaryClerkDomain = "storycot.com";
+
+function isAuHost(hostname: string) {
+  return hostname === "storycot.com.au" || hostname === "www.storycot.com.au";
+}
 
 const fredoka = Fredoka({
   subsets: ["latin"],
@@ -79,11 +85,25 @@ export default async function LocaleLayout({
 
   const messages = await getMessages();
   const clerkLocalization = getClerkLocalization(locale);
+  const headerList = await headers();
+  const hostname =
+    headerList.get("x-forwarded-host")?.split(",")[0]?.trim() ??
+    headerList.get("host")?.split(",")[0]?.trim() ??
+    "";
+  const satellite = isAuHost(hostname);
 
   return (
     <ClerkProvider
       localization={clerkLocalization}
       allowedRedirectOrigins={clerkAllowedRedirectOrigins}
+      domain={primaryClerkDomain}
+      isSatellite={satellite}
+      signInUrl={
+        satellite ? `https://${primaryClerkDomain}/${locale}/sign-in` : undefined
+      }
+      signUpUrl={
+        satellite ? `https://${primaryClerkDomain}/${locale}/sign-up` : undefined
+      }
       appearance={{
         variables: storycotTheme.clerk,
       }}

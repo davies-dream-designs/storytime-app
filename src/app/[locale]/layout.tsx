@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Fredoka, Nunito } from "next/font/google";
-import { headers } from "next/headers";
 import { ClerkProvider } from "@clerk/nextjs";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
@@ -12,17 +11,6 @@ import { storycotTheme } from "@/lib/theme";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "../globals.css";
-
-const clerkAllowedRedirectOrigins = [
-  "https://storycot.com",
-  "https://*.storycot.com",
-  "https://storycot.com.au",
-  "https://www.storycot.com.au",
-];
-
-function isAuHost(hostname: string) {
-  return hostname === "storycot.com.au" || hostname === "www.storycot.com.au";
-}
 
 const fredoka = Fredoka({
   subsets: ["latin"],
@@ -84,18 +72,10 @@ export default async function LocaleLayout({
 
   const messages = await getMessages();
   const clerkLocalization = getClerkLocalization(locale);
-  const headerList = await headers();
-  const hostname =
-    headerList.get("x-forwarded-host")?.split(",")[0]?.trim() ??
-    headerList.get("host")?.split(",")[0]?.trim() ??
-    "";
-  const satellite = isAuHost(hostname);
 
   return (
     <ClerkProvider
       localization={clerkLocalization}
-      allowedRedirectOrigins={clerkAllowedRedirectOrigins}
-      proxyUrl={satellite ? "/__clerk" : undefined}
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
       signInFallbackRedirectUrl="/dashboard"

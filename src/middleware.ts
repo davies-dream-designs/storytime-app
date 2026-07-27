@@ -7,10 +7,6 @@ import { locales } from "./i18n/locales";
 const handleI18n = createIntlMiddleware(routing);
 const localePattern = locales.join("|");
 
-function isAuHost(hostname: string) {
-  return hostname === "storycot.com.au" || hostname === "www.storycot.com.au";
-}
-
 const isPublicRoute = createRouteMatcher([
   // Locale-prefixed routes
   `/(${localePattern})`,
@@ -27,46 +23,32 @@ const isPublicRoute = createRouteMatcher([
   "/api/stripe/webhook",
 ]);
 
-export default clerkMiddleware(
-  async (auth, req) => {
-    if (req.nextUrl.pathname.startsWith("/api/")) {
-      return NextResponse.next();
-    }
-
-    const intlResponse = handleI18n(req);
-
-    // Return locale redirects immediately - don't auth-check paths being redirected
-    // (e.g. /sign-in → /en/sign-in must not hit auth.protect first)
-    if (
-      intlResponse &&
-      intlResponse.status >= 300 &&
-      intlResponse.status < 400
-    ) {
-      return intlResponse;
-    }
-
-    if (!isPublicRoute(req)) {
-      await auth.protect();
-    }
-
-    return intlResponse ?? NextResponse.next();
-  },
-  (req) => {
-    const proxyClerk = isAuHost(req.nextUrl.hostname);
-
-    return {
-      proxyUrl: proxyClerk ? `${req.nextUrl.origin}/__clerk` : undefined,
-      frontendApiProxy: {
-        enabled: proxyClerk,
-        path: "/__clerk",
-      },
-    };
+export default clerkMiddleware(async (auth, req) => {
+  if (req.nextUrl.pathname.startsWith("/api/")) {
+    return NextResponse.next();
   }
-);
+
+  const intlResponse = handleI18n(req);
+
+  // Return locale redirects immediately - don't auth-check paths being redirected
+  // (e.g. /sign-in → /en/sign-in must not hit auth.protect first)
+  if (
+    intlResponse &&
+    intlResponse.status >= 300 &&
+    intlResponse.status < 400
+  ) {
+    return intlResponse;
+  }
+
+  if (!isPublicRoute(req)) {
+    await auth.protect();
+  }
+
+  return intlResponse ?? NextResponse.next();
+});
 
 export const config = {
   matcher: [
-    "/__clerk(.*)",
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
     "/(api|trpc)(.*)",
   ],

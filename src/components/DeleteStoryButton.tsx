@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
+import Icon from "@/components/ui/Icon";
 import { usePendingUI } from "@/components/GlobalPending";
 
 export default function DeleteStoryButton({
@@ -43,6 +44,7 @@ export default function DeleteStoryButton({
       disabled={deleting}
       className={`storycot-btn storycot-btn-danger ${compact ? "storycot-btn-compact" : ""}`}
     >
+      <Icon name="trash" />
       {deleting ? t("deleting") : t("deleteStory")}
     </button>
   );

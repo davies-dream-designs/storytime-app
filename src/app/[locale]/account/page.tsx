@@ -5,6 +5,7 @@ import Nav from "@/components/Nav";
 import CreditPacks from "./CreditPacks";
 import GiftCredits from "./GiftCredits";
 import ShareSection from "@/components/ShareSection";
+import Icon from "@/components/ui/Icon";
 
 export const metadata = { title: "Account - Storycot" };
 
@@ -62,8 +63,8 @@ export default async function AccountPage({
 
         <div className="mt-10 rounded-3xl border border-night-100 bg-white p-8 shadow-sm">
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-moon-100 text-3xl">
-              ✨
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-moon-100 text-night-700">
+              <Icon name="account" className="h-7 w-7" />
             </div>
             <div>
               <p className="font-display text-3xl font-bold text-night-800">

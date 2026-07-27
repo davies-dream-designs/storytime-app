@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import FileDownloadButton from "@/components/FileDownloadButton";
+import Icon from "@/components/ui/Icon";
 
 export default function DigitalDownloadSection({
   projectId,
@@ -62,6 +63,7 @@ export default function DigitalDownloadSection({
             <FileDownloadButton
               href={`/api/books/${projectId}/download?asset=printPdf`}
               className="storycot-btn storycot-btn-primary"
+              icon={<Icon name="file" />}
               label={t("illustratedPdfButton")}
               pendingLabel={t("downloadStarting")}
             />
@@ -69,16 +71,16 @@ export default function DigitalDownloadSection({
           {hasEpub ? (
             <FileDownloadButton
               href={`/api/books/${projectId}/download?asset=epub`}
-              shareTitle={storyTitle}
+              icon={<Icon name="book" />}
               label={t("epubButton")}
               pendingLabel={t("downloadStarting")}
               className="storycot-btn storycot-btn-secondary"
-              shareWhenAvailable
             />
           ) : null}
           {hasIllustrationsZip ? (
             <FileDownloadButton
               href={`/api/books/${projectId}/download?asset=illustrationsZip`}
+              icon={<Icon name="zip" />}
               label="Illustrations (ZIP)"
               pendingLabel={t("downloadStarting")}
               className="storycot-btn storycot-btn-secondary"

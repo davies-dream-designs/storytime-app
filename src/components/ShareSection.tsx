@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import Icon from "@/components/ui/Icon";
 import { buildReferralUrl } from "@/lib/shareLinks";
 
 export default function ShareSection({ userId }: { userId: string }) {
@@ -19,8 +20,8 @@ export default function ShareSection({ userId }: { userId: string }) {
   return (
     <div className="mt-8 rounded-3xl border border-star-200 bg-star-50 p-8">
       <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-star-100 text-2xl">
-          🎁
+        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-star-100 text-night-700">
+          <Icon name="gift" className="h-6 w-6" />
         </div>
         <div className="flex-1 min-w-0">
           <h2

@@ -1,587 +1,55 @@
 import { after } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "@/lib/db";
-import type { ChildProfile, Story } from "@/types";
 import { deriveBeatsFromStory } from "@/lib/print-books/beats";
 import { generateCharacterBible } from "@/lib/print-books/characterBible";
 import { composePrintBookSpreads } from "@/lib/print-books/composer";
 import {
   applySpreadIllustration,
-  generateCoverIllustration,
   generateSpreadPageIllustration,
-  generateSpreadIllustration,
-  getIllustrationConcurrency,
-  isBookStoryIllustrationSpread,
   isGeneratedIllustrationConfigured,
 } from "@/lib/print-books/illustrations";
-import { generateBookPdfs } from "@/lib/print-books/pdf";
-import { generateBookEpub } from "@/lib/print-books/epub";
 import {
   captureIllustratedBookCredits,
-  refundIllustratedBookCredits,
   reserveIllustratedBookCredits,
 } from "@/lib/credits";
-import { runStorycotPrintProofing } from "@/lib/print-books/proofing";
-import { BOOK_SPEC } from "@/lib/print-books/bookConfig";
 import { getEffectiveBookProjectStatus } from "@/lib/print-books/readiness";
 import { getBookProjectStageLabel } from "@/lib/print-books/status";
 import { sendBookReadyEmail } from "@/lib/email";
 import { logEvent } from "@/lib/logEvent";
-import { AppError, type ErrorCode } from "@/lib/errors";
+import { AppError } from "@/lib/errors";
+import { regenerateProjectArt } from "@/lib/print-books/jobs/art";
+import {
+  markExportJobFailure,
+  markJobProjectFailure,
+} from "@/lib/print-books/jobs/failures";
+import {
+  loadBuildContext,
+  type BuildContext,
+} from "@/lib/print-books/jobs/context";
+import { finalizeProjectExports } from "@/lib/print-books/jobs/exports";
+import {
+  BOOK_JOB_STALE_MS,
+  clearResolvedGeneratedPageImageErrors,
+  getNowIso,
+  getQueuedStageLabel,
+  hasUnresolvedGeneratedPageImages,
+  isBookBuildJobStale,
+  isTerminalJobStatus,
+  shouldSendBookReadyEmail,
+} from "@/lib/print-books/jobs/utils";
 import type {
-  BookArtMode,
   BookBuildJob,
   BookBuildJobStatus,
   BookBuildMode,
   BookProject,
   BookProjectStatus,
   BookSpread,
-  CharacterBible,
 } from "@/types/printBook";
 
-export const BOOK_JOB_STALE_MS = 20_000;
+export { BOOK_JOB_STALE_MS, isBookBuildJobStale, shouldSendBookReadyEmail };
 
-function getNowIso() {
-  return new Date().toISOString();
-}
-
-function isTerminalJobStatus(status: BookBuildJobStatus) {
-  return status === "completed" || status === "failed";
-}
-
-export function shouldSendBookReadyEmail(input: {
-  mode: BookBuildMode;
-  project: BookProject;
-}) {
-  return input.mode === "full" && !input.project.assets.bookReadyEmailSentAt;
-}
-
-function getNextProofVersion(project: BookProject): number {
-  return (project.assets.proofVersion ?? 0) + 1;
-}
-
-function getProjectArtMode(input: {
-  coverProvider?: "openai" | "placeholder";
-  spreadProviders?: Array<"openai" | "placeholder">;
-  existingArtMode?: BookArtMode;
-}): BookArtMode {
-  const providers = new Set<string>();
-  if (input.coverProvider) providers.add(input.coverProvider);
-  for (const provider of input.spreadProviders ?? []) providers.add(provider);
-  if (providers.size === 0) return input.existingArtMode ?? "placeholder";
-  if (providers.size === 1)
-    return providers.has("openai") ? "generated" : "placeholder";
-  return "mixed";
-}
-
-// Must match the illustration loop (isBookStoryIllustrationSpread): only
-// text_art/hero/quiet spreads get custom art. Front/end matter pages (Title,
-// "The End", Back Cover) are never illustrated, so they must not be treated as
-// missing an image - otherwise the finalize gate never passes.
-function isGeneratedPageSpread(spread: BookSpread) {
-  return (
-    spread.layoutType === "text_art" ||
-    spread.layoutType === "hero" ||
-    spread.layoutType === "quiet"
-  );
-}
-
-function hasUnresolvedGeneratedPageImages(spreads: BookSpread[]) {
-  return spreads.some(
-    (spread) =>
-      isGeneratedPageSpread(spread) &&
-      (!(spread.leftPageImageUrl ?? spread.imageUrl) ||
-        Boolean(spread.leftPageImageError))
-  );
-}
-
-function clearResolvedGeneratedPageImageErrors(spreads: BookSpread[]) {
-  return spreads.map((spread) => {
-    if (!isGeneratedPageSpread(spread)) return spread;
-    if (!(spread.leftPageImageUrl ?? spread.imageUrl)) return spread;
-    if (!spread.leftPageImageError && !spread.rightPageImageError)
-      return spread;
-
-    return {
-      ...spread,
-      leftPageImageError: undefined,
-      rightPageImageError: undefined,
-    };
-  });
-}
-
-export function isBookBuildJobStale(job: BookBuildJob, now = Date.now()) {
-  if (isTerminalJobStatus(job.status)) return false;
-  const updatedAt = Date.parse(job.updatedAt);
-  if (Number.isNaN(updatedAt)) return true;
-  return now - updatedAt > BOOK_JOB_STALE_MS;
-}
-
-function getQueuedStageLabel(mode: BookBuildMode, project: BookProject) {
-  switch (mode) {
-    case "art":
-      return `Queued to generate final art for ${project.spreads.length} spreads...`;
-    case "exports":
-      return "Queued to refresh export files...";
-    case "finalize":
-      return "Queued to finalize the order package...";
-    default:
-      return getBookProjectStageLabel("queued");
-  }
-}
-
-// Map a coarse stage-derived failure code to a specific taxonomy code used for
-// the event log. The book row keeps the stage code (recovery UI keys off it);
-// the event log gets the richer classification.
-function stageFailureToErrorCode(stageCode: string): ErrorCode {
-  if (stageCode.startsWith("planning")) return "book.planning_failed";
-  if (stageCode.startsWith("bible")) return "book.bible_failed";
-  if (stageCode.startsWith("illustrating")) return "book.illustration_failed";
-  if (stageCode.startsWith("proofing")) return "book.proofing_failed";
-  return "book.illustration_failed";
-}
-
-function userMessageForErrorCode(errorCode: string): string {
-  if (errorCode.startsWith("planning"))
-    return "We hit a snag planning the book. Hit retry - it usually clears up.";
-  if (errorCode.startsWith("bible"))
-    return "The character setup didn't finish. Retry to pick up where it left off.";
-  if (errorCode.startsWith("illustrating"))
-    return "Illustrations didn't finish generating. Retry and we'll pick up from where it stopped.";
-  if (errorCode.startsWith("proofing"))
-    return "Export refresh didn't finish. Your book is still available; refresh the PDFs again to retry.";
-  return "The illustrated book didn't finish. Your credits have been refunded. Hit retry to try again.";
-}
-
-async function markJobProjectFailure(
-  project: BookProject,
-  jobId: string,
-  errorCode: string,
-  message: string,
-  cause?: unknown
-) {
-  await refundIllustratedBookCredits(project);
-
-  await db.bookProjects.update(project.id, {
-    status: "failed",
-    currentStageLabel: getBookProjectStageLabel("failed"),
-    errorCode,
-    errorMessage: userMessageForErrorCode(errorCode),
-    rawError: message,
-    assets: {
-      ...project.assets,
-      activeJobId: undefined,
-      activeJobMode: undefined,
-      activeJobStatus: undefined,
-      activeJobUpdatedAt: undefined,
-    },
-  });
-
-  await Promise.all([
-    db.bookBuildJobs.update(jobId, {
-      status: "failed",
-      errorMessage: message,
-      completedAt: getNowIso(),
-    }),
-    db.bookProjects.addToFailedIndex(project.id),
-  ]);
-
-  await logEvent({
-    error: cause,
-    code: cause instanceof AppError ? cause.code : undefined,
-    fallbackCode: stageFailureToErrorCode(errorCode),
-    message,
-    userId: project.userId,
-    entityType: "book",
-    entityId: project.id,
-    source: "book/build",
-    context: { stageCode: errorCode, jobId, retryCount: project.retryCount },
-  });
-}
-
-async function markExportJobFailure(
-  project: BookProject,
-  jobId: string,
-  errorCode: string,
-  message: string,
-  cause?: unknown
-) {
-  await db.bookProjects.update(project.id, {
-    status: project.status,
-    currentStageLabel:
-      project.status === "ready"
-        ? getBookProjectStageLabel("ready")
-        : project.currentStageLabel,
-    errorCode,
-    errorMessage: userMessageForErrorCode(errorCode),
-    rawError: message,
-    assets: {
-      ...project.assets,
-      activeJobId: undefined,
-      activeJobMode: undefined,
-      activeJobStatus: undefined,
-      activeJobUpdatedAt: undefined,
-    },
-  });
-
-  await db.bookBuildJobs.update(jobId, {
-    status: "failed",
-    errorMessage: message,
-    completedAt: getNowIso(),
-  });
-
-  await logEvent({
-    error: cause,
-    code: cause instanceof AppError ? cause.code : undefined,
-    fallbackCode: stageFailureToErrorCode(errorCode),
-    message,
-    userId: project.userId,
-    entityType: "book",
-    entityId: project.id,
-    source: "book/exports",
-    context: { stageCode: errorCode, jobId },
-  });
-}
-
-async function loadBuildContext(project: BookProject) {
-  const [story, profile, characters] = await Promise.all([
-    db.stories.getById(project.sourceStoryId),
-    db.profiles.getById(project.profileId),
-    db.characters.getByProfileId(project.profileId),
-  ]);
-
-  if (!story || story.userId !== project.userId) {
-    throw new Error("Source story not found");
-  }
-
-  if (!profile || profile.userId !== project.userId) {
-    throw new Error("Profile not found");
-  }
-
-  return {
-    story,
-    profile,
-    characters: characters.filter(
-      (character) => character.userId === project.userId
-    ),
-  };
-}
-
-async function regenerateProjectArt(input: {
-  id: string;
-  project: BookProject;
-  story: Story;
-  profile: ChildProfile;
-  characterBible: CharacterBible;
-  buildMode: "full" | "art";
-}) {
-  const totalArtSteps = input.project.spreads.length;
-  const currentCursor = input.project.assets.artGenerationCursor ?? 0;
-
-  if (currentCursor >= totalArtSteps) {
-    return db.bookProjects.update(input.id, {
-      status: "composing",
-      currentStageLabel: getBookProjectStageLabel("composing"),
-      beats: input.project.beats,
-      characterBible: input.characterBible,
-      completedSpreads: input.project.totalSpreads,
-      totalSpreads: input.project.totalSpreads,
-      assets: {
-        ...input.project.assets,
-        artGenerationCursor: undefined,
-        artGenerationTotal: totalArtSteps,
-        artMode: input.project.assets.artMode ?? "placeholder",
-        lastBuildMode: input.buildMode,
-      },
-    });
-  }
-
-  if (currentCursor === 0) {
-    const cover = await generateCoverIllustration({
-      project: input.project,
-      story: input.story,
-      profile: input.profile,
-      characterBible: input.characterBible,
-    });
-
-    return db.bookProjects.update(input.id, {
-      status: "illustrating",
-      currentStageLabel: "Generating final art...",
-      characterBible: input.characterBible,
-      spreads: cover.spreads,
-      completedSpreads: 1,
-      totalSpreads: totalArtSteps,
-      assets: {
-        ...input.project.assets,
-        coverImageUrl: cover.coverImageUrl,
-        coverWebImageUrl: cover.coverWebImageUrl,
-        artMode: cover.provider === "openai" ? "generated" : "placeholder",
-        lastBuildMode: input.buildMode,
-        artGenerationCursor: 1,
-        artGenerationTotal: totalArtSteps,
-      },
-    });
-  }
-
-  // Process a concurrent window of spreads per step rather than one at a time.
-  const concurrency = getIllustrationConcurrency();
-  const spreadWindow = input.project.spreads.slice(
-    currentCursor,
-    currentCursor + concurrency
-  );
-
-  if (spreadWindow.length === 0) {
-    return db.bookProjects.update(input.id, {
-      status: "composing",
-      currentStageLabel: getBookProjectStageLabel("composing"),
-      beats: input.project.beats,
-      characterBible: input.characterBible,
-      completedSpreads: input.project.totalSpreads,
-      totalSpreads: input.project.totalSpreads,
-      assets: {
-        ...input.project.assets,
-        artGenerationCursor: undefined,
-        artGenerationTotal: totalArtSteps,
-        artMode: input.project.assets.artMode ?? "placeholder",
-        lastBuildMode: input.buildMode,
-      },
-    });
-  }
-
-  // Generate illustration spreads in parallel; skip non-illustration spreads.
-  const windowResults = await Promise.all(
-    spreadWindow.map((s) =>
-      isBookStoryIllustrationSpread(s)
-        ? generateSpreadIllustration({
-            project: input.project,
-            story: input.story,
-            profile: input.profile,
-            characterBible: input.characterBible,
-            spread: s,
-          })
-        : Promise.resolve(null)
-    )
-  );
-
-  // Auto-retry any failed spreads once before moving on - heals transient
-  // 429s and network blips without locking the build in image_failed state.
-  const finalResults = await Promise.all(
-    windowResults.map((result, i) => {
-      if (!result || !result.spread.leftPageImageError)
-        return Promise.resolve(result);
-      const s = spreadWindow[i]!;
-      return generateSpreadIllustration({
-        project: input.project,
-        story: input.story,
-        profile: input.profile,
-        characterBible: input.characterBible,
-        spread: s,
-      });
-    })
-  );
-
-  let illustratedSpreads = input.project.spreads;
-  for (const result of finalResults) {
-    if (result) {
-      illustratedSpreads = applySpreadIllustration(
-        illustratedSpreads,
-        result.spread
-      );
-    }
-  }
-
-  const nextCursor = currentCursor + spreadWindow.length;
-  const spreadProviders = illustratedSpreads
-    .filter((s) => s.sequence > 1 && (s.leftPageImageUrl ?? s.imageUrl))
-    .map((s) => {
-      const url = s.leftPageImageUrl ?? s.imageUrl ?? "";
-      return url.includes("/spreads/") && url.endsWith(".png")
-        ? "openai"
-        : "placeholder";
-    }) as Array<"openai" | "placeholder">;
-
-  if (nextCursor >= totalArtSteps) {
-    if (hasUnresolvedGeneratedPageImages(illustratedSpreads)) {
-      return db.bookProjects.update(input.id, {
-        status: "failed",
-        currentStageLabel: "One or more images need to be retried.",
-        errorCode: "illustrating:image_failed",
-        errorMessage:
-          "One or more images failed to generate. Retry only the failed image from the spread review.",
-        beats: input.project.beats,
-        characterBible: input.characterBible,
-        spreads: illustratedSpreads,
-        completedSpreads: totalArtSteps,
-        totalSpreads: totalArtSteps,
-        assets: {
-          ...input.project.assets,
-          artMode: getProjectArtMode({
-            coverProvider: input.project.assets.coverImageUrl?.endsWith(".png")
-              ? "openai"
-              : "placeholder",
-            spreadProviders,
-            existingArtMode: input.project.assets.artMode,
-          }),
-          lastBuildMode: input.buildMode,
-          artGenerationCursor: undefined,
-          artGenerationTotal: totalArtSteps,
-        },
-      });
-    }
-
-    return db.bookProjects.update(input.id, {
-      status: "composing",
-      currentStageLabel: getBookProjectStageLabel("composing"),
-      beats: input.project.beats,
-      characterBible: input.characterBible,
-      spreads: illustratedSpreads,
-      completedSpreads: totalArtSteps,
-      totalSpreads: totalArtSteps,
-      assets: {
-        ...input.project.assets,
-        artMode: getProjectArtMode({
-          coverProvider: input.project.assets.coverImageUrl?.endsWith(".png")
-            ? "openai"
-            : "placeholder",
-          spreadProviders,
-          existingArtMode: input.project.assets.artMode,
-        }),
-        lastBuildMode: input.buildMode,
-        artGenerationCursor: undefined,
-        artGenerationTotal: totalArtSteps,
-      },
-    });
-  }
-
-  return db.bookProjects.update(input.id, {
-    status: "illustrating",
-    currentStageLabel: "Generating final art...",
-    characterBible: input.characterBible,
-    spreads: illustratedSpreads,
-    completedSpreads: nextCursor,
-    totalSpreads: totalArtSteps,
-    assets: {
-      ...input.project.assets,
-      artMode: getProjectArtMode({
-        coverProvider: input.project.assets.coverImageUrl?.endsWith(".png")
-          ? "openai"
-          : "placeholder",
-        spreadProviders,
-        existingArtMode: input.project.assets.artMode,
-      }),
-      lastBuildMode: input.buildMode,
-      artGenerationCursor: nextCursor,
-      artGenerationTotal: totalArtSteps,
-    },
-  });
-}
-
-async function finalizeProjectExports(input: {
-  id: string;
-  project: BookProject;
-  story: Story;
-  profile: ChildProfile;
-  buildMode: BookBuildMode;
-}) {
-  const nextProofVersion = getNextProofVersion(input.project);
-  const pdfAssets = await generateBookPdfs({
-    project: input.project,
-    story: input.story,
-    profile: input.profile,
-  });
-  const epubAssets = await generateBookEpub({
-    project: input.project,
-    story: input.story,
-    profile: input.profile,
-  });
-
-  const proofingAssets = {
-    ...input.project.assets,
-    coverImageUrl: input.project.assets.coverImageUrl,
-    coverPdfUrl: pdfAssets.coverPdfUrl,
-    coverPdfReadyForOrdering: pdfAssets.coverPdfReadyForOrdering,
-    coverPdfSpineWidthIn: pdfAssets.coverPdfSpineWidthIn,
-    coverPdfSpineSource: pdfAssets.coverPdfSpineSource,
-    coverPdfPageWidthIn: pdfAssets.coverPdfPageWidthIn,
-    coverPdfPageHeightIn: pdfAssets.coverPdfPageHeightIn,
-    coverSpineTextIncluded: pdfAssets.coverSpineTextIncluded,
-    previewPdfUrl: undefined,
-    previewPdfPageWidthIn: undefined,
-    previewPdfPageHeightIn: undefined,
-    printPdfUrl: pdfAssets.printPdfUrl,
-    luluCoverPdfUrl: pdfAssets.luluCoverPdfUrl,
-    luluCoverPdfPageWidthIn: pdfAssets.luluCoverPdfPageWidthIn,
-    luluCoverPdfPageHeightIn: pdfAssets.luluCoverPdfPageHeightIn,
-    luluCoverPdfSpineWidthIn: pdfAssets.luluCoverPdfSpineWidthIn,
-    luluPrintPdfUrl: pdfAssets.luluPrintPdfUrl,
-    luluPrintPdfPageWidthIn: pdfAssets.luluPrintPdfPageWidthIn,
-    luluPrintPdfPageHeightIn: pdfAssets.luluPrintPdfPageHeightIn,
-    luluPrintPdfPageCount: pdfAssets.luluPrintPdfPageCount,
-    epubUrl: epubAssets.epubUrl,
-    printPdfPageWidthIn: pdfAssets.printPdfPageWidthIn,
-    printPdfPageHeightIn: pdfAssets.printPdfPageHeightIn,
-    interiorTextSafeMarginIn: pdfAssets.interiorTextSafeMarginIn,
-    previewImages: pdfAssets.previewImages,
-    downloadableFilesArchivedAt: undefined,
-    downloadableFilesArchiveReason: undefined,
-  };
-
-  const proofingReport = runStorycotPrintProofing(
-    {
-      ...input.project,
-      assets: proofingAssets,
-    },
-    { strictForOrdering: input.buildMode === "finalize" }
-  );
-
-  const finalizedAt =
-    input.buildMode === "finalize" &&
-    proofingReport.orderabilityState === "order_ready"
-      ? getNowIso()
-      : undefined;
-
-  const proofingProject = await db.bookProjects.update(input.id, {
-    status: "proofing",
-    currentStageLabel:
-      input.buildMode === "finalize"
-        ? "Finalizing the order package..."
-        : getBookProjectStageLabel("proofing"),
-    spreads: input.project.spreads,
-    assets: {
-      ...proofingAssets,
-      exportVersion: nextProofVersion,
-      finalExportVersion: finalizedAt
-        ? nextProofVersion
-        : input.project.assets.finalExportVersion,
-      lastBuildMode: input.buildMode,
-      orderabilityState: proofingReport.orderabilityState,
-      finalizedAt,
-      exportProfile: BOOK_SPEC.trimLabel,
-      proofVersion: nextProofVersion,
-      proofingPassed: proofingReport.passed,
-      proofingChecks: proofingReport.checks,
-      proofingWarnings: proofingReport.warnings,
-      proofingErrors: proofingReport.errors,
-    },
-  });
-
-  if (!proofingProject) return undefined;
-
-  const readyAt = getNowIso();
-  return db.bookProjects.update(input.id, {
-    status: "ready",
-    currentStageLabel: getBookProjectStageLabel("ready"),
-    readyAt,
-    assets: {
-      ...proofingProject.assets,
-    },
-  });
-}
-
-async function advanceFullBuild(
-  project: BookProject,
-  context: Awaited<ReturnType<typeof loadBuildContext>>
-) {
+async function advanceFullBuild(project: BookProject, context: BuildContext) {
   if (
     project.status === "queued" ||
     project.status === "planning" ||
@@ -659,10 +127,7 @@ async function advanceFullBuild(
   return project;
 }
 
-async function advanceArtBuild(
-  project: BookProject,
-  context: Awaited<ReturnType<typeof loadBuildContext>>
-) {
+async function advanceArtBuild(project: BookProject, context: BuildContext) {
   if (!project.characterBible || !project.spreads.length) {
     throw new Error(
       "This book does not have a complete draft to illustrate yet."
@@ -695,7 +160,7 @@ async function advanceArtBuild(
 
 async function advanceExportBuild(
   project: BookProject,
-  context: Awaited<ReturnType<typeof loadBuildContext>>,
+  context: BuildContext,
   mode: "exports" | "finalize"
 ) {
   if (!project.spreads.length || !project.assets.coverImageUrl) {

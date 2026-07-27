@@ -4,13 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import DownloadLink from "@/components/DownloadLink";
 import FileDownloadButton from "@/components/FileDownloadButton";
+import Icon from "@/components/ui/Icon";
 
 export default function StoryTextExports({
   storyId,
   storyTitle,
+  compact = false,
 }: {
   storyId: string;
   storyTitle: string;
+  compact?: boolean;
 }) {
   const t = useTranslations("stories");
   const [open, setOpen] = useState(false);
@@ -41,11 +44,12 @@ export default function StoryTextExports({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls="export-text-menu"
-        className="storycot-btn storycot-btn-secondary text-sm flex items-center gap-1.5"
+        className={`storycot-btn storycot-btn-secondary flex items-center gap-1.5 text-sm ${compact ? "storycot-btn-compact" : ""}`}
         onKeyDown={(e) => {
           if (e.key === "ArrowDown") { e.preventDefault(); setOpen(true); }
         }}
       >
+        <Icon name="download" />
         {t("exportText")}
         <svg
           viewBox="0 0 12 12"
@@ -78,11 +82,13 @@ export default function StoryTextExports({
             pendingLabel={t("downloadStarting")}
             onClick={() => setOpen(false)}
           >
+            <Icon name="file" />
             {t("printButton")}
           </DownloadLink>
           <FileDownloadButton
             href={`/api/stories/${storyId}/epub`}
             shareTitle={storyTitle}
+            icon={<Icon name="book" />}
             label={t("textEpubButton")}
             pendingLabel={t("downloadStarting")}
             className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-night-700 hover:bg-night-50 text-left"

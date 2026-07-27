@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 type FileDownloadButtonProps = {
   href: string;
   label: string;
   pendingLabel: string;
   className?: string;
+  icon?: ReactNode;
   shareTitle?: string;
   shareWhenAvailable?: boolean;
 };
@@ -45,6 +46,7 @@ export default function FileDownloadButton({
   label,
   pendingLabel,
   className,
+  icon,
   shareTitle,
   shareWhenAvailable = false,
 }: FileDownloadButtonProps) {
@@ -160,6 +162,7 @@ export default function FileDownloadButton({
           }`}
           aria-hidden="true"
         />
+        {icon ? <span className="contents">{icon}</span> : null}
         <span>{pending ? pendingLabel : label}</span>
       </a>
     );
@@ -180,6 +183,7 @@ export default function FileDownloadButton({
           }`}
           aria-hidden="true"
         />
+        {icon ? <span className="contents">{icon}</span> : null}
         <span>
           {pending
             ? pendingLabel

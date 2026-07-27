@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import CollectionFilters from "@/components/library/CollectionFilters";
 import StoryCard from "@/components/StoryCard";
+import Icon from "@/components/ui/Icon";
 import {
   defaultDateRange,
   isIsoDateInLocalRange,
@@ -44,9 +45,7 @@ export default function StoryLibrary({
   if (stories.length === 0) {
     return (
       <div className="rounded-3xl border-2 border-dashed border-night-200 p-16 text-center">
-        <div className="text-5xl" aria-hidden>
-          📚
-        </div>
+        <Icon name="book" className="mx-auto h-10 w-10 text-star-500" />
         <h2 className="mt-4 font-display text-2xl font-bold text-night-700">
           {t("emptyTitle")}
         </h2>
@@ -99,9 +98,7 @@ export default function StoryLibrary({
 
       {filtered.length === 0 ? (
         <div className="rounded-2xl border border-night-100 bg-white p-12 text-center">
-          <div className="text-4xl" aria-hidden>
-            🔍
-          </div>
+          <Icon name="search" className="mx-auto h-8 w-8 text-night-300" />
           <p className="mt-4 font-bold text-night-600">{t("noResults")}</p>
           <button
             onClick={() => {

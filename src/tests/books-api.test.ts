@@ -330,10 +330,10 @@ describe("/api/books/[id] and /status", () => {
     mockDb.bookProjects.getById.mockResolvedValue({
       ...createBookProject(),
       printOrder: {
-        productKey: "softcover",
-        productLabel: "Softcover",
-        provider: "Prodigi",
-        format: "21x21cm square softcover",
+        productKey: "hardcover",
+        productLabel: "Hardcover",
+        provider: "Lulu",
+        format: '8.5" square hardcover casewrap',
         status: "paid",
         amountAud: 29.95,
         pageCount: 24,
@@ -347,9 +347,9 @@ describe("/api/books/[id] and /status", () => {
           countryCode: "AU",
         },
         fulfillment: {
-          provider: "prodigi",
+          provider: "lulu",
           status: "failed",
-          message: "Prodigi order submission failed",
+          message: "Lulu order submission failed",
         },
       },
     });
@@ -365,10 +365,10 @@ describe("/api/books/[id] and /status", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.printOrder).toMatchObject({
-      productKey: "softcover",
+      productKey: "hardcover",
       status: "paid",
       fulfillment: {
-        provider: "prodigi",
+        provider: "lulu",
         status: "failed",
       },
     });

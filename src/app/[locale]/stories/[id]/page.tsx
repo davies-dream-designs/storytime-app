@@ -6,6 +6,7 @@ import Nav from "@/components/Nav";
 import FileDownloadButton from "@/components/FileDownloadButton";
 import DeleteStoryButton from "@/components/DeleteStoryButton";
 import PrintProductOptions from "@/components/PrintProductOptions";
+import Icon from "@/components/ui/Icon";
 import { getDateLocale } from "@/i18n/locales";
 import { db } from "@/lib/db";
 import { inferBookAgeBand } from "@/lib/print-books/ageBand";
@@ -25,6 +26,7 @@ import { isStoryPrintRestricted } from "@/lib/ipGuardrails";
 import StoryReader from "./StoryReader";
 import ShareButton from "./ShareButton";
 import CreatePrintBookButton from "./CreatePrintBookButton";
+import CheckoutResultNotice from "./CheckoutResultNotice";
 import StoryTextExports from "./StoryTextExports";
 import BookReader from "../../books/[id]/BookReader";
 import BookStatusPanel from "../../books/[id]/BookStatusPanel";
@@ -126,7 +128,7 @@ export default async function StoryPage({
       >
         {/* Title + actions */}
         <div className="mb-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
             <div className="min-w-0">
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <Link
@@ -165,34 +167,95 @@ export default async function StoryPage({
                 })}
               </p>
             </div>
-
-            <div className="flex shrink-0 flex-wrap items-start gap-2">
-              <Link
-                href={`/stories/new?profileId=${story.profileId}` as string}
-                className="storycot-btn storycot-btn-primary"
-              >
-                {t("newStoryButton")}
-              </Link>
-              {isReady && (
-                <>
-                  {!existingBook && (
-                    <CreatePrintBookButton
-                      storyId={id}
-                      credits={illustrationEstimate.credits}
-                      pageCount={estimatedPageCount}
-                      illustrationCount={estimatedIllustrationCount}
-                      userCredits={userCredits}
-                      isAdmin={isAdmin}
-                      storyPreset={story.storyPreset}
-                      compact
-                    />
-                  )}
-                  <ShareButton storyId={id} />
-                  <DeleteStoryButton storyId={id} redirectTo="/stories" />
-                </>
-              )}
-            </div>
           </div>
+
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <Link
+              href={`/stories/new?profileId=${story.profileId}` as string}
+              className="storycot-btn storycot-btn-primary storycot-btn-compact"
+            >
+              <Icon name="plus" />
+              New story
+            </Link>
+            {isReady ? (
+              <>
+                {!existingBook ? (
+                  <CreatePrintBookButton
+                    storyId={id}
+                    credits={illustrationEstimate.credits}
+                    pageCount={estimatedPageCount}
+                    illustrationCount={estimatedIllustrationCount}
+                    userCredits={userCredits}
+                    isAdmin={isAdmin}
+                    storyPreset={story.storyPreset}
+                    compact
+                  />
+                ) : null}
+                <ShareButton storyId={id} />
+                <StoryTextExports
+                  storyId={id}
+                  storyTitle={story.title}
+                  compact
+                />
+                {isAdmin && isBookReady && existingBook ? (
+                  <>
+                    {existingBook.assets.luluPrintPdfUrl ? (
+                      <FileDownloadButton
+                        href={`/api/books/${existingBook.id}/download?asset=luluPrintPdf`}
+                        className="storycot-btn storycot-btn-secondary storycot-btn-compact"
+                        icon={<Icon name="file" />}
+                        label="Lulu interior"
+                        pendingLabel={tBooks("downloadStarting")}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        className="storycot-btn storycot-btn-secondary storycot-btn-compact opacity-50"
+                      >
+                        Lulu interior missing
+                      </button>
+                    )}
+                    {existingBook.assets.luluCoverPdfUrl ? (
+                      <FileDownloadButton
+                        href={`/api/books/${existingBook.id}/download?asset=luluCoverPdf`}
+                        className="storycot-btn storycot-btn-secondary storycot-btn-compact"
+                        icon={<Icon name="file" />}
+                        label="Lulu cover"
+                        pendingLabel={tBooks("downloadStarting")}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        className="storycot-btn storycot-btn-secondary storycot-btn-compact opacity-50"
+                      >
+                        Lulu cover missing
+                      </button>
+                    )}
+                  </>
+                ) : null}
+                <DeleteStoryButton
+                  storyId={id}
+                  redirectTo="/stories"
+                  compact
+                />
+              </>
+            ) : null}
+          </div>
+          {isAdmin &&
+          isBookReady &&
+          existingBook &&
+          fileRetention?.availableUntil ? (
+            <p className="mt-2 text-xs text-night-400">
+              Admin files retained until{" "}
+              {new Intl.DateTimeFormat("en-AU", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              }).format(new Date(fileRetention.availableUntil))}
+            </p>
+          ) : null}
 
           {/* Estimate info - shown when no book yet */}
           {isReady && !existingBook && (
@@ -228,57 +291,36 @@ export default async function StoryPage({
             </div>
           )}
 
-          {/* Text exports dropdown - always visible when story is ready */}
-          {isReady && (
-            <div className="mt-3">
-              <StoryTextExports storyId={id} storyTitle={story.title} />
-            </div>
-          )}
         </div>
 
         {/* Download success / cancel banners */}
         {query.download_success ? (
-          <div className="mb-8 rounded-3xl border border-green-200 bg-green-50 p-6 text-green-900 shadow-sm">
-            <p className="font-display text-2xl font-bold">
-              Digital download unlocked!
-            </p>
-            <p className="mt-2 leading-7">
-              Your illustrated PDF and EPUB are ready to download below.
-            </p>
-          </div>
+          <CheckoutResultNotice
+            tone="success"
+            title="Digital download unlocked!"
+            body="Your illustrated PDF and EPUB are ready to download below."
+          />
         ) : null}
         {query.download_canceled ? (
-          <div className="mb-8 rounded-3xl border border-star-200 bg-star-50 p-6 text-night-700 shadow-sm">
-            <p className="font-display text-2xl font-bold text-night-800">
-              Download checkout was cancelled
-            </p>
-            <p className="mt-2 leading-7">
-              No payment was taken. Your illustrated book is still here whenever
-              you want to download it.
-            </p>
-          </div>
+          <CheckoutResultNotice
+            tone="warning"
+            title="Download checkout was cancelled"
+            body="No payment was taken. Your illustrated book is still here whenever you want to download it."
+          />
         ) : null}
         {query.print_success ? (
-          <div className="mb-8 rounded-3xl border border-green-200 bg-green-50 p-6 text-green-900 shadow-sm">
-            <p className="font-display text-2xl font-bold">
-              Your printed book order is paid
-            </p>
-            <p className="mt-2 leading-7">
-              We&apos;ve received the print checkout. Next, we&apos;ll review
-              the files and prepare the finished book for Australian fulfilment.
-            </p>
-          </div>
+          <CheckoutResultNotice
+            tone="success"
+            title="Your printed book order is paid"
+            body="We've received the print checkout. Next, we'll review the files and prepare the finished book for Australian fulfilment."
+          />
         ) : null}
         {query.print_canceled ? (
-          <div className="mb-8 rounded-3xl border border-star-200 bg-star-50 p-6 text-night-700 shadow-sm">
-            <p className="font-display text-2xl font-bold text-night-800">
-              Print checkout was cancelled
-            </p>
-            <p className="mt-2 leading-7">
-              No payment was taken. Your illustrated book is still ready here
-              whenever you want to choose a print format.
-            </p>
-          </div>
+          <CheckoutResultNotice
+            tone="warning"
+            title="Print checkout was cancelled"
+            body="No payment was taken. Your illustrated book is still ready here whenever you want to order a hardcover."
+          />
         ) : null}
 
         {/* Print order status */}
@@ -519,58 +561,6 @@ export default async function StoryPage({
           </section>
         ) : null}
 
-        {/* Admin tools */}
-        {isAdmin && isBookReady && existingBook ? (
-          <section className="mt-8 rounded-3xl border border-night-100 bg-white/80 p-5">
-            <p className="text-xs font-bold uppercase tracking-wide text-night-400">
-              Admin tools
-            </p>
-            <div className="mt-3 flex flex-wrap gap-3">
-              {existingBook.assets.luluPrintPdfUrl ? (
-                <FileDownloadButton
-                  href={`/api/books/${existingBook.id}/download?asset=luluPrintPdf`}
-                  className="storycot-btn storycot-btn-secondary"
-                  label="Lulu interior PDF"
-                  pendingLabel={tBooks("downloadStarting")}
-                />
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  className="storycot-btn storycot-btn-secondary opacity-50"
-                >
-                  Lulu interior missing
-                </button>
-              )}
-              {existingBook.assets.luluCoverPdfUrl ? (
-                <FileDownloadButton
-                  href={`/api/books/${existingBook.id}/download?asset=luluCoverPdf`}
-                  className="storycot-btn storycot-btn-secondary"
-                  label="Lulu cover PDF"
-                  pendingLabel={tBooks("downloadStarting")}
-                />
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  className="storycot-btn storycot-btn-secondary opacity-50"
-                >
-                  Lulu cover missing
-                </button>
-              )}
-              {fileRetention?.availableUntil ? (
-                <p className="w-full text-xs text-night-400">
-                  Files retained until{" "}
-                  {new Intl.DateTimeFormat("en-AU", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  }).format(new Date(fileRetention.availableUntil))}
-                </p>
-              ) : null}
-            </div>
-          </section>
-        ) : null}
       </main>
     </>
   );

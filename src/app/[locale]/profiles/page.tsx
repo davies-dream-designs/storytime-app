@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
+import Icon from "@/components/ui/Icon";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 import { db } from "@/lib/db";
 
@@ -49,9 +50,7 @@ export default async function ProfilesPage() {
 
         {profiles.length === 0 ? (
           <div className="rounded-3xl border-2 border-dashed border-night-200 p-16 text-center">
-            <div className="text-5xl" aria-hidden>
-              👶
-            </div>
+            <Icon name="profile" className="mx-auto h-10 w-10 text-star-500" />
             <h2 className="mt-4 font-display text-2xl font-bold text-night-700">
               {t("emptyTitle")}
             </h2>

@@ -6,6 +6,7 @@ import { getTranslations } from 'next-intl/server'
 import { Link } from '@/i18n/navigation'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import RefCapture from '@/components/RefCapture'
+import Icon, { type IconName } from '@/components/ui/Icon'
 import { getLocale } from 'next-intl/server'
 
 export default async function Home() {
@@ -18,12 +19,12 @@ export default async function Home() {
   const t = await getTranslations('home')
 
   const features = [
-    { icon: '👶', title: t('feature1Title'), body: t('feature1Desc') },
-    { icon: '✨', title: t('feature2Title'), body: t('feature2Desc') },
-    { icon: '🎨', title: t('feature3Title'), body: t('feature3Desc') },
-    { icon: '🎧', title: t('feature5Title'), body: t('feature5Desc') },
-    { icon: '📖', title: t('feature4Title'), body: t('feature4Desc') },
-  ]
+    { icon: 'profile', title: t('feature1Title'), body: t('feature1Desc') },
+    { icon: 'sparkle', title: t('feature2Title'), body: t('feature2Desc') },
+    { icon: 'image', title: t('feature3Title'), body: t('feature3Desc') },
+    { icon: 'download', title: t('feature5Title'), body: t('feature5Desc') },
+    { icon: 'book', title: t('feature4Title'), body: t('feature4Desc') },
+  ] satisfies Array<{ icon: IconName; title: string; body: string }>
 
   const arcSteps = [
     { num: '1', label: t('arc.introduction'), icon: '🌅' },
@@ -137,7 +138,9 @@ export default async function Home() {
               key={f.title}
               className="rounded-3xl border border-night-100 bg-white p-8 shadow-sm"
             >
-              <div className="text-4xl">{f.icon}</div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-moon-100 text-night-700">
+                <Icon name={f.icon} className="h-6 w-6" />
+              </div>
               <h3 className="mt-4 font-display text-xl font-bold text-night-700">{f.title}</h3>
               <p className="mt-2 text-night-400">{f.body}</p>
             </div>

@@ -476,7 +476,7 @@ async function buildCoverPdf(input: {
     size: 10,
     color: rgb(0.34, 0.35, 0.4),
   });
-  page.drawText("Create your own at storycot.com", {
+  page.drawText("Create your own at storycot.com.au", {
     x: backSafeX + 16,
     y: footerY + 40,
     font: sansBold,

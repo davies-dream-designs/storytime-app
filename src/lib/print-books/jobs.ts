@@ -602,7 +602,7 @@ export async function processBookBuildJob(jobId: string) {
             const appUrl =
               runningJob.baseUrl ??
               process.env.NEXT_PUBLIC_APP_URL ??
-              "https://storycot.com";
+              "https://storycot.com.au";
             if (email) {
               await sendBookReadyEmail({
                 toEmail: email,

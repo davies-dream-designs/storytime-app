@@ -95,7 +95,7 @@ function getLuluContactEmail() {
   return (
     process.env.LULU_CONTACT_EMAIL ??
     process.env.GMAIL_USER ??
-    "hello@storycot.com"
+    "hello@storycot.com.au"
   );
 }
 

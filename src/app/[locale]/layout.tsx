@@ -19,7 +19,6 @@ const clerkAllowedRedirectOrigins = [
   "https://storycot.com.au",
   "https://www.storycot.com.au",
 ];
-const primaryClerkDomain = "storycot.com";
 
 function isAuHost(hostname: string) {
   return hostname === "storycot.com.au" || hostname === "www.storycot.com.au";
@@ -96,14 +95,7 @@ export default async function LocaleLayout({
     <ClerkProvider
       localization={clerkLocalization}
       allowedRedirectOrigins={clerkAllowedRedirectOrigins}
-      domain={primaryClerkDomain}
-      isSatellite={satellite}
-      signInUrl={
-        satellite ? `https://${primaryClerkDomain}/${locale}/sign-in` : undefined
-      }
-      signUpUrl={
-        satellite ? `https://${primaryClerkDomain}/${locale}/sign-up` : undefined
-      }
+      proxyUrl={satellite ? "/__clerk" : undefined}
       appearance={{
         variables: storycotTheme.clerk,
       }}

@@ -8,9 +8,11 @@ import FileDownloadButton from "@/components/FileDownloadButton";
 export default function StoryTextExports({
   storyId,
   storyTitle,
+  compact = false,
 }: {
   storyId: string;
   storyTitle: string;
+  compact?: boolean;
 }) {
   const t = useTranslations("stories");
   const [open, setOpen] = useState(false);
@@ -41,7 +43,7 @@ export default function StoryTextExports({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls="export-text-menu"
-        className="storycot-btn storycot-btn-secondary text-sm flex items-center gap-1.5"
+        className={`storycot-btn storycot-btn-secondary flex items-center gap-1.5 text-sm ${compact ? "storycot-btn-compact" : ""}`}
         onKeyDown={(e) => {
           if (e.key === "ArrowDown") { e.preventDefault(); setOpen(true); }
         }}

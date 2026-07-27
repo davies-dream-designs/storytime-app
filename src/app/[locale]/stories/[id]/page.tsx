@@ -166,10 +166,10 @@ export default async function StoryPage({
               </p>
             </div>
 
-            <div className="flex shrink-0 flex-wrap items-start gap-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-2xl border border-night-100 bg-white/80 p-2 shadow-sm sm:max-w-sm sm:justify-end">
               <Link
                 href={`/stories/new?profileId=${story.profileId}` as string}
-                className="storycot-btn storycot-btn-primary"
+                className="storycot-btn storycot-btn-primary storycot-btn-compact"
               >
                 {t("newStoryButton")}
               </Link>
@@ -188,7 +188,16 @@ export default async function StoryPage({
                     />
                   )}
                   <ShareButton storyId={id} />
-                  <DeleteStoryButton storyId={id} redirectTo="/stories" />
+                  <StoryTextExports
+                    storyId={id}
+                    storyTitle={story.title}
+                    compact
+                  />
+                  <DeleteStoryButton
+                    storyId={id}
+                    redirectTo="/stories"
+                    compact
+                  />
                 </>
               )}
             </div>
@@ -228,12 +237,6 @@ export default async function StoryPage({
             </div>
           )}
 
-          {/* Text exports dropdown - always visible when story is ready */}
-          {isReady && (
-            <div className="mt-3">
-              <StoryTextExports storyId={id} storyTitle={story.title} />
-            </div>
-          )}
         </div>
 
         {/* Download success / cancel banners */}

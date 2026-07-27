@@ -40,7 +40,7 @@ export default async function PrintProductOptions({
       </div>
       <p className="mt-3 text-sm leading-6 text-night-500">
         {quote.format} with a casewrap cover. Printed to order and shipped in
-        Australia.
+        Australia. Includes the digital PDF, EPUB, illustrations, and narration.
       </p>
       <div className="mt-4 space-y-2 text-sm text-night-600">
         <div className="flex items-center justify-between gap-3 border-t border-night-100 pt-3">
@@ -48,6 +48,10 @@ export default async function PrintProductOptions({
           <span className="font-bold text-night-800">
             {formatAud(quote.priceAud)} + shipping
           </span>
+        </div>
+        <div className="flex items-center justify-between gap-3 border-t border-night-100 pt-3">
+          <span className="text-night-500">Digital bundle</span>
+          <span className="text-right font-medium">Included</span>
         </div>
         <div className="flex items-center justify-between gap-3 border-t border-night-100 pt-3">
           <span className="text-night-500">{t("printPages")}</span>

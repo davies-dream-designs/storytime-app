@@ -57,6 +57,7 @@ export default function PrintCheckoutButton({
   const [addressLoading, setAddressLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [addressStatus, setAddressStatus] = useState("");
   const [error, setError] = useState("");
   const addressRequestRef = useRef(0);
   const { startPending } = usePendingUI();
@@ -88,34 +89,62 @@ export default function PrintCheckoutButton({
 
     if (input.length < 3) {
       setSuggestions([]);
+      setAddressStatus("");
       setAddressLoading(false);
       return;
     }
 
     setAddressLoading(true);
+    setAddressStatus("");
+    const controller = new AbortController();
     const timeout = window.setTimeout(async () => {
+      const abortTimeout = window.setTimeout(() => controller.abort(), 8000);
       try {
         const res = await fetch(
-          `/api/address/autocomplete?input=${encodeURIComponent(input)}`
+          `/api/address/autocomplete?input=${encodeURIComponent(input)}`,
+          { signal: controller.signal }
         );
         const data = (await res.json()) as {
           suggestions?: AddressSuggestion[];
+          error?: string;
         };
+        if (!res.ok) {
+          throw new Error(data.error ?? "Address lookup is unavailable.");
+        }
         if (addressRequestRef.current !== requestId) return;
-        setSuggestions(data.suggestions ?? []);
+        const nextSuggestions = data.suggestions ?? [];
+        setSuggestions(nextSuggestions);
+        setAddressStatus(
+          nextSuggestions.length === 0
+            ? "No matches yet. You can enter the address manually."
+            : ""
+        );
         setShowSuggestions(true);
-      } catch {
+      } catch (err) {
         if (addressRequestRef.current === requestId) {
+          const isAbortError =
+            err instanceof Error && err.name === "AbortError";
           setSuggestions([]);
+          setAddressStatus(
+            isAbortError
+              ? "Address lookup timed out. Enter the address manually."
+              : err instanceof Error
+              ? `${err.message} Enter the address manually.`
+              : "Address lookup is unavailable. Enter the address manually."
+          );
         }
       } finally {
+        window.clearTimeout(abortTimeout);
         if (addressRequestRef.current === requestId) {
           setAddressLoading(false);
         }
       }
     }, 250);
 
-    return () => window.clearTimeout(timeout);
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
   }, [shipping.line1]);
 
   async function selectSuggestion(suggestion: AddressSuggestion) {
@@ -135,6 +164,7 @@ export default function PrintCheckoutButton({
         ...data.address,
         countryCode: "AU",
       }));
+      setAddressStatus("Address selected.");
       setSuggestions([]);
       setShowSuggestions(false);
     } catch (err) {
@@ -229,13 +259,13 @@ export default function PrintCheckoutButton({
                 </p>
                 <h3
                   id="print-checkout-title"
-                  className="mt-1 font-display text-2xl font-bold text-night-800"
+                  className="mt-1 font-display text-xl font-bold text-night-800 sm:text-2xl"
                 >
-                  Delivery estimate
+                  Delivery details
                 </h3>
                 <p className="mt-1 text-sm leading-6 text-night-500">
-                  Enter an Australian address to calculate shipping, then
-                  continue to Stripe for secure payment.
+                  Enter an Australian address for the shipping quote. Stripe
+                  collects the final delivery and contact details.
                 </p>
               </div>
               <button
@@ -249,35 +279,8 @@ export default function PrintCheckoutButton({
               </button>
             </div>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <label className="space-y-1 sm:col-span-2">
-                <span className="text-xs font-bold uppercase tracking-wide text-night-500">
-                  Name
-                </span>
-                <input
-                  value={shipping.name ?? ""}
-                  onChange={(event) =>
-                    updateShipping("name", event.target.value)
-                  }
-                  className="w-full rounded-lg border border-night-100 bg-white px-3 py-2 text-sm text-night-800 outline-none transition focus:border-moon-400"
-                  autoComplete="name"
-                />
-              </label>
-              <label className="space-y-1 sm:col-span-2">
-                <span className="text-xs font-bold uppercase tracking-wide text-night-500">
-                  Email
-                </span>
-                <input
-                  value={shipping.email ?? ""}
-                  onChange={(event) =>
-                    updateShipping("email", event.target.value)
-                  }
-                  className="w-full rounded-lg border border-night-100 bg-white px-3 py-2 text-sm text-night-800 outline-none transition focus:border-moon-400"
-                  autoComplete="email"
-                  inputMode="email"
-                />
-              </label>
-              <label className="relative space-y-1 sm:col-span-2">
+            <div className="mt-5 grid gap-3 sm:grid-cols-6">
+              <label className="relative space-y-1 sm:col-span-6">
                 <span className="text-xs font-bold uppercase tracking-wide text-night-500">
                   Address line 1
                 </span>
@@ -322,8 +325,13 @@ export default function PrintCheckoutButton({
                     Finding...
                   </span>
                 ) : null}
+                {addressStatus ? (
+                  <span className="block text-xs font-medium text-night-400">
+                    {addressStatus}
+                  </span>
+                ) : null}
               </label>
-              <label className="space-y-1 sm:col-span-2">
+              <label className="space-y-1 sm:col-span-6">
                 <span className="text-xs font-bold uppercase tracking-wide text-night-500">
                   Address line 2
                 </span>
@@ -336,7 +344,7 @@ export default function PrintCheckoutButton({
                   autoComplete="address-line2"
                 />
               </label>
-              <label className="space-y-1">
+              <label className="space-y-1 sm:col-span-2">
                 <span className="text-xs font-bold uppercase tracking-wide text-night-500">
                   Suburb
                 </span>
@@ -350,7 +358,7 @@ export default function PrintCheckoutButton({
                   required
                 />
               </label>
-              <label className="space-y-1">
+              <label className="space-y-1 sm:col-span-2">
                 <span className="text-xs font-bold uppercase tracking-wide text-night-500">
                   State
                 </span>
@@ -364,7 +372,7 @@ export default function PrintCheckoutButton({
                   maxLength={3}
                 />
               </label>
-              <label className="space-y-1">
+              <label className="space-y-1 sm:col-span-2">
                 <span className="text-xs font-bold uppercase tracking-wide text-night-500">
                   Postcode
                 </span>
@@ -377,16 +385,6 @@ export default function PrintCheckoutButton({
                   autoComplete="postal-code"
                   inputMode="numeric"
                   required
-                />
-              </label>
-              <label className="space-y-1">
-                <span className="text-xs font-bold uppercase tracking-wide text-night-500">
-                  Country
-                </span>
-                <input
-                  value="Australia"
-                  disabled
-                  className="w-full rounded-lg border border-night-100 bg-white px-3 py-2 text-sm text-night-500"
                 />
               </label>
             </div>

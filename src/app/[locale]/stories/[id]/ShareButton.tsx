@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useLocale } from "next-intl";
 import { useTranslations } from "next-intl";
-import Button from "@/components/ui/Button";
-import { buildFacebookShareUrl, buildSharedStoryUrl } from "@/lib/shareLinks";
+import { buildSharedStoryUrl } from "@/lib/shareLinks";
 
 export default function ShareButton({ storyId }: { storyId: string }) {
   const [state, setState] = useState<"idle" | "loading" | "copied">("idle");
@@ -39,20 +38,6 @@ export default function ShareButton({ storyId }: { storyId: string }) {
     });
   }
 
-  async function shareToFacebook() {
-    await withShareUrl((url) => {
-      window.open(
-        buildFacebookShareUrl(url),
-        "_blank",
-        "noopener,noreferrer,width=680,height=560"
-      );
-      setState("idle");
-    }).catch(() => {
-      // Keep sharing non-blocking; the user can still copy the link.
-      setState("idle");
-    });
-  }
-
   async function handleShare() {
     if (navigator.share) {
       await withShareUrl(async (url) => {
@@ -71,26 +56,27 @@ export default function ShareButton({ storyId }: { storyId: string }) {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Button
+    <div className="inline-flex overflow-hidden rounded-full border border-night-100 bg-white shadow-sm">
+      <button
+        type="button"
         onClick={handleShare}
         disabled={state === "loading"}
-        variant="secondary"
+        className="px-4 py-2 text-sm font-bold text-night-700 transition hover:bg-night-50 disabled:opacity-50"
       >
         {state === "copied"
           ? t("shareLinkCopied")
           : state === "loading"
             ? "…"
             : t("shareIdle")}
-      </Button>
-      <Button
-        onClick={shareToFacebook}
+      </button>
+      <button
+        type="button"
+        onClick={() => void copyShareLink()}
         disabled={state === "loading"}
-        variant="secondary"
-        aria-label={t("shareFacebook")}
+        className="border-l border-night-100 px-4 py-2 text-sm font-bold text-night-500 transition hover:bg-night-50 disabled:opacity-50"
       >
-        {t("shareFacebook")}
-      </Button>
+        Copy link
+      </button>
       <span
         className="sr-only"
         role="status"

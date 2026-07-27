@@ -457,7 +457,7 @@ export async function drawCopyrightPage(input: {
     size: 10,
     color: rgb(0.34, 0.35, 0.4),
   });
-  page.drawText("storycot.com", {
+  page.drawText("storycot.com.au", {
     x: pageWidth * 0.12,
     y: pageHeight * 0.2,
     font: sansBold,

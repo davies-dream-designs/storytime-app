@@ -1,4 +1,4 @@
-const STORYCOT_ORIGIN = "https://storycot.com";
+const STORYCOT_ORIGIN = "https://storycot.com.au";
 
 function normalizeOrigin(origin: string): string {
   return origin.replace(/\/+$/, "");

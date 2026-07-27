@@ -5,6 +5,27 @@ import { useLocale } from "next-intl";
 import { useTranslations } from "next-intl";
 import { buildSharedStoryUrl } from "@/lib/shareLinks";
 
+function ShareIcon({ name }: { name: "link" | "share" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4 shrink-0"
+      aria-hidden="true"
+    >
+      {name === "share" ? (
+        <path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7 M16 6l-4-4-4 4 M12 2v14" />
+      ) : (
+        <path d="M10 13a5 5 0 007.1 0l2-2a5 5 0 00-7.1-7.1l-1.1 1.1 M14 11a5 5 0 00-7.1 0l-2 2A5 5 0 0012 20.1l1.1-1.1" />
+      )}
+    </svg>
+  );
+}
+
 export default function ShareButton({ storyId }: { storyId: string }) {
   const [state, setState] = useState<"idle" | "loading" | "copied">("idle");
   const t = useTranslations("stories");
@@ -56,13 +77,14 @@ export default function ShareButton({ storyId }: { storyId: string }) {
   }
 
   return (
-    <div className="inline-flex overflow-hidden rounded-full border border-night-100 bg-white shadow-sm">
+    <>
       <button
         type="button"
         onClick={handleShare}
         disabled={state === "loading"}
-        className="px-4 py-2 text-sm font-bold text-night-700 transition hover:bg-night-50 disabled:opacity-50"
+        className="storycot-btn storycot-btn-secondary storycot-btn-compact"
       >
+        <ShareIcon name="share" />
         {state === "copied"
           ? t("shareLinkCopied")
           : state === "loading"
@@ -73,8 +95,9 @@ export default function ShareButton({ storyId }: { storyId: string }) {
         type="button"
         onClick={() => void copyShareLink()}
         disabled={state === "loading"}
-        className="border-l border-night-100 px-4 py-2 text-sm font-bold text-night-500 transition hover:bg-night-50 disabled:opacity-50"
+        className="storycot-btn storycot-btn-secondary storycot-btn-compact"
       >
+        <ShareIcon name="link" />
         Copy link
       </button>
       <span
@@ -85,6 +108,6 @@ export default function ShareButton({ storyId }: { storyId: string }) {
       >
         {state === "copied" ? t("shareLinkCopied") : ""}
       </span>
-    </div>
+    </>
   );
 }

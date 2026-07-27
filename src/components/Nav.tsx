@@ -8,6 +8,48 @@ import { Link, usePathname } from "@/i18n/navigation";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 
+type IconName =
+  | "account"
+  | "admin"
+  | "book"
+  | "dashboard"
+  | "faq"
+  | "lock"
+  | "plus"
+  | "profile"
+  | "sparkle"
+  | "terms";
+
+function NavIcon({ name }: { name: IconName }) {
+  const paths: Record<IconName, string> = {
+    account: "M12 3l1.7 4.8 4.8 1.7-4.8 1.7L12 16l-1.7-4.8-4.8-1.7 4.8-1.7L12 3z M18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8L18 15z",
+    admin: "M12 3l7 3v5c0 4.1-2.8 7.9-7 9-4.2-1.1-7-4.9-7-9V6l7-3z M9.5 12.5l1.8 1.8 3.7-4.1",
+    book: "M5 5.5A3.5 3.5 0 018.5 2H20v16H8.5A3.5 3.5 0 005 21.5v-16z M5 5.5A3.5 3.5 0 001.5 2H1v16h.5A3.5 3.5 0 015 21.5",
+    dashboard: "M4 11l8-7 8 7v9a1 1 0 01-1 1h-5v-6H10v6H5a1 1 0 01-1-1v-9z",
+    faq: "M12 18h.01 M9.4 9a2.8 2.8 0 115 1.7c-.7.6-1.4 1.1-1.8 1.8-.3.4-.5.9-.5 1.5 M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+    lock: "M7 10V7a5 5 0 0110 0v3 M6 10h12v10H6V10z",
+    plus: "M12 5v14 M5 12h14",
+    profile: "M12 12a4 4 0 100-8 4 4 0 000 8z M4 21a8 8 0 0116 0",
+    sparkle: "M12 3l1.7 4.8 4.8 1.7-4.8 1.7L12 16l-1.7-4.8-4.8-1.7 4.8-1.7L12 3z",
+    terms: "M7 3h7l4 4v14H7V3z M14 3v5h4 M9 13h6 M9 17h6",
+  };
+
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4 shrink-0"
+      aria-hidden="true"
+    >
+      <path d={paths[name]} />
+    </svg>
+  );
+}
+
 export default function Nav() {
   const { isSignedIn } = useAuth();
   const [open, setOpen] = useState(false);
@@ -47,7 +89,7 @@ export default function Nav() {
     return pathname === href || pathname.startsWith(`${href}/`);
   };
   const navLinkClass = (href: string) =>
-    `rounded-full px-4 py-2 text-sm font-bold transition ${
+    `inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition ${
       isActive(href)
         ? "bg-night-700 text-moon-200 shadow-sm shadow-night-700/20"
         : "text-night-600 hover:bg-night-100"
@@ -59,10 +101,52 @@ export default function Nav() {
         : "text-night-700 hover:bg-night-50"
     }`;
   const publicLinks = [
-    { href: "/support", label: "FAQ" },
-    { href: "/privacy", label: "Privacy" },
-    { href: "/terms", label: "Terms" },
-  ];
+    { href: "/support", label: "FAQ", icon: "faq" },
+    { href: "/privacy", label: "Privacy", icon: "lock" },
+    { href: "/terms", label: "Terms", icon: "terms" },
+  ] satisfies Array<{ href: string; label: string; icon: IconName }>;
+  const mobileLinks = [
+    { href: "/dashboard", label: t("dashboard"), icon: "dashboard" },
+    { href: "/profiles", label: t("profilesMobile"), icon: "profile" },
+    { href: "/stories", label: t("storiesMobile"), icon: "book" },
+    { href: "/account", label: t("accountMobile"), icon: "account" },
+  ] satisfies Array<{ href: string; label: string; icon: IconName }>;
+  const desktopAuthedLinks = [
+    { href: "/profiles", label: t("profiles"), icon: "profile" },
+    { href: "/stories", label: t("stories"), icon: "book" },
+    { href: "/stories/new", label: t("newStory"), icon: "plus" },
+  ] satisfies Array<{ href: string; label: string; icon: IconName }>;
+  const renderMobileLink = (item: {
+    href: string;
+    label: string;
+    icon: IconName;
+  }) => (
+    <Link
+      key={item.href}
+      href={item.href}
+      aria-current={isActive(item.href) ? "page" : undefined}
+      onClick={() => setOpen(false)}
+      className={`flex items-center gap-3 ${mobileLinkClass(item.href)}`}
+    >
+      <NavIcon name={item.icon} />
+      <span>{item.label}</span>
+    </Link>
+  );
+  const renderDesktopLink = (item: {
+    href: string;
+    label: string;
+    icon: IconName;
+  }) => (
+    <Link
+      key={item.href}
+      href={item.href}
+      aria-current={isActive(item.href) ? "page" : undefined}
+      className={`whitespace-nowrap ${navLinkClass(item.href)}`}
+    >
+      <NavIcon name={item.icon} />
+      <span>{item.label}</span>
+    </Link>
+  );
 
   return (
     <header className="sticky top-0 z-30 border-b border-night-100 bg-parchment/90 backdrop-blur">
@@ -90,34 +174,14 @@ export default function Nav() {
         <div className="hidden sm:flex items-center gap-1">
           {isSignedIn ? (
             <>
-              <Link
-                href="/profiles"
-                aria-current={isActive("/profiles") ? "page" : undefined}
-                className={navLinkClass("/profiles")}
-              >
-                {t("profiles")}
-              </Link>
-              <Link
-                href="/stories"
-                aria-current={isActive("/stories") ? "page" : undefined}
-                className={navLinkClass("/stories")}
-              >
-                {t("stories")}
-              </Link>
-              <Link
-                href="/stories/new"
-                aria-current={isActive("/stories/new") ? "page" : undefined}
-                className={`whitespace-nowrap ${navLinkClass("/stories/new")}`}
-              >
-                {t("newStory")}
-              </Link>
+              {desktopAuthedLinks.map(renderDesktopLink)}
               <Link
                 href="/account"
                 aria-current={isActive("/account") ? "page" : undefined}
                 className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-bold transition ${isActive("/account") ? "bg-night-700 text-moon-200 shadow-sm shadow-night-700/20" : "text-night-500 hover:bg-night-100"}`}
                 aria-label={t("accountCredits")}
               >
-                ✨
+                <NavIcon name="account" />
                 {creditInfo && !creditInfo.isAdmin ? (
                   <span
                     className={`min-w-[1.25rem] rounded-full px-1 text-center text-xs ${
@@ -134,36 +198,19 @@ export default function Nav() {
                 <Link
                   href="/admin"
                   aria-current={isActive("/admin") ? "page" : undefined}
-                  className={`rounded-full px-3 py-2 text-xs font-bold transition ${isActive("/admin") ? "bg-night-700 text-moon-200" : "text-night-400 hover:bg-night-100"}`}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold transition ${isActive("/admin") ? "bg-night-700 text-moon-200" : "text-night-400 hover:bg-night-100"}`}
                 >
-                  Admin
+                  <NavIcon name="admin" />
+                  <span>Admin</span>
                 </Link>
               ) : null}
-              {publicLinks.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-current={isActive(item.href) ? "page" : undefined}
-                  className={navLinkClass(item.href)}
-                >
-                  {item.label}
-                </Link>
-              ))}
+              {publicLinks.map(renderDesktopLink)}
               <LanguageSwitcher />
               <UserButton />
             </>
           ) : (
             <>
-              {publicLinks.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-current={isActive(item.href) ? "page" : undefined}
-                  className={navLinkClass(item.href)}
-                >
-                  {item.label}
-                </Link>
-              ))}
+              {publicLinks.map(renderDesktopLink)}
               <LanguageSwitcher />
               <SignInButton mode="modal">
                 <button className={buttonClassName({ size: "compact" })}>
@@ -243,37 +290,17 @@ export default function Nav() {
         <div className="sm:hidden border-t border-night-100 bg-parchment/95 backdrop-blur px-4 py-3 flex flex-col gap-1">
           {isSignedIn ? (
             <>
-              <Link
-                href="/dashboard"
-                aria-current={isActive("/dashboard") ? "page" : undefined}
-                onClick={() => setOpen(false)}
-                className={mobileLinkClass("/dashboard")}
-              >
-                {t("dashboard")}
-              </Link>
-              <Link
-                href="/profiles"
-                aria-current={isActive("/profiles") ? "page" : undefined}
-                onClick={() => setOpen(false)}
-                className={mobileLinkClass("/profiles")}
-              >
-                {t("profilesMobile")}
-              </Link>
-              <Link
-                href="/stories"
-                aria-current={isActive("/stories") ? "page" : undefined}
-                onClick={() => setOpen(false)}
-                className={mobileLinkClass("/stories")}
-              >
-                {t("storiesMobile")}
-              </Link>
+              {mobileLinks.slice(0, 3).map(renderMobileLink)}
               <Link
                 href="/account"
                 aria-current={isActive("/account") ? "page" : undefined}
                 onClick={() => setOpen(false)}
-                className={`flex items-center justify-between ${mobileLinkClass("/account")}`}
+                className={`flex items-center justify-between gap-3 ${mobileLinkClass("/account")}`}
               >
-                {t("accountMobile")}
+                <span className="flex items-center gap-3">
+                  <NavIcon name="account" />
+                  {t("accountMobile")}
+                </span>
                 {creditInfo && !creditInfo.isAdmin ? (
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-bold ${
@@ -291,29 +318,23 @@ export default function Nav() {
                   href="/admin"
                   aria-current={isActive("/admin") ? "page" : undefined}
                   onClick={() => setOpen(false)}
-                  className={mobileLinkClass("/admin")}
+                  className={`flex items-center gap-3 ${mobileLinkClass("/admin")}`}
                 >
-                  Admin
+                  <NavIcon name="admin" />
+                  <span>Admin</span>
                 </Link>
               ) : null}
             </>
           ) : null}
-          {publicLinks.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={isActive(item.href) ? "page" : undefined}
-              onClick={() => setOpen(false)}
-              className={mobileLinkClass(item.href)}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {publicLinks.map(renderMobileLink)}
           <Link
             href="/stories/new"
             onClick={() => setOpen(false)}
-            className={buttonClassName({ className: "mt-2 w-full" })}
+            className={buttonClassName({
+              className: "mt-2 w-full gap-2",
+            })}
           >
+            <NavIcon name="plus" />
             {t("newStory")}
           </Link>
         </div>

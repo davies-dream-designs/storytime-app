@@ -4,6 +4,28 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import FileDownloadButton from "@/components/FileDownloadButton";
 
+function DownloadIcon({ name }: { name: "book" | "file" | "zip" }) {
+  const paths = {
+    book: "M5 5.5A3.5 3.5 0 018.5 2H20v16H8.5A3.5 3.5 0 005 21.5v-16z M5 5.5A3.5 3.5 0 001.5 2H1v16h.5A3.5 3.5 0 015 21.5",
+    file: "M7 3h7l4 4v14H7V3z M14 3v5h4 M9 13h6 M9 17h6",
+    zip: "M8 3h8l4 4v14H8V3z M16 3v5h4 M11 6h2 M11 9h2 M11 12h2 M11 15h3v3h-3v-3z",
+  };
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4 shrink-0"
+      aria-hidden="true"
+    >
+      <path d={paths[name]} />
+    </svg>
+  );
+}
+
 export default function DigitalDownloadSection({
   projectId,
   hasDigitalDownload,
@@ -62,6 +84,7 @@ export default function DigitalDownloadSection({
             <FileDownloadButton
               href={`/api/books/${projectId}/download?asset=printPdf`}
               className="storycot-btn storycot-btn-primary"
+              icon={<DownloadIcon name="file" />}
               label={t("illustratedPdfButton")}
               pendingLabel={t("downloadStarting")}
             />
@@ -69,6 +92,7 @@ export default function DigitalDownloadSection({
           {hasEpub ? (
             <FileDownloadButton
               href={`/api/books/${projectId}/download?asset=epub`}
+              icon={<DownloadIcon name="book" />}
               label={t("epubButton")}
               pendingLabel={t("downloadStarting")}
               className="storycot-btn storycot-btn-secondary"
@@ -77,6 +101,7 @@ export default function DigitalDownloadSection({
           {hasIllustrationsZip ? (
             <FileDownloadButton
               href={`/api/books/${projectId}/download?asset=illustrationsZip`}
+              icon={<DownloadIcon name="zip" />}
               label="Illustrations (ZIP)"
               pendingLabel={t("downloadStarting")}
               className="storycot-btn storycot-btn-secondary"

@@ -18,7 +18,6 @@ export const PRINT_PRODUCTS = {
     extraSpreadAud: 1.1,
     estimatedManufacturingAud: 18.5,
     estimatedShippingAud: 15.15,
-    productionDays: "5-7 business days",
     description:
       "Giftable keepsake edition with a rigid casewrap cover and premium colour pages.",
   },
@@ -38,7 +37,6 @@ export const PRINT_PRODUCTS = {
     extraSpreadAud: number;
     estimatedManufacturingAud: number;
     estimatedShippingAud: number;
-    productionDays: string;
     description: string;
   }
 >;

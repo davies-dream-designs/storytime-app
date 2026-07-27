@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 
   if (!process.env.GOOGLE_PLACES_API_KEY) {
     return NextResponse.json(
-      { error: "Address autocomplete is not configured." },
+      { error: "Address suggestions are unavailable right now." },
       { status: 503 }
     );
   }
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     (body.status && body.status !== "OK" && body.status !== "ZERO_RESULTS")
   ) {
     return NextResponse.json(
-      { error: body.error_message ?? "Address autocomplete failed." },
+      { error: "Address suggestions are unavailable right now." },
       { status: 502 }
     );
   }

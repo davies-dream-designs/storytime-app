@@ -25,6 +25,7 @@ import { isStoryPrintRestricted } from "@/lib/ipGuardrails";
 import StoryReader from "./StoryReader";
 import ShareButton from "./ShareButton";
 import CreatePrintBookButton from "./CreatePrintBookButton";
+import CheckoutResultNotice from "./CheckoutResultNotice";
 import StoryTextExports from "./StoryTextExports";
 import BookReader from "../../books/[id]/BookReader";
 import BookStatusPanel from "../../books/[id]/BookStatusPanel";
@@ -241,47 +242,32 @@ export default async function StoryPage({
 
         {/* Download success / cancel banners */}
         {query.download_success ? (
-          <div className="mb-8 rounded-3xl border border-green-200 bg-green-50 p-6 text-green-900 shadow-sm">
-            <p className="font-display text-2xl font-bold">
-              Digital download unlocked!
-            </p>
-            <p className="mt-2 leading-7">
-              Your illustrated PDF and EPUB are ready to download below.
-            </p>
-          </div>
+          <CheckoutResultNotice
+            tone="success"
+            title="Digital download unlocked!"
+            body="Your illustrated PDF and EPUB are ready to download below."
+          />
         ) : null}
         {query.download_canceled ? (
-          <div className="mb-8 rounded-3xl border border-star-200 bg-star-50 p-6 text-night-700 shadow-sm">
-            <p className="font-display text-2xl font-bold text-night-800">
-              Download checkout was cancelled
-            </p>
-            <p className="mt-2 leading-7">
-              No payment was taken. Your illustrated book is still here whenever
-              you want to download it.
-            </p>
-          </div>
+          <CheckoutResultNotice
+            tone="warning"
+            title="Download checkout was cancelled"
+            body="No payment was taken. Your illustrated book is still here whenever you want to download it."
+          />
         ) : null}
         {query.print_success ? (
-          <div className="mb-8 rounded-3xl border border-green-200 bg-green-50 p-6 text-green-900 shadow-sm">
-            <p className="font-display text-2xl font-bold">
-              Your printed book order is paid
-            </p>
-            <p className="mt-2 leading-7">
-              We&apos;ve received the print checkout. Next, we&apos;ll review
-              the files and prepare the finished book for Australian fulfilment.
-            </p>
-          </div>
+          <CheckoutResultNotice
+            tone="success"
+            title="Your printed book order is paid"
+            body="We've received the print checkout. Next, we'll review the files and prepare the finished book for Australian fulfilment."
+          />
         ) : null}
         {query.print_canceled ? (
-          <div className="mb-8 rounded-3xl border border-star-200 bg-star-50 p-6 text-night-700 shadow-sm">
-            <p className="font-display text-2xl font-bold text-night-800">
-              Print checkout was cancelled
-            </p>
-            <p className="mt-2 leading-7">
-              No payment was taken. Your illustrated book is still ready here
-              whenever you want to choose a print format.
-            </p>
-          </div>
+          <CheckoutResultNotice
+            tone="warning"
+            title="Print checkout was cancelled"
+            body="No payment was taken. Your illustrated book is still ready here whenever you want to order a hardcover."
+          />
         ) : null}
 
         {/* Print order status */}

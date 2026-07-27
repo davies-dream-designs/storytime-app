@@ -65,6 +65,21 @@ describe("address autocomplete API", () => {
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ suggestions: [] });
   });
+
+  it("uses customer-safe copy when suggestions are unavailable", async () => {
+    delete process.env.GOOGLE_PLACES_API_KEY;
+    const { GET } = await import("@/app/api/address/autocomplete/route");
+    const res = await GET(
+      new NextRequest(
+        "http://localhost/api/address/autocomplete?input=1%20Story"
+      )
+    );
+
+    expect(res.status).toBe(503);
+    await expect(res.json()).resolves.toEqual({
+      error: "Address suggestions are unavailable right now.",
+    });
+  });
 });
 
 describe("address details API", () => {

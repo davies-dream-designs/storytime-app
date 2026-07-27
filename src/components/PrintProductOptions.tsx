@@ -62,12 +62,6 @@ export default async function PrintProductOptions({
               : ""}
           </span>
         </div>
-        <div className="flex items-center justify-between gap-3 border-t border-night-100 pt-3">
-          <span className="text-night-500">{t("printProduction")}</span>
-          <span className="text-right font-medium">
-            {quote.productionDays}
-          </span>
-        </div>
       </div>
       {quote.unsupportedReason ? (
         <p className="mt-4 rounded-xl bg-star-50 px-3 py-2 text-sm font-bold text-night-700">

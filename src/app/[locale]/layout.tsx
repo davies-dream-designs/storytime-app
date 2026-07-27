@@ -12,6 +12,13 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "../globals.css";
 
+const clerkAllowedRedirectOrigins = [
+  "https://storycot.com",
+  "https://*.storycot.com",
+  "https://storycot.com.au",
+  "https://www.storycot.com.au",
+];
+
 const fredoka = Fredoka({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
@@ -76,6 +83,7 @@ export default async function LocaleLayout({
   return (
     <ClerkProvider
       localization={clerkLocalization}
+      allowedRedirectOrigins={clerkAllowedRedirectOrigins}
       appearance={{
         variables: storycotTheme.clerk,
       }}

@@ -6,6 +6,18 @@ import { locales } from "./i18n/locales";
 
 const handleI18n = createIntlMiddleware(routing);
 const localePattern = locales.join("|");
+const primaryClerkDomain = "storycot.com";
+
+function isAuHost(hostname: string) {
+  return hostname === "storycot.com.au" || hostname === "www.storycot.com.au";
+}
+
+function getRequestLocale(pathname: string) {
+  const segment = pathname.split("/")[1];
+  return locales.includes(segment as (typeof locales)[number])
+    ? segment
+    : routing.defaultLocale;
+}
 
 const isPublicRoute = createRouteMatcher([
   // Locale-prefixed routes
@@ -23,25 +35,47 @@ const isPublicRoute = createRouteMatcher([
   "/api/stripe/webhook",
 ]);
 
-export default clerkMiddleware(async (auth, req) => {
-  if (req.nextUrl.pathname.startsWith("/api/")) {
-    return NextResponse.next();
+export default clerkMiddleware(
+  async (auth, req) => {
+    if (req.nextUrl.pathname.startsWith("/api/")) {
+      return NextResponse.next();
+    }
+
+    const intlResponse = handleI18n(req);
+
+    // Return locale redirects immediately - don't auth-check paths being redirected
+    // (e.g. /sign-in → /en/sign-in must not hit auth.protect first)
+    if (
+      intlResponse &&
+      intlResponse.status >= 300 &&
+      intlResponse.status < 400
+    ) {
+      return intlResponse;
+    }
+
+    if (!isPublicRoute(req)) {
+      await auth.protect();
+    }
+
+    return intlResponse ?? NextResponse.next();
+  },
+  (req) => {
+    const hostname = req.nextUrl.hostname;
+    const satellite = isAuHost(hostname);
+    const locale = getRequestLocale(req.nextUrl.pathname);
+
+    return {
+      domain: primaryClerkDomain,
+      isSatellite: satellite,
+      signInUrl: satellite
+        ? `https://${primaryClerkDomain}/${locale}/sign-in`
+        : undefined,
+      signUpUrl: satellite
+        ? `https://${primaryClerkDomain}/${locale}/sign-up`
+        : undefined,
+    };
   }
-
-  const intlResponse = handleI18n(req);
-
-  // Return locale redirects immediately - don't auth-check paths being redirected
-  // (e.g. /sign-in → /en/sign-in must not hit auth.protect first)
-  if (intlResponse && intlResponse.status >= 300 && intlResponse.status < 400) {
-    return intlResponse;
-  }
-
-  if (!isPublicRoute(req)) {
-    await auth.protect();
-  }
-
-  return intlResponse ?? NextResponse.next();
-});
+);
 
 export const config = {
   matcher: [

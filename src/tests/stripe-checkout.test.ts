@@ -310,6 +310,9 @@ describe("stripe checkout", () => {
         mode: "payment",
         success_url: "https://dev.storycot.com/en/books/book-1?print_success=1",
         cancel_url: "https://dev.storycot.com/en/books/book-1?print_canceled=1",
+        shipping_address_collection: {
+          allowed_countries: ["AU"],
+        },
         line_items: [
           expect.objectContaining({
             price_data: expect.objectContaining({
@@ -340,7 +343,7 @@ describe("stripe checkout", () => {
         mock: { calls: Array<[Record<string, unknown>]> };
       }
     ).mock.calls[0]?.[0];
-    expect(checkoutParams).not.toHaveProperty("shipping_address_collection");
+    expect(checkoutParams).toHaveProperty("shipping_address_collection");
     expect(mockUpdateBookProject).toHaveBeenCalledWith(
       "book-1",
       expect.objectContaining({
@@ -350,14 +353,13 @@ describe("stripe checkout", () => {
           amountAud: 59.5,
           subtotalAud: 44.35,
           shippingAmountAud: 15.15,
-          shipping: expect.objectContaining({
-            line1: "1 Story Street",
-            countryCode: "AU",
-          }),
           checkoutSessionId: "cs_test_123",
         }),
       })
     );
+    const storedPrintOrder = mockUpdateBookProject.mock.calls[0]?.[1]
+      ?.printOrder as Record<string, unknown>;
+    expect(storedPrintOrder).not.toHaveProperty("shipping");
   });
 
   it("rejects print checkout until an Australian shipping address is supplied", async () => {
@@ -484,7 +486,7 @@ describe("stripe checkout", () => {
     });
   });
 
-  it("creates a Lulu softcover checkout when Lulu print files are ready", async () => {
+  it("rejects non-hardcover print checkout", async () => {
     process.env.STORYCOT_PRINT_PROVIDER = "lulu";
     mockGetBookProjectById.mockResolvedValue({
       id: "book-1",
@@ -522,46 +524,12 @@ describe("stripe checkout", () => {
       })
     );
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(400);
     await expect(res.json()).resolves.toEqual({
-      url: "https://checkout.stripe.test/session",
+      error: "Invalid print book checkout",
     });
-    expect(mockCreateSession).toHaveBeenCalledWith(
-      expect.objectContaining({
-        line_items: [
-          expect.objectContaining({
-            price_data: expect.objectContaining({
-              currency: "aud",
-              unit_amount: 3015,
-            }),
-          }),
-          expect.objectContaining({
-            price_data: expect.objectContaining({
-              currency: "aud",
-              unit_amount: 1234,
-            }),
-            quantity: 1,
-          }),
-        ],
-        metadata: expect.objectContaining({
-          productKey: "softcover",
-          amountAud: "42.49",
-          subtotalAud: "30.15",
-          shippingAmountAud: "12.34",
-        }),
-      })
-    );
-    expect(mockQuoteLuluPrintJob).toHaveBeenCalledWith(
-      expect.objectContaining({
-        pageCount: 32,
-        productKey: "softcover",
-        quantity: 1,
-        shipping: expect.objectContaining({
-          postalCode: "2000",
-          countryCode: "AU",
-        }),
-      })
-    );
+    expect(mockCreateSession).not.toHaveBeenCalled();
+    expect(mockQuoteLuluPrintJob).not.toHaveBeenCalled();
   });
 
   it("rejects Lulu checkout until Lulu-sized print files exist", async () => {

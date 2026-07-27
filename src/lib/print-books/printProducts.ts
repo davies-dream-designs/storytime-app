@@ -1,27 +1,9 @@
 import type { AgeBand, BookProject } from "@/types/printBook";
 
-export type PrintProductKey = "softcover" | "hardcover" | "layflat";
+export type PrintProductKey = "hardcover";
 export type CoverSpineSource = "configured" | "storycot_estimate";
 
 export const PRINT_PRODUCTS = {
-  softcover: {
-    key: "softcover",
-    label: "Softcover",
-    badge: "Best value",
-    provider: "Lulu",
-    format: '8.5" square premium colour paperback',
-    minPageCount: 20,
-    maxPageCount: 300,
-    pageStep: 2,
-    basePages: 24,
-    basePriceAud: 26.95,
-    extraSpreadAud: 0.8,
-    estimatedManufacturingAud: 10.55,
-    estimatedShippingAud: 15.15,
-    productionDays: "4-6 business days",
-    description:
-      "Flexible paperback edition for everyday bedtime reading. Illustrations are already paid for.",
-  },
   hardcover: {
     key: "hardcover",
     label: "Hardcover",
@@ -39,24 +21,6 @@ export const PRINT_PRODUCTS = {
     productionDays: "5-7 business days",
     description:
       "Giftable keepsake edition with a rigid casewrap cover and premium colour pages.",
-  },
-  layflat: {
-    key: "layflat",
-    label: "Layflat",
-    badge: "Premium",
-    provider: "Lulu",
-    format: "21x21cm square layflat",
-    minPageCount: 18,
-    maxPageCount: 122,
-    pageStep: 2,
-    basePages: 24,
-    basePriceAud: 59.95,
-    extraSpreadAud: 1.8,
-    estimatedManufacturingAud: 36,
-    estimatedShippingAud: 8.95,
-    productionDays: "5-8 business days",
-    description:
-      "Premium photo-book style option where spreads open flat for the strongest artwork presentation.",
   },
 } as const satisfies Record<
   PrintProductKey,
@@ -131,10 +95,6 @@ export function getAdjustedPageCountForProduct(
 
 function getUnsupportedReason(pageCount: number, productKey: PrintProductKey) {
   const product = PRINT_PRODUCTS[productKey];
-  if (productKey === "layflat") {
-    return "Layflat is temporarily unavailable in Australia while we source a local print route.";
-  }
-
   if (pageCount < product.minPageCount) {
     return `${product.label} requires at least ${product.minPageCount} print pages. This story has ${pageCount}.`;
   }

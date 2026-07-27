@@ -446,6 +446,9 @@ export async function POST(req: NextRequest) {
       payment_method_types: ["card"],
       mode: "payment",
       billing_address_collection: "required",
+      shipping_address_collection: {
+        allowed_countries: ["AU"],
+      },
       line_items: [
         {
           price_data: {
@@ -500,7 +503,6 @@ export async function POST(req: NextRequest) {
         shippingAmountAud,
         pageCount: quote.pageCount,
         quantity,
-        shipping,
         checkoutSessionId: session.id,
         checkoutStartedAt: new Date().toISOString(),
       },

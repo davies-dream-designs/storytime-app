@@ -4,7 +4,21 @@ import Stripe from "stripe";
 import { db } from "@/lib/db";
 import { submitPrintFulfillment } from "@/lib/print-books/fulfillment";
 import { retrieveCheckoutShipping } from "@/lib/stripe/checkoutShipping";
-import type { PrintBookOrder } from "@/types/printBook";
+import type { PrintBookOrder, PrintFulfillment } from "@/types/printBook";
+
+function withoutStoredShipping(order: PrintBookOrder): PrintBookOrder {
+  const safeOrder = { ...order };
+  delete safeOrder.shipping;
+  return safeOrder;
+}
+
+function withoutStoredFulfillmentPayload(
+  fulfillment: PrintFulfillment
+): PrintFulfillment {
+  const safeFulfillment = { ...fulfillment };
+  delete safeFulfillment.payload;
+  return safeFulfillment;
+}
 
 async function requireAdmin() {
   const { userId } = await auth();
@@ -76,8 +90,8 @@ export async function POST(
 
   const updated = await db.bookProjects.update(project.id, {
     printOrder: {
-      ...orderForFulfillment,
-      fulfillment,
+      ...withoutStoredShipping(orderForFulfillment),
+      fulfillment: withoutStoredFulfillmentPayload(fulfillment),
     },
   });
 

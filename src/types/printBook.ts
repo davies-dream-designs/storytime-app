@@ -168,7 +168,7 @@ export interface BookBilling {
 }
 
 export interface PrintBookOrder {
-  productKey: "softcover" | "hardcover" | "layflat";
+  productKey: "hardcover";
   productLabel: string;
   provider: string;
   format: string;

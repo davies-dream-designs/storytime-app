@@ -71,10 +71,10 @@ function createPaidProject(): BookProject {
     },
     retryCount: 0,
     printOrder: {
-      productKey: "softcover",
-      productLabel: "Softcover",
-      provider: "Prodigi",
-      format: "21x21cm square softcover",
+      productKey: "hardcover",
+      productLabel: "Hardcover",
+      provider: "Lulu",
+      format: '8.5" square hardcover casewrap',
       status: "paid",
       amountAud: 29.95,
       pageCount: 24,
@@ -166,15 +166,15 @@ describe("POST /api/admin/print-orders/[id]/resend", () => {
       "book-1",
       expect.objectContaining({
         printOrder: expect.objectContaining({
-          shipping: expect.objectContaining({
-            name: "Stripe Customer",
-          }),
           fulfillment: expect.objectContaining({
             status: "submitted",
           }),
         }),
       })
     );
+    const persistedPrintOrder = mockDb.bookProjects.update.mock.calls[0]?.[1]
+      ?.printOrder as Record<string, unknown>;
+    expect(persistedPrintOrder).not.toHaveProperty("shipping");
   });
 
   it("resubmits a paid order that has not reached the printer", async () => {
@@ -191,7 +191,7 @@ describe("POST /api/admin/print-orders/[id]/resend", () => {
     expect(mockSubmitPrintFulfillment).toHaveBeenCalledWith({
       project: expect.objectContaining({ id: "book-1" }),
       order: expect.objectContaining({
-        productKey: "softcover",
+        productKey: "hardcover",
         status: "paid",
       }),
     });

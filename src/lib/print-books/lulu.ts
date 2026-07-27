@@ -5,9 +5,7 @@ import type {
 } from "@/types/printBook";
 
 export const LULU_HARDCOVER_PACKAGE_ID = "0850X0850.FC.PRE.CW.080CW444.MXX";
-export const LULU_SOFTCOVER_PACKAGE_ID = "0850X0850.FC.PRE.PB.080CW444.GXX";
 export const LULU_HARDCOVER_MIN_PAGES = 24;
-export const LULU_SOFTCOVER_MIN_PAGES = 20;
 export const LULU_HARDCOVER_TRIM = '8.5" x 8.5"';
 export const LULU_TRIM_WIDTH_IN = 8.5;
 export const LULU_TRIM_HEIGHT_IN = 8.5;
@@ -231,14 +229,6 @@ function getLuluProductSpec(productKey: PrintBookOrder["productKey"]) {
         minPageCount: LULU_HARDCOVER_MIN_PAGES,
         label: "hardcover",
       };
-    case "softcover":
-      return {
-        packageId: LULU_SOFTCOVER_PACKAGE_ID,
-        minPageCount: LULU_SOFTCOVER_MIN_PAGES,
-        label: "softcover",
-      };
-    case "layflat":
-      return undefined;
   }
 }
 
@@ -272,7 +262,7 @@ export function buildLuluPrintJobPayload(input: {
   const productSpec = getLuluProductSpec(order.productKey);
   if (!productSpec) {
     throw new Error(
-      "Lulu fulfillment is currently configured for softcover and hardcover only."
+      "Lulu fulfillment is currently configured for hardcover only."
     );
   }
 

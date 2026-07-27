@@ -19,7 +19,7 @@ import {
   shouldUseImageBatch,
   submitBookImageBatch,
 } from "@/lib/print-books/illustrations";
-import { generateBookPdfs } from "@/lib/print-books/pdf";
+import { generateBookPdfs } from "@/lib/print-books/pdf/rendering";
 import { generateBookEpub } from "@/lib/print-books/epub";
 import {
   captureIllustratedBookCredits,

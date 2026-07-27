@@ -6,17 +6,9 @@ import { locales } from "./i18n/locales";
 
 const handleI18n = createIntlMiddleware(routing);
 const localePattern = locales.join("|");
-const primaryClerkDomain = "storycot.com";
 
 function isAuHost(hostname: string) {
   return hostname === "storycot.com.au" || hostname === "www.storycot.com.au";
-}
-
-function getRequestLocale(pathname: string) {
-  const segment = pathname.split("/")[1];
-  return locales.includes(segment as (typeof locales)[number])
-    ? segment
-    : routing.defaultLocale;
 }
 
 const isPublicRoute = createRouteMatcher([
@@ -60,19 +52,14 @@ export default clerkMiddleware(
     return intlResponse ?? NextResponse.next();
   },
   (req) => {
-    const hostname = req.nextUrl.hostname;
-    const satellite = isAuHost(hostname);
-    const locale = getRequestLocale(req.nextUrl.pathname);
+    const proxyClerk = isAuHost(req.nextUrl.hostname);
 
     return {
-      domain: primaryClerkDomain,
-      isSatellite: satellite,
-      signInUrl: satellite
-        ? `https://${primaryClerkDomain}/${locale}/sign-in`
-        : undefined,
-      signUpUrl: satellite
-        ? `https://${primaryClerkDomain}/${locale}/sign-up`
-        : undefined,
+      proxyUrl: proxyClerk ? `${req.nextUrl.origin}/__clerk` : undefined,
+      frontendApiProxy: {
+        enabled: proxyClerk,
+        path: "/__clerk",
+      },
     };
   }
 );

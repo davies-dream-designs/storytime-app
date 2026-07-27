@@ -33,6 +33,11 @@ Then read in order:
 - Clear completed items from Inbox
 - Push vault: `cd /home/openhands/jake-vault && git add -A && git commit -m "memory: <desc>" && git push origin vault`
 
+**Daily notes are mandatory:**
+- At the start of any meaningful Storycot work, open or create today's `Daily Notes/YYYY-MM-DD.md` in the Obsidian vault so the session has a running log.
+- Before the final response, update that same daily note with shipped work, verification, pushes/deployments, and blockers.
+- Do this even for small cleanup/refactor sessions; project notes are not a substitute for the daily note.
+
 **Context running low / switching models:**
 - Write current WIP to Inbox under "WIP — pick up here next session"
 - Update project note + write daily note + push

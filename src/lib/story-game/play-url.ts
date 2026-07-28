@@ -1,7 +1,7 @@
 import type { StoryGameJson } from "./schema";
 
 export const DEFAULT_STORY_GAME_ENGINE_URL =
-  "https://storygame-lp5m43pfn-davies-dream-designs.vercel.app/";
+  "https://storygame-poc.vercel.app/";
 
 export function getStoryGameEngineUrl() {
   return (

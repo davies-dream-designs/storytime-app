@@ -33,26 +33,53 @@ const story: Story = {
   status: "ready",
 };
 
+const seaStory: Story = {
+  ...story,
+  id: "story-2",
+  title: "Noah and the Little Blue Boat",
+  profileName: "Noah",
+  theme: "ocean kindness",
+  pages: [
+    {
+      pageNumber: 1,
+      text: "Noah sailed a little blue boat across a quiet ocean.",
+      illustrationPrompt: "Noah in a boat",
+    },
+    {
+      pageNumber: 2,
+      text: "A silver fish showed Noah a shell path beside the reef.",
+      illustrationPrompt: "Fish and shell path",
+    },
+    {
+      pageNumber: 3,
+      text: "Noah returned the bright pearl and the harbour sang softly.",
+      illustrationPrompt: "Pearl at harbour",
+    },
+  ],
+};
+
+function tileAt(
+  game: ReturnType<typeof buildStoryGameJson>,
+  x: number,
+  y: number
+) {
+  return game.world.map[y]?.[x];
+}
+
 describe("buildStoryGameJson", () => {
   it("builds a playable story game JSON object from an existing story", () => {
     const game = buildStoryGameJson(story);
 
     expect(game.title).toBe("Mila and the Moon Kite");
-    expect(game.world.name).toBe("Mila's Story World");
+    expect(game.world.name).toBe("Mila's Moonlit Glade");
     expect(game.world.map).toHaveLength(15);
     expect(game.world.map[0]).toHaveLength(20);
-    expect(game.player).toEqual({ name: "Mila", startX: 2, startY: 3 });
+    expect(game.player.name).toBe("Mila");
+    expect(tileAt(game, game.player.startX, game.player.startY)).toBe(0);
     expect(game.npcs).toHaveLength(2);
-    expect(game.items).toEqual([
-      {
-        id: "story-spark",
-        name: "moon courage Spark",
-        x: 17,
-        y: 13,
-        onCollect:
-          "You found the moon courage Spark. It glows with the heart of Mila and the Moon Kite.",
-      },
-    ]);
+    expect(game.npcs[0]?.name).toBe("Moon Keeper");
+    expect(game.items[0]?.name).toBe("Moon Courage Moonbeam");
+    expect(tileAt(game, game.items[0]!.x, game.items[0]!.y)).toBe(0);
     expect(game.quest.completeTrigger).toEqual({
       type: "collect",
       itemId: "story-spark",
@@ -73,6 +100,26 @@ describe("buildStoryGameJson", () => {
     expect(game.quest.completeDialogue).toContain(
       "Mila tucked the moon kite safely home and smiled at the stars."
     );
+  });
+
+  it("varies the world, quest, actors, and map from story content", () => {
+    const moonGame = buildStoryGameJson(story);
+    const seaGame = buildStoryGameJson(seaStory);
+
+    expect(seaGame.world.name).toBe("Noah's Tidepool Trail");
+    expect(seaGame.npcs[0]?.name).toBe("Shell Guide");
+    expect(seaGame.npcs[1]?.name).toBe("Harbour Helper");
+    expect(seaGame.items[0]?.name).toBe("Ocean Kindness Pearl");
+    expect(seaGame.quest.objective).toBe("Find the Ocean Kindness Pearl");
+    expect(seaGame.world.map).not.toEqual(moonGame.world.map);
+    expect(seaGame.player).not.toEqual(moonGame.player);
+    expect({
+      x: seaGame.items[0]?.x,
+      y: seaGame.items[0]?.y,
+    }).not.toEqual({
+      x: moonGame.items[0]?.x,
+      y: moonGame.items[0]?.y,
+    });
   });
 
   it("builds a game engine URL with an inline story payload", async () => {

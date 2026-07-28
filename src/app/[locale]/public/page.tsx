@@ -95,57 +95,58 @@ export default async function PublicGalleryPage({
             </p>
           </section>
         ) : (
-          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
             {storiesByVotes.map((story, index) => (
               <article
                 key={story.id}
-                className="flex min-h-64 flex-col overflow-hidden rounded-2xl border border-night-100 bg-white shadow-sm"
+                className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-night-100 bg-white shadow-sm"
               >
                 {thumbnails[story.id] ? (
-                  <div className="relative aspect-[4/3] w-full overflow-hidden">
+                  <div className="relative aspect-square w-full overflow-hidden">
                     <Image
                       src={thumbnails[story.id]}
                       alt=""
                       fill
-                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                      sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 50vw"
                       className="object-cover"
                     />
                   </div>
                 ) : null}
-                <div className="flex flex-1 flex-col p-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs font-bold uppercase tracking-wide text-star-600">
+                <div className="flex flex-1 flex-col p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-[11px] font-bold uppercase tracking-wide text-star-600">
                       {story.theme}
                     </p>
-                    <span className="rounded-full bg-moon-100 px-2.5 py-1 text-xs font-bold text-night-700">
+                    <span className="shrink-0 rounded-full bg-moon-100 px-2 py-0.5 text-[11px] font-bold text-night-700">
                       #{index + 1}
                     </span>
                   </div>
-                  <h2 className="mt-2 font-display text-2xl font-bold leading-tight text-night-800">
+                  <h2 className="mt-1 line-clamp-2 font-display text-base font-bold leading-tight text-night-800 sm:text-lg">
                     {story.title}
                   </h2>
-                  <p className="mt-2 text-sm text-night-500">
+                  <p className="mt-1 truncate text-xs text-night-500">
                     by {story.publicAuthorName ?? "Storycot creator"}
                   </p>
                   {!thumbnails[story.id] ? (
-                    <p className="mt-4 text-sm leading-6 text-night-600">
-                      {story.pages[0]?.text.slice(0, 180) ?? ""}
-                      {story.pages[0]?.text && story.pages[0].text.length > 180
+                    <p className="mt-2 line-clamp-3 text-xs leading-5 text-night-600">
+                      {story.pages[0]?.text.slice(0, 120) ?? ""}
+                      {story.pages[0]?.text && story.pages[0].text.length > 120
                         ? "..."
                         : ""}
                     </p>
                   ) : null}
                 </div>
-                <div className="space-y-4 border-t border-night-100 p-5 pt-4">
+                <div className="space-y-2 border-t border-night-100 p-3 pt-2">
                   <PublicStoryActions
                     storyId={story.id}
                     storyTitle={story.title}
                     shareToken={story.shareToken}
                     printReadiness={printReadiness[story.id]}
                     initialVotes={voteCounts[story.id] ?? 0}
+                    variant="compact"
                   />
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs text-night-400">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-[11px] text-night-400">
                       {new Date(
                         story.publicReviewedAt ?? story.createdAt
                       ).toLocaleDateString(dateLocale, {
@@ -157,7 +158,7 @@ export default async function PublicGalleryPage({
                     {story.shareToken ? (
                       <Link
                         href={`/s/${story.shareToken}` as string}
-                        className="storycot-btn storycot-btn-secondary storycot-btn-compact"
+                        className="storycot-btn storycot-btn-secondary storycot-btn-compact px-3"
                       >
                         Read
                       </Link>

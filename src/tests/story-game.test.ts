@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildStoryGameJson } from "@/lib/story-game/generator";
+import { buildStoryGamePlayUrl } from "@/lib/story-game/play-url";
 import type { Story } from "@/types";
 
 const story: Story = {
@@ -71,6 +72,22 @@ describe("buildStoryGameJson", () => {
     );
     expect(game.quest.completeDialogue).toContain(
       "Mila tucked the moon kite safely home and smiled at the stars."
+    );
+  });
+
+  it("builds a game engine URL with an inline story payload", async () => {
+    const game = buildStoryGameJson(story);
+    const playUrl = buildStoryGamePlayUrl({
+      engineUrl: "https://game.example/play/",
+      game,
+    });
+
+    const url = new URL(playUrl);
+    const storyParam = url.searchParams.get("story");
+    expect(url.origin).toBe("https://game.example");
+    expect(storyParam).toMatch(/^data:application\/json;charset=utf-8,/);
+    expect(await fetch(storyParam as string).then((res) => res.json())).toEqual(
+      game
     );
   });
 });

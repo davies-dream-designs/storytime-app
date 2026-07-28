@@ -187,6 +187,13 @@ export default async function StoryPage({
                       compact
                     />
                   )}
+                  <Link
+                    href={`/stories/${id}/game` as string}
+                    prefetch={false}
+                    className="storycot-btn storycot-btn-secondary border-moon-200 bg-moon-50 text-night-700 hover:bg-moon-100"
+                  >
+                    Play game
+                  </Link>
                   <ShareButton storyId={id} />
                   <DeleteStoryButton storyId={id} redirectTo="/stories" />
                 </>

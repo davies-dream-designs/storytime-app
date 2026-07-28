@@ -1,5 +1,9 @@
 import type { ChildProfile, Story, Character } from "@/types";
-import type { BookBuildJob, BookProject } from "@/types/printBook";
+import type {
+  BookBuildJob,
+  BookProject,
+  PrintOrderRecord,
+} from "@/types/printBook";
 
 export function createMemoryDb() {
   const profileMap = new Map<string, ChildProfile>();
@@ -7,6 +11,7 @@ export function createMemoryDb() {
   const characterMap = new Map<string, Character>();
   const bookProjectMap = new Map<string, BookProject>();
   const bookBuildJobMap = new Map<string, BookBuildJob>();
+  const printOrderMap = new Map<string, PrintOrderRecord>();
   const emailClaimSet = new Set<string>();
 
   const db = {
@@ -16,6 +21,7 @@ export function createMemoryDb() {
       characterMap.clear();
       bookProjectMap.clear();
       bookBuildJobMap.clear();
+      printOrderMap.clear();
       emailClaimSet.clear();
     },
 
@@ -32,7 +38,10 @@ export function createMemoryDb() {
       async create(profile: ChildProfile): Promise<void> {
         profileMap.set(profile.id, profile);
       },
-      async update(id: string, updates: Partial<ChildProfile>): Promise<ChildProfile | undefined> {
+      async update(
+        id: string,
+        updates: Partial<ChildProfile>
+      ): Promise<ChildProfile | undefined> {
         const current = profileMap.get(id);
         if (!current) return undefined;
         const next = { ...current, ...updates };
@@ -63,7 +72,10 @@ export function createMemoryDb() {
       async create(story: Story): Promise<void> {
         storyMap.set(story.id, story);
       },
-      async update(id: string, updates: Partial<Story>): Promise<Story | undefined> {
+      async update(
+        id: string,
+        updates: Partial<Story>
+      ): Promise<Story | undefined> {
         const current = storyMap.get(id);
         if (!current) return undefined;
         const next = { ...current, ...updates };
@@ -104,7 +116,10 @@ export function createMemoryDb() {
       async create(character: Character): Promise<void> {
         characterMap.set(character.id, character);
       },
-      async update(id: string, updates: Partial<Character>): Promise<Character | undefined> {
+      async update(
+        id: string,
+        updates: Partial<Character>
+      ): Promise<Character | undefined> {
         const current = characterMap.get(id);
         if (!current) return undefined;
         const next = { ...current, ...updates };
@@ -134,7 +149,10 @@ export function createMemoryDb() {
       async replace(id: string, project: BookProject): Promise<void> {
         bookProjectMap.set(id, project);
       },
-      async update(id: string, updates: Partial<BookProject>): Promise<BookProject | undefined> {
+      async update(
+        id: string,
+        updates: Partial<BookProject>
+      ): Promise<BookProject | undefined> {
         const current = bookProjectMap.get(id);
         if (!current) return undefined;
         const next: BookProject = {
@@ -145,7 +163,10 @@ export function createMemoryDb() {
         bookProjectMap.set(id, next);
         return next;
       },
-      async claimReadyEmail(id: string, sentAt: string): Promise<BookProject | undefined> {
+      async claimReadyEmail(
+        id: string,
+        sentAt: string
+      ): Promise<BookProject | undefined> {
         if (emailClaimSet.has(id)) return undefined;
         emailClaimSet.add(id);
         const current = bookProjectMap.get(id);
@@ -178,11 +199,85 @@ export function createMemoryDb() {
       },
     },
 
+    printOrders: {
+      async getById(id: string): Promise<PrintOrderRecord | undefined> {
+        return printOrderMap.get(id);
+      },
+      async getByCheckoutSessionId(
+        checkoutSessionId: string
+      ): Promise<PrintOrderRecord | undefined> {
+        return [...printOrderMap.values()].find(
+          (order) => order.checkoutSessionId === checkoutSessionId
+        );
+      },
+      async getByProjectId(projectId: string): Promise<PrintOrderRecord[]> {
+        return [...printOrderMap.values()]
+          .filter((order) => order.projectId === projectId)
+          .sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+      },
+      async getByStoryId(storyId: string): Promise<PrintOrderRecord[]> {
+        return [...printOrderMap.values()]
+          .filter((order) => order.storyId === storyId)
+          .sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+      },
+      async getByOwnerUserId(ownerUserId: string): Promise<PrintOrderRecord[]> {
+        return [...printOrderMap.values()]
+          .filter((order) => order.ownerUserId === ownerUserId)
+          .sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+          .slice(0, 100);
+      },
+      async getByBuyerUserId(buyerUserId: string): Promise<PrintOrderRecord[]> {
+        return [...printOrderMap.values()]
+          .filter((order) => order.buyerUserId === buyerUserId)
+          .sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+          .slice(0, 100);
+      },
+      async listRecent(limit = 100): Promise<PrintOrderRecord[]> {
+        return [...printOrderMap.values()]
+          .sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+          .slice(0, Math.min(limit, 500));
+      },
+      async create(order: PrintOrderRecord): Promise<void> {
+        printOrderMap.set(order.id, order);
+      },
+      async update(
+        id: string,
+        updates: Partial<PrintOrderRecord>
+      ): Promise<PrintOrderRecord | undefined> {
+        const current = printOrderMap.get(id);
+        if (!current) return undefined;
+        const next: PrintOrderRecord = {
+          ...current,
+          ...updates,
+          updatedAt: updates.updatedAt ?? new Date().toISOString(),
+        };
+        printOrderMap.set(id, next);
+        return next;
+      },
+    },
+
     bookBuildJobs: {
       async getById(id: string): Promise<BookBuildJob | undefined> {
         return bookBuildJobMap.get(id);
       },
-      async getCurrentByProjectId(projectId: string): Promise<BookBuildJob | undefined> {
+      async getCurrentByProjectId(
+        projectId: string
+      ): Promise<BookBuildJob | undefined> {
         return [...bookBuildJobMap.values()].find(
           (j) =>
             j.projectId === projectId &&
@@ -195,7 +290,10 @@ export function createMemoryDb() {
       async replace(id: string, job: BookBuildJob): Promise<void> {
         bookBuildJobMap.set(id, job);
       },
-      async update(id: string, updates: Partial<BookBuildJob>): Promise<BookBuildJob | undefined> {
+      async update(
+        id: string,
+        updates: Partial<BookBuildJob>
+      ): Promise<BookBuildJob | undefined> {
         const current = bookBuildJobMap.get(id);
         if (!current) return undefined;
         const next: BookBuildJob = {

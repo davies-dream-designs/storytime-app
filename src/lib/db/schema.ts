@@ -21,6 +21,7 @@ import type {
   BookAsset,
   BookBilling,
   PrintBookOrder,
+  PrintOrderRecord,
   CharacterBible,
   BookProjectStatus,
   BookBuildMode,
@@ -215,6 +216,52 @@ export const giftOrders = pgTable(
     index("gift_orders_recipient_email_idx").on(t.recipientEmail),
     index("gift_orders_checkout_session_id_idx").on(t.checkoutSessionId),
     index("gift_orders_status_idx").on(t.status),
+  ]
+);
+
+export const printOrders = pgTable(
+  "print_orders",
+  {
+    id: text("id").primaryKey(),
+    type: text("type").$type<PrintOrderRecord["type"]>().notNull(),
+    projectId: text("project_id").notNull(),
+    storyId: text("story_id").notNull(),
+    ownerUserId: text("owner_user_id").notNull(),
+    buyerUserId: text("buyer_user_id"),
+    buyerEmail: text("buyer_email"),
+    productKey: text("product_key")
+      .$type<PrintOrderRecord["productKey"]>()
+      .notNull(),
+    productLabel: text("product_label").notNull(),
+    provider: text("provider").$type<PrintOrderRecord["provider"]>().notNull(),
+    format: text("format").notNull(),
+    status: text("status").$type<PrintOrderRecord["status"]>().notNull(),
+    amountAudCents: integer("amount_aud_cents").notNull(),
+    subtotalAudCents: integer("subtotal_aud_cents").notNull(),
+    shippingAudCents: integer("shipping_aud_cents").notNull(),
+    luluCostAudCents: integer("lulu_cost_aud_cents"),
+    marginAudCents: integer("margin_aud_cents"),
+    pageCount: integer("page_count").notNull(),
+    quantity: integer("quantity").notNull().default(1),
+    checkoutSessionId: text("checkout_session_id"),
+    paymentIntentId: text("payment_intent_id"),
+    billingCountry: text("billing_country"),
+    shipping: jsonb("shipping").$type<PrintOrderRecord["shipping"]>(),
+    fulfillment: jsonb("fulfillment").$type<PrintOrderRecord["fulfillment"]>(),
+    checkoutStartedAt: text("checkout_started_at"),
+    paidAt: text("paid_at"),
+    refundedAt: text("refunded_at"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [
+    index("print_orders_project_id_idx").on(t.projectId),
+    index("print_orders_story_id_idx").on(t.storyId),
+    index("print_orders_owner_user_id_idx").on(t.ownerUserId),
+    index("print_orders_buyer_user_id_idx").on(t.buyerUserId),
+    uniqueIndex("print_orders_checkout_session_id_idx").on(t.checkoutSessionId),
+    index("print_orders_status_idx").on(t.status),
+    index("print_orders_created_at_idx").on(t.createdAt),
   ]
 );
 

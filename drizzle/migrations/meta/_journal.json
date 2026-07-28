@@ -43,6 +43,13 @@
       "when": 1785238215382,
       "tag": "0005_skinny_jocasta",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785274439922,
+      "tag": "0006_motionless_hawkeye",
+      "breakpoints": true
     }
   ]
 }

@@ -19,6 +19,7 @@ import type {
   BookProject,
   BookAsset,
   PrintBookOrder,
+  PrintOrderRecord,
 } from "@/types/printBook";
 import type { GiftOrder } from "@/types/gift";
 import type { ErrorEventRecord, ErrorEventFilters } from "@/lib/errors";
@@ -37,6 +38,7 @@ type CharacterRow = typeof schema.characters.$inferSelect;
 type BookProjectRow = typeof schema.bookProjects.$inferSelect;
 type BookBuildJobRow = typeof schema.bookBuildJobs.$inferSelect;
 type GiftOrderRow = typeof schema.giftOrders.$inferSelect;
+type PrintOrderRow = typeof schema.printOrders.$inferSelect;
 type PublicStoryReportRow = typeof schema.publicStoryReports.$inferSelect;
 type PublicStoryModerationEventRow =
   typeof schema.publicStoryModerationEvents.$inferSelect;
@@ -320,6 +322,74 @@ function giftOrderToRow(gift: GiftOrder) {
     redeemedAt: gift.redeemedAt ?? null,
     createdAt: gift.createdAt,
     updatedAt: gift.updatedAt,
+  };
+}
+
+function rowToPrintOrder(row: PrintOrderRow): PrintOrderRecord {
+  return {
+    id: row.id,
+    type: row.type,
+    projectId: row.projectId,
+    storyId: row.storyId,
+    ownerUserId: row.ownerUserId,
+    buyerUserId: row.buyerUserId ?? undefined,
+    buyerEmail: row.buyerEmail ?? undefined,
+    productKey: row.productKey,
+    productLabel: row.productLabel,
+    provider: row.provider,
+    format: row.format,
+    status: row.status,
+    amountAudCents: row.amountAudCents,
+    subtotalAudCents: row.subtotalAudCents,
+    shippingAudCents: row.shippingAudCents,
+    luluCostAudCents: row.luluCostAudCents ?? undefined,
+    marginAudCents: row.marginAudCents ?? undefined,
+    pageCount: row.pageCount,
+    quantity: row.quantity,
+    checkoutSessionId: row.checkoutSessionId ?? undefined,
+    paymentIntentId: row.paymentIntentId ?? undefined,
+    billingCountry: row.billingCountry ?? undefined,
+    shipping: row.shipping ?? undefined,
+    fulfillment: row.fulfillment ?? undefined,
+    checkoutStartedAt: row.checkoutStartedAt ?? undefined,
+    paidAt: row.paidAt ?? undefined,
+    refundedAt: row.refundedAt ?? undefined,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function printOrderToRow(order: PrintOrderRecord) {
+  return {
+    id: order.id,
+    type: order.type,
+    projectId: order.projectId,
+    storyId: order.storyId,
+    ownerUserId: order.ownerUserId,
+    buyerUserId: order.buyerUserId ?? null,
+    buyerEmail: order.buyerEmail ?? null,
+    productKey: order.productKey,
+    productLabel: order.productLabel,
+    provider: order.provider,
+    format: order.format,
+    status: order.status,
+    amountAudCents: order.amountAudCents,
+    subtotalAudCents: order.subtotalAudCents,
+    shippingAudCents: order.shippingAudCents,
+    luluCostAudCents: order.luluCostAudCents ?? null,
+    marginAudCents: order.marginAudCents ?? null,
+    pageCount: order.pageCount,
+    quantity: order.quantity,
+    checkoutSessionId: order.checkoutSessionId ?? null,
+    paymentIntentId: order.paymentIntentId ?? null,
+    billingCountry: order.billingCountry ?? null,
+    shipping: order.shipping ?? null,
+    fulfillment: order.fulfillment ?? null,
+    checkoutStartedAt: order.checkoutStartedAt ?? null,
+    paidAt: order.paidAt ?? null,
+    refundedAt: order.refundedAt ?? null,
+    createdAt: order.createdAt,
+    updatedAt: order.updatedAt,
   };
 }
 
@@ -722,6 +792,89 @@ export const db = {
         printOrder: r.printOrder as PrintBookOrder,
         updatedAt: r.updatedAt,
       }));
+    },
+  },
+
+  printOrders: {
+    async getById(id: string): Promise<PrintOrderRecord | undefined> {
+      const rows = await getClient()
+        .select()
+        .from(schema.printOrders)
+        .where(eq(schema.printOrders.id, id));
+      return rows[0] ? rowToPrintOrder(rows[0]) : undefined;
+    },
+    async getByCheckoutSessionId(
+      checkoutSessionId: string
+    ): Promise<PrintOrderRecord | undefined> {
+      const rows = await getClient()
+        .select()
+        .from(schema.printOrders)
+        .where(eq(schema.printOrders.checkoutSessionId, checkoutSessionId));
+      return rows[0] ? rowToPrintOrder(rows[0]) : undefined;
+    },
+    async getByProjectId(projectId: string): Promise<PrintOrderRecord[]> {
+      const rows = await getClient()
+        .select()
+        .from(schema.printOrders)
+        .where(eq(schema.printOrders.projectId, projectId))
+        .orderBy(desc(schema.printOrders.createdAt));
+      return rows.map(rowToPrintOrder);
+    },
+    async getByStoryId(storyId: string): Promise<PrintOrderRecord[]> {
+      const rows = await getClient()
+        .select()
+        .from(schema.printOrders)
+        .where(eq(schema.printOrders.storyId, storyId))
+        .orderBy(desc(schema.printOrders.createdAt));
+      return rows.map(rowToPrintOrder);
+    },
+    async getByOwnerUserId(ownerUserId: string): Promise<PrintOrderRecord[]> {
+      const rows = await getClient()
+        .select()
+        .from(schema.printOrders)
+        .where(eq(schema.printOrders.ownerUserId, ownerUserId))
+        .orderBy(desc(schema.printOrders.createdAt))
+        .limit(100);
+      return rows.map(rowToPrintOrder);
+    },
+    async getByBuyerUserId(buyerUserId: string): Promise<PrintOrderRecord[]> {
+      const rows = await getClient()
+        .select()
+        .from(schema.printOrders)
+        .where(eq(schema.printOrders.buyerUserId, buyerUserId))
+        .orderBy(desc(schema.printOrders.createdAt))
+        .limit(100);
+      return rows.map(rowToPrintOrder);
+    },
+    async listRecent(limit = 100): Promise<PrintOrderRecord[]> {
+      const rows = await getClient()
+        .select()
+        .from(schema.printOrders)
+        .orderBy(desc(schema.printOrders.createdAt))
+        .limit(Math.min(limit, 500));
+      return rows.map(rowToPrintOrder);
+    },
+    async create(order: PrintOrderRecord): Promise<void> {
+      await getClient()
+        .insert(schema.printOrders)
+        .values(printOrderToRow(order));
+    },
+    async update(
+      id: string,
+      updates: Partial<PrintOrderRecord>
+    ): Promise<PrintOrderRecord | undefined> {
+      const current = await this.getById(id);
+      if (!current) return undefined;
+      const next: PrintOrderRecord = {
+        ...current,
+        ...updates,
+        updatedAt: updates.updatedAt ?? new Date().toISOString(),
+      };
+      await getClient()
+        .update(schema.printOrders)
+        .set(printOrderToRow(next))
+        .where(eq(schema.printOrders.id, id));
+      return next;
     },
   },
 

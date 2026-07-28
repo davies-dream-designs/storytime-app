@@ -182,6 +182,13 @@ export default function TermsPage() {
             Credits, badges, discounts, or featured placement may be offered at
             Storycot&apos;s discretion and are not guaranteed.
           </p>
+          <p>
+            If you edit a story after public submission, approval, rejection, or
+            delisting, Storycot may remove public/share access and require a new
+            moderation review before the story can appear publicly again.
+            Existing book exports may need to be regenerated before download,
+            print, or public purchase.
+          </p>
         </Section>
 
         <Section title="8. Service availability">

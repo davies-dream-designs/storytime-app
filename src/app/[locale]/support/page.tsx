@@ -140,6 +140,10 @@ export default function SupportPage() {
       q: "Can a public story be reported or removed?",
       a: "Yes. Signed-in readers can report public stories. Storycot can hide, reject, or remove a public story if it includes private details, unsafe content, spam, or material the creator does not have rights to use.",
     },
+    {
+      q: "Can I fix a public story after review?",
+      a: "Yes. You can edit the title, theme, author display name, and story page text from the story page. Saving edits removes public/share access and sends the story back to private so you can resubmit it for review.",
+    },
   ];
 
   const billing: FAQItem[] = [

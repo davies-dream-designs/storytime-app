@@ -26,6 +26,7 @@ import { isStoryPrintRestricted } from "@/lib/ipGuardrails";
 import StoryReader from "./StoryReader";
 import ShareButton from "./ShareButton";
 import PublicSubmissionPanel from "./PublicSubmissionPanel";
+import StoryEditPanel from "./StoryEditPanel";
 import CreatePrintBookButton from "./CreatePrintBookButton";
 import CheckoutResultNotice from "./CheckoutResultNotice";
 import StoryTextExports from "./StoryTextExports";
@@ -472,6 +473,8 @@ export default async function StoryPage({
             />
           </div>
         ) : null}
+
+        {isReady ? <StoryEditPanel story={story} /> : null}
 
         {/* Purchases + downloads - when book is ready */}
         {isBookReady && existingBook ? (

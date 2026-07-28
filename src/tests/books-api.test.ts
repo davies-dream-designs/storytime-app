@@ -412,4 +412,90 @@ describe("/api/books/[id] and /status", () => {
     );
     expect(mockAfter).not.toHaveBeenCalled();
   });
+
+  it("recovers stale running jobs during status polling", async () => {
+    mockIsBookBuildJobStale.mockReturnValue(true);
+    mockDb.bookProjects.getById.mockResolvedValue({
+      ...createBookProject(),
+      status: "composing",
+      completedSpreads: 12,
+      totalSpreads: 12,
+      currentStageLabel: "Weaving the story into a real book...",
+      assets: {
+        proofVersion: 0,
+        activeJobId: "job-1",
+        activeJobStatus: "running",
+      },
+    });
+    mockDb.bookBuildJobs.getById.mockResolvedValue({
+      id: "job-1",
+      projectId: "book-1",
+      userId: "user-1",
+      mode: "full",
+      status: "running",
+      step: 8,
+      token: "token",
+      baseUrl: "http://localhost",
+      createdAt: "2026-07-16T00:00:00.000Z",
+      updatedAt: "2026-07-16T00:00:00.000Z",
+    });
+
+    const { GET } = await import("@/app/api/books/[id]/status/route");
+    const res = await GET(
+      new NextRequest("http://localhost/api/books/book-1/status"),
+      {
+        params: Promise.resolve({ id: "book-1" }),
+      }
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockIsBookBuildJobStale).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "job-1", status: "running" })
+    );
+    expect(mockDispatchBookBuildJob).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "job-1", status: "running" })
+    );
+  });
+
+  it("does not restart fresh running jobs during status polling", async () => {
+    mockIsBookBuildJobStale.mockReturnValue(false);
+    mockDb.bookProjects.getById.mockResolvedValue({
+      ...createBookProject(),
+      status: "composing",
+      completedSpreads: 12,
+      totalSpreads: 12,
+      currentStageLabel: "Weaving the story into a real book...",
+      assets: {
+        proofVersion: 0,
+        activeJobId: "job-1",
+        activeJobStatus: "running",
+      },
+    });
+    mockDb.bookBuildJobs.getById.mockResolvedValue({
+      id: "job-1",
+      projectId: "book-1",
+      userId: "user-1",
+      mode: "full",
+      status: "running",
+      step: 8,
+      token: "token",
+      baseUrl: "http://localhost",
+      createdAt: "2026-07-16T00:00:00.000Z",
+      updatedAt: new Date().toISOString(),
+    });
+
+    const { GET } = await import("@/app/api/books/[id]/status/route");
+    const res = await GET(
+      new NextRequest("http://localhost/api/books/book-1/status"),
+      {
+        params: Promise.resolve({ id: "book-1" }),
+      }
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockIsBookBuildJobStale).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "job-1", status: "running" })
+    );
+    expect(mockDispatchBookBuildJob).not.toHaveBeenCalled();
+  });
 });

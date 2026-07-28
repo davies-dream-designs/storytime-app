@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { dispatchBookBuildJob } from "@/lib/print-books/jobs";
+import {
+  dispatchBookBuildJob,
+  isBookBuildJobStale,
+} from "@/lib/print-books/jobs";
 
 export async function GET(
   _req: NextRequest,
@@ -19,10 +22,14 @@ export async function GET(
 
   if (
     project.assets.activeJobId &&
-    project.assets.activeJobStatus === "queued"
+    (project.assets.activeJobStatus === "queued" ||
+      project.assets.activeJobStatus === "running")
   ) {
     const job = await db.bookBuildJobs.getById(project.assets.activeJobId);
-    if (job?.status === "queued") {
+    if (
+      job?.status === "queued" ||
+      (job?.status === "running" && isBookBuildJobStale(job))
+    ) {
       await dispatchBookBuildJob(job);
     }
   }

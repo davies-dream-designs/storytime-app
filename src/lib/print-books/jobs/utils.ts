@@ -7,7 +7,7 @@ import type {
 } from "@/types/printBook";
 import { getBookProjectStageLabel } from "@/lib/print-books/status";
 
-export const BOOK_JOB_STALE_MS = 20_000;
+export const BOOK_JOB_STALE_MS = 5 * 60 * 1000;
 
 export function getNowIso() {
   return new Date().toISOString();

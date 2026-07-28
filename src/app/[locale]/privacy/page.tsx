@@ -188,8 +188,9 @@ export default function PrivacyPage() {
 
         <Section title="6. Public gallery and reports">
           <p>
-            Public stories can be read by anyone who can access the public
-            gallery or shared story link. This may include story text, images,
+            Public gallery stories and share links are currently limited to
+            illustrated stories with book cover artwork. Anyone who can access
+            the public gallery or shared story link may see story text, images,
             title, theme, author display name, vote counts, and publication
             date. Do not submit private child, school, address, or contact
             details for public review.

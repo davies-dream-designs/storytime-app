@@ -5,7 +5,13 @@ import { useRouter } from "@/i18n/navigation";
 import type { Story } from "@/types";
 import Icon from "@/components/ui/Icon";
 
-export default function PublicSubmissionPanel({ story }: { story: Story }) {
+export default function PublicSubmissionPanel({
+  story,
+  canSubmitPublicly,
+}: {
+  story: Story;
+  canSubmitPublicly: boolean;
+}) {
   const router = useRouter();
   const [authorName, setAuthorName] = useState(
     story.publicAuthorName ?? story.profileName
@@ -64,7 +70,7 @@ export default function PublicSubmissionPanel({ story }: { story: Story }) {
             Public gallery beta
           </p>
           <h2 className="mt-1 font-display text-2xl font-bold text-night-800">
-            Share this story publicly
+            Submit this illustrated story
           </h2>
         </div>
         <span className="rounded-full bg-night-50 px-3 py-1 text-xs font-bold text-night-500">
@@ -104,6 +110,19 @@ export default function PublicSubmissionPanel({ story }: { story: Story }) {
         </div>
       ) : (
         <div className="mt-4 space-y-4">
+          {!canSubmitPublicly ? (
+            <div className="rounded-xl border border-moon-100 bg-moon-50 p-4 text-sm leading-6 text-night-700">
+              <p className="font-bold text-night-800">
+                Public sharing opens after illustration
+              </p>
+              <p className="mt-1">
+                The gallery and leaderboard are for illustrated Storycot books,
+                so readers see a cover and the story keeps its special value.
+                Create an illustrated book before submitting this story.
+              </p>
+            </div>
+          ) : null}
+
           {status === "rejected" && story.publicRejectionReason ? (
             <div className="rounded-xl border border-blush-100 bg-blush-50 p-4 text-sm leading-6 text-blush-700">
               <p className="font-bold">Review note</p>
@@ -157,7 +176,7 @@ export default function PublicSubmissionPanel({ story }: { story: Story }) {
               />
               <span>
                 I understand Storycot may review, feature, sell, or remove
-                public stories under the public gallery beta rules.
+                public illustrated stories under the public gallery beta rules.
               </span>
             </label>
           </div>
@@ -169,7 +188,7 @@ export default function PublicSubmissionPanel({ story }: { story: Story }) {
           <button
             type="button"
             onClick={submitForReview}
-            disabled={!canSubmit || isPending}
+            disabled={!canSubmitPublicly || !canSubmit || isPending}
             className="storycot-btn storycot-btn-primary storycot-btn-compact disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Icon name="share" />

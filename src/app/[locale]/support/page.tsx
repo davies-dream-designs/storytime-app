@@ -114,11 +114,15 @@ export default function SupportPage() {
   const publicGallery: FAQItem[] = [
     {
       q: "Can I make a story public?",
-      a: "Yes, public sharing is in beta. From a finished story page you can submit a story for public review. It will not appear in the public gallery until Storycot approves it.",
+      a: "Yes, public sharing is in beta for illustrated stories. Once a story has an illustrated book with a cover, you can submit it for public review. It will not appear in the public gallery until Storycot approves it.",
+    },
+    {
+      q: "Can I share a plain text story publicly?",
+      a: "Not right now. Public gallery and share links are for illustrated Storycot books, so readers see the cover art and creators have a reason to turn favourite stories into finished books.",
     },
     {
       q: "Why does public sharing need review first?",
-      a: "Public stories can include child names, family details, generated images, or copyrighted ideas by mistake. Review helps keep the gallery safe, original, and suitable for families before anyone else can discover it.",
+      a: "Public illustrated stories can include child names, family details, generated images, or copyrighted ideas by mistake. Review helps keep the gallery safe, original, and suitable for families before anyone else can discover it.",
     },
     {
       q: "Can other people vote for my public story?",
@@ -126,7 +130,7 @@ export default function SupportPage() {
     },
     {
       q: "Are public stories purchasable?",
-      a: "Not yet. Public book purchases are planned for a later beta once moderation, legal wording, and Lulu print-on-demand handling are ready.",
+      a: "Not yet. Public book purchases are planned for a later beta once moderation, legal wording, and Lulu print-on-demand handling are ready. Having an illustrated book and cover is the first eligibility step.",
     },
     {
       q: "Do public gallery winners get paid?",

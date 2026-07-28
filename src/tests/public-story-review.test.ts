@@ -13,6 +13,10 @@ const { mockAuth, mockAdminIdentity, mockDb, mockNotifyPublicStoryOwner } =
       stories: {
         getById: vi.fn(),
         update: vi.fn(),
+        setShareToken: vi.fn(),
+      },
+      bookProjects: {
+        getPublicThumbnailsByStoryIds: vi.fn(),
       },
       publicStoryModerationEvents: {
         create: vi.fn(),
@@ -59,6 +63,10 @@ describe("public story review flow", () => {
       ...readyStory,
       ...updates,
     }));
+    mockDb.stories.setShareToken.mockResolvedValue(undefined);
+    mockDb.bookProjects.getPublicThumbnailsByStoryIds.mockResolvedValue({
+      "story-1": "https://example.com/cover.jpg",
+    });
   });
 
   it("requires every public publishing checklist confirmation", async () => {
@@ -118,6 +126,68 @@ describe("public story review flow", () => {
         metadata: { authorName: "Bailey and family" },
       })
     );
+  });
+
+  it("does not submit text-only stories for public review", async () => {
+    mockDb.bookProjects.getPublicThumbnailsByStoryIds.mockResolvedValue({});
+
+    const { POST } =
+      await import("@/app/api/stories/[id]/public-submission/route");
+    const res = await POST(
+      new NextRequest(
+        "http://localhost/api/stories/story-1/public-submission",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            authorName: "Bailey and family",
+            confirmations: { rights: true, privacy: true, terms: true },
+          }),
+        }
+      ),
+      { params: Promise.resolve({ id: "story-1" }) }
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toMatchObject({
+      error:
+        "Public gallery sharing is for illustrated stories. Create an illustrated book before submitting this story.",
+    });
+    expect(mockDb.stories.update).not.toHaveBeenCalled();
+  });
+
+  it("creates share links only for illustrated stories", async () => {
+    const { POST } = await import("@/app/api/stories/[id]/share/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/stories/story-1/share", {
+        method: "POST",
+      }),
+      { params: Promise.resolve({ id: "story-1" }) }
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockDb.stories.setShareToken).toHaveBeenCalledWith(
+      "story-1",
+      expect.any(String)
+    );
+  });
+
+  it("does not create share links for text-only stories", async () => {
+    mockDb.bookProjects.getPublicThumbnailsByStoryIds.mockResolvedValue({});
+
+    const { POST } = await import("@/app/api/stories/[id]/share/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/stories/story-1/share", {
+        method: "POST",
+      }),
+      { params: Promise.resolve({ id: "story-1" }) }
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toMatchObject({
+      error:
+        "Share links are available once this story has an illustrated book.",
+    });
+    expect(mockDb.stories.setShareToken).not.toHaveBeenCalled();
   });
 
   it("blocks unsafe public submissions before the moderation queue", async () => {

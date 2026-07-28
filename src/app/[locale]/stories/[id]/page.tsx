@@ -118,6 +118,9 @@ export default async function StoryPage({
   const hasDigitalDownload = Boolean(
     existingBook?.assets.digitalDownloadUnlockedAt
   );
+  const shareableThumbnails =
+    await db.bookProjects.getPublicThumbnailsByStoryIds([id]);
+  const hasShareableIllustratedBook = Boolean(shareableThumbnails[id]);
 
   return (
     <>
@@ -192,7 +195,9 @@ export default async function StoryPage({
                     compact
                   />
                 ) : null}
-                <ShareButton storyId={id} />
+                {hasShareableIllustratedBook ? (
+                  <ShareButton storyId={id} />
+                ) : null}
                 <StoryTextExports
                   storyId={id}
                   storyTitle={story.title}
@@ -557,7 +562,12 @@ export default async function StoryPage({
           </section>
         ) : null}
 
-        {isReady ? <PublicSubmissionPanel story={story} /> : null}
+        {isReady ? (
+          <PublicSubmissionPanel
+            story={story}
+            canSubmitPublicly={hasShareableIllustratedBook}
+          />
+        ) : null}
       </main>
     </>
   );

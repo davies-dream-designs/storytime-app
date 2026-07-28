@@ -47,6 +47,17 @@ export async function POST(
     );
   }
 
+  const thumbnails = await db.bookProjects.getPublicThumbnailsByStoryIds([id]);
+  if (!thumbnails[id]) {
+    return NextResponse.json(
+      {
+        error:
+          "Public gallery sharing is for illustrated stories. Create an illustrated book before submitting this story.",
+      },
+      { status: 400 }
+    );
+  }
+
   const body = (await req.json().catch(() => ({}))) as PublicSubmissionBody;
   const confirmations = body.confirmations ?? {};
   if (

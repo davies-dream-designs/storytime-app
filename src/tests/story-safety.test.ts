@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { validateStoryIdeaSafety } from "@/lib/storySafety";
+import {
+  validatePublicStorySafety,
+  validateStoryIdeaSafety,
+} from "@/lib/storySafety";
 
 describe("validateStoryIdeaSafety", () => {
   it("allows benign custom bedtime story ideas", () => {
@@ -43,6 +46,24 @@ describe("validateStoryIdeaSafety", () => {
     expect(result).toMatchObject({
       ok: false,
       category: "bathroom_or_bathing",
+    });
+  });
+
+  it("screens completed public story text and illustration prompts", () => {
+    const result = validatePublicStorySafety({
+      title: "The Garden Trip",
+      theme: "bravery",
+      pages: [
+        {
+          text: "Bailey found a sunny path.",
+          illustrationPrompt: "A child holding a knife beside a dark cave.",
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      category: "violence_or_peril",
     });
   });
 });

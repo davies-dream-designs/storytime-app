@@ -7,7 +7,13 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type { ChildAppearance } from "@/types/profileAppearance";
-import type { StoryPage, StoryIpPolicy, StoryPreset } from "@/types";
+import type {
+  PublicReviewStatus,
+  StoryPage,
+  StoryIpPolicy,
+  StoryPreset,
+  StoryVisibility,
+} from "@/types";
 import type {
   AgeBand,
   Beat,
@@ -66,10 +72,26 @@ export const stories = pgTable(
     status: text("status").$type<"generating" | "ready" | "failed">(),
     generationError: text("generation_error"),
     shareToken: text("share_token"),
+    visibility: text("visibility")
+      .$type<StoryVisibility>()
+      .notNull()
+      .default("private"),
+    publicReviewStatus: text("public_review_status")
+      .$type<PublicReviewStatus>()
+      .notNull()
+      .default("not_submitted"),
+    publicSubmittedAt: text("public_submitted_at"),
+    publicReviewedAt: text("public_reviewed_at"),
+    publicReviewedBy: text("public_reviewed_by"),
+    publicRejectionReason: text("public_rejection_reason"),
+    publicAuthorName: text("public_author_name"),
+    publicTermsAcceptedAt: text("public_terms_accepted_at"),
   },
   (t) => [
     index("stories_user_id_idx").on(t.userId),
     index("stories_profile_id_idx").on(t.profileId),
+    index("stories_public_review_status_idx").on(t.publicReviewStatus),
+    index("stories_public_gallery_idx").on(t.visibility, t.publicReviewStatus),
     uniqueIndex("stories_share_token_idx").on(t.shareToken),
   ]
 );
@@ -216,4 +238,66 @@ export const bookBuildJobs = pgTable(
     updatedAt: text("updated_at").notNull(),
   },
   (t) => [index("book_build_jobs_project_id_idx").on(t.projectId)]
+);
+
+export const publicStoryVotes = pgTable(
+  "public_story_votes",
+  {
+    id: text("id").primaryKey(),
+    storyId: text("story_id").notNull(),
+    userId: text("user_id").notNull(),
+    voteMonth: text("vote_month").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("public_story_votes_story_user_month_idx").on(
+      t.storyId,
+      t.userId,
+      t.voteMonth
+    ),
+    index("public_story_votes_story_month_idx").on(t.storyId, t.voteMonth),
+    index("public_story_votes_user_month_idx").on(t.userId, t.voteMonth),
+  ]
+);
+
+export const publicStoryReports = pgTable(
+  "public_story_reports",
+  {
+    id: text("id").primaryKey(),
+    storyId: text("story_id").notNull(),
+    userId: text("user_id").notNull(),
+    reason: text("reason").notNull(),
+    note: text("note"),
+    status: text("status")
+      .$type<"open" | "reviewed" | "dismissed">()
+      .notNull()
+      .default("open"),
+    createdAt: text("created_at").notNull(),
+    reviewedAt: text("reviewed_at"),
+    reviewedBy: text("reviewed_by"),
+  },
+  (t) => [
+    uniqueIndex("public_story_reports_story_user_idx").on(t.storyId, t.userId),
+    index("public_story_reports_story_status_idx").on(t.storyId, t.status),
+    index("public_story_reports_status_idx").on(t.status),
+  ]
+);
+
+export const publicStoryModerationEvents = pgTable(
+  "public_story_moderation_events",
+  {
+    id: text("id").primaryKey(),
+    storyId: text("story_id").notNull(),
+    actorUserId: text("actor_user_id"),
+    actorLabel: text("actor_label").notNull(),
+    action: text("action").notNull(),
+    note: text("note"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [
+    index("public_story_moderation_events_story_idx").on(t.storyId),
+    index("public_story_moderation_events_created_idx").on(t.createdAt),
+    index("public_story_moderation_events_action_idx").on(t.action),
+  ]
 );

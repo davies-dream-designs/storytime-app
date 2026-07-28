@@ -25,6 +25,7 @@ import { getBookFileRetentionState } from "@/lib/print-books/retention";
 import { isStoryPrintRestricted } from "@/lib/ipGuardrails";
 import StoryReader from "./StoryReader";
 import ShareButton from "./ShareButton";
+import PublicSubmissionPanel from "./PublicSubmissionPanel";
 import CreatePrintBookButton from "./CreatePrintBookButton";
 import CheckoutResultNotice from "./CheckoutResultNotice";
 import StoryTextExports from "./StoryTextExports";
@@ -235,11 +236,7 @@ export default async function StoryPage({
                     )}
                   </>
                 ) : null}
-                <DeleteStoryButton
-                  storyId={id}
-                  redirectTo="/stories"
-                  compact
-                />
+                <DeleteStoryButton storyId={id} redirectTo="/stories" compact />
               </>
             ) : null}
           </div>
@@ -290,7 +287,6 @@ export default async function StoryPage({
               </p>
             </div>
           )}
-
         </div>
 
         {/* Download success / cancel banners */}
@@ -561,6 +557,7 @@ export default async function StoryPage({
           </section>
         ) : null}
 
+        {isReady ? <PublicSubmissionPanel story={story} /> : null}
       </main>
     </>
   );

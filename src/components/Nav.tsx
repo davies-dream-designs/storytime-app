@@ -60,6 +60,7 @@ export default function Nav() {
         : "text-night-700 hover:bg-night-50"
     }`;
   const publicLinks = [
+    { href: "/public", label: "Gallery", icon: "book" },
     { href: "/support", label: "FAQ", icon: "faq" },
     { href: "/privacy", label: "Privacy", icon: "lock" },
     { href: "/terms", label: "Terms", icon: "terms" },

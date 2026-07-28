@@ -32,8 +32,8 @@ export default function TestEmailActions() {
         Test emails
       </h2>
       <p className="text-sm text-night-400 mb-4">
-        Fires both transactional emails (order confirmation + shipped) to your
-        account email.
+        Sends sample transactional and public-gallery emails to your account
+        email.
       </p>
       <button
         onClick={send}

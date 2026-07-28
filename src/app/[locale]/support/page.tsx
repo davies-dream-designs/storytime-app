@@ -111,6 +111,33 @@ export default function SupportPage() {
     },
   ];
 
+  const publicGallery: FAQItem[] = [
+    {
+      q: "Can I make a story public?",
+      a: "Yes, public sharing is in beta. From a finished story page you can submit a story for public review. It will not appear in the public gallery until Storycot approves it.",
+    },
+    {
+      q: "Why does public sharing need review first?",
+      a: "Public stories can include child names, family details, generated images, or copyrighted ideas by mistake. Review helps keep the gallery safe, original, and suitable for families before anyone else can discover it.",
+    },
+    {
+      q: "Can other people vote for my public story?",
+      a: "Yes. Signed-in readers can vote once per story each month. Story creators cannot count votes on their own stories.",
+    },
+    {
+      q: "Are public stories purchasable?",
+      a: "Not yet. Public book purchases are planned for a later beta once moderation, legal wording, and Lulu print-on-demand handling are ready.",
+    },
+    {
+      q: "Do public gallery winners get paid?",
+      a: "No cash payouts are offered during beta. Storycot may offer small rewards such as credits, badges, discounts, or featured placement.",
+    },
+    {
+      q: "Can a public story be reported or removed?",
+      a: "Yes. Signed-in readers can report public stories. Storycot can hide, reject, or remove a public story if it includes private details, unsafe content, spam, or material the creator does not have rights to use.",
+    },
+  ];
+
   const billing: FAQItem[] = [
     {
       q: "How do I buy more credits?",
@@ -154,6 +181,7 @@ export default function SupportPage() {
         <FAQSection title="Illustrated books" items={illustratedBooks} />
         <FAQSection title="Voice narration" items={voiceNarration} />
         <FAQSection title="Hardcover books" items={hardcoverBooks} />
+        <FAQSection title="Public gallery beta" items={publicGallery} />
         <FAQSection title="Billing &amp; refunds" items={billing} />
 
         {/* Contact card */}

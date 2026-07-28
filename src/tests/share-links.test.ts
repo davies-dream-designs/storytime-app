@@ -18,7 +18,7 @@ describe("share links", () => {
 
   it("builds canonical referral URLs", () => {
     expect(buildReferralUrl("user_123")).toBe(
-      "https://storycot.com/?ref=user_123"
+      "https://storycot.com.au/?ref=user_123"
     );
   });
 

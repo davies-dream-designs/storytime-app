@@ -9,10 +9,11 @@ import {
   lt,
   or,
   ilike,
+  sql,
 } from "drizzle-orm";
 import { getClient } from "./client";
 import * as schema from "./schema";
-import type { ChildProfile, Story, Character } from "@/types";
+import type { ChildProfile, Story, Character, StoryPreset } from "@/types";
 import type {
   BookBuildJob,
   BookProject,
@@ -22,6 +23,10 @@ import type { GiftOrder } from "@/types/gift";
 import type { ErrorEventRecord, ErrorEventFilters } from "@/lib/errors";
 import { SEVERITY_RANK, type ErrorSeverity } from "@/lib/errors";
 import { deleteBookProjectAssets } from "@/lib/print-books/storage";
+import {
+  getPublicStoryPrintReadiness,
+  type PublicStoryPrintReadiness,
+} from "@/lib/publicStoryPrintReadiness";
 
 // ── Row ↔ type converters ─────────────────────────────────────────────────────
 
@@ -31,6 +36,9 @@ type CharacterRow = typeof schema.characters.$inferSelect;
 type BookProjectRow = typeof schema.bookProjects.$inferSelect;
 type BookBuildJobRow = typeof schema.bookBuildJobs.$inferSelect;
 type GiftOrderRow = typeof schema.giftOrders.$inferSelect;
+type PublicStoryReportRow = typeof schema.publicStoryReports.$inferSelect;
+type PublicStoryModerationEventRow =
+  typeof schema.publicStoryModerationEvents.$inferSelect;
 
 function rowToProfile(row: ProfileRow): ChildProfile {
   return {
@@ -84,6 +92,14 @@ function rowToStory(row: StoryRow): Story {
     status: row.status ?? undefined,
     generationError: row.generationError ?? undefined,
     shareToken: row.shareToken ?? undefined,
+    visibility: row.visibility,
+    publicReviewStatus: row.publicReviewStatus,
+    publicSubmittedAt: row.publicSubmittedAt ?? undefined,
+    publicReviewedAt: row.publicReviewedAt ?? undefined,
+    publicReviewedBy: row.publicReviewedBy ?? undefined,
+    publicRejectionReason: row.publicRejectionReason ?? undefined,
+    publicAuthorName: row.publicAuthorName ?? undefined,
+    publicTermsAcceptedAt: row.publicTermsAcceptedAt ?? undefined,
   };
 }
 
@@ -105,6 +121,14 @@ function storyToRow(s: Story) {
     status: s.status ?? null,
     generationError: s.generationError ?? null,
     shareToken: s.shareToken ?? null,
+    visibility: s.visibility ?? "private",
+    publicReviewStatus: s.publicReviewStatus ?? "not_submitted",
+    publicSubmittedAt: s.publicSubmittedAt ?? null,
+    publicReviewedAt: s.publicReviewedAt ?? null,
+    publicReviewedBy: s.publicReviewedBy ?? null,
+    publicRejectionReason: s.publicRejectionReason ?? null,
+    publicAuthorName: s.publicAuthorName ?? null,
+    publicTermsAcceptedAt: s.publicTermsAcceptedAt ?? null,
   };
 }
 
@@ -309,6 +333,10 @@ function rowToErrorEvent(row: ErrorEventRow): ErrorEventRecord {
   };
 }
 
+function getPublicVoteMonth(date = new Date()): string {
+  return date.toISOString().slice(0, 7);
+}
+
 // ── db object ─────────────────────────────────────────────────────────────────
 
 export const db = {
@@ -388,6 +416,30 @@ export const db = {
         .from(schema.stories)
         .where(eq(schema.stories.shareToken, token));
       return rows[0] ? rowToStory(rows[0]) : undefined;
+    },
+    async getPublicGallery(limit = 50): Promise<Story[]> {
+      const rows = await getClient()
+        .select()
+        .from(schema.stories)
+        .where(
+          and(
+            eq(schema.stories.visibility, "public"),
+            eq(schema.stories.publicReviewStatus, "approved"),
+            eq(schema.stories.status, "ready")
+          )
+        )
+        .orderBy(desc(schema.stories.publicReviewedAt))
+        .limit(limit);
+      return rows.map(rowToStory);
+    },
+    async getPublicReviewQueue(limit = 100): Promise<Story[]> {
+      const rows = await getClient()
+        .select()
+        .from(schema.stories)
+        .where(eq(schema.stories.publicReviewStatus, "pending_review"))
+        .orderBy(desc(schema.stories.publicSubmittedAt))
+        .limit(limit);
+      return rows.map(rowToStory);
     },
     async create(story: Story): Promise<void> {
       await getClient().insert(schema.stories).values(storyToRow(story));
@@ -488,6 +540,37 @@ export const db = {
         .from(schema.bookProjects)
         .where(eq(schema.bookProjects.sourceStoryId, sourceStoryId));
       return rows.map(rowToBookProject);
+    },
+    async getPublicPrintReadinessByStoryIds(
+      storyIds: string[]
+    ): Promise<Record<string, PublicStoryPrintReadiness>> {
+      if (storyIds.length === 0) return {};
+      const rows = await getClient()
+        .select()
+        .from(schema.bookProjects)
+        .where(inArray(schema.bookProjects.sourceStoryId, storyIds))
+        .orderBy(desc(schema.bookProjects.updatedAt));
+      const projectsByStoryId = new Map<string, BookProject[]>();
+      for (const row of rows) {
+        const project = rowToBookProject(row);
+        const projects = projectsByStoryId.get(project.sourceStoryId) ?? [];
+        projects.push(project);
+        projectsByStoryId.set(project.sourceStoryId, projects);
+      }
+
+      return Object.fromEntries(
+        [...projectsByStoryId.entries()]
+          .map(([storyId, projects]) => [
+            storyId,
+            getPublicStoryPrintReadiness(projects),
+          ])
+          .filter(
+            (
+              entry
+            ): entry is [string, NonNullable<PublicStoryPrintReadiness>] =>
+              Boolean(entry[1])
+          )
+      );
     },
     async getByUserId(userId: string): Promise<BookProject[]> {
       const rows = await getClient()
@@ -936,6 +1019,207 @@ export const db = {
         .set(bookBuildJobToRow(next))
         .where(eq(schema.bookBuildJobs.id, id));
       return next;
+    },
+  },
+
+  publicStoryVotes: {
+    getVoteMonth(date = new Date()): string {
+      return getPublicVoteMonth(date);
+    },
+    async hasUserVoted(
+      storyId: string,
+      userId: string,
+      voteMonth = getPublicVoteMonth()
+    ): Promise<boolean> {
+      const rows = await getClient()
+        .select({ id: schema.publicStoryVotes.id })
+        .from(schema.publicStoryVotes)
+        .where(
+          and(
+            eq(schema.publicStoryVotes.storyId, storyId),
+            eq(schema.publicStoryVotes.userId, userId),
+            eq(schema.publicStoryVotes.voteMonth, voteMonth)
+          )
+        )
+        .limit(1);
+      return rows.length > 0;
+    },
+    async create(storyId: string, userId: string): Promise<boolean> {
+      const result = await getClient()
+        .insert(schema.publicStoryVotes)
+        .values({
+          id: crypto.randomUUID(),
+          storyId,
+          userId,
+          voteMonth: this.getVoteMonth(),
+          createdAt: new Date().toISOString(),
+        })
+        .onConflictDoNothing()
+        .returning({ id: schema.publicStoryVotes.id });
+      return result.length > 0;
+    },
+    async countByStoryIds(
+      storyIds: string[],
+      voteMonth = getPublicVoteMonth()
+    ): Promise<Record<string, number>> {
+      if (storyIds.length === 0) return {};
+      const rows = await getClient()
+        .select({
+          storyId: schema.publicStoryVotes.storyId,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(schema.publicStoryVotes)
+        .where(
+          and(
+            inArray(schema.publicStoryVotes.storyId, storyIds),
+            eq(schema.publicStoryVotes.voteMonth, voteMonth)
+          )
+        )
+        .groupBy(schema.publicStoryVotes.storyId);
+      return Object.fromEntries(rows.map((row) => [row.storyId, row.count]));
+    },
+    async leaderboard(
+      limit = 50,
+      options: { storyPreset?: StoryPreset } = {}
+    ): Promise<{ story: Story; votes: number }[]> {
+      const voteMonth = getPublicVoteMonth();
+      const rows = await getClient()
+        .select({
+          story: schema.stories,
+          votes: sql<number>`count(${schema.publicStoryVotes.id})::int`,
+        })
+        .from(schema.publicStoryVotes)
+        .innerJoin(
+          schema.stories,
+          eq(schema.publicStoryVotes.storyId, schema.stories.id)
+        )
+        .where(
+          and(
+            eq(schema.publicStoryVotes.voteMonth, voteMonth),
+            eq(schema.stories.visibility, "public"),
+            eq(schema.stories.publicReviewStatus, "approved"),
+            eq(schema.stories.status, "ready"),
+            options.storyPreset
+              ? eq(schema.stories.storyPreset, options.storyPreset)
+              : undefined
+          )
+        )
+        .groupBy(schema.stories.id)
+        .orderBy(sql`count(${schema.publicStoryVotes.id}) desc`)
+        .limit(limit);
+      return rows.map((row) => ({
+        story: rowToStory(row.story),
+        votes: row.votes,
+      }));
+    },
+  },
+
+  publicStoryReports: {
+    async create(input: {
+      storyId: string;
+      userId: string;
+      reason: string;
+      note?: string;
+    }): Promise<boolean> {
+      const result = await getClient()
+        .insert(schema.publicStoryReports)
+        .values({
+          id: crypto.randomUUID(),
+          storyId: input.storyId,
+          userId: input.userId,
+          reason: input.reason,
+          note: input.note ?? null,
+          createdAt: new Date().toISOString(),
+        })
+        .onConflictDoNothing()
+        .returning({ id: schema.publicStoryReports.id });
+      return result.length > 0;
+    },
+    async countOpenByStoryId(storyId: string): Promise<number> {
+      const rows = await getClient()
+        .select({ count: sql<number>`count(*)::int` })
+        .from(schema.publicStoryReports)
+        .where(
+          and(
+            eq(schema.publicStoryReports.storyId, storyId),
+            eq(schema.publicStoryReports.status, "open")
+          )
+        );
+      return rows[0]?.count ?? 0;
+    },
+    async listOpen(limit = 100): Promise<PublicStoryReportRow[]> {
+      return getClient()
+        .select()
+        .from(schema.publicStoryReports)
+        .where(eq(schema.publicStoryReports.status, "open"))
+        .orderBy(desc(schema.publicStoryReports.createdAt))
+        .limit(limit);
+    },
+    async closeForStory(input: {
+      storyId: string;
+      status: "reviewed" | "dismissed";
+      reviewedBy: string;
+    }): Promise<number> {
+      const rows = await getClient()
+        .update(schema.publicStoryReports)
+        .set({
+          status: input.status,
+          reviewedAt: new Date().toISOString(),
+          reviewedBy: input.reviewedBy,
+        })
+        .where(
+          and(
+            eq(schema.publicStoryReports.storyId, input.storyId),
+            eq(schema.publicStoryReports.status, "open")
+          )
+        )
+        .returning({ id: schema.publicStoryReports.id });
+      return rows.length;
+    },
+  },
+
+  publicStoryModerationEvents: {
+    async create(input: {
+      storyId: string;
+      actorUserId?: string;
+      actorLabel: string;
+      action: string;
+      note?: string;
+      metadata?: Record<string, unknown>;
+    }): Promise<void> {
+      await getClient()
+        .insert(schema.publicStoryModerationEvents)
+        .values({
+          id: crypto.randomUUID(),
+          storyId: input.storyId,
+          actorUserId: input.actorUserId ?? null,
+          actorLabel: input.actorLabel,
+          action: input.action,
+          note: input.note ?? null,
+          metadata: input.metadata ?? null,
+          createdAt: new Date().toISOString(),
+        });
+    },
+    async listRecent(limit = 100): Promise<PublicStoryModerationEventRow[]> {
+      return getClient()
+        .select()
+        .from(schema.publicStoryModerationEvents)
+        .orderBy(desc(schema.publicStoryModerationEvents.createdAt))
+        .limit(limit);
+    },
+    async listRewardEventsForMonth(
+      voteMonth: string
+    ): Promise<PublicStoryModerationEventRow[]> {
+      return getClient()
+        .select()
+        .from(schema.publicStoryModerationEvents)
+        .where(
+          and(
+            eq(schema.publicStoryModerationEvents.action, "reward_granted"),
+            sql`${schema.publicStoryModerationEvents.metadata}->>'voteMonth' = ${voteMonth}`
+          )
+        )
+        .orderBy(desc(schema.publicStoryModerationEvents.createdAt));
     },
   },
 };

@@ -103,6 +103,26 @@ export function validateStoryIdeaSafety(
   return { ok: true };
 }
 
+export function validatePublicStorySafety(input: {
+  title?: string;
+  theme?: string;
+  premise?: string;
+  notes?: string;
+  pages?: Array<{ text?: string; illustrationPrompt?: string }>;
+}): StoryIdeaSafetyResult {
+  const pageText = input.pages
+    ?.map((page) =>
+      [page.text, page.illustrationPrompt].filter(Boolean).join(" ")
+    )
+    .join("\n");
+
+  return validateStoryIdeaSafety({
+    theme: [input.title, input.theme].filter(Boolean).join("\n"),
+    premise: input.premise,
+    notes: [input.notes, pageText].filter(Boolean).join("\n"),
+  });
+}
+
 export function storyIdeaSafetyErrorResponse(
   result: Exclude<StoryIdeaSafetyResult, { ok: true }>
 ) {

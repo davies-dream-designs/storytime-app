@@ -15,6 +15,7 @@ const isPublicRoute = createRouteMatcher([
   `/(${localePattern})/support(.*)`,
   `/(${localePattern})/privacy(.*)`,
   `/(${localePattern})/terms(.*)`,
+  `/(${localePattern})/public(.*)`,
   `/(${localePattern})/s/(.*)`,
   `/(${localePattern})/gift/(.*)`,
   // Non-prefixed sign-in/up - Clerk may redirect here; intl will then redirect to /en/
@@ -32,11 +33,7 @@ export default clerkMiddleware(async (auth, req) => {
 
   // Return locale redirects immediately - don't auth-check paths being redirected
   // (e.g. /sign-in → /en/sign-in must not hit auth.protect first)
-  if (
-    intlResponse &&
-    intlResponse.status >= 300 &&
-    intlResponse.status < 400
-  ) {
+  if (intlResponse && intlResponse.status >= 300 && intlResponse.status < 400) {
     return intlResponse;
   }
 

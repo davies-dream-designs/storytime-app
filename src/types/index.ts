@@ -79,6 +79,11 @@ export interface StoryIpPolicy {
   originalizedNotes?: string;
 }
 
+export type StoryVisibility = "private" | "share_link" | "public";
+
+export type PublicReviewStatus =
+  "not_submitted" | "pending_review" | "approved" | "rejected";
+
 export const STORY_PRESETS = [
   "tiny-tales",
   "moonlit-adventures",
@@ -108,6 +113,14 @@ export interface Story {
   status?: "generating" | "ready" | "failed";
   generationError?: string;
   shareToken?: string;
+  visibility?: StoryVisibility;
+  publicReviewStatus?: PublicReviewStatus;
+  publicSubmittedAt?: string;
+  publicReviewedAt?: string;
+  publicReviewedBy?: string;
+  publicRejectionReason?: string;
+  publicAuthorName?: string;
+  publicTermsAcceptedAt?: string;
 }
 
 export interface Character {

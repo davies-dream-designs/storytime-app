@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { buildStoryGameJson } from "@/lib/story-game/generator";
+import { buildPremiumStoryGameJson } from "@/lib/story-game/generator";
 import {
   buildStoryGamePlayUrl,
   getStoryGameEngineUrl,
@@ -22,7 +22,7 @@ export default async function StoryGameLaunchPage({
   redirect(
     buildStoryGamePlayUrl({
       engineUrl: getStoryGameEngineUrl(),
-      game: buildStoryGameJson(story),
+      game: await buildPremiumStoryGameJson(story),
     })
   );
 }

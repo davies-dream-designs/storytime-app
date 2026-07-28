@@ -1,6 +1,7 @@
 import type { Story } from "@/types";
 import type { StoryGameJson, StoryGameTile } from "./schema";
 import { STORY_GAME_TILE } from "./schema";
+import { generateStoryGamePlan, type StoryGamePlan } from "./ai-planner";
 
 const MAP_WIDTH = 20;
 const MAP_HEIGHT = 15;
@@ -49,6 +50,10 @@ const ITEM_SPOTS: Point[] = [
   { x: 16, y: 2 },
   { x: 3, y: 12 },
   { x: 15, y: 11 },
+  { x: 6, y: 2 },
+  { x: 11, y: 12 },
+  { x: 14, y: 7 },
+  { x: 4, y: 5 },
 ];
 
 const BIOMES: StoryGameBiome[] = [
@@ -319,6 +324,16 @@ function pickBiome(story: Story): StoryGameBiome {
   return best.score > 0 ? best.biome : FALLBACK_BIOME;
 }
 
+function biomeFromPlan(plan: StoryGamePlan | null, story: Story) {
+  if (!plan) return pickBiome(story);
+  if (plan.biome === "sea") return BIOMES[1] ?? FALLBACK_BIOME;
+  if (plan.biome === "moon" || plan.biome === "cave")
+    return BIOMES[0] ?? FALLBACK_BIOME;
+  if (plan.biome === "sky" || plan.biome === "mountain")
+    return BIOMES[3] ?? FALLBACK_BIOME;
+  return FALLBACK_BIOME;
+}
+
 function pointKey(point: Point): string {
   return `${point.x},${point.y}`;
 }
@@ -376,7 +391,63 @@ function lowerFirst(value: string): string {
   return `${cleaned.charAt(0).toLowerCase()}${cleaned.slice(1)}`;
 }
 
-export function buildStoryGameJson(story: Story): StoryGameJson {
+function slug(value: string): string {
+  return (
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 32) || "item"
+  );
+}
+
+function buildFallbackSteps({
+  questItemName,
+  questItemLower,
+  biome,
+}: {
+  questItemName: string;
+  questItemLower: string;
+  biome: StoryGameBiome;
+}): NonNullable<StoryGameJson["quest"]["steps"]> {
+  return [
+    {
+      type: "talk",
+      objective: `Talk to the ${biome.guideName}`,
+      npcId: "guide",
+      dialogue: [`Please find the ${questItemLower}.`],
+    },
+    {
+      type: "talk",
+      objective: `Ask the ${biome.helperName} for a clue`,
+      npcId: "helper",
+      dialogue: [biome.searchHint],
+    },
+    {
+      type: "collect",
+      objective: `Find the ${questItemLower}`,
+      itemId: "story-spark",
+      onComplete: `You found the ${questItemLower}.`,
+    },
+    {
+      type: "talk",
+      objective: biome.returnHint,
+      npcId: "guide",
+      dialogue: [`You found the ${questItemName}. The story feels brighter.`],
+    },
+    {
+      type: "talk",
+      objective: `Tell the ${biome.helperName} the good news`,
+      npcId: "helper",
+      dialogue: ["The path feels peaceful again."],
+    },
+  ];
+}
+
+export function buildStoryGameJson(
+  story: Story,
+  plan: StoryGamePlan | null = null
+): StoryGameJson {
   const pages = story.pages.length > 0 ? story.pages : [];
   const leadPage = pages[0];
   const finalPage = pages[pages.length - 1];
@@ -394,7 +465,7 @@ export function buildStoryGameJson(story: Story): StoryGameJson {
       .map((page) => page.text)
       .join("|")}`
   );
-  const biome = pickBiome(story);
+  const biome = biomeFromPlan(plan, story);
   const biomeOffset = Math.max(
     0,
     BIOMES.findIndex((item) => item === biome)
@@ -414,9 +485,60 @@ export function buildStoryGameJson(story: Story): StoryGameJson {
     pointKey(helper),
     pointKey(questItem),
   ]);
-  const worldName = `${childName}'s ${biome.worldSuffix}`;
-  const questItemName = itemNameForStory(story, biome);
+  const worldName = plan?.worldName || `${childName}'s ${biome.worldSuffix}`;
+  const questItemName = plan?.itemNames[0] || itemNameForStory(story, biome);
   const questItemLower = lowerFirst(questItemName);
+  const planCollectItems =
+    plan?.questSteps
+      .filter((step) => step.type === "collect")
+      .map((step) => step.itemName)
+      .filter(Boolean)
+      .slice(0, ITEM_SPOTS.length) ?? [];
+  const itemNames =
+    planCollectItems.length > 0
+      ? Array.from(new Set(planCollectItems))
+      : [questItemName];
+  const itemEntries = itemNames.map((name, index) => {
+    const pointBase = pickPoint(ITEM_SPOTS, (seed >> (index + 1)) + index);
+    const point = {
+      x: Math.min(MAP_WIDTH - 2, Math.max(1, pointBase.x - biomeOffset)),
+      y: Math.min(MAP_HEIGHT - 2, Math.max(1, pointBase.y + biomeOffset)),
+    };
+    return {
+      id: index === 0 ? "story-spark" : `story-${slug(name)}`,
+      name,
+      x: point.x,
+      y: point.y,
+      onCollect: `You found the ${lowerFirst(name)}.`,
+    };
+  });
+  const itemIdByName = new Map(itemEntries.map((item) => [item.name, item.id]));
+  const questSteps =
+    plan?.questSteps.map((step) => {
+      if (step.type === "collect") {
+        const itemId =
+          itemIdByName.get(step.itemName) ??
+          itemEntries[0]?.id ??
+          "story-spark";
+        return {
+          type: "collect" as const,
+          objective: step.objective,
+          itemId,
+          onComplete: step.onComplete,
+        };
+      }
+      return {
+        type: "talk" as const,
+        objective: step.objective,
+        npcId: step.npc === "helper" ? "helper" : "guide",
+        dialogue: step.dialogue,
+      };
+    }) ??
+    buildFallbackSteps({
+      questItemName,
+      questItemLower,
+      biome,
+    });
 
   return {
     title: story.title,
@@ -433,49 +555,67 @@ export function buildStoryGameJson(story: Story): StoryGameJson {
     npcs: [
       {
         id: "guide",
-        name: biome.guideName,
+        name: plan?.guideName || biome.guideName,
         x: guide.x,
         y: guide.y,
         color: biome.colors.guide,
-        dialogue: [
+        dialogue: plan?.npcDialogue.guide ?? [
           `Hi ${childName}. This place is built from your story, ${story.title}.`,
           `It begins here: "${stripTrailingPunctuation(leadSentence)}."`,
           `Please find the ${questItemLower}. It belongs in the heart of this story.`,
         ],
+        roamRadius: 2,
       },
       {
         id: "helper",
-        name: biome.helperName,
+        name: plan?.helperName || biome.helperName,
         x: helper.x,
         y: helper.y,
         color: biome.colors.helper,
-        dialogue: [
+        dialogue: plan?.npcDialogue.helper ?? [
           `I am looking for clues from ${story.title}.`,
           biome.searchHint,
         ],
+        roamRadius: 2,
       },
     ],
-    items: [
-      {
-        id: "story-spark",
-        name: questItemName,
-        x: questItem.x,
-        y: questItem.y,
-        onCollect: `You found the ${questItemLower}.`,
-      },
-    ],
+    items:
+      itemEntries.length > 0
+        ? itemEntries
+        : [
+            {
+              id: "story-spark",
+              name: questItemName,
+              x: questItem.x,
+              y: questItem.y,
+              onCollect: `You found the ${questItemLower}.`,
+            },
+          ],
     quest: {
-      objective: `Find the ${questItemLower}`,
+      objective: questSteps[0]?.objective ?? `Find the ${questItemLower}`,
+      steps: questSteps,
       completeTrigger: { type: "collect", itemId: "story-spark" },
       completeNpcId: "guide",
       returnObjective: biome.returnHint,
-      completeTitle: "Quest Complete",
-      completeMessage: `${childName} returned the ${questItemLower} and brought ${story.title} safely home.`,
-      completeDialogue: [
+      completeTitle: plan?.completeTitle || "Quest Complete",
+      completeMessage:
+        plan?.completeMessage ||
+        `${childName} returned the ${questItemLower} and brought ${story.title} safely home.`,
+      completeDialogue: plan?.completeDialogue ?? [
         `You found the ${questItemLower}, ${childName}.`,
         `The story ends with this moment: "${stripTrailingPunctuation(finalSentence)}."`,
         "The world feels complete again.",
       ],
     },
   };
+}
+
+export async function buildPremiumStoryGameJson(
+  story: Story
+): Promise<StoryGameJson> {
+  try {
+    return buildStoryGameJson(story, await generateStoryGamePlan(story));
+  } catch {
+    return buildStoryGameJson(story);
+  }
 }

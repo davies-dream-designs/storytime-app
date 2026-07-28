@@ -7,6 +7,7 @@ export interface StoryGameNpc {
   y: number;
   color: number;
   dialogue: string[];
+  roamRadius?: number;
 }
 
 export interface StoryGameItem {
@@ -44,6 +45,20 @@ export interface StoryGameJson {
   items: StoryGameItem[];
   quest: {
     objective: string;
+    steps?: Array<
+      | {
+          type: "collect";
+          objective: string;
+          itemId: string;
+          onComplete?: string;
+        }
+      | {
+          type: "talk";
+          objective: string;
+          npcId: string;
+          dialogue: string[];
+        }
+    >;
     completeTrigger: {
       type: "collect";
       itemId: string;

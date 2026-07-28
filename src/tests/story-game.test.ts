@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildStoryGameJson } from "@/lib/story-game/generator";
+import { validateStoryGamePlan } from "@/lib/story-game/ai-planner";
 import { buildStoryGamePlayUrl } from "@/lib/story-game/play-url";
 import type { Story } from "@/types";
 
@@ -118,7 +119,8 @@ describe("buildStoryGameJson", () => {
     const game = buildStoryGameJson(story);
 
     expect(game.items[0]?.name).not.toContain("Moon Courage");
-    expect(game.quest.objective).toBe("Find the moonbeam");
+    expect(game.quest.objective).toBe("Talk to the Moon Keeper");
+    expect(game.quest.steps).toHaveLength(5);
     expect(game.items[0]?.onCollect).toBe("You found the moonbeam.");
     expect(game.quest.returnObjective).toBe(
       "Bring the moonbeam back to the Moon Keeper."
@@ -138,7 +140,8 @@ describe("buildStoryGameJson", () => {
     expect(seaGame.npcs[0]?.name).toBe("Shell Guide");
     expect(seaGame.npcs[1]?.name).toBe("Harbour Helper");
     expect(seaGame.items[0]?.name).toBe("Pearl");
-    expect(seaGame.quest.objective).toBe("Find the pearl");
+    expect(seaGame.quest.objective).toBe("Talk to the Shell Guide");
+    expect(seaGame.quest.steps).toHaveLength(5);
     expect(seaGame.world.map).not.toEqual(moonGame.world.map);
     expect(seaGame.player).not.toEqual(moonGame.player);
     expect({
@@ -148,6 +151,78 @@ describe("buildStoryGameJson", () => {
       x: moonGame.items[0]?.x,
       y: moonGame.items[0]?.y,
     });
+  });
+
+  it("builds a longer multi-step game from a validated AI plan", () => {
+    const plan = validateStoryGamePlan({
+      biome: "sea",
+      worldName: "Noah's Pearl Harbour",
+      guideName: "Shell Guide",
+      helperName: "Reef Friend",
+      itemNames: ["Blue Sail", "Pearl", "Harbour Bell"],
+      npcDialogue: {
+        guide: ["The harbour needs your help."],
+        helper: ["I saw a clue beside the reef."],
+      },
+      questSteps: [
+        {
+          type: "talk",
+          objective: "Talk to the Shell Guide",
+          npc: "guide",
+          dialogue: ["The boat is missing its blue sail."],
+        },
+        {
+          type: "collect",
+          objective: "Find the blue sail",
+          itemName: "Blue Sail",
+          onComplete: "You found the blue sail.",
+        },
+        {
+          type: "talk",
+          objective: "Ask Reef Friend about the pearl",
+          npc: "helper",
+          dialogue: ["The pearl rolled near the tidepool."],
+        },
+        {
+          type: "collect",
+          objective: "Find the pearl",
+          itemName: "Pearl",
+          onComplete: "You found the pearl.",
+        },
+        {
+          type: "collect",
+          objective: "Ring the harbour bell",
+          itemName: "Harbour Bell",
+          onComplete: "The harbour bell rings softly.",
+        },
+      ],
+      completeTitle: "Harbour Restored",
+      completeMessage: "Noah helped the harbour glow again.",
+      completeDialogue: ["The story feels calm again."],
+    });
+
+    const game = buildStoryGameJson(seaStory, plan);
+
+    expect(game.world.name).toBe("Noah's Pearl Harbour");
+    expect(game.npcs[0]?.name).toBe("Shell Guide");
+    expect(game.npcs[0]?.roamRadius).toBe(2);
+    expect(game.items.map((item) => item.name)).toEqual([
+      "Blue Sail",
+      "Pearl",
+      "Harbour Bell",
+    ]);
+    expect(game.quest.steps).toHaveLength(5);
+    expect(game.quest.steps?.[0]).toMatchObject({
+      type: "talk",
+      objective: "Talk to the Shell Guide",
+      npcId: "guide",
+    });
+    expect(game.quest.steps?.[1]).toMatchObject({
+      type: "collect",
+      objective: "Find the blue sail",
+      itemId: "story-spark",
+    });
+    expect(game.quest.completeTitle).toBe("Harbour Restored");
   });
 
   it("builds a game engine URL with an inline story payload", async () => {

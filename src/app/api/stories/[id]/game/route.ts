@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { buildStoryGameJson } from "@/lib/story-game/generator";
+import { buildPremiumStoryGameJson } from "@/lib/story-game/generator";
 
 export async function GET(
   _req: Request,
@@ -24,7 +24,7 @@ export async function GET(
     );
   }
 
-  return NextResponse.json(buildStoryGameJson(story), {
+  return NextResponse.json(await buildPremiumStoryGameJson(story), {
     headers: {
       "Cache-Control": "private, no-store",
     },

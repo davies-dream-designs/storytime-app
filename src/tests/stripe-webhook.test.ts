@@ -31,6 +31,10 @@ const mockDb = {
     getByToken: vi.fn(),
     update: vi.fn(),
   },
+  printOrders: {
+    getByCheckoutSessionId: vi.fn(),
+    update: vi.fn(),
+  },
   stories: {
     getById: vi.fn(),
   },
@@ -140,6 +144,7 @@ describe("Stripe checkout webhook", () => {
     vi.clearAllMocks();
     process.env.STRIPE_SECRET_KEY = "sk_test_123";
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_123";
+    process.env.NEXT_PUBLIC_APP_URL = "https://storycot.com";
     mockDb.bookProjects.getById.mockResolvedValue(createProject());
     mockDb.bookProjects.update.mockResolvedValue(undefined);
     mockDb.giftOrders.claimPaid.mockResolvedValue(undefined);
@@ -158,6 +163,8 @@ describe("Stripe checkout webhook", () => {
       updatedAt: "2026-07-20T00:00:00.000Z",
       ...updates,
     }));
+    mockDb.printOrders.getByCheckoutSessionId.mockResolvedValue(undefined);
+    mockDb.printOrders.update.mockResolvedValue(undefined);
     mockDb.stories.getById.mockResolvedValue({ title: "Moonlight Garden" });
     mockGetUser.mockResolvedValue({
       firstName: "Buyer",
@@ -411,6 +418,116 @@ describe("Stripe checkout webhook", () => {
       expect.anything()
     );
     expect(mockSendGiftCreditsEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks public print orders paid and submits Lulu fulfillment", async () => {
+    mockDb.printOrders.getByCheckoutSessionId.mockResolvedValue({
+      id: "print-order-1",
+      type: "public_purchase",
+      projectId: "book-1",
+      storyId: "story-1",
+      ownerUserId: "owner-1",
+      buyerUserId: "buyer-1",
+      buyerEmail: "buyer@example.com",
+      productKey: "hardcover",
+      productLabel: "Hardcover",
+      provider: "lulu",
+      format: '8.5" square hardcover casewrap',
+      status: "checkout_started",
+      amountAudCents: 5195,
+      subtotalAudCents: 3995,
+      shippingAudCents: 1200,
+      luluCostAudCents: 3000,
+      marginAudCents: 1800,
+      pageCount: 24,
+      quantity: 1,
+      checkoutSessionId: "cs_test_123",
+      createdAt: "2026-07-28T00:00:00.000Z",
+      updatedAt: "2026-07-28T00:00:00.000Z",
+    });
+    mockDb.bookProjects.getById.mockResolvedValue({
+      ...createProject(),
+      userId: "owner-1",
+    });
+    mockDb.stories.getById.mockResolvedValue({
+      title: "Moonlight Garden",
+      shareToken: "share-1",
+    });
+    mockConstructEvent.mockReturnValue({
+      type: "checkout.session.completed",
+      data: {
+        object: createCheckoutSession({
+          metadata: {
+            checkoutType: "public_print_book",
+            userId: "buyer-1",
+            buyerUserId: "buyer-1",
+            ownerUserId: "owner-1",
+            storyId: "story-1",
+            projectId: "book-1",
+            productKey: "hardcover",
+          },
+          collected_information: {
+            business_name: null,
+            individual_name: null,
+            shipping_details: {
+              name: "Public Buyer",
+              address: {
+                city: "Adelaide",
+                country: "AU",
+                line1: "8 Public Road",
+                line2: null,
+                postal_code: "5000",
+                state: "SA",
+              },
+            },
+          },
+        }),
+      },
+    });
+
+    const { POST } = await import("@/app/api/stripe/webhook/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/stripe/webhook", {
+        method: "POST",
+        headers: { "stripe-signature": "sig_test" },
+        body: "{}",
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockSubmitPrintFulfillment).toHaveBeenCalledWith({
+      project: expect.objectContaining({ id: "book-1" }),
+      order: expect.objectContaining({
+        amountAud: 51.95,
+        subtotalAud: 39.95,
+        shippingAmountAud: 12,
+        shipping: expect.objectContaining({
+          name: "Public Buyer",
+          city: "Adelaide",
+        }),
+      }),
+    });
+    expect(mockDb.printOrders.update).toHaveBeenCalledWith(
+      "print-order-1",
+      expect.objectContaining({
+        status: "fulfillment_submitted",
+        paymentIntentId: "pi_test_123",
+        paidAt: expect.any(String),
+        fulfillment: expect.objectContaining({
+          provider: "lulu",
+          status: "submitted",
+          externalOrderId: "ord_123",
+        }),
+      })
+    );
+    expect(mockDb.bookProjects.update).not.toHaveBeenCalled();
+    expect(mockSendPrintOrderConfirmedEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toEmail: "buyer@example.com",
+        storyTitle: "Moonlight Garden",
+        trackUrl: "https://storycot.com/s/share-1",
+      })
+    );
   });
 
   it("does not repeat gift referral or email side effects for duplicate checkout webhooks", async () => {

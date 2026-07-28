@@ -34,8 +34,19 @@ export default function PublicStoryActions({
   const [message, setMessage] = useState<string | null>(null);
   const [shareState, setShareState] = useState<"idle" | "copied">("idle");
   const [reportOpen, setReportOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [reason, setReason] =
     useState<(typeof reportReasons)[number]["value"]>("privacy");
+  const [shipping, setShipping] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    line1: "",
+    line2: "",
+    city: "",
+    state: "",
+    postalCode: "",
+  });
   const [isPending, startTransition] = useTransition();
 
   function getShareUrl() {
@@ -95,6 +106,82 @@ export default function PublicStoryActions({
     });
   }
 
+  function updateShipping(key: keyof typeof shipping, value: string) {
+    setShipping((current) => ({ ...current, [key]: value }));
+  }
+
+  function startPublicCheckout() {
+    if (!printReadiness?.ready) return;
+    setMessage(null);
+    startTransition(async () => {
+      const res = await fetch(`/api/public-stories/${storyId}/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productKey: "hardcover",
+          quantity: 1,
+          shipping: {
+            ...shipping,
+            countryCode: "AU",
+          },
+        }),
+      });
+      const body = (await res.json().catch(() => null)) as {
+        error?: string;
+        url?: string;
+      } | null;
+      if (!res.ok || !body?.url) {
+        setMessage(body?.error ?? "Could not start print checkout.");
+        return;
+      }
+      window.location.href = body.url;
+    });
+  }
+
+  const checkoutForm = checkoutOpen ? (
+    <div className="rounded-xl border border-night-100 bg-night-50 p-3">
+      <div className="grid gap-2 sm:grid-cols-2">
+        {(
+          [
+            ["name", "Name"],
+            ["email", "Email"],
+            ["phone", "Phone"],
+            ["line1", "Address"],
+            ["line2", "Address 2"],
+            ["city", "City"],
+            ["state", "State"],
+            ["postalCode", "Postcode"],
+          ] as const
+        ).map(([key, label]) => (
+          <label
+            key={key}
+            className={
+              key === "line1" || key === "line2" ? "sm:col-span-2" : ""
+            }
+          >
+            <span className="block text-[11px] font-bold uppercase tracking-wide text-night-400">
+              {label}
+            </span>
+            <input
+              value={shipping[key]}
+              onChange={(event) => updateShipping(key, event.target.value)}
+              className="mt-1 w-full rounded-lg border border-night-200 bg-white px-2 py-2 text-sm text-night-800 outline-none focus:border-star-400 focus:ring-2 focus:ring-star-100"
+            />
+          </label>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={startPublicCheckout}
+        disabled={isPending}
+        className="storycot-btn storycot-btn-primary storycot-btn-compact mt-3"
+      >
+        <Icon name="print" />
+        Checkout
+      </button>
+    </div>
+  ) : null;
+
   async function copyShareLink() {
     const url = getShareUrl();
     if (!url) return;
@@ -149,6 +236,21 @@ export default function PublicStoryActions({
           ) : null}
           <button
             type="button"
+            onClick={() => setCheckoutOpen((open) => !open)}
+            disabled={isPending || !printReadiness?.ready}
+            className="storycot-btn storycot-btn-secondary storycot-btn-compact px-3 disabled:cursor-not-allowed disabled:opacity-50"
+            title={
+              printReadiness?.ready
+                ? "Buy a printed hardcover"
+                : (printReadiness?.detail ??
+                  "Public book purchase flow is not enabled yet")
+            }
+          >
+            <Icon name="print" />
+            Buy
+          </button>
+          <button
+            type="button"
             onClick={() => setReportOpen((open) => !open)}
             disabled={isPending}
             className="storycot-btn storycot-btn-secondary storycot-btn-compact px-3"
@@ -156,6 +258,7 @@ export default function PublicStoryActions({
             Report
           </button>
         </div>
+        {checkoutForm}
         {reportOpen ? (
           <div className="rounded-xl border border-night-100 bg-night-50 p-3">
             <label className="block text-xs font-bold uppercase tracking-wide text-night-400">
@@ -232,17 +335,18 @@ export default function PublicStoryActions({
         ) : null}
         <button
           type="button"
-          disabled
-          className="storycot-btn storycot-btn-secondary storycot-btn-compact opacity-50"
+          onClick={() => setCheckoutOpen((open) => !open)}
+          disabled={isPending || !printReadiness?.ready}
+          className="storycot-btn storycot-btn-secondary storycot-btn-compact disabled:cursor-not-allowed disabled:opacity-50"
           title={
             printReadiness?.ready
-              ? "Print-ready; public checkout is not enabled yet"
+              ? "Buy a printed hardcover"
               : (printReadiness?.detail ??
                 "Public book purchase flow is not enabled yet")
           }
         >
           <Icon name="print" />
-          {printReadiness?.ready ? "Print ready" : "Buy soon"}
+          {printReadiness?.ready ? "Buy" : "Buy soon"}
         </button>
         <button
           type="button"
@@ -253,6 +357,7 @@ export default function PublicStoryActions({
           Report
         </button>
       </div>
+      {checkoutForm}
       {reportOpen ? (
         <div className="rounded-xl border border-night-100 bg-night-50 p-3">
           <label className="block text-xs font-bold uppercase tracking-wide text-night-400">

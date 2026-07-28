@@ -205,7 +205,7 @@ export async function sendPublicStoryNotificationEmail(input: {
           </tr>
           <tr>
             <td style="background:#ffffff;border:1px solid #ede9fe;border-radius:18px;padding:40px 36px;box-shadow:0 14px 34px rgba(45,32,88,0.08);">
-              <p style="margin:0 0 8px;font-size:13px;font-weight:800;letter-spacing:0.08em;color:#7c3aed;text-transform:uppercase;">Public gallery beta</p>
+              <p style="margin:0 0 8px;font-size:13px;font-weight:800;letter-spacing:0.08em;color:#7c3aed;text-transform:uppercase;">Public gallery</p>
               <h1 style="margin:0 0 16px;font-size:30px;font-weight:800;color:#1e1344;line-height:1.18;">${safeHeadline}</h1>
               <p style="margin:0 0 8px;font-size:15px;font-weight:800;color:#1e1344;">${safeTitle}</p>
               <p style="margin:0 0 28px;font-size:16px;color:#5b4e8a;line-height:1.65;">Hi ${safeName}, ${safeBody}</p>

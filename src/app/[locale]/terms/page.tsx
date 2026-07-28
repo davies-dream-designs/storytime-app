@@ -152,11 +152,11 @@ export default function TermsPage() {
           </p>
         </Section>
 
-        <Section title="7. Public gallery beta">
+        <Section title="7. Public gallery">
           <p>
             You can choose to submit an illustrated story for public review once
             it has a generated book cover. Plain text stories are not eligible
-            for public gallery listing or public share links during this beta.
+            for public gallery listing or public share links.
             Public stories do not appear in the gallery until we approve them.
             We may reject, hide, delist, or remove public stories at our
             discretion, including after user reports.
@@ -172,12 +172,12 @@ export default function TermsPage() {
             You still own the content you create. For public stories, you grant
             Storycot a licence to display, host, promote, feature, moderate, and
             share the illustrated story and related book cover/images as part of
-            the public gallery beta. If public book purchases are later enabled,
+            the public gallery. If public book purchases are later enabled,
             this licence will also need to cover printing, selling, and
             fulfilling copies before purchase is turned on.
           </p>
           <p>
-            Public gallery rewards are promotional only during beta. We do not
+            Public gallery rewards are promotional only. We do not
             currently offer royalties or cash payouts for public stories.
             Credits, badges, discounts, or featured placement may be offered at
             Storycot&apos;s discretion and are not guaranteed.

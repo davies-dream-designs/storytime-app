@@ -67,7 +67,7 @@ export default function PublicSubmissionPanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-star-600">
-            Public gallery beta
+            Public gallery
           </p>
           <h2 className="mt-1 font-display text-2xl font-bold text-night-800">
             Submit this illustrated story
@@ -176,7 +176,7 @@ export default function PublicSubmissionPanel({
               />
               <span>
                 I understand Storycot may review, feature, sell, or remove
-                public illustrated stories under the public gallery beta rules.
+                public illustrated stories under the public gallery rules.
               </span>
             </label>
           </div>

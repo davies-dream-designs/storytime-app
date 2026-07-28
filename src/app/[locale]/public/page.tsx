@@ -63,15 +63,15 @@ export default async function PublicGalleryPage({
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-sm font-bold uppercase tracking-wide text-star-600">
-              Beta
+              Community
             </p>
             <h1 className="font-display text-4xl font-bold text-night-800">
               Public gallery
             </h1>
             <p className="mt-2 max-w-2xl text-night-500">
               Approved Storycot stories from the community. Voting,
-              leaderboards, and public book purchases will build on this review
-              flow.
+              leaderboards, and public book purchases build on this review
+              process.
             </p>
           </div>
           <Link

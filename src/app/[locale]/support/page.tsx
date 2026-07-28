@@ -114,7 +114,7 @@ export default function SupportPage() {
   const publicGallery: FAQItem[] = [
     {
       q: "Can I make a story public?",
-      a: "Yes, public sharing is in beta for illustrated stories. Once a story has an illustrated book with a cover, you can submit it for public review. It will not appear in the public gallery until Storycot approves it.",
+      a: "Yes. Once a story has an illustrated book with a cover, you can submit it for public review. It will not appear in the public gallery until Storycot approves it.",
     },
     {
       q: "Can I share a plain text story publicly?",
@@ -130,11 +130,11 @@ export default function SupportPage() {
     },
     {
       q: "Are public stories purchasable?",
-      a: "Not yet. Public book purchases are planned for a later beta once moderation, legal wording, and Lulu print-on-demand handling are ready. Having an illustrated book and cover is the first eligibility step.",
+      a: "Not yet. Public book purchases are planned once moderation, legal wording, pricing safeguards, and Lulu print-on-demand handling are ready. Having an illustrated book and cover is the first eligibility step.",
     },
     {
       q: "Do public gallery winners get paid?",
-      a: "No cash payouts are offered during beta. Storycot may offer small rewards such as credits, badges, discounts, or featured placement.",
+      a: "No cash payouts are offered for public gallery rewards. Storycot may offer small promotional rewards such as credits, badges, discounts, or featured placement.",
     },
     {
       q: "Can a public story be reported or removed?",
@@ -189,7 +189,7 @@ export default function SupportPage() {
         <FAQSection title="Illustrated books" items={illustratedBooks} />
         <FAQSection title="Voice narration" items={voiceNarration} />
         <FAQSection title="Hardcover books" items={hardcoverBooks} />
-        <FAQSection title="Public gallery beta" items={publicGallery} />
+        <FAQSection title="Public gallery" items={publicGallery} />
         <FAQSection title="Billing &amp; refunds" items={billing} />
 
         {/* Contact card */}

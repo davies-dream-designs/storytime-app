@@ -151,51 +151,52 @@ export default async function PublicLeaderboardPage({
               return (
                 <div
                   key={story.id}
-                  className="grid gap-4 border-b border-night-100 p-5 last:border-b-0 sm:grid-cols-[72px_112px_1fr] lg:grid-cols-[72px_128px_1fr_auto]"
+                  className="grid grid-cols-[40px_56px_1fr] items-center gap-3 border-b border-night-100 px-3 py-3 last:border-b-0 sm:grid-cols-[48px_64px_1fr_auto] sm:px-4"
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-moon-100 font-display text-2xl font-bold text-night-800">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-moon-100 font-display text-lg font-bold text-night-800 sm:h-10 sm:w-10">
                     {index + 1}
                   </div>
                   {thumbnailUrl ? (
-                    <div className="relative aspect-square w-full max-w-36 overflow-hidden rounded-xl border border-night-100 shadow-sm sm:max-w-none">
+                    <div className="relative h-14 w-14 overflow-hidden rounded-lg border border-night-100 shadow-sm sm:h-16 sm:w-16">
                       <Image
                         src={thumbnailUrl}
                         alt=""
                         fill
-                        sizes="(min-width: 1024px) 128px, (min-width: 640px) 112px, 144px"
+                        sizes="64px"
                         className="object-cover"
                       />
                     </div>
                   ) : (
-                    <div className="flex aspect-square w-full max-w-36 items-center justify-center rounded-xl border border-night-100 bg-star-50 text-night-300 shadow-sm sm:max-w-none">
-                      <Icon name="book" className="h-8 w-8" />
+                    <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-night-100 bg-star-50 text-night-300 shadow-sm sm:h-16 sm:w-16">
+                      <Icon name="book" className="h-6 w-6" />
                     </div>
                   )}
-                  <div className="min-w-0 self-center">
-                    <p className="font-display text-xl font-bold leading-tight text-night-800">
+                  <div className="min-w-0">
+                    <p className="truncate font-display text-base font-bold leading-tight text-night-800 sm:text-lg">
                       {story.title}
                     </p>
-                    <p className="mt-1 text-sm text-night-500">
+                    <p className="mt-0.5 truncate text-xs text-night-500 sm:text-sm">
                       by {story.publicAuthorName ?? "Storycot creator"} ·{" "}
                       {story.theme}
                     </p>
                     {!thumbnailUrl ? (
-                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-night-600">
+                      <p className="mt-1 line-clamp-1 text-xs leading-5 text-night-500">
                         {story.pages[0]?.text ?? ""}
                       </p>
                     ) : null}
                   </div>
-                  <div className="flex items-center gap-3 sm:col-start-3 lg:col-start-auto lg:flex-col lg:items-end lg:justify-center">
+                  <div className="col-span-3 flex items-center justify-between gap-2 sm:col-span-1 sm:justify-end">
                     <PublicStoryActions
                       storyId={story.id}
                       storyTitle={story.title}
                       shareToken={story.shareToken}
                       initialVotes={votes}
+                      variant="compact"
                     />
                     {story.shareToken ? (
                       <Link
                         href={`/s/${story.shareToken}` as string}
-                        className="storycot-btn storycot-btn-secondary storycot-btn-compact"
+                        className="storycot-btn storycot-btn-secondary storycot-btn-compact px-3"
                       >
                         Read
                       </Link>

@@ -20,12 +20,14 @@ export default function PublicStoryActions({
   shareToken,
   printReadiness,
   initialVotes,
+  variant = "default",
 }: {
   storyId: string;
   storyTitle: string;
   shareToken?: string | null;
   printReadiness?: PublicStoryPrintReadiness;
   initialVotes: number;
+  variant?: "default" | "compact";
 }) {
   const locale = useLocale();
   const [votes, setVotes] = useState(initialVotes);
@@ -120,6 +122,77 @@ export default function PublicStoryActions({
     }
 
     await copyShareLink();
+  }
+
+  if (variant === "compact") {
+    return (
+      <div className="space-y-1">
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <button
+            type="button"
+            onClick={vote}
+            disabled={isPending}
+            className="storycot-btn storycot-btn-secondary storycot-btn-compact px-3"
+          >
+            <Icon name="sparkle" />
+            <span>{votes}</span>
+          </button>
+          {shareToken ? (
+            <button
+              type="button"
+              onClick={() => void shareStory()}
+              className="storycot-btn storycot-btn-secondary storycot-btn-compact px-3"
+              aria-label={`Share ${storyTitle}`}
+            >
+              <Icon name="share" />
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setReportOpen((open) => !open)}
+            disabled={isPending}
+            className="storycot-btn storycot-btn-secondary storycot-btn-compact px-3"
+          >
+            Report
+          </button>
+        </div>
+        {reportOpen ? (
+          <div className="rounded-xl border border-night-100 bg-night-50 p-3">
+            <label className="block text-xs font-bold uppercase tracking-wide text-night-400">
+              Reason
+            </label>
+            <select
+              value={reason}
+              onChange={(event) =>
+                setReason(
+                  event.target.value as (typeof reportReasons)[number]["value"]
+                )
+              }
+              className="mt-1 w-full rounded-lg border border-night-200 bg-white px-2 py-2 text-sm text-night-800"
+            >
+              {reportReasons.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={report}
+              disabled={isPending}
+              className="storycot-btn storycot-btn-primary storycot-btn-compact mt-3"
+            >
+              Send report
+            </button>
+          </div>
+        ) : null}
+        {message ? (
+          <p className="text-right text-xs font-bold text-night-500">
+            {message}
+          </p>
+        ) : null}
+      </div>
+    );
   }
 
   return (

@@ -1,13 +1,22 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChildProfile, Character } from "@/types";
 import {
   buildStoryPostCheckPrompt,
   buildStoryPrompt,
+  generateStory,
   normalizeGeneratedStory,
 } from "@/lib/storyGenerator";
 
+const { mockMessagesCreate } = vi.hoisted(() => ({
+  mockMessagesCreate: vi.fn(),
+}));
+
 vi.mock("@anthropic-ai/sdk", () => ({
-  default: vi.fn(() => ({})),
+  default: vi.fn(() => ({
+    messages: {
+      create: mockMessagesCreate,
+    },
+  })),
 }));
 
 function createProfile(): ChildProfile {
@@ -86,6 +95,10 @@ describe("buildStoryPrompt", () => {
 });
 
 describe("story post-check", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("instructs the final editor to fix grammar, attribution, dashes, and IP leaks", () => {
     const prompt = buildStoryPostCheckPrompt(
       {
@@ -114,6 +127,76 @@ describe("story post-check", () => {
     expect(prompt).toContain("Remove every em dash and en dash");
     expect(prompt).toContain("Remove or rewrite any surviving franchise");
     expect(prompt).toContain("valid JSON");
+  });
+
+  it("repairs malformed story JSON before surfacing a generation failure", async () => {
+    mockMessagesCreate
+      .mockResolvedValueOnce({
+        content: [
+          {
+            type: "text",
+            text: '{"title":"Bailey Moon","pages":[{"pageNumber":1,"text":"Bailey waved" "illustrationPrompt":"Bailey in a cosy room"}]}',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              title: "Bailey Moon",
+              pages: [
+                {
+                  pageNumber: 1,
+                  text: "Bailey waved.",
+                  illustrationPrompt: "Bailey in a cosy room.",
+                },
+              ],
+            }),
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              title: "Bailey Moon",
+              pages: [
+                {
+                  pageNumber: 1,
+                  text: "Bailey waved.",
+                  illustrationPrompt: "Bailey in a cosy room.",
+                },
+              ],
+            }),
+          },
+        ],
+      });
+
+    await expect(
+      generateStory({
+        profile: createProfile(),
+        characters: [],
+        theme: "kindness",
+        notes: "",
+        storyPreset: "tiny-tales",
+        locale: "en",
+      })
+    ).resolves.toEqual({
+      title: "Bailey Moon",
+      pages: [
+        {
+          pageNumber: 1,
+          text: "Bailey waved.",
+          illustrationPrompt: "Bailey in a cosy room.",
+        },
+      ],
+    });
+    expect(mockMessagesCreate).toHaveBeenCalledTimes(3);
+    expect(mockMessagesCreate.mock.calls[1]?.[0].messages[0].content).toContain(
+      "Repair this malformed Storycot story JSON"
+    );
   });
 
   it("removes em and en dashes from generated story fields", () => {

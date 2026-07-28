@@ -52,6 +52,19 @@ interface GeneratedStory {
   pages: StoryPage[];
 }
 
+export const STORY_GENERATION_RETRY_MESSAGE =
+  "Story generation hit a formatting problem. Please try again.";
+
+export class StoryGenerationError extends Error {
+  constructor(
+    message = STORY_GENERATION_RETRY_MESSAGE,
+    public readonly technicalMessage?: string
+  ) {
+    super(message);
+    this.name = "StoryGenerationError";
+  }
+}
+
 function removeDashPunctuation(value: string): string {
   return value
     .replace(/[\u2013\u2014]/g, " ")
@@ -235,7 +248,7 @@ async function postCheckStory(
 
   return validatePostCheckedStory(
     normalized,
-    parseGeneratedStory(content.text.trim())
+    await parseGeneratedStoryWithRepair(content.text.trim(), "post-check")
   );
 }
 
@@ -252,17 +265,88 @@ export async function generateStory(
   if (content.type !== "text")
     throw new Error("Unexpected response type from AI");
 
-  return postCheckStory(input, parseGeneratedStory(content.text.trim()));
+  return postCheckStory(
+    input,
+    await parseGeneratedStoryWithRepair(content.text.trim(), "initial story")
+  );
 }
 
-function parseGeneratedStory(raw: string): GeneratedStory {
+function parseGeneratedStory(raw: string): GeneratedStory | undefined {
   try {
     return JSON.parse(raw) as GeneratedStory;
   } catch {
     const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("Could not parse story from AI response");
-    return JSON.parse(match[0]) as GeneratedStory;
+    if (!match) return undefined;
+    try {
+      return JSON.parse(match[0]) as GeneratedStory;
+    } catch {
+      return undefined;
+    }
   }
+}
+
+async function repairGeneratedStoryJson(raw: string, stage: string) {
+  const message = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 4096,
+    messages: [
+      {
+        role: "user",
+        content: `Repair this malformed Storycot story JSON from the ${stage} step.
+
+Return ONLY valid JSON matching:
+{
+  "title": "A short magical title",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "text": "Story text",
+      "illustrationPrompt": "Image-safe illustration prompt"
+    }
+  ]
+}
+
+Do not add markdown or commentary. Preserve the story content as much as possible.
+
+Malformed JSON:
+${raw}`,
+      },
+    ],
+  });
+
+  const content = message.content[0];
+  if (content.type !== "text") {
+    throw new StoryGenerationError(
+      STORY_GENERATION_RETRY_MESSAGE,
+      "Unexpected response type from story JSON repair"
+    );
+  }
+  return content.text.trim();
+}
+
+async function parseGeneratedStoryWithRepair(
+  raw: string,
+  stage: string
+): Promise<GeneratedStory> {
+  const parsed = parseGeneratedStory(raw);
+  if (parsed) return parsed;
+
+  try {
+    const repaired = await repairGeneratedStoryJson(raw, stage);
+    const parsedRepair = parseGeneratedStory(repaired);
+    if (parsedRepair) return parsedRepair;
+  } catch (error) {
+    if (error instanceof StoryGenerationError) throw error;
+    throw new StoryGenerationError(
+      STORY_GENERATION_RETRY_MESSAGE,
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+
+  throw new StoryGenerationError(
+    STORY_GENERATION_RETRY_MESSAGE,
+    `Could not parse story JSON from ${stage}`
+  );
 }
 
 function unescapePartialJsonString(value: string): string {
@@ -344,7 +428,10 @@ export async function streamStory(
   });
 
   const raw = await stream.finalText();
-  return postCheckStory(input, parseGeneratedStory(raw.trim()));
+  return postCheckStory(
+    input,
+    await parseGeneratedStoryWithRepair(raw.trim(), "streamed story")
+  );
 }
 
 export async function generateSuggestions(

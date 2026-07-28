@@ -8,8 +8,13 @@ import {
   storyIdeaSafetyErrorResponse,
   validateStoryIdeaSafety,
 } from "@/lib/storySafety";
-import { assessGeneratedStoryIp, assessStoryIdeaIp } from "@/lib/ipGuardrails";
-import { generateStory } from "@/lib/storyGenerator";
+import {
+  assessGeneratedStoryIp,
+  assessProfileIp,
+  assessStoryIdeaIp,
+  profileIpErrorResponse,
+} from "@/lib/ipGuardrails";
+import { generateStory, StoryGenerationError } from "@/lib/storyGenerator";
 import type { Story } from "@/types";
 
 export async function POST(req: NextRequest) {
@@ -62,12 +67,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const ipPolicy = assessStoryIdeaIp({ theme, premise, notes });
-
   const [characters, recentStories] = await Promise.all([
     db.characters.getByProfileId(profileId),
     db.stories.getByProfileId(profileId),
   ]);
+  const safeCharacters = characters.filter((c) => c.userId === userId);
+  const profileIpPolicy = assessProfileIp({
+    ...profile,
+    characters: safeCharacters,
+  });
+  if (profileIpPolicy.printAllowed === false) {
+    return NextResponse.json(profileIpErrorResponse(profileIpPolicy), {
+      status: 400,
+    });
+  }
+
+  const ipPolicy = assessStoryIdeaIp({ theme, premise, notes });
 
   const recentTitles = recentStories
     .filter((s) => s.userId === userId)
@@ -75,15 +90,23 @@ export async function POST(req: NextRequest) {
     .slice(0, 5)
     .map((s) => s.title);
 
-  const generated = await generateStory({
-    profile,
-    characters: characters.filter((c) => c.userId === userId),
-    theme: theme ?? "a gentle adventure",
-    premise: ipPolicy.originalizedPremise ?? premise,
-    notes: ipPolicy.originalizedNotes ?? notes ?? "",
-    recentTitles,
-    locale,
-  });
+  let generated;
+  try {
+    generated = await generateStory({
+      profile,
+      characters: safeCharacters,
+      theme: theme ?? "a gentle adventure",
+      premise: ipPolicy.originalizedPremise ?? premise,
+      notes: ipPolicy.originalizedNotes ?? notes ?? "",
+      recentTitles,
+      locale,
+    });
+  } catch (error) {
+    if (error instanceof StoryGenerationError) {
+      return NextResponse.json({ error: error.message }, { status: 502 });
+    }
+    throw error;
+  }
 
   const wordCount = generated.pages.reduce(
     (acc, p) => acc + p.text.split(/\s+/).length,

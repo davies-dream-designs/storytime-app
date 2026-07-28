@@ -1,4 +1,4 @@
-import type { Story, StoryPage } from "@/types";
+import type { Character, ChildProfile, Story, StoryPage } from "@/types";
 
 export type StoryIpRiskLevel = "clear" | "originalized" | "restricted";
 
@@ -14,6 +14,17 @@ type StoryIdeaInput = {
   theme?: string;
   premise?: string;
   notes?: string;
+};
+
+type ProfileIpInput = Pick<
+  ChildProfile,
+  | "favouriteCharacters"
+  | "favouriteActivities"
+  | "favouriteAnimals"
+  | "favouritePlaces"
+  | "lessons"
+> & {
+  characters?: Character[];
 };
 
 const PROTECTED_REFERENCE_PATTERNS = [
@@ -151,6 +162,48 @@ export function assessStoryIdeaIp(input: StoryIdeaInput): StoryIpPolicy {
   };
 }
 
+export function assessProfileIp(input: ProfileIpInput): StoryIpPolicy {
+  const profileText = [
+    ...(input.favouriteCharacters ?? []),
+    ...(input.favouriteActivities ?? []),
+    ...(input.favouriteAnimals ?? []),
+    ...(input.favouritePlaces ?? []),
+    ...(input.lessons ?? []),
+    ...(input.characters ?? []).flatMap((character) => [
+      character.name,
+      character.description,
+      character.personality,
+      character.appearance,
+    ]),
+  ]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join("\n")
+    .normalize("NFKC");
+
+  if (!profileText) {
+    return { riskLevel: "clear", printAllowed: true, reasons: [] };
+  }
+
+  const reasons: string[] = [];
+  if (hasProtectedReference(profileText)) reasons.push("protected_reference");
+  if (hasSourceReference(profileText))
+    reasons.push("source_or_style_reference");
+
+  return reasons.length === 0
+    ? { riskLevel: "clear", printAllowed: true, reasons: [] }
+    : { riskLevel: "restricted", printAllowed: false, reasons };
+}
+
+export function profileIpErrorResponse(policy: StoryIpPolicy) {
+  return {
+    error:
+      "This child profile includes a branded character, franchise, copyrighted toy, logo, or protected story world. Please edit the profile and replace it with an original description before creating a story.",
+    code: "story_idea_not_allowed",
+    category: "protected_ip",
+    reasons: policy.reasons,
+  };
+}
+
 export function originalizeStoryIdeaText(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) return "";
@@ -220,7 +273,9 @@ export function getEffectiveStoryIpPolicy(
   return generatedPolicy.riskLevel === "clear"
     ? {
         riskLevel:
-          story.ipPolicy.riskLevel === "originalized" ? "originalized" : "clear",
+          story.ipPolicy.riskLevel === "originalized"
+            ? "originalized"
+            : "clear",
         printAllowed: true,
         reasons: story.ipPolicy.reasons,
         originalizedPremise: story.ipPolicy.originalizedPremise,

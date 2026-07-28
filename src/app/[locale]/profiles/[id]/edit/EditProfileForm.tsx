@@ -12,6 +12,7 @@ import {
   fallbackBirthYear,
   LessonsField,
   parseDateOfBirth,
+  ProfileIpConfirmation,
   TagsField,
 } from "@/components/profiles/ProfileFormControls";
 import { createEmptyChildAppearance, type ChildProfile } from "@/types";
@@ -61,6 +62,7 @@ export default function EditProfileForm({
   const [appearance, setAppearance] = useState(
     profile.appearance ?? createEmptyChildAppearance()
   );
+  const [ipConfirmed, setIpConfirmed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -90,6 +92,12 @@ export default function EditProfileForm({
     }
     if (!dobYear) {
       setError("Birth year is required");
+      return;
+    }
+    if (!ipConfirmed) {
+      setError(
+        "Please confirm the profile does not include branded characters or protected IP."
+      );
       return;
     }
 
@@ -128,6 +136,7 @@ export default function EditProfileForm({
           favouriteAnimals,
           favouritePlaces,
           lessons,
+          ipConfirmationAccepted: ipConfirmed,
         }),
       });
       if (!res.ok)
@@ -216,6 +225,11 @@ export default function EditProfileForm({
             label="Lessons & themes to explore"
             values={lessons}
             onChange={setLessons}
+          />
+
+          <ProfileIpConfirmation
+            checked={ipConfirmed}
+            onChange={setIpConfirmed}
           />
 
           {error && <p className={formStyles.error}>{error}</p>}

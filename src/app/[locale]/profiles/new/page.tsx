@@ -10,6 +10,7 @@ import AppearanceFields from "@/components/profiles/AppearanceFields";
 import {
   BirthdayFields,
   LessonsField,
+  ProfileIpConfirmation,
   TagsField,
 } from "@/components/profiles/ProfileFormControls";
 import { createEmptyChildAppearance, type ChildAppearance } from "@/types";
@@ -29,6 +30,7 @@ export default function NewProfilePage() {
   const [appearance, setAppearance] = useState<ChildAppearance>(
     createEmptyChildAppearance()
   );
+  const [ipConfirmed, setIpConfirmed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -76,6 +78,12 @@ export default function NewProfilePage() {
       setError(t("errorYear"));
       return;
     }
+    if (!ipConfirmed) {
+      setError(
+        "Please confirm the profile does not include branded characters or protected IP."
+      );
+      return;
+    }
 
     const year = parseInt(dobYear, 10);
     const month = dobMonth ? parseInt(dobMonth, 10) : null;
@@ -112,6 +120,7 @@ export default function NewProfilePage() {
           favouriteAnimals,
           favouritePlaces,
           lessons,
+          ipConfirmationAccepted: ipConfirmed,
         }),
       });
       if (!res.ok)
@@ -195,6 +204,11 @@ export default function NewProfilePage() {
             label={t("lessonsLabel")}
             values={lessons}
             onChange={setLessons}
+          />
+
+          <ProfileIpConfirmation
+            checked={ipConfirmed}
+            onChange={setIpConfirmed}
           />
 
           {error && <p className={formStyles.error}>{error}</p>}

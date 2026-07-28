@@ -210,6 +210,38 @@ export function LessonsField({ label, values, onChange }: LessonsFieldProps) {
   );
 }
 
+export function ProfileIpConfirmation({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="block rounded-2xl border border-star-100 bg-star-50 p-4 text-sm leading-6 text-night-700">
+      <span className="flex gap-3">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(event) => onChange(event.target.checked)}
+          className="mt-1"
+        />
+        <span>
+          <span className="block font-bold text-night-800">
+            No branded characters or protected IP
+          </span>
+          <span>
+            I confirm this profile does not include branded characters,
+            franchise names, copyrighted toys, logos, or protected story worlds.
+            Use original descriptions instead, such as &quot;a brave space
+            ranger toy&quot; rather than a named character.
+          </span>
+        </span>
+      </span>
+    </label>
+  );
+}
+
 export function parseDateOfBirth(dateOfBirth?: string) {
   if (!dateOfBirth) return { day: "", month: "", year: "" };
 

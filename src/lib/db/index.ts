@@ -17,6 +17,7 @@ import type { ChildProfile, Story, Character, StoryPreset } from "@/types";
 import type {
   BookBuildJob,
   BookProject,
+  BookAsset,
   PrintBookOrder,
 } from "@/types/printBook";
 import type { GiftOrder } from "@/types/gift";
@@ -39,6 +40,18 @@ type GiftOrderRow = typeof schema.giftOrders.$inferSelect;
 type PublicStoryReportRow = typeof schema.publicStoryReports.$inferSelect;
 type PublicStoryModerationEventRow =
   typeof schema.publicStoryModerationEvents.$inferSelect;
+
+function isDisplayablePublicImage(url?: string): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return !lower.startsWith("data:image/svg") && !lower.endsWith(".svg");
+}
+
+function getPublicThumbnailFromAssets(assets: BookAsset): string | undefined {
+  return [assets.coverWebImageUrl, assets.coverImageUrl].find(
+    isDisplayablePublicImage
+  );
+}
 
 function rowToProfile(row: ProfileRow): ChildProfile {
   return {
@@ -571,6 +584,27 @@ export const db = {
               Boolean(entry[1])
           )
       );
+    },
+    async getPublicThumbnailsByStoryIds(
+      storyIds: string[]
+    ): Promise<Record<string, string>> {
+      if (storyIds.length === 0) return {};
+      const rows = await getClient()
+        .select()
+        .from(schema.bookProjects)
+        .where(inArray(schema.bookProjects.sourceStoryId, storyIds))
+        .orderBy(
+          desc(schema.bookProjects.readyAt),
+          desc(schema.bookProjects.updatedAt)
+        );
+
+      const thumbnails: Record<string, string> = {};
+      for (const row of rows) {
+        if (thumbnails[row.sourceStoryId] || row.status !== "ready") continue;
+        const thumbnailUrl = getPublicThumbnailFromAssets(row.assets);
+        if (thumbnailUrl) thumbnails[row.sourceStoryId] = thumbnailUrl;
+      }
+      return thumbnails;
     },
     async getByUserId(userId: string): Promise<BookProject[]> {
       const rows = await getClient()

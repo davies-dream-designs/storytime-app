@@ -3,6 +3,7 @@ import Icon from "@/components/ui/Icon";
 import { Link } from "@/i18n/navigation";
 import { db } from "@/lib/db";
 import type { StoryPreset } from "@/types";
+import Image from "next/image";
 import PublicStoryActions from "../PublicStoryActions";
 
 export const metadata = { title: "Monthly Leaderboard - Storycot" };
@@ -69,6 +70,9 @@ export default async function PublicLeaderboardPage({
   const selectedPreset =
     selectedCategory.key === "all" ? undefined : selectedCategory.key;
   const leaders = await getLeaderboard(selectedPreset);
+  const thumbnails = await db.bookProjects.getPublicThumbnailsByStoryIds(
+    leaders.map(({ story }) => story.id)
+  );
   const voteMonth = db.publicStoryVotes.getVoteMonth();
 
   return (
@@ -141,44 +145,65 @@ export default async function PublicLeaderboardPage({
           </section>
         ) : (
           <section className="overflow-hidden rounded-2xl border border-night-100 bg-white shadow-sm">
-            {leaders.map(({ story, votes }, index) => (
-              <div
-                key={story.id}
-                className="grid gap-4 border-b border-night-100 p-5 last:border-b-0 sm:grid-cols-[72px_1fr_auto]"
-              >
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-moon-100 font-display text-2xl font-bold text-night-800">
-                  {index + 1}
+            {leaders.map(({ story, votes }, index) => {
+              const thumbnailUrl = thumbnails[story.id];
+
+              return (
+                <div
+                  key={story.id}
+                  className="grid gap-4 border-b border-night-100 p-5 last:border-b-0 sm:grid-cols-[72px_112px_1fr] lg:grid-cols-[72px_128px_1fr_auto]"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-moon-100 font-display text-2xl font-bold text-night-800">
+                    {index + 1}
+                  </div>
+                  {thumbnailUrl ? (
+                    <div className="relative aspect-square w-full max-w-36 overflow-hidden rounded-xl border border-night-100 shadow-sm sm:max-w-none">
+                      <Image
+                        src={thumbnailUrl}
+                        alt=""
+                        fill
+                        sizes="(min-width: 1024px) 128px, (min-width: 640px) 112px, 144px"
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex aspect-square w-full max-w-36 items-center justify-center rounded-xl border border-night-100 bg-star-50 text-night-300 shadow-sm sm:max-w-none">
+                      <Icon name="book" className="h-8 w-8" />
+                    </div>
+                  )}
+                  <div className="min-w-0 self-center">
+                    <p className="font-display text-xl font-bold leading-tight text-night-800">
+                      {story.title}
+                    </p>
+                    <p className="mt-1 text-sm text-night-500">
+                      by {story.publicAuthorName ?? "Storycot creator"} ·{" "}
+                      {story.theme}
+                    </p>
+                    {!thumbnailUrl ? (
+                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-night-600">
+                        {story.pages[0]?.text ?? ""}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-3 sm:col-start-3 lg:col-start-auto lg:flex-col lg:items-end lg:justify-center">
+                    <PublicStoryActions
+                      storyId={story.id}
+                      storyTitle={story.title}
+                      shareToken={story.shareToken}
+                      initialVotes={votes}
+                    />
+                    {story.shareToken ? (
+                      <Link
+                        href={`/s/${story.shareToken}` as string}
+                        className="storycot-btn storycot-btn-secondary storycot-btn-compact"
+                      >
+                        Read
+                      </Link>
+                    ) : null}
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="font-display text-xl font-bold text-night-800">
-                    {story.title}
-                  </p>
-                  <p className="mt-1 text-sm text-night-500">
-                    by {story.publicAuthorName ?? "Storycot creator"} ·{" "}
-                    {story.theme}
-                  </p>
-                  <p className="mt-2 line-clamp-2 text-sm leading-6 text-night-600">
-                    {story.pages[0]?.text ?? ""}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 sm:flex-col sm:items-end sm:justify-center">
-                  <PublicStoryActions
-                    storyId={story.id}
-                    storyTitle={story.title}
-                    shareToken={story.shareToken}
-                    initialVotes={votes}
-                  />
-                  {story.shareToken ? (
-                    <Link
-                      href={`/s/${story.shareToken}` as string}
-                      className="storycot-btn storycot-btn-secondary storycot-btn-compact"
-                    >
-                      Read
-                    </Link>
-                  ) : null}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </section>
         )}
       </main>

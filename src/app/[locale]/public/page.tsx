@@ -3,6 +3,7 @@ import Icon from "@/components/ui/Icon";
 import { Link } from "@/i18n/navigation";
 import { db } from "@/lib/db";
 import { getDateLocale } from "@/i18n/locales";
+import Image from "next/image";
 import PublicStoryActions from "./PublicStoryActions";
 
 export const metadata = { title: "Public Gallery - Storycot" };
@@ -39,6 +40,9 @@ export default async function PublicGalleryPage({
     await db.bookProjects.getPublicPrintReadinessByStoryIds(
       stories.map((story) => story.id)
     );
+  const thumbnails = await db.bookProjects.getPublicThumbnailsByStoryIds(
+    stories.map((story) => story.id)
+  );
   const storiesByVotes = [...stories].sort((a, b) => {
     const voteDiff = (voteCounts[b.id] ?? 0) - (voteCounts[a.id] ?? 0);
     if (voteDiff !== 0) return voteDiff;
@@ -95,9 +99,20 @@ export default async function PublicGalleryPage({
             {storiesByVotes.map((story, index) => (
               <article
                 key={story.id}
-                className="flex min-h-64 flex-col rounded-2xl border border-night-100 bg-white p-5 shadow-sm"
+                className="flex min-h-64 flex-col overflow-hidden rounded-2xl border border-night-100 bg-white shadow-sm"
               >
-                <div className="flex-1">
+                {thumbnails[story.id] ? (
+                  <div className="relative aspect-[4/3] w-full overflow-hidden">
+                    <Image
+                      src={thumbnails[story.id]}
+                      alt=""
+                      fill
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                      className="object-cover"
+                    />
+                  </div>
+                ) : null}
+                <div className="flex flex-1 flex-col p-5">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-xs font-bold uppercase tracking-wide text-star-600">
                       {story.theme}
@@ -112,14 +127,16 @@ export default async function PublicGalleryPage({
                   <p className="mt-2 text-sm text-night-500">
                     by {story.publicAuthorName ?? "Storycot creator"}
                   </p>
-                  <p className="mt-4 text-sm leading-6 text-night-600">
-                    {story.pages[0]?.text.slice(0, 180) ?? ""}
-                    {story.pages[0]?.text && story.pages[0].text.length > 180
-                      ? "..."
-                      : ""}
-                  </p>
+                  {!thumbnails[story.id] ? (
+                    <p className="mt-4 text-sm leading-6 text-night-600">
+                      {story.pages[0]?.text.slice(0, 180) ?? ""}
+                      {story.pages[0]?.text && story.pages[0].text.length > 180
+                        ? "..."
+                        : ""}
+                    </p>
+                  ) : null}
                 </div>
-                <div className="mt-5 space-y-4 border-t border-night-100 pt-4">
+                <div className="space-y-4 border-t border-night-100 p-5 pt-4">
                   <PublicStoryActions
                     storyId={story.id}
                     storyTitle={story.title}

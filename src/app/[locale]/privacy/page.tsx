@@ -192,8 +192,7 @@ export default function PrivacyPage() {
             illustrated stories with book cover artwork. Anyone who can access
             the public gallery or shared story link may see story text, images,
             title, theme, author display name, vote counts, and publication
-            date. Do not submit private child, school, address, or contact
-            details for public review.
+            date. Do not submit private identifying details for public review.
           </p>
           <p>
             Signed-in readers can vote for and report public stories. We use

@@ -163,8 +163,8 @@ export default function PublicSubmissionPanel({
                 className="mt-1"
               />
               <span>
-                I have removed private child, school, address, and contact
-                details.
+                I have removed any private identifying details that should not
+                be public.
               </span>
             </label>
             <label className="flex gap-2">

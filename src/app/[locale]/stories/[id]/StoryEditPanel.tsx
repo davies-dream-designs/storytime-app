@@ -79,8 +79,8 @@ export default function StoryEditPanel({ story }: { story: Story }) {
             Fix story text
           </h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-night-500">
-            Use this for moderation fixes like removing a school name, private
-            detail, or character reference.
+            Use this for moderation fixes like removing private details or
+            character references.
           </p>
         </div>
         <button

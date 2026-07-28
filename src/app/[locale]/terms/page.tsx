@@ -164,9 +164,9 @@ export default function TermsPage() {
           <p>
             By submitting a story for public review, you confirm that you have
             permission to publish the story, images, names, likenesses, and any
-            personal details included. You must not include private child,
-            school, address, or contact details unless you have authority and it
-            is appropriate to publish them.
+            personal details included. You must not include private identifying
+            details unless you have authority and it is appropriate to publish
+            them.
           </p>
           <p>
             You still own the content you create. For public stories, you grant

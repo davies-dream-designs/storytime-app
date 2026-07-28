@@ -72,33 +72,56 @@ describe("buildStoryGameJson", () => {
 
     expect(game.title).toBe("Mila and the Moon Kite");
     expect(game.world.name).toBe("Mila's Moonlit Glade");
+    expect(game.world.style).toMatchObject({
+      biome: "moon",
+      groundColor: 0x586a8f,
+      itemShape: "crystal",
+    });
     expect(game.world.map).toHaveLength(15);
     expect(game.world.map[0]).toHaveLength(20);
     expect(game.player.name).toBe("Mila");
     expect(tileAt(game, game.player.startX, game.player.startY)).toBe(0);
     expect(game.npcs).toHaveLength(2);
     expect(game.npcs[0]?.name).toBe("Moon Keeper");
-    expect(game.items[0]?.name).toBe("Moon Courage Moonbeam");
+    expect(game.items[0]?.name).toBe("Moonbeam");
     expect(tileAt(game, game.items[0]!.x, game.items[0]!.y)).toBe(0);
     expect(game.quest.completeTrigger).toEqual({
       type: "collect",
       itemId: "story-spark",
     });
     expect(game.quest.completeNpcId).toBe("guide");
-    expect(game.quest.completeMessage).toContain("Mila brought");
+    expect(game.quest.completeMessage).toBe(
+      "Mila returned the moonbeam and brought Mila and the Moon Kite safely home."
+    );
   });
 
-  it("uses story pages for guide, helper, and completion dialogue", () => {
+  it("uses story pages in clean guide, helper, and completion dialogue", () => {
     const game = buildStoryGameJson(story);
 
-    expect(game.npcs[0]?.dialogue).toContain(
-      "Mila found a silver kite beside the sleepy garden."
-    );
-    expect(game.npcs[1]?.dialogue).toContain(
-      "A friendly lantern showed Mila a path between the moonflowers."
-    );
-    expect(game.quest.completeDialogue).toContain(
-      "Mila tucked the moon kite safely home and smiled at the stars."
+    expect(game.npcs[0]?.dialogue).toEqual([
+      "Hi Mila. This place is built from your story, Mila and the Moon Kite.",
+      'It begins here: "Mila found a silver kite beside the sleepy garden."',
+      "Please find the moonbeam. It belongs in the heart of this story.",
+    ]);
+    expect(game.npcs[1]?.dialogue).toEqual([
+      'I remember this part: "A friendly lantern showed Mila a path between the moonflowers."',
+      "I saw a soft glow beside the moonlit path.",
+    ]);
+    expect(game.quest.completeDialogue).toEqual([
+      "You found the moonbeam, Mila.",
+      'The story ends with this moment: "Mila tucked the moon kite safely home and smiled at the stars."',
+      "The world feels complete again.",
+    ]);
+  });
+
+  it("does not build awkward theme-prefixed item names", () => {
+    const game = buildStoryGameJson(story);
+
+    expect(game.items[0]?.name).not.toContain("Moon Courage");
+    expect(game.quest.objective).toBe("Find the moonbeam");
+    expect(game.items[0]?.onCollect).toBe("You found the moonbeam.");
+    expect(game.quest.returnObjective).toBe(
+      "Bring the moonbeam back to the Moon Keeper."
     );
   });
 
@@ -107,10 +130,15 @@ describe("buildStoryGameJson", () => {
     const seaGame = buildStoryGameJson(seaStory);
 
     expect(seaGame.world.name).toBe("Noah's Tidepool Trail");
+    expect(seaGame.world.style).toMatchObject({
+      biome: "sea",
+      groundColor: 0x5aa8a2,
+      itemShape: "pearl",
+    });
     expect(seaGame.npcs[0]?.name).toBe("Shell Guide");
     expect(seaGame.npcs[1]?.name).toBe("Harbour Helper");
-    expect(seaGame.items[0]?.name).toBe("Ocean Kindness Pearl");
-    expect(seaGame.quest.objective).toBe("Find the Ocean Kindness Pearl");
+    expect(seaGame.items[0]?.name).toBe("Pearl");
+    expect(seaGame.quest.objective).toBe("Find the pearl");
     expect(seaGame.world.map).not.toEqual(moonGame.world.map);
     expect(seaGame.player).not.toEqual(moonGame.player);
     expect({

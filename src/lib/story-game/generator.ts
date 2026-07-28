@@ -13,11 +13,13 @@ type StoryGameBiome = {
   guideName: string;
   helperName: string;
   itemName: string;
-  itemHint: string;
+  searchHint: string;
+  returnHint: string;
   colors: {
     guide: number;
     helper: number;
   };
+  style: NonNullable<StoryGameJson["world"]["style"]>;
   patterns: Point[][];
 };
 
@@ -56,8 +58,21 @@ const BIOMES: StoryGameBiome[] = [
     guideName: "Moon Keeper",
     helperName: "Lantern Friend",
     itemName: "Moonbeam",
-    itemHint: "It glows where the path bends under the moon.",
+    searchHint: "I saw a soft glow beside the moonlit path.",
+    returnHint: "Bring the moonbeam back to the Moon Keeper.",
     colors: { guide: 0x6d5bd0, helper: 0xffc857 },
+    style: {
+      biome: "moon",
+      groundColor: 0x586a8f,
+      skyColor: 0x22345f,
+      fogColor: 0x22345f,
+      wallColor: 0x6c6f93,
+      trunkColor: 0x41304f,
+      foliageColors: [0x324b75, 0x4b5f96, 0x697bbb],
+      itemColor: 0xf8f0a8,
+      itemGlowColor: 0xc8d8ff,
+      itemShape: "crystal",
+    },
     patterns: [
       [
         { x: 5, y: 1 },
@@ -87,8 +102,21 @@ const BIOMES: StoryGameBiome[] = [
     guideName: "Shell Guide",
     helperName: "Harbour Helper",
     itemName: "Pearl",
-    itemHint: "It is tucked near the quiet edge of the trail.",
+    searchHint: "The pearl is near the quiet edge of the tidepool trail.",
+    returnHint: "Bring the pearl back to the Shell Guide.",
     colors: { guide: 0x168aad, helper: 0xff9f1c },
+    style: {
+      biome: "sea",
+      groundColor: 0x5aa8a2,
+      skyColor: 0x8ed1e6,
+      fogColor: 0x8ed1e6,
+      wallColor: 0xb49763,
+      trunkColor: 0x7a5a36,
+      foliageColors: [0x2f8f83, 0x46b3a6, 0x78d1c6],
+      itemColor: 0xfaf6e8,
+      itemGlowColor: 0x84f1ff,
+      itemShape: "pearl",
+    },
     patterns: [
       [
         { x: 4, y: 2 },
@@ -118,8 +146,21 @@ const BIOMES: StoryGameBiome[] = [
     guideName: "Old Oak",
     helperName: "Mossy Friend",
     itemName: "Acorn Charm",
-    itemHint: "It rests beyond the trees where the path opens.",
+    searchHint: "The acorn charm rests where the trees open into a path.",
+    returnHint: "Bring the charm back to Old Oak.",
     colors: { guide: 0x7a4f2a, helper: 0x4caf50 },
+    style: {
+      biome: "forest",
+      groundColor: 0x5f9b5f,
+      skyColor: 0x9ec8e8,
+      fogColor: 0x9ec8e8,
+      wallColor: 0x7a6640,
+      trunkColor: 0x6b4226,
+      foliageColors: [0x2d6e1a, 0x228b22, 0x34a821],
+      itemColor: 0xffd166,
+      itemGlowColor: 0xffaa00,
+      itemShape: "charm",
+    },
     patterns: [
       [
         { x: 2, y: 2 },
@@ -154,8 +195,21 @@ const BIOMES: StoryGameBiome[] = [
     guideName: "Star Pilot",
     helperName: "Cloud Friend",
     itemName: "Sky Crystal",
-    itemHint: "It sparkles near the highest clearing.",
+    searchHint: "The sky crystal sparkles near the highest clearing.",
+    returnHint: "Bring the crystal back to the Star Pilot.",
     colors: { guide: 0x3a86ff, helper: 0xff70a6 },
+    style: {
+      biome: "sky",
+      groundColor: 0x9bb9e8,
+      skyColor: 0xc7e8ff,
+      fogColor: 0xc7e8ff,
+      wallColor: 0xddd7ff,
+      trunkColor: 0x7c6fa8,
+      foliageColors: [0xbfd7ff, 0xa9c5ff, 0xd6e4ff],
+      itemColor: 0x95f2ff,
+      itemGlowColor: 0xffffff,
+      itemShape: "crystal",
+    },
     patterns: [
       [
         { x: 6, y: 2 },
@@ -191,6 +245,10 @@ function sentenceFromPage(text: string, fallback: string): string {
   const normalized = cleanText(text);
   const firstSentence = normalized.match(/[^.!?]+[.!?]/)?.[0];
   return cleanText(firstSentence ?? normalized).slice(0, 180) || fallback;
+}
+
+function stripTrailingPunctuation(value: string): string {
+  return cleanText(value).replace(/[.!?]+$/, "");
 }
 
 function hashText(value: string): number {
@@ -309,16 +367,13 @@ function pickPoint(points: Point[], seed: number): Point {
   return points[seed % points.length] ?? points[0] ?? { x: 1, y: 1 };
 }
 
-function itemNameForStory(story: Story, biome: StoryGameBiome): string {
-  const theme = cleanText(story.theme);
-  if (!theme) return biome.itemName;
-  const titleCaseTheme = theme
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
-    .join(" ");
-  return `${titleCaseTheme} ${biome.itemName}`;
+function itemNameForStory(_story: Story, biome: StoryGameBiome): string {
+  return biome.itemName;
+}
+
+function lowerFirst(value: string): string {
+  const cleaned = cleanText(value);
+  return `${cleaned.charAt(0).toLowerCase()}${cleaned.slice(1)}`;
 }
 
 export function buildStoryGameJson(story: Story): StoryGameJson {
@@ -327,6 +382,18 @@ export function buildStoryGameJson(story: Story): StoryGameJson {
   const middlePage = pages[Math.floor(pages.length / 2)];
   const finalPage = pages[pages.length - 1];
   const childName = story.profileName || "Pip";
+  const leadSentence = sentenceFromPage(
+    leadPage?.text ?? "",
+    `${childName}'s adventure has just begun.`
+  );
+  const middleSentence = sentenceFromPage(
+    middlePage?.text ?? "",
+    `${childName} found a clue along the path.`
+  );
+  const finalSentence = sentenceFromPage(
+    finalPage?.text ?? "",
+    `${childName}'s story ended gently and happily.`
+  );
   const seed = hashText(
     `${story.id}:${story.title}:${story.theme}:${pages
       .map((page) => page.text)
@@ -354,12 +421,14 @@ export function buildStoryGameJson(story: Story): StoryGameJson {
   ]);
   const worldName = `${childName}'s ${biome.worldSuffix}`;
   const questItemName = itemNameForStory(story, biome);
+  const questItemLower = lowerFirst(questItemName);
 
   return {
     title: story.title,
     world: {
       name: worldName,
       map: buildMap({ biome, seed, reserved }),
+      style: biome.style,
     },
     player: {
       name: childName,
@@ -374,12 +443,9 @@ export function buildStoryGameJson(story: Story): StoryGameJson {
         y: guide.y,
         color: biome.colors.guide,
         dialogue: [
-          `Welcome, ${childName}.`,
-          sentenceFromPage(
-            leadPage?.text ?? "",
-            "This story world needs a little help."
-          ),
-          `Can you find the ${questItemName} and bring its magic back?`,
+          `Hi ${childName}. This place is built from your story, ${story.title}.`,
+          `It begins here: "${stripTrailingPunctuation(leadSentence)}."`,
+          `Please find the ${questItemLower}. It belongs in the heart of this story.`,
         ],
       },
       {
@@ -389,8 +455,8 @@ export function buildStoryGameJson(story: Story): StoryGameJson {
         y: helper.y,
         color: biome.colors.helper,
         dialogue: [
-          sentenceFromPage(middlePage?.text ?? "", biome.itemHint),
-          biome.itemHint,
+          `I remember this part: "${stripTrailingPunctuation(middleSentence)}."`,
+          biome.searchHint,
         ],
       },
     ],
@@ -400,23 +466,20 @@ export function buildStoryGameJson(story: Story): StoryGameJson {
         name: questItemName,
         x: questItem.x,
         y: questItem.y,
-        onCollect: `You found the ${questItemName}. It glows with the heart of ${story.title}.`,
+        onCollect: `You found the ${questItemLower}.`,
       },
     ],
     quest: {
-      objective: `Find the ${questItemName}`,
+      objective: `Find the ${questItemLower}`,
       completeTrigger: { type: "collect", itemId: "story-spark" },
       completeNpcId: "guide",
-      returnObjective: "Talk to the Story Guide!",
+      returnObjective: biome.returnHint,
       completeTitle: "Quest Complete",
-      completeMessage: `${childName} brought the ${questItemName} home and finished ${story.title}.`,
+      completeMessage: `${childName} returned the ${questItemLower} and brought ${story.title} safely home.`,
       completeDialogue: [
-        `You found it, ${childName}!`,
-        sentenceFromPage(
-          finalPage?.text ?? "",
-          "The story world feels peaceful again."
-        ),
-        "This adventure is complete.",
+        `You found the ${questItemLower}, ${childName}.`,
+        `The story ends with this moment: "${stripTrailingPunctuation(finalSentence)}."`,
+        "The world feels complete again.",
       ],
     },
   };

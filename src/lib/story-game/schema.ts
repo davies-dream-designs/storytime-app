@@ -22,6 +22,18 @@ export interface StoryGameJson {
   world: {
     name: string;
     map: StoryGameTile[][];
+    style?: {
+      biome: string;
+      groundColor: number;
+      skyColor: number;
+      fogColor: number;
+      wallColor: number;
+      trunkColor: number;
+      foliageColors: number[];
+      itemColor: number;
+      itemGlowColor: number;
+      itemShape: "star" | "crystal" | "pearl" | "charm";
+    };
   };
   player: {
     name: string;

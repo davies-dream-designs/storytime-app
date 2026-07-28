@@ -104,7 +104,7 @@ describe("buildStoryGameJson", () => {
       "Please find the moonbeam. It belongs in the heart of this story.",
     ]);
     expect(game.npcs[1]?.dialogue).toEqual([
-      'I remember this part: "A friendly lantern showed Mila a path between the moonflowers."',
+      "I am looking for clues from Mila and the Moon Kite.",
       "I saw a soft glow beside the moonlit path.",
     ]);
     expect(game.quest.completeDialogue).toEqual([

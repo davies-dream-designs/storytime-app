@@ -379,16 +379,11 @@ function lowerFirst(value: string): string {
 export function buildStoryGameJson(story: Story): StoryGameJson {
   const pages = story.pages.length > 0 ? story.pages : [];
   const leadPage = pages[0];
-  const middlePage = pages[Math.floor(pages.length / 2)];
   const finalPage = pages[pages.length - 1];
   const childName = story.profileName || "Pip";
   const leadSentence = sentenceFromPage(
     leadPage?.text ?? "",
     `${childName}'s adventure has just begun.`
-  );
-  const middleSentence = sentenceFromPage(
-    middlePage?.text ?? "",
-    `${childName} found a clue along the path.`
   );
   const finalSentence = sentenceFromPage(
     finalPage?.text ?? "",
@@ -455,7 +450,7 @@ export function buildStoryGameJson(story: Story): StoryGameJson {
         y: helper.y,
         color: biome.colors.helper,
         dialogue: [
-          `I remember this part: "${stripTrailingPunctuation(middleSentence)}."`,
+          `I am looking for clues from ${story.title}.`,
           biome.searchHint,
         ],
       },

@@ -127,6 +127,9 @@ export async function POST(
                 illustrationPrompt: "",
               })),
             });
+          },
+          (stage) => {
+            sendEvent(controller, "status", { status: stage });
           }
         );
 

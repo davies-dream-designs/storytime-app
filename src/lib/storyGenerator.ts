@@ -409,8 +409,10 @@ export function extractStoryTextSnapshot(raw: string): string[] {
 
 export async function streamStory(
   input: GenerateStoryInput,
-  onSnapshot: (pages: string[]) => void
+  onSnapshot: (pages: string[]) => void,
+  onStage?: (stage: "drafting" | "polishing") => void
 ): Promise<GeneratedStory> {
+  onStage?.("drafting");
   const stream = client.messages.stream({
     model: "claude-sonnet-4-6",
     max_tokens: 4096,
@@ -428,6 +430,7 @@ export async function streamStory(
   });
 
   const raw = await stream.finalText();
+  onStage?.("polishing");
   return postCheckStory(
     input,
     await parseGeneratedStoryWithRepair(raw.trim(), "streamed story")

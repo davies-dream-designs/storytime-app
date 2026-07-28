@@ -5,16 +5,19 @@ import {
   buildStoryPrompt,
   generateStory,
   normalizeGeneratedStory,
+  streamStory,
 } from "@/lib/storyGenerator";
 
-const { mockMessagesCreate } = vi.hoisted(() => ({
+const { mockMessagesCreate, mockMessagesStream } = vi.hoisted(() => ({
   mockMessagesCreate: vi.fn(),
+  mockMessagesStream: vi.fn(),
 }));
 
 vi.mock("@anthropic-ai/sdk", () => ({
   default: vi.fn(() => ({
     messages: {
       create: mockMessagesCreate,
+      stream: mockMessagesStream,
     },
   })),
 }));
@@ -197,6 +200,64 @@ describe("story post-check", () => {
     expect(mockMessagesCreate.mock.calls[1]?.[0].messages[0].content).toContain(
       "Repair this malformed Storycot story JSON"
     );
+  });
+
+  it("reports drafting and polishing stages while streaming a story", async () => {
+    const generatedStory = {
+      title: "Bailey Moon",
+      pages: [
+        {
+          pageNumber: 1,
+          text: "Bailey waved.",
+          illustrationPrompt: "Bailey in a cosy room.",
+        },
+      ],
+    };
+    const stream = {
+      on: vi.fn(
+        (
+          event: string,
+          callback: (delta: string, snapshot: string) => void
+        ) => {
+          if (event === "text") {
+            callback("", JSON.stringify(generatedStory));
+          }
+          return stream;
+        }
+      ),
+      finalText: vi.fn(async () => JSON.stringify(generatedStory)),
+    };
+    mockMessagesStream.mockReturnValueOnce(stream);
+    mockMessagesCreate.mockResolvedValueOnce({
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(generatedStory),
+        },
+      ],
+    });
+    const stages: string[] = [];
+    const snapshots: string[][] = [];
+
+    await expect(
+      streamStory(
+        {
+          profile: createProfile(),
+          characters: [],
+          theme: "kindness",
+          notes: "",
+          storyPreset: "tiny-tales",
+          locale: "en",
+        },
+        (pages) => snapshots.push(pages),
+        (stage) => stages.push(stage)
+      )
+    ).resolves.toEqual(generatedStory);
+
+    expect(stages).toEqual(["drafting", "polishing"]);
+    expect(snapshots).toEqual([["Bailey waved."]]);
+    expect(mockMessagesStream).toHaveBeenCalledTimes(1);
+    expect(mockMessagesCreate).toHaveBeenCalledTimes(1);
   });
 
   it("removes em and en dashes from generated story fields", () => {

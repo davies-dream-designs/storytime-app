@@ -25,6 +25,8 @@ export default function PublicSubmissionPanel({
   const status = story.publicReviewStatus ?? "not_submitted";
   const isApproved = story.visibility === "public" && status === "approved";
   const canSubmit = rights && privacy && terms && authorName.trim().length > 0;
+  const showSubmissionForm =
+    canSubmitPublicly && status !== "pending_review" && !isApproved;
 
   function submitForReview() {
     setError(null);
@@ -110,7 +112,7 @@ export default function PublicSubmissionPanel({
         </div>
       ) : (
         <div className="mt-4 space-y-4">
-          {!canSubmitPublicly ? (
+          {!showSubmissionForm ? (
             <div className="rounded-xl border border-moon-100 bg-moon-50 p-4 text-sm leading-6 text-night-700">
               <p className="font-bold text-night-800">
                 Public sharing opens after illustration
@@ -121,79 +123,81 @@ export default function PublicSubmissionPanel({
                 Create an illustrated book before submitting this story.
               </p>
             </div>
-          ) : null}
+          ) : (
+            <>
+              {status === "rejected" && story.publicRejectionReason ? (
+                <div className="rounded-xl border border-blush-100 bg-blush-50 p-4 text-sm leading-6 text-blush-700">
+                  <p className="font-bold">Review note</p>
+                  <p className="mt-1">{story.publicRejectionReason}</p>
+                </div>
+              ) : null}
 
-          {status === "rejected" && story.publicRejectionReason ? (
-            <div className="rounded-xl border border-blush-100 bg-blush-50 p-4 text-sm leading-6 text-blush-700">
-              <p className="font-bold">Review note</p>
-              <p className="mt-1">{story.publicRejectionReason}</p>
-            </div>
-          ) : null}
+              <label className="block">
+                <span className="text-sm font-bold text-night-700">
+                  Author display name
+                </span>
+                <input
+                  value={authorName}
+                  onChange={(event) => setAuthorName(event.target.value)}
+                  maxLength={80}
+                  className="mt-1 w-full rounded-xl border border-night-200 bg-white px-3 py-2 text-sm text-night-800 outline-none focus:border-star-400 focus:ring-2 focus:ring-star-100"
+                />
+              </label>
 
-          <label className="block">
-            <span className="text-sm font-bold text-night-700">
-              Author display name
-            </span>
-            <input
-              value={authorName}
-              onChange={(event) => setAuthorName(event.target.value)}
-              maxLength={80}
-              className="mt-1 w-full rounded-xl border border-night-200 bg-white px-3 py-2 text-sm text-night-800 outline-none focus:border-star-400 focus:ring-2 focus:ring-star-100"
-            />
-          </label>
+              <div className="space-y-2 text-sm text-night-600">
+                <label className="flex gap-2">
+                  <input
+                    type="checkbox"
+                    checked={rights}
+                    onChange={(event) => setRights(event.target.checked)}
+                    className="mt-1"
+                  />
+                  <span>
+                    I have permission to publish the story, images, names, and
+                    any likenesses used.
+                  </span>
+                </label>
+                <label className="flex gap-2">
+                  <input
+                    type="checkbox"
+                    checked={privacy}
+                    onChange={(event) => setPrivacy(event.target.checked)}
+                    className="mt-1"
+                  />
+                  <span>
+                    I have removed any private identifying details that should
+                    not be public.
+                  </span>
+                </label>
+                <label className="flex gap-2">
+                  <input
+                    type="checkbox"
+                    checked={terms}
+                    onChange={(event) => setTerms(event.target.checked)}
+                    className="mt-1"
+                  />
+                  <span>
+                    I understand Storycot may review, feature, sell, or remove
+                    public illustrated stories under the public gallery rules.
+                  </span>
+                </label>
+              </div>
 
-          <div className="space-y-2 text-sm text-night-600">
-            <label className="flex gap-2">
-              <input
-                type="checkbox"
-                checked={rights}
-                onChange={(event) => setRights(event.target.checked)}
-                className="mt-1"
-              />
-              <span>
-                I have permission to publish the story, images, names, and any
-                likenesses used.
-              </span>
-            </label>
-            <label className="flex gap-2">
-              <input
-                type="checkbox"
-                checked={privacy}
-                onChange={(event) => setPrivacy(event.target.checked)}
-                className="mt-1"
-              />
-              <span>
-                I have removed any private identifying details that should not
-                be public.
-              </span>
-            </label>
-            <label className="flex gap-2">
-              <input
-                type="checkbox"
-                checked={terms}
-                onChange={(event) => setTerms(event.target.checked)}
-                className="mt-1"
-              />
-              <span>
-                I understand Storycot may review, feature, sell, or remove
-                public illustrated stories under the public gallery rules.
-              </span>
-            </label>
-          </div>
+              {error ? (
+                <p className="text-sm font-bold text-blush-700">{error}</p>
+              ) : null}
 
-          {error ? (
-            <p className="text-sm font-bold text-blush-700">{error}</p>
-          ) : null}
-
-          <button
-            type="button"
-            onClick={submitForReview}
-            disabled={!canSubmitPublicly || !canSubmit || isPending}
-            className="storycot-btn storycot-btn-primary storycot-btn-compact disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Icon name="share" />
-            Submit for review
-          </button>
+              <button
+                type="button"
+                onClick={submitForReview}
+                disabled={!canSubmit || isPending}
+                className="storycot-btn storycot-btn-primary storycot-btn-compact disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Icon name="share" />
+                Submit for review
+              </button>
+            </>
+          )}
         </div>
       )}
     </section>

@@ -1,10 +1,28 @@
 import type { InngestFunction } from "inngest";
 import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
+import { db } from "@/lib/db";
 import { processBookBuildJob } from "@/lib/print-books/jobs";
 
 // Hard stop so a wedged pipeline can never loop forever inside one invocation.
 // A full 16-spread build advances well under this many stages.
 const MAX_ADVANCE_STEPS = 80;
+
+export async function advanceBookBuildEventStep(jobId: string) {
+  const queuedJob = await db.bookBuildJobs.getById(jobId);
+  if (!queuedJob) {
+    return { shouldContinue: false, status: "missing-job" };
+  }
+
+  try {
+    const { job, shouldContinue } = await processBookBuildJob(jobId);
+    return { shouldContinue, status: job.status };
+  } catch (error) {
+    if (error instanceof Error && error.message === "Job not found") {
+      return { shouldContinue: false, status: "missing-job" };
+    }
+    throw error;
+  }
+}
 
 /**
  * Durable book-build pipeline.
@@ -36,8 +54,7 @@ export const buildBook = inngest.createFunction(
 
     for (let i = 0; i < MAX_ADVANCE_STEPS; i += 1) {
       const result = await step.run(`advance-${i}`, async () => {
-        const { job, shouldContinue } = await processBookBuildJob(jobId);
-        return { shouldContinue, status: job.status };
+        return advanceBookBuildEventStep(jobId);
       });
 
       if (!result.shouldContinue) {

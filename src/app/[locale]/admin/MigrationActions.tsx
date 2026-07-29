@@ -7,18 +7,30 @@ type Status = "idle" | "loading" | "done" | "error";
 function MigrationButton({
   label,
   endpoint,
+  description,
+  confirm,
 }: {
   label: string;
   endpoint: string;
+  description?: string;
+  confirm?: string;
 }) {
   const [status, setStatus] = useState<Status>("idle");
   const [result, setResult] = useState<string | null>(null);
 
   async function run() {
+    if (confirm && !window.confirm(confirm)) return;
+
     setStatus("loading");
     setResult(null);
     try {
-      const res = await fetch(endpoint, { method: "POST" });
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          confirm ? { confirm: "RUN_PENDING_MIGRATIONS" } : undefined
+        ),
+      });
       const json = await res.json();
       setResult(JSON.stringify(json, null, 2));
       setStatus(res.ok ? "done" : "error");
@@ -37,6 +49,7 @@ function MigrationButton({
 
   return (
     <div className="flex flex-col gap-2">
+      {description && <p className="text-sm text-night-500">{description}</p>}
       <button
         onClick={run}
         disabled={status === "loading"}
@@ -60,10 +73,16 @@ export default function MigrationActions() {
         Database Migrations
       </h2>
       <p className="text-sm text-night-400 mb-5">
-        One-off schema updates. Safe to re-run - each uses{" "}
-        <span className="font-mono">IF NOT EXISTS</span>.
+        Admin-only schema maintenance. These actions run against the database
+        configured in the deployed app environment.
       </p>
       <div className="flex flex-col gap-4">
+        <MigrationButton
+          label="Run pending Drizzle migrations"
+          endpoint="/api/admin/db/migrate"
+          description="Use after a preview/dev deployment if the database schema has not caught up with the code."
+          confirm="Run all pending Drizzle migrations against the database configured for this deployment?"
+        />
         <MigrationButton
           label="Create error log table (error_events)"
           endpoint="/api/admin/migrate-error-events"

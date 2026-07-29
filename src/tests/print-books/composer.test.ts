@@ -136,12 +136,37 @@ describe("composePrintBookSpreads", () => {
       (spread) => spread.layoutType === "quiet"
     ).length;
     expect(quietCount).toBeGreaterThanOrEqual(4);
+    expect(spreads).toHaveLength(10);
+    expect(spreads.at(-1)?.pageEnd).toBe(20);
     expect(spreads.some((spread) => spread.leftPageText.includes("Mila"))).toBe(
       true
     );
     expect(
       spreads.some((spread) => spread.sceneBrief.includes("Story page"))
     ).toBe(true);
+  });
+
+  it("keeps Tiny Tales to six story image spreads", () => {
+    const story = createStory(6);
+    const spreads = composePrintBookSpreads({
+      bookProjectId: "book-1",
+      story,
+      profile: createProfile(2),
+      ageBand: "0-2",
+      beats: deriveBeatsFromStory(story),
+    });
+    const storyArtSpreads = spreads.filter(
+      (spread) =>
+        spread.layoutType === "text_art" ||
+        spread.layoutType === "hero" ||
+        spread.layoutType === "quiet"
+    );
+
+    expect(spreads).toHaveLength(10);
+    expect(storyArtSpreads).toHaveLength(6);
+    expect(spreads.filter((spread) => spread.title === "Cover")).toHaveLength(
+      1
+    );
   });
 
   it("keeps front matter first and end matter last for longer books", () => {
@@ -198,7 +223,7 @@ describe("composePrintBookSpreads", () => {
       beats: deriveBeatsFromStory(story),
     });
 
-    const interiorSpreads = spreads.slice(2, 10);
+    const interiorSpreads = spreads.slice(2, 8);
     expect(
       interiorSpreads.some((spread) =>
         spread.leftPageText.includes("Story page 1")

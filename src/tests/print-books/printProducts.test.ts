@@ -10,16 +10,16 @@ import {
 
 describe("print product policy", () => {
   it("chooses age-based logical book lengths", () => {
-    expect(getStorycotPageCountForAgeBand("0-2")).toBe(24);
+    expect(getStorycotPageCountForAgeBand("0-2")).toBe(20);
     expect(getStorycotPageCountForAgeBand("3-5")).toBe(28);
     expect(getStorycotPageCountForAgeBand("6-8")).toBe(32);
   });
 
   it("chooses age-based story spread and illustration counts", () => {
-    expect(getStorycotStorySpreadCountForAgeBand("0-2")).toBe(8);
+    expect(getStorycotStorySpreadCountForAgeBand("0-2")).toBe(6);
     expect(getStorycotStorySpreadCountForAgeBand("3-5")).toBe(10);
     expect(getStorycotStorySpreadCountForAgeBand("6-8")).toBe(12);
-    expect(getStorycotIllustrationCountForAgeBand("0-2")).toBe(9);
+    expect(getStorycotIllustrationCountForAgeBand("0-2")).toBe(7);
     expect(getStorycotIllustrationCountForAgeBand("3-5")).toBe(11);
     expect(getStorycotIllustrationCountForAgeBand("6-8")).toBe(13);
   });

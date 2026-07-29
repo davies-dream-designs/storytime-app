@@ -37,8 +37,8 @@ describe("pricing policy", () => {
     expect(
       estimateIllustratedBookCredits({
         ageBand: "0-2",
-        pageCount: 24,
-        illustrationCount: 9,
+        pageCount: 20,
+        illustrationCount: 7,
       }).credits
     ).toBe(8);
     expect(

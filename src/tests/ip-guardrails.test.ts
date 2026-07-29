@@ -27,6 +27,7 @@ describe("IP guardrails", () => {
       riskLevel: "originalized",
       printAllowed: true,
       reasons: expect.arrayContaining(["protected_reference"]),
+      matchedTerms: ["Toy Story", "Woody"],
     });
     expect(result.originalizedPremise).toContain(
       "Replace any named source material"
@@ -80,6 +81,29 @@ describe("IP guardrails", () => {
     expect(result).toMatchObject({
       riskLevel: "restricted",
       printAllowed: false,
+      matchedTerms: ["Buzz Lightyear"],
+    });
+  });
+
+  it("does not block ordinary uses of broad words like frozen", () => {
+    const result = assessGeneratedStoryIp({
+      title: "Bailey and the Frozen Pond",
+      theme: "patience",
+      premise: "",
+      notes: "",
+      pages: [
+        {
+          pageNumber: 1,
+          text: "Bailey watched a frozen pond sparkle in the morning light.",
+          illustrationPrompt:
+            "An original winter pond with a warmly dressed child nearby.",
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      riskLevel: "clear",
+      printAllowed: true,
     });
   });
 

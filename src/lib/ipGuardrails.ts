@@ -6,6 +6,7 @@ export type StoryIpPolicy = {
   riskLevel: StoryIpRiskLevel;
   printAllowed: boolean;
   reasons: string[];
+  matchedTerms?: string[];
   originalizedPremise?: string;
   originalizedNotes?: string;
 };
@@ -27,36 +28,35 @@ type ProfileIpInput = Pick<
   characters?: Character[];
 };
 
-const PROTECTED_REFERENCE_PATTERNS = [
-  /\btoy story\b/i,
-  /\bwoody\b/i,
-  /\bbuzz lightyear\b/i,
-  /\bbluey\b/i,
-  /\bbingo\b/i,
-  /\bdisney\b/i,
-  /\bpixar\b/i,
-  /\bmarvel\b/i,
-  /\bspider[- ]?man\b/i,
-  /\bbatman\b/i,
-  /\bsuperman\b/i,
-  /\bpok[eé]mon\b/i,
-  /\bpikachu\b/i,
-  /\bmario\b/i,
-  /\bharry potter\b/i,
-  /\bhogwarts\b/i,
-  /\bstar wars\b/i,
-  /\bdarth vader\b/i,
-  /\bfrozen\b/i,
-  /\belsa\b/i,
-  /\bminions?\b/i,
-  /\bpeppa pig\b/i,
-  /\bpaw patrol\b/i,
-  /\bspongebob\b/i,
-  /\bsonic\b/i,
-  /\bbarbie\b/i,
-  /\bmickey mouse\b/i,
-  /\bwinnie[- ]?the[- ]?pooh\b/i,
-];
+const PROTECTED_REFERENCE_PATTERNS: Array<{ pattern: RegExp; label: string }> =
+  [
+    { pattern: /\btoy story\b/i, label: "Toy Story" },
+    { pattern: /\bwoody\b/i, label: "Woody" },
+    { pattern: /\bbuzz lightyear\b/i, label: "Buzz Lightyear" },
+    { pattern: /\bbluey\b/i, label: "Bluey" },
+    { pattern: /\bbingo\b/i, label: "Bingo" },
+    { pattern: /\bdisney\b/i, label: "Disney" },
+    { pattern: /\bpixar\b/i, label: "Pixar" },
+    { pattern: /\bmarvel\b/i, label: "Marvel" },
+    { pattern: /\bspider[- ]?man\b/i, label: "Spider-Man" },
+    { pattern: /\bbatman\b/i, label: "Batman" },
+    { pattern: /\bsuperman\b/i, label: "Superman" },
+    { pattern: /\bpok[eé]mon\b/i, label: "Pokemon" },
+    { pattern: /\bpikachu\b/i, label: "Pikachu" },
+    { pattern: /\bmario\b/i, label: "Mario" },
+    { pattern: /\bharry potter\b/i, label: "Harry Potter" },
+    { pattern: /\bhogwarts\b/i, label: "Hogwarts" },
+    { pattern: /\bstar wars\b/i, label: "Star Wars" },
+    { pattern: /\bdarth vader\b/i, label: "Darth Vader" },
+    { pattern: /\belsa\b/i, label: "Elsa" },
+    { pattern: /\bminions?\b/i, label: "Minions" },
+    { pattern: /\bpeppa pig\b/i, label: "Peppa Pig" },
+    { pattern: /\bpaw patrol\b/i, label: "Paw Patrol" },
+    { pattern: /\bspongebob\b/i, label: "SpongeBob" },
+    { pattern: /\bbarbie\b/i, label: "Barbie" },
+    { pattern: /\bmickey mouse\b/i, label: "Mickey Mouse" },
+    { pattern: /\bwinnie[- ]?the[- ]?pooh\b/i, label: "Winnie-the-Pooh" },
+  ];
 
 const PROTECTED_REFERENCE_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\btoy story\b/gi, "an original toy-room adventure"],
@@ -105,8 +105,13 @@ function normalizeInput(input: StoryIdeaInput): string {
     .normalize("NFKC");
 }
 
-function hasProtectedReference(text: string): boolean {
-  return PROTECTED_REFERENCE_PATTERNS.some((pattern) => pattern.test(text));
+function collectProtectedReferences(text: string): string[] {
+  const matches = new Set<string>();
+  for (const { pattern, label } of PROTECTED_REFERENCE_PATTERNS) {
+    pattern.lastIndex = 0;
+    if (pattern.test(text)) matches.add(label);
+  }
+  return [...matches];
 }
 
 function hasSourceReference(text: string): boolean {
@@ -140,7 +145,8 @@ export function assessStoryIdeaIp(input: StoryIdeaInput): StoryIpPolicy {
   }
 
   const reasons: string[] = [];
-  if (hasProtectedReference(text)) {
+  const matchedTerms = collectProtectedReferences(text);
+  if (matchedTerms.length > 0) {
     reasons.push("protected_reference");
   }
   if (hasSourceReference(text)) {
@@ -155,6 +161,7 @@ export function assessStoryIdeaIp(input: StoryIdeaInput): StoryIpPolicy {
     riskLevel: "originalized",
     printAllowed: true,
     reasons,
+    matchedTerms,
     originalizedPremise: input.premise
       ? originalizeStoryIdeaText(input.premise)
       : undefined,
@@ -185,13 +192,14 @@ export function assessProfileIp(input: ProfileIpInput): StoryIpPolicy {
   }
 
   const reasons: string[] = [];
-  if (hasProtectedReference(profileText)) reasons.push("protected_reference");
+  const matchedTerms = collectProtectedReferences(profileText);
+  if (matchedTerms.length > 0) reasons.push("protected_reference");
   if (hasSourceReference(profileText))
     reasons.push("source_or_style_reference");
 
   return reasons.length === 0
     ? { riskLevel: "clear", printAllowed: true, reasons: [] }
-    : { riskLevel: "restricted", printAllowed: false, reasons };
+    : { riskLevel: "restricted", printAllowed: false, reasons, matchedTerms };
 }
 
 export function profileIpErrorResponse(policy: StoryIpPolicy) {
@@ -236,7 +244,9 @@ export function assessGeneratedStoryIp(
     .filter((value): value is string => Boolean(value?.trim()))
     .join("\n");
 
-  if (!hasProtectedReference(text) && !hasGeneratedSourceReference(text)) {
+  const matchedTerms = collectProtectedReferences(text);
+  const hasSourceReference = hasGeneratedSourceReference(text);
+  if (matchedTerms.length === 0 && !hasSourceReference) {
     return { riskLevel: "clear", printAllowed: true, reasons: [] };
   }
 
@@ -244,9 +254,10 @@ export function assessGeneratedStoryIp(
     riskLevel: "restricted",
     printAllowed: false,
     reasons: [
-      hasProtectedReference(text) ? "protected_reference" : "",
-      hasGeneratedSourceReference(text) ? "source_or_style_reference" : "",
+      matchedTerms.length > 0 ? "protected_reference" : "",
+      hasSourceReference ? "source_or_style_reference" : "",
     ].filter(Boolean),
+    matchedTerms,
   };
 }
 
@@ -278,6 +289,7 @@ export function getEffectiveStoryIpPolicy(
             : "clear",
         printAllowed: true,
         reasons: story.ipPolicy.reasons,
+        matchedTerms: story.ipPolicy.matchedTerms,
         originalizedPremise: story.ipPolicy.originalizedPremise,
         originalizedNotes: story.ipPolicy.originalizedNotes,
       }

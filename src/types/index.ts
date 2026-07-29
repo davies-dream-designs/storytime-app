@@ -75,6 +75,7 @@ export interface StoryIpPolicy {
   riskLevel: "clear" | "originalized" | "restricted";
   printAllowed: boolean;
   reasons: string[];
+  matchedTerms?: string[];
   originalizedPremise?: string;
   originalizedNotes?: string;
 }

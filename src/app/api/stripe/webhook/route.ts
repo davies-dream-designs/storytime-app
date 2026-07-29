@@ -17,7 +17,11 @@ import {
   sendPrintOrderConfirmedEmail,
 } from "@/lib/email";
 import { logEvent } from "@/lib/logEvent";
-import type { PrintBookOrder, PrintFulfillment } from "@/types/printBook";
+import type {
+  PrintBookOrder,
+  PrintFulfillment,
+  PrintOrderRecord,
+} from "@/types/printBook";
 
 function withoutStoredShipping(order: PrintBookOrder): PrintBookOrder {
   const safeOrder = { ...order };
@@ -31,6 +35,55 @@ function withoutStoredFulfillmentPayload(
   const safeFulfillment = { ...fulfillment };
   delete safeFulfillment.payload;
   return safeFulfillment;
+}
+
+function centsToAud(value: number) {
+  return Number((value / 100).toFixed(2));
+}
+
+function fulfillmentStatusToPrintOrderStatus(
+  fulfillment: PrintFulfillment
+): PrintOrderRecord["status"] {
+  switch (fulfillment.status) {
+    case "submitted":
+      return "fulfillment_submitted";
+    case "shipped":
+      return "shipped";
+    case "delivered":
+      return "delivered";
+    case "failed":
+    case "not_configured":
+      return "failed";
+    case "ready_for_manual_review":
+      return "fulfillment_pending";
+  }
+}
+
+function printOrderRecordToBookOrder(
+  order: PrintOrderRecord,
+  session: Stripe.Checkout.Session,
+  billingCountry?: string
+): PrintBookOrder {
+  return {
+    productKey: order.productKey,
+    productLabel: order.productLabel,
+    provider: order.provider === "lulu" ? "Lulu" : order.provider,
+    format: order.format,
+    status: "paid",
+    amountAud: centsToAud(order.amountAudCents),
+    subtotalAud: centsToAud(order.subtotalAudCents),
+    shippingAmountAud: centsToAud(order.shippingAudCents),
+    pageCount: order.pageCount,
+    quantity: order.quantity,
+    checkoutSessionId: session.id,
+    paymentIntentId:
+      typeof session.payment_intent === "string"
+        ? session.payment_intent
+        : undefined,
+    billingCountry,
+    shipping: getPrintShippingAddress(session) ?? order.shipping,
+    paidAt: new Date().toISOString(),
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -69,7 +122,7 @@ export async function POST(req: NextRequest) {
   if (event.type === "checkout.session.completed") {
     let session = event.data.object as Stripe.Checkout.Session;
     const checkoutType = session.metadata?.checkoutType ?? "credits";
-    if (checkoutType === "print_book") {
+    if (checkoutType === "print_book" || checkoutType === "public_print_book") {
       session = await retrieveSessionWhenShippingIsMissing(stripe, session);
     }
     const userId = session.metadata?.userId;
@@ -116,6 +169,21 @@ export async function POST(req: NextRequest) {
               billingCountry: billingCountry ?? "UNKNOWN",
               refundedAt: new Date().toISOString(),
             },
+          });
+        }
+      }
+
+      if (checkoutType === "public_print_book") {
+        const order = await db.printOrders.getByCheckoutSessionId(session.id);
+        if (order) {
+          await db.printOrders.update(order.id, {
+            status: "refunded",
+            paymentIntentId:
+              typeof session.payment_intent === "string"
+                ? session.payment_intent
+                : undefined,
+            billingCountry: billingCountry ?? "UNKNOWN",
+            refundedAt: new Date().toISOString(),
           });
         }
       }
@@ -224,6 +292,69 @@ export async function POST(req: NextRequest) {
               context: { checkoutSessionId: session.id },
             });
           });
+        }
+      }
+    } else if (checkoutType === "public_print_book") {
+      const order = await db.printOrders.getByCheckoutSessionId(session.id);
+      if (order && order.status === "checkout_started") {
+        const project = await db.bookProjects.getById(order.projectId);
+        if (project && project.sourceStoryId === order.storyId) {
+          const now = new Date().toISOString();
+          const printOrder = printOrderRecordToBookOrder(
+            order,
+            session,
+            billingCountry
+          );
+          const fulfillment = await submitPrintFulfillment({
+            project,
+            order: printOrder,
+          });
+          await db.printOrders.update(order.id, {
+            status: fulfillmentStatusToPrintOrderStatus(fulfillment),
+            paymentIntentId:
+              typeof session.payment_intent === "string"
+                ? session.payment_intent
+                : undefined,
+            billingCountry,
+            shipping: printOrder.shipping,
+            fulfillment: withoutStoredFulfillmentPayload(fulfillment),
+            paidAt: now,
+            updatedAt: now,
+          });
+
+          const customerEmail = printOrder.shipping?.email ?? order.buyerEmail;
+          if (customerEmail) {
+            const story = await db.stories.getById(order.storyId);
+            const appUrl =
+              process.env.NEXT_PUBLIC_APP_URL ?? "https://storycot.com.au";
+            const trackPath = story?.shareToken
+              ? `/s/${story.shareToken}`
+              : `/public`;
+            void sendPrintOrderConfirmedEmail({
+              toEmail: customerEmail,
+              toName: printOrder.shipping?.name ?? "there",
+              storyTitle: story?.title ?? "Your story",
+              productLabel: order.productLabel,
+              amountAud: printOrder.amountAud,
+              trackUrl: `${appUrl.replace(/\/$/, "")}${trackPath}`,
+              appUrl,
+            }).catch((err) => {
+              console.error(
+                "Public print order confirmation email failed (non-fatal)",
+                err
+              );
+              void logEvent({
+                error: err,
+                code: "payment.confirmation_email_failed",
+                userId: order.buyerUserId,
+                userEmail: customerEmail,
+                entityType: "print_order",
+                entityId: order.id,
+                source: "stripe/webhook",
+                context: { checkoutSessionId: session.id },
+              });
+            });
+          }
         }
       }
     } else if (checkoutType === "print_book") {

@@ -302,7 +302,7 @@ describe("POST /api/books/[id]/build", () => {
 
   it("returns 402 when illustrated generation has insufficient credits", async () => {
     mockEnqueueBookBuildJob.mockRejectedValue(
-      new Error("Insufficient credits. This illustrated book costs 8 credits.")
+      new Error("Insufficient credits. This illustrated book costs 6 credits.")
     );
 
     const { POST } = await import("@/app/api/books/[id]/build/route");
@@ -317,7 +317,7 @@ describe("POST /api/books/[id]/build", () => {
 
     expect(res.status).toBe(402);
     expect(await res.json()).toEqual({
-      error: "Insufficient credits. This illustrated book costs 8 credits.",
+      error: "Insufficient credits. This illustrated book costs 6 credits.",
     });
   });
 

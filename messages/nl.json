@@ -238,8 +238,10 @@
     "generatingErrorTitle": "Het verhaal moet opnieuw geprobeerd worden",
     "streamingTitle": "Je verhaal wordt geweven",
     "streamingEyebrow": "Het verhaal verschijnt nu",
+    "streamingPolishingEyebrow": "Het verhaal wordt gecontroleerd",
     "streamingPagesPending": "Pagina's verschijnen hier",
     "streamingPageCount": "{count} pagina's tot nu toe geschreven",
+    "streamingPolishing": "Grammatica en details worden bijgewerkt",
     "streamingInProgress": "Nu aan het schrijven",
     "streamingFailed": "Opnieuw proberen nodig",
     "tryAgainButton": "Opnieuw proberen",
@@ -543,7 +545,7 @@
     "ctaTitle": "Maak een verhaal voor je kleintje",
     "ctaSub": "Storycot genereert in enkele seconden gepersonaliseerde verhalen voor het slapengaan - afgestemd op de naam, leeftijd en favoriete dingen van je kind.",
     "ctaButton": "Ontvang 3 gratis verhalen →",
-    "footer": "Gemaakt met Storycot · storycot.com · Elk kind verdient een verhaal dat speciaal voor hen is gemaakt.",
+    "footer": "Gemaakt met Storycot · storycot.com.au · Elk kind verdient een verhaal dat speciaal voor hen is gemaakt.",
     "createOwn": "Verzin je eigen verhaal."
   },
   "common": {

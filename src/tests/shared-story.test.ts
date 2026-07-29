@@ -90,22 +90,29 @@ describe("shared story resolver", () => {
     memoryDb._reset();
   });
 
-  it("falls back to plain story pages when no ready book exists", async () => {
+  it("does not resolve text-only shared stories", async () => {
     await memoryDb.stories.create(createStory());
 
     const { getSharedStoryByToken } = await import("@/lib/sharedStory");
     const shared = await getSharedStoryByToken("share-token");
 
-    expect(shared?.project).toBeUndefined();
-    expect(shared?.coverImageUrl).toBeUndefined();
-    expect(shared?.spreads).toEqual([
-      {
-        id: "story-page-1",
-        sequence: 1,
-        text: "Mila found a silver moon.",
-      },
-    ]);
-    expect(shared?.narrationEnabled).toBe(false);
+    expect(shared).toBeUndefined();
+  });
+
+  it("does not resolve illustrated stories without a cover", async () => {
+    await memoryDb.stories.create(createStory());
+    await memoryDb.bookProjects.create(
+      createProject({
+        assets: {
+          proofVersion: 1,
+        },
+      })
+    );
+
+    const { getSharedStoryByToken } = await import("@/lib/sharedStory");
+    const shared = await getSharedStoryByToken("share-token");
+
+    expect(shared).toBeUndefined();
   });
 
   it("uses ready illustrated book art and gates narration on digital unlock", async () => {

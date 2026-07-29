@@ -238,8 +238,10 @@
     "generatingErrorTitle": "Ceritanya perlu dicoba lagi",
     "streamingTitle": "Menenun ceritamu",
     "streamingEyebrow": "Cerita muncul sekarang",
+    "streamingPolishingEyebrow": "Memeriksa cerita akhir",
     "streamingPagesPending": "Halaman akan muncul di sini",
     "streamingPageCount": "Halaman {count} ditulis sejauh ini",
+    "streamingPolishing": "Memoles tata bahasa dan detail cerita",
     "streamingInProgress": "Menulis sekarang",
     "streamingFailed": "Perlu percobaan lagi",
     "tryAgainButton": "Coba lagi",
@@ -543,7 +545,7 @@
     "ctaTitle": "Ciptakan cerita untuk si kecil",
     "ctaSub": "Storycot menghasilkan cerita pengantar tidur yang dipersonalisasi dalam hitungan detik - disesuaikan dengan nama, usia, dan hal favorit anak Anda.",
     "ctaButton": "Dapatkan 3 cerita gratis →",
-    "footer": "Dibuat dengan Storycot · storycot.com · Setiap anak berhak mendapatkan cerita yang dibuat khusus untuk mereka.",
+    "footer": "Dibuat dengan Storycot · storycot.com.au · Setiap anak berhak mendapatkan cerita yang dibuat khusus untuk mereka.",
     "createOwn": "Buat cerita Anda sendiri →"
   },
   "common": {

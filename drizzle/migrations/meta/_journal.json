@@ -22,6 +22,34 @@
       "when": 1785064133320,
       "tag": "0002_glossy_prodigy",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785235276196,
+      "tag": "0003_gray_power_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785236274337,
+      "tag": "0004_flimsy_stellaris",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785238215382,
+      "tag": "0005_skinny_jocasta",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785274439922,
+      "tag": "0006_motionless_hawkeye",
+      "breakpoints": true
     }
   ]
 }

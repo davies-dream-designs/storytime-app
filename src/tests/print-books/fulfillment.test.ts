@@ -76,7 +76,7 @@ describe("preparePrintFulfillment", () => {
     expect(fulfillment.status).toBe("ready_for_manual_review");
     expect(fulfillment.provider).toBe("lulu");
     expect(fulfillment.payload).toMatchObject({
-      contact_email: "hello@storycot.com",
+      contact_email: "hello@storycot.com.au",
       external_id: "storycot-book-1",
       line_items: [
         {

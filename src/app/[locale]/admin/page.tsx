@@ -8,6 +8,11 @@ import LuluWebhookActions from "./LuluWebhookActions";
 import PrintOrdersSection from "./PrintOrdersSection";
 import IssuesSection from "./IssuesSection";
 import CustomerLookup from "./CustomerLookup";
+import PublicStoryReviewSection from "./PublicStoryReviewSection";
+import PublicStoryReportsSection from "./PublicStoryReportsSection";
+import PublicStoryModerationEventsSection from "./PublicStoryModerationEventsSection";
+import PublicStoryRewardsSection from "./PublicStoryRewardsSection";
+import type { PublicStoryPrintReadiness } from "@/lib/publicStoryPrintReadiness";
 
 export const metadata = { title: "Admin - Storycot" };
 
@@ -22,13 +27,42 @@ export default async function AdminPage() {
   let projects: Awaited<ReturnType<typeof db.bookProjects.getById>>[] = [];
   let printOrders: Awaited<ReturnType<typeof db.bookProjects.getPrintOrders>> =
     [];
+  let publicReviewStories: Awaited<
+    ReturnType<typeof db.stories.getPublicReviewQueue>
+  > = [];
+  let publicStoryReports: Awaited<
+    ReturnType<typeof db.publicStoryReports.listOpen>
+  > = [];
+  let publicModerationEvents: Awaited<
+    ReturnType<typeof db.publicStoryModerationEvents.listRecent>
+  > = [];
+  let publicLeaderboard: Awaited<
+    ReturnType<typeof db.publicStoryVotes.leaderboard>
+  > = [];
+  let publicPrintReadiness: Record<string, PublicStoryPrintReadiness> = {};
   let dbReady = true;
   try {
     const failedIds = await db.bookProjects.getFailedIndex();
     projects = (
       await Promise.all(failedIds.map((id) => db.bookProjects.getById(id)))
     ).filter(Boolean);
-    printOrders = await db.bookProjects.getPrintOrders();
+    [
+      printOrders,
+      publicReviewStories,
+      publicStoryReports,
+      publicModerationEvents,
+      publicLeaderboard,
+    ] = await Promise.all([
+      db.bookProjects.getPrintOrders(),
+      db.stories.getPublicReviewQueue(),
+      db.publicStoryReports.listOpen(),
+      db.publicStoryModerationEvents.listRecent(50),
+      db.publicStoryVotes.leaderboard(10),
+    ]);
+    publicPrintReadiness =
+      await db.bookProjects.getPublicPrintReadinessByStoryIds(
+        publicLeaderboard.map((entry) => entry.story.id)
+      );
   } catch (err) {
     dbReady = false;
     console.error("[admin] failed to load failed books / print orders", err);
@@ -49,6 +83,14 @@ export default async function AdminPage() {
 
         <IssuesSection />
         <CustomerLookup />
+        <PublicStoryReviewSection stories={publicReviewStories} />
+        <PublicStoryReportsSection reports={publicStoryReports} />
+        <PublicStoryRewardsSection
+          leaders={publicLeaderboard}
+          printReadiness={publicPrintReadiness}
+          voteMonth={db.publicStoryVotes.getVoteMonth()}
+        />
+        <PublicStoryModerationEventsSection events={publicModerationEvents} />
 
         <LuluWebhookActions />
         <TestEmailActions />

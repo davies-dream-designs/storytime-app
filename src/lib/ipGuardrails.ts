@@ -1,4 +1,4 @@
-import type { Story, StoryPage } from "@/types";
+import type { Character, ChildProfile, Story, StoryPage } from "@/types";
 
 export type StoryIpRiskLevel = "clear" | "originalized" | "restricted";
 
@@ -6,6 +6,7 @@ export type StoryIpPolicy = {
   riskLevel: StoryIpRiskLevel;
   printAllowed: boolean;
   reasons: string[];
+  matchedTerms?: string[];
   originalizedPremise?: string;
   originalizedNotes?: string;
 };
@@ -16,36 +17,46 @@ type StoryIdeaInput = {
   notes?: string;
 };
 
-const PROTECTED_REFERENCE_PATTERNS = [
-  /\btoy story\b/i,
-  /\bwoody\b/i,
-  /\bbuzz lightyear\b/i,
-  /\bbluey\b/i,
-  /\bbingo\b/i,
-  /\bdisney\b/i,
-  /\bpixar\b/i,
-  /\bmarvel\b/i,
-  /\bspider[- ]?man\b/i,
-  /\bbatman\b/i,
-  /\bsuperman\b/i,
-  /\bpok[eé]mon\b/i,
-  /\bpikachu\b/i,
-  /\bmario\b/i,
-  /\bharry potter\b/i,
-  /\bhogwarts\b/i,
-  /\bstar wars\b/i,
-  /\bdarth vader\b/i,
-  /\bfrozen\b/i,
-  /\belsa\b/i,
-  /\bminions?\b/i,
-  /\bpeppa pig\b/i,
-  /\bpaw patrol\b/i,
-  /\bspongebob\b/i,
-  /\bsonic\b/i,
-  /\bbarbie\b/i,
-  /\bmickey mouse\b/i,
-  /\bwinnie[- ]?the[- ]?pooh\b/i,
-];
+type ProfileIpInput = Pick<
+  ChildProfile,
+  | "favouriteCharacters"
+  | "favouriteActivities"
+  | "favouriteAnimals"
+  | "favouritePlaces"
+  | "lessons"
+> & {
+  characters?: Character[];
+};
+
+const PROTECTED_REFERENCE_PATTERNS: Array<{ pattern: RegExp; label: string }> =
+  [
+    { pattern: /\btoy story\b/i, label: "Toy Story" },
+    { pattern: /\bwoody\b/i, label: "Woody" },
+    { pattern: /\bbuzz lightyear\b/i, label: "Buzz Lightyear" },
+    { pattern: /\bbluey\b/i, label: "Bluey" },
+    { pattern: /\bbingo\b/i, label: "Bingo" },
+    { pattern: /\bdisney\b/i, label: "Disney" },
+    { pattern: /\bpixar\b/i, label: "Pixar" },
+    { pattern: /\bmarvel\b/i, label: "Marvel" },
+    { pattern: /\bspider[- ]?man\b/i, label: "Spider-Man" },
+    { pattern: /\bbatman\b/i, label: "Batman" },
+    { pattern: /\bsuperman\b/i, label: "Superman" },
+    { pattern: /\bpok[eé]mon\b/i, label: "Pokemon" },
+    { pattern: /\bpikachu\b/i, label: "Pikachu" },
+    { pattern: /\bmario\b/i, label: "Mario" },
+    { pattern: /\bharry potter\b/i, label: "Harry Potter" },
+    { pattern: /\bhogwarts\b/i, label: "Hogwarts" },
+    { pattern: /\bstar wars\b/i, label: "Star Wars" },
+    { pattern: /\bdarth vader\b/i, label: "Darth Vader" },
+    { pattern: /\belsa\b/i, label: "Elsa" },
+    { pattern: /\bminions?\b/i, label: "Minions" },
+    { pattern: /\bpeppa pig\b/i, label: "Peppa Pig" },
+    { pattern: /\bpaw patrol\b/i, label: "Paw Patrol" },
+    { pattern: /\bspongebob\b/i, label: "SpongeBob" },
+    { pattern: /\bbarbie\b/i, label: "Barbie" },
+    { pattern: /\bmickey mouse\b/i, label: "Mickey Mouse" },
+    { pattern: /\bwinnie[- ]?the[- ]?pooh\b/i, label: "Winnie-the-Pooh" },
+  ];
 
 const PROTECTED_REFERENCE_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\btoy story\b/gi, "an original toy-room adventure"],
@@ -79,12 +90,14 @@ const PROTECTED_REFERENCE_REPLACEMENTS: Array<[RegExp, string]> = [
 ];
 
 const SOURCE_REFERENCE_PATTERNS = [
-  /\b(in the style of|drawn like|looks like|from the movie|from the show|from the book|official character|franchise|brand|logo)\b/i,
+  /\b(in the style of|drawn like|looks like|from the movie|from the show|from the book|official character|franchise|logo)\b/i,
+  /\bbrand(?:ed)?\s+(?:character|logo|name|toy|world|design|likeness|mascot|franchise)\b/i,
   /\b(with|and|meets|meeting|adventure with)\s+(?:the\s+)?[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3}\b/,
 ];
 
 const GENERATED_SOURCE_REFERENCE_PATTERNS = [
-  /\b(in the style of|drawn like|looks like|from the movie|from the show|from the book|official character|franchise|brand|logo)\b/i,
+  /\b(in the style of|drawn like|looks like|from the movie|from the show|from the book|official character|franchise|logo)\b/i,
+  /\bbrand(?:ed)?\s+(?:character|logo|name|toy|world|design|likeness|mascot|franchise)\b/i,
 ];
 
 function normalizeInput(input: StoryIdeaInput): string {
@@ -94,8 +107,13 @@ function normalizeInput(input: StoryIdeaInput): string {
     .normalize("NFKC");
 }
 
-function hasProtectedReference(text: string): boolean {
-  return PROTECTED_REFERENCE_PATTERNS.some((pattern) => pattern.test(text));
+function collectProtectedReferences(text: string): string[] {
+  const matches = new Set<string>();
+  for (const { pattern, label } of PROTECTED_REFERENCE_PATTERNS) {
+    pattern.lastIndex = 0;
+    if (pattern.test(text)) matches.add(label);
+  }
+  return [...matches];
 }
 
 function hasSourceReference(text: string): boolean {
@@ -115,8 +133,12 @@ function redactProtectedReferences(value: string): string {
   }
   return redacted
     .replace(
-      /\b(in the style of|drawn like|looks like|from the movie|from the show|from the book|official character|franchise|brand|logo)\b/gi,
+      /\b(in the style of|drawn like|looks like|from the movie|from the show|from the book|official character|franchise|logo)\b/gi,
       "as an original Storycot design"
+    )
+    .replace(
+      /\bbrand(?:ed)?\s+(?:character|logo|name|toy|world|design|likeness|mascot|franchise)\b/gi,
+      "original Storycot design"
     )
     .replace(/\s+/g, " ")
     .trim();
@@ -129,7 +151,8 @@ export function assessStoryIdeaIp(input: StoryIdeaInput): StoryIpPolicy {
   }
 
   const reasons: string[] = [];
-  if (hasProtectedReference(text)) {
+  const matchedTerms = collectProtectedReferences(text);
+  if (matchedTerms.length > 0) {
     reasons.push("protected_reference");
   }
   if (hasSourceReference(text)) {
@@ -144,10 +167,54 @@ export function assessStoryIdeaIp(input: StoryIdeaInput): StoryIpPolicy {
     riskLevel: "originalized",
     printAllowed: true,
     reasons,
+    matchedTerms,
     originalizedPremise: input.premise
       ? originalizeStoryIdeaText(input.premise)
       : undefined,
     originalizedNotes: input.notes ? originalizeStoryIdeaText(input.notes) : "",
+  };
+}
+
+export function assessProfileIp(input: ProfileIpInput): StoryIpPolicy {
+  const profileText = [
+    ...(input.favouriteCharacters ?? []),
+    ...(input.favouriteActivities ?? []),
+    ...(input.favouriteAnimals ?? []),
+    ...(input.favouritePlaces ?? []),
+    ...(input.lessons ?? []),
+    ...(input.characters ?? []).flatMap((character) => [
+      character.name,
+      character.description,
+      character.personality,
+      character.appearance,
+    ]),
+  ]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join("\n")
+    .normalize("NFKC");
+
+  if (!profileText) {
+    return { riskLevel: "clear", printAllowed: true, reasons: [] };
+  }
+
+  const reasons: string[] = [];
+  const matchedTerms = collectProtectedReferences(profileText);
+  if (matchedTerms.length > 0) reasons.push("protected_reference");
+  if (hasSourceReference(profileText))
+    reasons.push("source_or_style_reference");
+
+  return reasons.length === 0
+    ? { riskLevel: "clear", printAllowed: true, reasons: [] }
+    : { riskLevel: "restricted", printAllowed: false, reasons, matchedTerms };
+}
+
+export function profileIpErrorResponse(policy: StoryIpPolicy) {
+  return {
+    error:
+      "This child profile includes a branded character, franchise, copyrighted toy, logo, or protected story world. Please edit the profile and replace it with an original description before creating a story.",
+    code: "story_idea_not_allowed",
+    category: "protected_ip",
+    reasons: policy.reasons,
   };
 }
 
@@ -183,7 +250,9 @@ export function assessGeneratedStoryIp(
     .filter((value): value is string => Boolean(value?.trim()))
     .join("\n");
 
-  if (!hasProtectedReference(text) && !hasGeneratedSourceReference(text)) {
+  const matchedTerms = collectProtectedReferences(text);
+  const hasSourceReference = hasGeneratedSourceReference(text);
+  if (matchedTerms.length === 0 && !hasSourceReference) {
     return { riskLevel: "clear", printAllowed: true, reasons: [] };
   }
 
@@ -191,9 +260,10 @@ export function assessGeneratedStoryIp(
     riskLevel: "restricted",
     printAllowed: false,
     reasons: [
-      hasProtectedReference(text) ? "protected_reference" : "",
-      hasGeneratedSourceReference(text) ? "source_or_style_reference" : "",
+      matchedTerms.length > 0 ? "protected_reference" : "",
+      hasSourceReference ? "source_or_style_reference" : "",
     ].filter(Boolean),
+    matchedTerms,
   };
 }
 
@@ -220,9 +290,12 @@ export function getEffectiveStoryIpPolicy(
   return generatedPolicy.riskLevel === "clear"
     ? {
         riskLevel:
-          story.ipPolicy.riskLevel === "originalized" ? "originalized" : "clear",
+          story.ipPolicy.riskLevel === "originalized"
+            ? "originalized"
+            : "clear",
         printAllowed: true,
         reasons: story.ipPolicy.reasons,
+        matchedTerms: story.ipPolicy.matchedTerms,
         originalizedPremise: story.ipPolicy.originalizedPremise,
         originalizedNotes: story.ipPolicy.originalizedNotes,
       }

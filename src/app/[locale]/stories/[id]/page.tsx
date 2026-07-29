@@ -22,9 +22,14 @@ import {
 } from "@/lib/print-books/launch";
 import { getEffectiveBookProjectStatus } from "@/lib/print-books/readiness";
 import { getBookFileRetentionState } from "@/lib/print-books/retention";
-import { isStoryPrintRestricted } from "@/lib/ipGuardrails";
+import {
+  getEffectiveStoryIpPolicy,
+  isStoryPrintRestricted,
+} from "@/lib/ipGuardrails";
 import StoryReader from "./StoryReader";
 import ShareButton from "./ShareButton";
+import PublicSubmissionPanel from "./PublicSubmissionPanel";
+import StoryEditPanel from "./StoryEditPanel";
 import CreatePrintBookButton from "./CreatePrintBookButton";
 import CheckoutResultNotice from "./CheckoutResultNotice";
 import StoryTextExports from "./StoryTextExports";
@@ -98,7 +103,12 @@ export default async function StoryPage({
     : null;
   const isBookReady = effectiveProjectStatus === "ready";
   const printOrderingAvailable = canStartPrintCheckout(isAdmin);
+  const printIpPolicy = getEffectiveStoryIpPolicy(story);
   const printRestricted = isStoryPrintRestricted(story);
+  const printRestrictionMatches = printIpPolicy?.matchedTerms ?? [];
+  const hasSourceStyleRestriction = Boolean(
+    printIpPolicy?.reasons.includes("source_or_style_reference")
+  );
   const fileRetention = existingBook
     ? getBookFileRetentionState(existingBook)
     : null;
@@ -117,6 +127,9 @@ export default async function StoryPage({
   const hasDigitalDownload = Boolean(
     existingBook?.assets.digitalDownloadUnlockedAt
   );
+  const shareableThumbnails =
+    await db.bookProjects.getPublicThumbnailsByStoryIds([id]);
+  const hasShareableIllustratedBook = Boolean(shareableThumbnails[id]);
 
   return (
     <>
@@ -191,7 +204,9 @@ export default async function StoryPage({
                     compact
                   />
                 ) : null}
-                <ShareButton storyId={id} />
+                {hasShareableIllustratedBook ? (
+                  <ShareButton storyId={id} />
+                ) : null}
                 <StoryTextExports
                   storyId={id}
                   storyTitle={story.title}
@@ -235,11 +250,7 @@ export default async function StoryPage({
                     )}
                   </>
                 ) : null}
-                <DeleteStoryButton
-                  storyId={id}
-                  redirectTo="/stories"
-                  compact
-                />
+                <DeleteStoryButton storyId={id} redirectTo="/stories" compact />
               </>
             ) : null}
           </div>
@@ -290,7 +301,6 @@ export default async function StoryPage({
               </p>
             </div>
           )}
-
         </div>
 
         {/* Download success / cancel banners */}
@@ -472,6 +482,8 @@ export default async function StoryPage({
           </div>
         ) : null}
 
+        {isReady ? <StoryEditPanel story={story} /> : null}
+
         {/* Purchases + downloads - when book is ready */}
         {isBookReady && existingBook ? (
           <section className="mt-8">
@@ -554,6 +566,25 @@ export default async function StoryPage({
                       material. Create an original version to order through
                       Storycot.
                     </p>
+                    {printRestrictionMatches.length > 0 ||
+                    hasSourceStyleRestriction ? (
+                      <div className="mt-3 rounded-xl bg-white/70 px-3 py-2">
+                        <p className="text-xs font-bold uppercase tracking-wide text-night-400">
+                          Possible conflict
+                        </p>
+                        {printRestrictionMatches.length > 0 ? (
+                          <p className="mt-1 font-bold text-night-800">
+                            {printRestrictionMatches.join(", ")}
+                          </p>
+                        ) : null}
+                        {hasSourceStyleRestriction ? (
+                          <p className="mt-1 text-night-700">
+                            Source/style wording such as “looks like”, “from the
+                            movie”, “official character”, “brand”, or “logo”.
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               )}
@@ -561,6 +592,12 @@ export default async function StoryPage({
           </section>
         ) : null}
 
+        {isReady ? (
+          <PublicSubmissionPanel
+            story={story}
+            canSubmitPublicly={hasShareableIllustratedBook}
+          />
+        ) : null}
       </main>
     </>
   );

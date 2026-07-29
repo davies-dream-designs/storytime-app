@@ -238,8 +238,10 @@
     "generatingErrorTitle": "L'histoire doit être relancée",
     "streamingTitle": "Tissage de votre histoire",
     "streamingEyebrow": "L'histoire apparaît maintenant",
+    "streamingPolishingEyebrow": "Vérification de l'histoire finale",
     "streamingPagesPending": "Les pages apparaîtront ici",
     "streamingPageCount": "{count} pages écrites pour le moment",
+    "streamingPolishing": "Correction de la grammaire et des détails",
     "streamingInProgress": "Écriture en cours",
     "streamingFailed": "À relancer",
     "tryAgainButton": "Réessayer",
@@ -543,7 +545,7 @@
     "ctaTitle": "Créez une histoire pour votre petit",
     "ctaSub": "Storycot génère des histoires du soir personnalisées en quelques secondes - adaptées au nom, à l'âge et aux préférences de votre enfant.",
     "ctaButton": "Obtenir 3 histoires gratuites →",
-    "footer": "Fait avec Storycot · storycot.com · Chaque enfant mérite une histoire faite pour lui.",
+    "footer": "Fait avec Storycot · storycot.com.au · Chaque enfant mérite une histoire faite pour lui.",
     "createOwn": "Créer votre propre histoire →"
   },
   "common": {

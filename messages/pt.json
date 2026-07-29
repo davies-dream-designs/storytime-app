@@ -238,8 +238,10 @@
     "generatingErrorTitle": "A história precisa de outra tentativa",
     "streamingTitle": "Tecendo sua história",
     "streamingEyebrow": "A história está aparecendo agora",
+    "streamingPolishingEyebrow": "Verificando a história final",
     "streamingPagesPending": "As páginas aparecerão aqui",
     "streamingPageCount": "{count} páginas escritas até agora",
+    "streamingPolishing": "Polindo gramática e detalhes",
     "streamingInProgress": "Escrevendo agora",
     "streamingFailed": "Precisa de outra tentativa",
     "tryAgainButton": "Tentar novamente",
@@ -543,7 +545,7 @@
     "ctaTitle": "Crie uma história para seu pequeno",
     "ctaSub": "Storycot gera histórias de ninar personalizadas em segundos - adaptadas ao nome, idade e coisas favoritas do seu filho.",
     "ctaButton": "Ganhe 3 histórias grátis →",
-    "footer": "Feito com Storycot · storycot.com · Toda criança merece uma história feita só para ela.",
+    "footer": "Feito com Storycot · storycot.com.au · Toda criança merece uma história feita só para ela.",
     "createOwn": "Criar sua própria história →"
   },
   "common": {

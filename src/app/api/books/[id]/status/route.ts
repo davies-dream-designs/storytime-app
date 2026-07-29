@@ -1,10 +1,61 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { dispatchBookBuildJob } from "@/lib/print-books/jobs";
+import {
+  enqueueBookBuildJob,
+  isBookBuildJobStale,
+} from "@/lib/print-books/jobs";
+import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
+import type { BookBuildJob, BookProject } from "@/types/printBook";
+
+async function requestBookBuild(
+  job: BookBuildJob,
+  userId: string,
+  options: { refreshQueueTimestamp?: boolean } = {}
+) {
+  if (options.refreshQueueTimestamp) {
+    await db.bookBuildJobs.update(job.id, {
+      status: "queued",
+      currentStepLabel:
+        job.status === "running"
+          ? "Restarting stalled build..."
+          : job.currentStepLabel,
+    });
+  }
+
+  await inngest.send({
+    name: INNGEST_EVENTS.bookBuildRequested,
+    data: { jobId: job.id, userId },
+  });
+}
+
+function canRecoverExportJob(
+  project: BookProject,
+  options: { ignoreActiveJob?: boolean } = {}
+) {
+  const hasActiveJob =
+    project.assets.activeJobId || project.assets.activeJobStatus;
+
+  return (
+    (options.ignoreActiveJob || !hasActiveJob) &&
+    (project.status === "composing" || project.status === "proofing") &&
+    Boolean(project.assets.coverImageUrl) &&
+    project.totalSpreads > 0 &&
+    project.completedSpreads >= project.totalSpreads
+  );
+}
+
+async function recoverExportJob(project: BookProject, baseUrl: string) {
+  const { job } = await enqueueBookBuildJob({
+    project,
+    mode: "exports",
+    baseUrl,
+  });
+  await requestBookBuild(job, project.userId);
+}
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { userId } = await auth();
@@ -19,12 +70,25 @@ export async function GET(
 
   if (
     project.assets.activeJobId &&
-    project.assets.activeJobStatus === "queued"
+    (project.assets.activeJobStatus === "queued" ||
+      project.assets.activeJobStatus === "running")
   ) {
     const job = await db.bookBuildJobs.getById(project.assets.activeJobId);
-    if (job?.status === "queued") {
-      await dispatchBookBuildJob(job);
+    if (
+      (job?.status === "queued" && isBookBuildJobStale(job)) ||
+      (job?.status === "running" && isBookBuildJobStale(job))
+    ) {
+      await requestBookBuild(job, project.userId, {
+        refreshQueueTimestamp: true,
+      });
+    } else if (
+      (!job || job.status === "completed" || job.status === "failed") &&
+      canRecoverExportJob(project, { ignoreActiveJob: true })
+    ) {
+      await recoverExportJob(project, req.nextUrl.origin);
     }
+  } else if (canRecoverExportJob(project)) {
+    await recoverExportJob(project, req.nextUrl.origin);
   }
 
   return NextResponse.json({

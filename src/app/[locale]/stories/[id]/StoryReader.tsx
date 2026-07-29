@@ -7,20 +7,32 @@ import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import type { Story } from "@/types";
 
+type StreamStatus = "starting" | "drafting" | "polishing";
+
 export default function StoryReader({ story }: { story: Story }) {
   const router = useRouter();
   const [liveStory, setLiveStory] = useState(story);
   const [page, setPage] = useState(0);
   const [streaming, setStreaming] = useState(story.status === "generating");
+  const [streamStatus, setStreamStatus] = useState<StreamStatus>("starting");
   const [error, setError] = useState(story.generationError ?? "");
   const startedRef = useRef(false);
   const t = useTranslations("stories");
   const locale = useLocale();
   const currentPage = liveStory.pages[page];
   const total = liveStory.pages.length;
+  const streamingEyebrow =
+    streamStatus === "polishing"
+      ? t("streamingPolishingEyebrow")
+      : t("streamingEyebrow");
+  const streamingProgress =
+    streamStatus === "polishing"
+      ? t("streamingPolishing")
+      : t("streamingPageCount", { count: total });
 
   const startStreaming = useCallback(async () => {
     setStreaming(true);
+    setStreamStatus("starting");
     setError("");
 
     try {
@@ -59,7 +71,12 @@ export default function StoryReader({ story }: { story: Story }) {
 
           const data = JSON.parse(dataLine.slice(6)) as Partial<Story> & {
             error?: string;
+            status?: StreamStatus;
           };
+
+          if (event === "status" && data.status) {
+            setStreamStatus(data.status);
+          }
 
           if (event === "snapshot" && data.pages) {
             setLiveStory((current) => ({
@@ -101,7 +118,7 @@ export default function StoryReader({ story }: { story: Story }) {
       <div className="relative overflow-hidden rounded-3xl border border-night-100 bg-white shadow-xl">
         <div className="border-b border-night-50 px-6 py-3 text-center sm:px-8 sm:py-4">
           <p className="text-xs font-bold uppercase tracking-widest text-night-300">
-            {streaming ? t("streamingEyebrow") : liveStory.title}
+            {streaming ? streamingEyebrow : liveStory.title}
           </p>
         </div>
 
@@ -140,7 +157,7 @@ export default function StoryReader({ story }: { story: Story }) {
 
       {streaming && total > 0 && (
         <p className="mt-4 text-center text-sm font-bold text-star-600">
-          {t("streamingPageCount", { count: total })}
+          {streamingProgress}
         </p>
       )}
 

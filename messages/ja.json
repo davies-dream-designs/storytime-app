@@ -238,8 +238,10 @@
     "generatingErrorTitle": "ストーリーにはもう一度試してみる必要がある",
     "streamingTitle": "あなたの物語を紡ぐ",
     "streamingEyebrow": "現在登場中のストーリー",
+    "streamingPolishingEyebrow": "最終チェック中",
     "streamingPagesPending": "ここにページが表示されます",
     "streamingPageCount": "これまでに書かれた {count} ページ",
+    "streamingPolishing": "文法と物語の細部を整えています",
     "streamingInProgress": "今書いています",
     "streamingFailed": "もう一度試す必要があります",
     "tryAgainButton": "もう一度試してください",
@@ -543,7 +545,7 @@
     "ctaTitle": "あなたの小さなお子様のために物語を作りましょう",
     "ctaSub": "Storycot は、お子様の名前、年齢、好きなものに合わせて、パーソナライズされた就寝前のストーリーを数秒で生成します。",
     "ctaButton": "3 つのストーリーを無料で入手 →",
-    "footer": "Storycot · storycot.com · すべての子供たちには、自分たちのために作られた物語が与えられます。",
+    "footer": "Storycot · storycot.com.au · すべての子供たちには、自分たちのために作られた物語が与えられます。",
     "createOwn": "自分だけのストーリーを作成 →"
   },
   "common": {

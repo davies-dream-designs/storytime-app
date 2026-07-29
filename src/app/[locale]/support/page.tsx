@@ -34,7 +34,7 @@ export default function SupportPage() {
   const gettingStarted: FAQItem[] = [
     {
       q: "How do credits work?",
-      a: "Every new account gets 3 free credits to get started. Each text story costs 1 credit, and adding illustrations costs 8 credits. You can buy more credit packs any time from your account page.",
+      a: "Every new account gets 3 free credits to get started. Each text story costs 1 credit, and generating illustrations costs from 6 credits depending on your child's age and book length. You can buy more credit packs any time from your account page.",
     },
     {
       q: "How do I generate a story?",
@@ -57,7 +57,7 @@ export default function SupportPage() {
     },
     {
       q: "How much does an illustrated book cost?",
-      a: "Generating illustrations costs 8 credits. That unlocks the full illustrated book and lets you download it as a PDF or EPUB.",
+      a: "Generating illustrations costs from 6 credits, depending on your child's age and book length — 6 for Tiny Tales, 9 for Bedtime Adventures, and 11 for Older Readers. Once illustrations are ready, you can unlock your digital download (PDF, EPUB, and illustrations) for a separate one-off payment of $9.95 AUD.",
     },
     {
       q: "Can I download my illustrated book?",
@@ -65,7 +65,7 @@ export default function SupportPage() {
     },
     {
       q: "What happens if the illustrations fail to generate?",
-      a: "No worries - Storycot will automatically retry. If it fails completely after retrying, your 8 credits are refunded to your account. You won't lose anything.",
+      a: "No worries - Storycot will automatically retry. If it fails completely after retrying, your credits are refunded to your account. You won't lose anything.",
     },
   ];
 
@@ -76,7 +76,7 @@ export default function SupportPage() {
     },
     {
       q: "How do I unlock voice narration?",
-      a: "Voice narration is available after you unlock the digital download for your book. The digital download is a one-off purchase of $9.99 AUD per book.",
+      a: "Voice narration is available after you unlock the digital download for your book. The digital download is a one-off purchase of $9.95 AUD per book.",
     },
     {
       q: "Does voice narration cost extra credits?",
@@ -107,7 +107,42 @@ export default function SupportPage() {
     },
     {
       q: "What if there's a problem with my print order?",
-      a: "If something goes wrong with your order, our team is automatically notified and will get it sorted. You don't need to do anything - but if you want to follow up, you're always welcome to reach out at hello@storycot.com.",
+      a: "If something goes wrong with your order, our team is automatically notified and will get it sorted. You don't need to do anything - but if you want to follow up, you're always welcome to reach out at hello@storycot.com.au.",
+    },
+  ];
+
+  const publicGallery: FAQItem[] = [
+    {
+      q: "Can I make a story public?",
+      a: "Yes. Once a story has an illustrated book with a cover, you can submit it for public review. It will not appear in the public gallery until Storycot approves it.",
+    },
+    {
+      q: "Can I share a plain text story publicly?",
+      a: "Not right now. Public gallery and share links are for illustrated Storycot books, so readers see the cover art and creators have a reason to turn favourite stories into finished books.",
+    },
+    {
+      q: "Why does public sharing need review first?",
+      a: "Public illustrated stories can include child names, family details, generated images, or copyrighted ideas by mistake. Review helps keep the gallery safe, original, and suitable for families before anyone else can discover it.",
+    },
+    {
+      q: "Can other people vote for my public story?",
+      a: "Yes. Signed-in readers can vote once per story each month. Story creators cannot count votes on their own stories.",
+    },
+    {
+      q: "Are public stories purchasable?",
+      a: "Not yet. Public book purchases are planned once moderation, legal wording, pricing safeguards, and Lulu print-on-demand handling are ready. Having an illustrated book and cover is the first eligibility step.",
+    },
+    {
+      q: "Do public gallery winners get paid?",
+      a: "No cash payouts are offered for public gallery rewards. Storycot may offer small promotional rewards such as credits, badges, discounts, or featured placement.",
+    },
+    {
+      q: "Can a public story be reported or removed?",
+      a: "Yes. Signed-in readers can report public stories. Storycot can hide, reject, or remove a public story if it includes private details, unsafe content, spam, or material the creator does not have rights to use.",
+    },
+    {
+      q: "Can I fix a public story after review?",
+      a: "Yes. You can edit the title, theme, author display name, and story page text from the story page. Saving edits removes public/share access and sends the story back to private so you can resubmit it for review.",
     },
   ];
 
@@ -122,7 +157,7 @@ export default function SupportPage() {
     },
     {
       q: "Can I get a refund on credits?",
-      a: "Credits are automatically refunded if an illustration job fails completely. For other billing questions or concerns, please get in touch at hello@storycot.com.",
+      a: "Credits are automatically refunded if an illustration job fails completely. For other billing questions or concerns, please get in touch at hello@storycot.com.au.",
     },
   ];
 
@@ -142,10 +177,10 @@ export default function SupportPage() {
           <p className="mt-3 text-night-500">
             Can&apos;t find what you&apos;re looking for? Email us at{" "}
             <a
-              href="mailto:hello@storycot.com"
+              href="mailto:hello@storycot.com.au"
               className="font-bold text-night-700 underline underline-offset-2 hover:text-night-900"
             >
-              hello@storycot.com
+              hello@storycot.com.au
             </a>
           </p>
         </div>
@@ -154,6 +189,7 @@ export default function SupportPage() {
         <FAQSection title="Illustrated books" items={illustratedBooks} />
         <FAQSection title="Voice narration" items={voiceNarration} />
         <FAQSection title="Hardcover books" items={hardcoverBooks} />
+        <FAQSection title="Public gallery" items={publicGallery} />
         <FAQSection title="Billing &amp; refunds" items={billing} />
 
         {/* Contact card */}
@@ -165,10 +201,10 @@ export default function SupportPage() {
             Drop us a line and we&apos;ll get back to you as soon as we can.
           </p>
           <a
-            href="mailto:hello@storycot.com"
+            href="mailto:hello@storycot.com.au"
             className="mt-5 inline-block rounded-full bg-night-800 px-7 py-3 text-sm font-bold text-white transition hover:bg-night-700"
           >
-            hello@storycot.com
+            hello@storycot.com.au
           </a>
         </div>
       </main>

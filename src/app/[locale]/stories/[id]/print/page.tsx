@@ -54,7 +54,7 @@ export default async function PrintPage({
           {t("createdFor", { name: story.profileName })}
         </p>
         <p className="mt-2 text-sm text-white/40">{dateStr}</p>
-        <p className="mt-12 text-xs text-white/25">Storycot · storycot.com</p>
+        <p className="mt-12 text-xs text-white/25">Storycot · storycot.com.au</p>
       </div>
 
       {/* Chapter-style opening page */}
@@ -132,7 +132,7 @@ export default async function PrintPage({
             style={{ borderRadius: "12px", opacity: 0.5 }}
             aria-hidden
           />
-          <p className="font-bold text-white/60">Storycot · storycot.com</p>
+          <p className="font-bold text-white/60">Storycot · storycot.com.au</p>
           <p>{t("tagline")}</p>
         </div>
       </div>

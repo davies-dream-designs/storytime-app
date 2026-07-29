@@ -238,8 +238,10 @@
     "generatingErrorTitle": "El cuento necesita otro intento",
     "streamingTitle": "Tejiendo tu cuento",
     "streamingEyebrow": "El cuento aparece ahora",
+    "streamingPolishingEyebrow": "Revisando el cuento final",
     "streamingPagesPending": "Las páginas aparecerán aquí",
     "streamingPageCount": "{count} páginas escritas hasta ahora",
+    "streamingPolishing": "Puliendo la gramática y los detalles",
     "streamingInProgress": "Escribiendo ahora",
     "streamingFailed": "Necesita otro intento",
     "tryAgainButton": "Intentar de nuevo",
@@ -543,7 +545,7 @@
     "ctaTitle": "Crea un cuento para tu pequeño",
     "ctaSub": "Storycot genera cuentos de buenas noches personalizados en segundos - adaptados al nombre, edad y cosas favoritas de tu hijo.",
     "ctaButton": "Obtén 3 cuentos gratis →",
-    "footer": "Hecho con Storycot · storycot.com · Cada niño merece un cuento hecho para ellos.",
+    "footer": "Hecho con Storycot · storycot.com.au · Cada niño merece un cuento hecho para ellos.",
     "createOwn": "Crea tu propio cuento →"
   },
   "common": {

@@ -34,7 +34,7 @@ export default function SupportPage() {
   const gettingStarted: FAQItem[] = [
     {
       q: "How do credits work?",
-      a: "Every new account gets 3 free credits to get started. Each text story costs 1 credit, and generating illustrations costs from 8 credits depending on your child's age. You can buy more credit packs any time from your account page.",
+      a: "Every new account gets 3 free credits to get started. Each text story costs 1 credit, and generating illustrations costs from 6 credits depending on your child's age and book length. You can buy more credit packs any time from your account page.",
     },
     {
       q: "How do I generate a story?",
@@ -57,7 +57,7 @@ export default function SupportPage() {
     },
     {
       q: "How much does an illustrated book cost?",
-      a: "Generating illustrations costs from 8 credits, depending on your child's age — 8 for ages 0–2, 9 for ages 3–5, and 11 for ages 6–8. Once illustrations are ready, you can unlock your digital download (PDF, EPUB, and illustrations) for a separate one-off payment of $9.95 AUD.",
+      a: "Generating illustrations costs from 6 credits, depending on your child's age and book length — 6 for Tiny Tales, 9 for Bedtime Adventures, and 11 for Older Readers. Once illustrations are ready, you can unlock your digital download (PDF, EPUB, and illustrations) for a separate one-off payment of $9.95 AUD.",
     },
     {
       q: "Can I download my illustrated book?",

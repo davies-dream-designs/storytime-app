@@ -10,7 +10,7 @@ import {
 describe("pricing policy", () => {
   it("sets plain stories and illustrated books to distinct credit costs", () => {
     expect(STORY_CREDIT_COST).toBe(1);
-    expect(ILLUSTRATED_BOOK_CREDIT_COST).toBe(8);
+    expect(ILLUSTRATED_BOOK_CREDIT_COST).toBe(6);
   });
 
   it("estimates digital generation cost from configurable inputs", () => {
@@ -40,7 +40,14 @@ describe("pricing policy", () => {
         pageCount: 20,
         illustrationCount: 7,
       }).credits
-    ).toBe(8);
+    ).toBe(6);
+    expect(
+      estimateIllustratedBookCredits({
+        ageBand: "3-5",
+        pageCount: 28,
+        illustrationCount: 11,
+      }).credits
+    ).toBe(9);
     expect(
       estimateIllustratedBookCredits({
         ageBand: "6-8",

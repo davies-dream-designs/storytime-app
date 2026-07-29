@@ -73,8 +73,8 @@ export default function TermsPage() {
           <p>
             Storycot uses a credit system. New accounts receive 3 free credits.
             Generating a plain text story costs 1 credit; generating an
-            illustrated book costs from 8 credits depending on the selected age
-            band and book shape.
+            illustrated book costs from 6 credits depending on the selected age
+            band, story preset, and book shape.
           </p>
           <p>
             Credit packs are purchased through Stripe. Prices are in Australian

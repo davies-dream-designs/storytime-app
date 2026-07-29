@@ -90,12 +90,14 @@ const PROTECTED_REFERENCE_REPLACEMENTS: Array<[RegExp, string]> = [
 ];
 
 const SOURCE_REFERENCE_PATTERNS = [
-  /\b(in the style of|drawn like|looks like|from the movie|from the show|from the book|official character|franchise|brand|logo)\b/i,
+  /\b(in the style of|drawn like|looks like|from the movie|from the show|from the book|official character|franchise|logo)\b/i,
+  /\bbrand(?:ed)?\s+(?:character|logo|name|toy|world|design|likeness|mascot|franchise)\b/i,
   /\b(with|and|meets|meeting|adventure with)\s+(?:the\s+)?[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3}\b/,
 ];
 
 const GENERATED_SOURCE_REFERENCE_PATTERNS = [
-  /\b(in the style of|drawn like|looks like|from the movie|from the show|from the book|official character|franchise|brand|logo)\b/i,
+  /\b(in the style of|drawn like|looks like|from the movie|from the show|from the book|official character|franchise|logo)\b/i,
+  /\bbrand(?:ed)?\s+(?:character|logo|name|toy|world|design|likeness|mascot|franchise)\b/i,
 ];
 
 function normalizeInput(input: StoryIdeaInput): string {
@@ -131,8 +133,12 @@ function redactProtectedReferences(value: string): string {
   }
   return redacted
     .replace(
-      /\b(in the style of|drawn like|looks like|from the movie|from the show|from the book|official character|franchise|brand|logo)\b/gi,
+      /\b(in the style of|drawn like|looks like|from the movie|from the show|from the book|official character|franchise|logo)\b/gi,
       "as an original Storycot design"
+    )
+    .replace(
+      /\bbrand(?:ed)?\s+(?:character|logo|name|toy|world|design|likeness|mascot|franchise)\b/gi,
+      "original Storycot design"
     )
     .replace(/\s+/g, " ")
     .trim();

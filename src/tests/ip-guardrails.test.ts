@@ -107,6 +107,51 @@ describe("IP guardrails", () => {
     });
   });
 
+  it("does not block ordinary phrases like brand new", () => {
+    const result = assessGeneratedStoryIp({
+      title: "Bailey's Brand New Boat",
+      theme: "curiosity",
+      premise: "",
+      notes: "",
+      pages: [
+        {
+          pageNumber: 1,
+          text: "Bailey found a brand new paper boat beside the window.",
+          illustrationPrompt:
+            "An original cosy bedroom scene with a child holding a paper boat.",
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      riskLevel: "clear",
+      printAllowed: true,
+    });
+  });
+
+  it("still blocks explicit brand or logo source wording", () => {
+    const result = assessGeneratedStoryIp({
+      title: "Bailey's Boat",
+      theme: "curiosity",
+      premise: "",
+      notes: "",
+      pages: [
+        {
+          pageNumber: 1,
+          text: "Bailey found a toy with a brand logo on the sail.",
+          illustrationPrompt:
+            "A toy boat with a brand logo in a cosy bedroom.",
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      riskLevel: "restricted",
+      printAllowed: false,
+      reasons: expect.arrayContaining(["source_or_style_reference"]),
+    });
+  });
+
   it("does not keep old stored restrictions when final generated content is clean", () => {
     expect(
       isStoryPrintRestricted({

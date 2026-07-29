@@ -6,14 +6,16 @@ import type { BookProject } from "@/types/printBook";
 const {
   mockAuth,
   mockAfter,
-  mockDispatchBookBuildJob,
+  mockEnqueueBookBuildJob,
+  mockInngestSend,
   mockIsBookBuildJobStale,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(async () => ({ userId: "user-1" })),
   mockAfter: vi.fn(async (callback: () => Promise<void> | void) => {
     await callback();
   }),
-  mockDispatchBookBuildJob: vi.fn(),
+  mockEnqueueBookBuildJob: vi.fn(),
+  mockInngestSend: vi.fn(),
   mockIsBookBuildJobStale: vi.fn(() => false),
 }));
 
@@ -27,6 +29,7 @@ const mockDb = {
   bookBuildJobs: {
     getById: vi.fn(),
     getCurrentByProjectId: vi.fn(),
+    update: vi.fn(),
   },
   bookProjects: {
     getById: vi.fn(),
@@ -56,8 +59,13 @@ vi.mock("@/lib/db", () => ({
 }));
 
 vi.mock("@/lib/print-books/jobs", () => ({
-  dispatchBookBuildJob: mockDispatchBookBuildJob,
+  enqueueBookBuildJob: mockEnqueueBookBuildJob,
   isBookBuildJobStale: mockIsBookBuildJobStale,
+}));
+
+vi.mock("@/lib/inngest/client", () => ({
+  inngest: { send: mockInngestSend },
+  INNGEST_EVENTS: { bookBuildRequested: "storycot/book.build.requested" },
 }));
 
 function createStory(): Story {
@@ -122,7 +130,10 @@ describe("/api/books", () => {
     mockDb.profiles.getById.mockResolvedValue(createProfile());
     mockDb.bookBuildJobs.getById.mockResolvedValue(undefined);
     mockDb.bookBuildJobs.getCurrentByProjectId.mockResolvedValue(undefined);
-    mockDispatchBookBuildJob.mockReset();
+    mockDb.bookBuildJobs.update.mockResolvedValue(undefined);
+    mockEnqueueBookBuildJob.mockReset();
+    mockInngestSend.mockReset();
+    mockInngestSend.mockResolvedValue(undefined);
     mockIsBookBuildJobStale.mockReset();
     mockIsBookBuildJobStale.mockReturnValue(false);
     mockDb.bookProjects.getByUserId.mockResolvedValue([]);
@@ -244,7 +255,10 @@ describe("/api/books/[id] and /status", () => {
     mockAuth.mockResolvedValue({ userId: "user-1" });
     mockDb.bookBuildJobs.getById.mockResolvedValue(undefined);
     mockDb.bookBuildJobs.getCurrentByProjectId.mockResolvedValue(undefined);
-    mockDispatchBookBuildJob.mockReset();
+    mockDb.bookBuildJobs.update.mockResolvedValue(undefined);
+    mockEnqueueBookBuildJob.mockReset();
+    mockInngestSend.mockReset();
+    mockInngestSend.mockResolvedValue(undefined);
     mockIsBookBuildJobStale.mockReset();
     mockIsBookBuildJobStale.mockReturnValue(false);
     mockDb.bookProjects.getById.mockResolvedValue(createBookProject());
@@ -377,6 +391,7 @@ describe("/api/books/[id] and /status", () => {
   });
 
   it("nudges queued jobs during status polling", async () => {
+    mockIsBookBuildJobStale.mockReturnValue(true);
     mockDb.bookProjects.getById.mockResolvedValue({
       ...createBookProject(),
       assets: {
@@ -407,9 +422,14 @@ describe("/api/books/[id] and /status", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(mockDispatchBookBuildJob).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "job-1" })
-    );
+    expect(mockDb.bookBuildJobs.update).toHaveBeenCalledWith("job-1", {
+      status: "queued",
+      currentStepLabel: undefined,
+    });
+    expect(mockInngestSend).toHaveBeenCalledWith({
+      name: "storycot/book.build.requested",
+      data: { jobId: "job-1", userId: "user-1" },
+    });
     expect(mockAfter).not.toHaveBeenCalled();
   });
 
@@ -452,9 +472,14 @@ describe("/api/books/[id] and /status", () => {
     expect(mockIsBookBuildJobStale).toHaveBeenCalledWith(
       expect.objectContaining({ id: "job-1", status: "running" })
     );
-    expect(mockDispatchBookBuildJob).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "job-1", status: "running" })
-    );
+    expect(mockDb.bookBuildJobs.update).toHaveBeenCalledWith("job-1", {
+      status: "queued",
+      currentStepLabel: "Restarting stalled build...",
+    });
+    expect(mockInngestSend).toHaveBeenCalledWith({
+      name: "storycot/book.build.requested",
+      data: { jobId: "job-1", userId: "user-1" },
+    });
   });
 
   it("does not restart fresh running jobs during status polling", async () => {
@@ -496,6 +521,145 @@ describe("/api/books/[id] and /status", () => {
     expect(mockIsBookBuildJobStale).toHaveBeenCalledWith(
       expect.objectContaining({ id: "job-1", status: "running" })
     );
-    expect(mockDispatchBookBuildJob).not.toHaveBeenCalled();
+    expect(mockInngestSend).not.toHaveBeenCalled();
+  });
+
+  it("requeues orphaned export builds after illustrations complete", async () => {
+    const project = {
+      ...createBookProject(),
+      status: "composing" as const,
+      completedSpreads: 12,
+      totalSpreads: 12,
+      currentStageLabel: "Weaving the story into a real book...",
+      assets: {
+        proofVersion: 0,
+        coverImageUrl: "https://assets.example.com/cover.png",
+      },
+      spreads: [
+        {
+          id: "spread-1",
+          bookProjectId: "book-1",
+          sequence: 2,
+          pageStart: 3,
+          pageEnd: 4,
+          layoutType: "text_art" as const,
+          title: "Garden",
+          leftPageText: "Mila walked into the garden.",
+          rightPageText: "",
+          sceneBrief: "Garden",
+          illustrationPrompt: "Garden",
+          leftPageImageUrl: "https://assets.example.com/print.png",
+          leftPageWebImageUrl: "https://assets.example.com/web.jpg",
+          thumbnailUrl: "https://assets.example.com/thumb.jpg",
+        },
+      ],
+    };
+    mockDb.bookProjects.getById.mockResolvedValue(project);
+    mockEnqueueBookBuildJob.mockResolvedValue({
+      job: {
+        id: "job-2",
+        projectId: "book-1",
+        userId: "user-1",
+        mode: "exports",
+        status: "queued",
+        step: 0,
+        token: "token-2",
+        baseUrl: "http://localhost",
+        createdAt: "2026-07-16T00:00:00.000Z",
+        updatedAt: "2026-07-16T00:00:00.000Z",
+      },
+      project,
+      alreadyQueued: false,
+    });
+
+    const { GET } = await import("@/app/api/books/[id]/status/route");
+    const res = await GET(
+      new NextRequest("http://localhost/api/books/book-1/status"),
+      {
+        params: Promise.resolve({ id: "book-1" }),
+      }
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockEnqueueBookBuildJob).toHaveBeenCalledWith({
+      project,
+      mode: "exports",
+      baseUrl: "http://localhost",
+    });
+    expect(mockInngestSend).toHaveBeenCalledWith({
+      name: "storycot/book.build.requested",
+      data: { jobId: "job-2", userId: "user-1" },
+    });
+  });
+
+  it("requeues export builds when the active job marker points nowhere", async () => {
+    const project = {
+      ...createBookProject(),
+      status: "composing" as const,
+      completedSpreads: 12,
+      totalSpreads: 12,
+      currentStageLabel: "Weaving the story into a real book...",
+      assets: {
+        proofVersion: 0,
+        coverImageUrl: "https://assets.example.com/cover.png",
+        activeJobId: "missing-job",
+        activeJobStatus: "running" as const,
+      },
+      spreads: [
+        {
+          id: "spread-1",
+          bookProjectId: "book-1",
+          sequence: 2,
+          pageStart: 3,
+          pageEnd: 4,
+          layoutType: "text_art" as const,
+          title: "Garden",
+          leftPageText: "Mila walked into the garden.",
+          rightPageText: "",
+          sceneBrief: "Garden",
+          illustrationPrompt: "Garden",
+          leftPageImageUrl: "https://assets.example.com/print.png",
+          leftPageWebImageUrl: "https://assets.example.com/web.jpg",
+          thumbnailUrl: "https://assets.example.com/thumb.jpg",
+        },
+      ],
+    };
+    mockDb.bookProjects.getById.mockResolvedValue(project);
+    mockDb.bookBuildJobs.getById.mockResolvedValue(undefined);
+    mockEnqueueBookBuildJob.mockResolvedValue({
+      job: {
+        id: "job-3",
+        projectId: "book-1",
+        userId: "user-1",
+        mode: "exports",
+        status: "queued",
+        step: 0,
+        token: "token-3",
+        baseUrl: "http://localhost",
+        createdAt: "2026-07-16T00:00:00.000Z",
+        updatedAt: "2026-07-16T00:00:00.000Z",
+      },
+      project,
+      alreadyQueued: false,
+    });
+
+    const { GET } = await import("@/app/api/books/[id]/status/route");
+    const res = await GET(
+      new NextRequest("http://localhost/api/books/book-1/status"),
+      {
+        params: Promise.resolve({ id: "book-1" }),
+      }
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockEnqueueBookBuildJob).toHaveBeenCalledWith({
+      project,
+      mode: "exports",
+      baseUrl: "http://localhost",
+    });
+    expect(mockInngestSend).toHaveBeenCalledWith({
+      name: "storycot/book.build.requested",
+      data: { jobId: "job-3", userId: "user-1" },
+    });
   });
 });

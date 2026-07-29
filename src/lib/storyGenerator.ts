@@ -27,13 +27,24 @@ const LOCALE_LANGUAGE: Record<string, string> = {
 };
 
 const STORY_PRESET_CONFIG = {
-  "tiny-tales": { words: "150–250", pages: "4–6", sentencesPerPage: "1" },
+  "tiny-tales": {
+    words: "150–250",
+    pages: "4–6",
+    maxPages: 6,
+    sentencesPerPage: "1",
+  },
   "moonlit-adventures": {
     words: "350–550",
     pages: "8–10",
+    maxPages: 10,
     sentencesPerPage: "2–3",
   },
-  "epic-sagas": { words: "600–900", pages: "10–14", sentencesPerPage: "3–4" },
+  "epic-sagas": {
+    words: "600–900",
+    pages: "10–14",
+    maxPages: 14,
+    sentencesPerPage: "3–4",
+  },
 } as const;
 
 interface GenerateStoryInput {
@@ -80,6 +91,38 @@ export function normalizeGeneratedStory(story: GeneratedStory): GeneratedStory {
       ...page,
       text: removeDashPunctuation(page.text),
       illustrationPrompt: removeDashPunctuation(page.illustrationPrompt),
+    })),
+  };
+}
+
+function pageTextFingerprint(value: string): string {
+  return removeDashPunctuation(value)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function prepareGeneratedStoryForPostCheck(
+  input: Pick<GenerateStoryInput, "storyPreset">,
+  story: GeneratedStory
+): GeneratedStory {
+  const preset = STORY_PRESET_CONFIG[input.storyPreset ?? "moonlit-adventures"];
+  const seenTexts = new Set<string>();
+  const uniquePages: StoryPage[] = [];
+
+  for (const page of story.pages) {
+    const fingerprint = pageTextFingerprint(page.text);
+    if (fingerprint && seenTexts.has(fingerprint)) continue;
+    if (fingerprint) seenTexts.add(fingerprint);
+    uniquePages.push(page);
+  }
+
+  return {
+    ...story,
+    pages: uniquePages.slice(0, preset.maxPages).map((page, index) => ({
+      ...page,
+      pageNumber: index + 1,
     })),
   };
 }
@@ -267,7 +310,10 @@ export async function generateStory(
 
   return postCheckStory(
     input,
-    await parseGeneratedStoryWithRepair(content.text.trim(), "initial story")
+    prepareGeneratedStoryForPostCheck(
+      input,
+      await parseGeneratedStoryWithRepair(content.text.trim(), "initial story")
+    )
   );
 }
 
@@ -433,7 +479,10 @@ export async function streamStory(
   onStage?.("polishing");
   return postCheckStory(
     input,
-    await parseGeneratedStoryWithRepair(raw.trim(), "streamed story")
+    prepareGeneratedStoryForPostCheck(
+      input,
+      await parseGeneratedStoryWithRepair(raw.trim(), "streamed story")
+    )
   );
 }
 

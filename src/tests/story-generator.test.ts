@@ -5,6 +5,7 @@ import {
   buildStoryPrompt,
   generateStory,
   normalizeGeneratedStory,
+  prepareGeneratedStoryForPostCheck,
   streamStory,
 } from "@/lib/storyGenerator";
 
@@ -282,5 +283,67 @@ describe("story post-check", () => {
         },
       ],
     });
+  });
+
+  it("removes repeated generated pages before the final post-check", () => {
+    expect(
+      prepareGeneratedStoryForPostCheck(
+        { storyPreset: "tiny-tales" },
+        {
+          title: "Bailey Moon",
+          pages: [
+            {
+              pageNumber: 1,
+              text: "Bailey found a moon boat.",
+              illustrationPrompt: "Bailey beside a moon boat.",
+            },
+            {
+              pageNumber: 2,
+              text: "The moon boat bobbed gently.",
+              illustrationPrompt: "A moon boat bobbing gently.",
+            },
+            {
+              pageNumber: 3,
+              text: "The moon boat bobbed gently.",
+              illustrationPrompt: "A repeated extra page.",
+            },
+          ],
+        }
+      )
+    ).toEqual({
+      title: "Bailey Moon",
+      pages: [
+        {
+          pageNumber: 1,
+          text: "Bailey found a moon boat.",
+          illustrationPrompt: "Bailey beside a moon boat.",
+        },
+        {
+          pageNumber: 2,
+          text: "The moon boat bobbed gently.",
+          illustrationPrompt: "A moon boat bobbing gently.",
+        },
+      ],
+    });
+  });
+
+  it("caps generated pages to the selected preset maximum", () => {
+    const prepared = prepareGeneratedStoryForPostCheck(
+      { storyPreset: "tiny-tales" },
+      {
+        title: "Bailey Moon",
+        pages: Array.from({ length: 9 }, (_, index) => ({
+          pageNumber: index + 1,
+          text: `Bailey page ${index + 1}.`,
+          illustrationPrompt: `Illustration ${index + 1}.`,
+        })),
+      }
+    );
+
+    expect(prepared.pages).toHaveLength(6);
+    expect(prepared.pages.map((page) => page.pageNumber)).toEqual([
+      1, 2, 3, 4, 5, 6,
+    ]);
+    expect(prepared.pages.at(-1)?.text).toBe("Bailey page 6.");
   });
 });

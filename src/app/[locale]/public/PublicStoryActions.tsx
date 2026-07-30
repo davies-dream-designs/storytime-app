@@ -243,7 +243,7 @@ export default function PublicStoryActions({
               printReadiness?.ready
                 ? "Buy a printed hardcover"
                 : (printReadiness?.detail ??
-                  "Public book purchase flow is not enabled yet")
+                  "This public book is not print-ready yet")
             }
           >
             <Icon name="print" />
@@ -342,7 +342,7 @@ export default function PublicStoryActions({
             printReadiness?.ready
               ? "Buy a printed hardcover"
               : (printReadiness?.detail ??
-                "Public book purchase flow is not enabled yet")
+                "This public book is not print-ready yet")
           }
         >
           <Icon name="print" />

@@ -90,8 +90,9 @@ export default function PublicSubmissionPanel({
         <div className="mt-4 rounded-xl bg-moon-50 p-4 text-sm leading-6 text-night-700">
           <p className="font-bold text-night-800">Approved for the gallery</p>
           <p className="mt-1">
-            This story can appear in public discovery and future leaderboard
-            experiments. Public purchases and rewards are not enabled yet.
+            This story can appear in public discovery and leaderboards.
+            Print-ready public books can also be ordered by signed-in readers
+            who are not the story creator.
           </p>
         </div>
       ) : status === "pending_review" ? (

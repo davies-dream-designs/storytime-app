@@ -41,14 +41,33 @@ describe("getPublicStoryPrintReadiness", () => {
     });
   });
 
-  it("requires order-ready proofed Lulu exports", () => {
+  it("marks export-ready Lulu books purchasable for public readers", () => {
     expect(
       getPublicStoryPrintReadiness([
         createProject({
           assets: {
             proofVersion: 1,
-            proofingPassed: true,
+            proofingPassed: false,
             orderabilityState: "export_ready",
+            luluCoverPdfUrl: "https://blob.test/cover.pdf",
+            luluPrintPdfUrl: "https://blob.test/interior.pdf",
+          },
+        }),
+      ])
+    ).toMatchObject({
+      ready: true,
+      label: "Print-ready",
+    });
+  });
+
+  it("blocks draft-only Lulu exports", () => {
+    expect(
+      getPublicStoryPrintReadiness([
+        createProject({
+          assets: {
+            proofVersion: 1,
+            proofingPassed: false,
+            orderabilityState: "draft_only",
             luluCoverPdfUrl: "https://blob.test/cover.pdf",
             luluPrintPdfUrl: "https://blob.test/interior.pdf",
           },

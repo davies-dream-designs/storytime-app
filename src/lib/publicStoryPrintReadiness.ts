@@ -1,4 +1,5 @@
 import type { BookProject } from "@/types/printBook";
+import { hasBlockingProofingIssue } from "@/lib/print-books/readiness";
 
 export type PublicStoryPrintReadiness = {
   bookProjectId: string;
@@ -6,6 +7,13 @@ export type PublicStoryPrintReadiness = {
   label: string;
   detail: string;
 };
+
+function hasPublicOrderableState(project: Pick<BookProject, "assets">) {
+  return (
+    project.assets.orderabilityState === "export_ready" ||
+    project.assets.orderabilityState === "order_ready"
+  );
+}
 
 export function getPublicStoryPrintReadiness(
   projects: BookProject[]
@@ -15,8 +23,8 @@ export function getPublicStoryPrintReadiness(
   const readyProject = projects.find(
     (project) =>
       project.status === "ready" &&
-      project.assets.proofingPassed === true &&
-      project.assets.orderabilityState === "order_ready" &&
+      hasPublicOrderableState(project) &&
+      !hasBlockingProofingIssue(project) &&
       Boolean(project.assets.luluCoverPdfUrl) &&
       Boolean(project.assets.luluPrintPdfUrl)
   );

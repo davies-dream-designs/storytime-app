@@ -69,6 +69,18 @@ function createReadyProject(): BookProject {
   };
 }
 
+function createExportReadyProject(): BookProject {
+  const project = createReadyProject();
+  return {
+    ...project,
+    assets: {
+      ...project.assets,
+      proofingPassed: false,
+      orderabilityState: "export_ready",
+    },
+  };
+}
+
 vi.mock("@clerk/nextjs/server", () => ({
   auth: mockAuth,
   clerkClient: vi.fn(async () => ({
@@ -254,6 +266,41 @@ describe("public print checkout", () => {
       expect.objectContaining({
         luluCostAudCents: 4800,
         marginAudCents: expect.any(Number),
+      })
+    );
+  });
+
+  it("allows public checkout for export-ready Lulu books", async () => {
+    mockDb.bookProjects.getById.mockResolvedValue(createExportReadyProject());
+    const { POST } =
+      await import("@/app/api/public-stories/[id]/checkout/route");
+
+    const res = await POST(
+      new NextRequest(
+        "https://dev.storycot.com/api/public-stories/story-1/checkout",
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            origin: "https://dev.storycot.com",
+            referer: "https://dev.storycot.com/en/s/share-1",
+          },
+          body: JSON.stringify({
+            productKey: "hardcover",
+            quantity: 1,
+            shipping: printShipping,
+          }),
+        }
+      ),
+      { params: Promise.resolve({ id: "story-1" }) }
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockCreateSession).toHaveBeenCalled();
+    expect(mockDb.printOrders.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "public_purchase",
+        projectId: "book-1",
       })
     );
   });

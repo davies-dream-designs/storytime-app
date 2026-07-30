@@ -16,6 +16,7 @@ import {
   isLuluPrintProvider,
   quoteLuluPrintJob,
 } from "@/lib/print-books/lulu";
+import { hasBlockingProofingIssue } from "@/lib/print-books/readiness";
 import {
   isPrintProductKey,
   quotePrintProduct,
@@ -118,10 +119,16 @@ export async function POST(
   }
 
   if (
-    project.assets.proofingPassed !== true ||
-    project.assets.orderabilityState !== "order_ready" ||
-    !hasLuluPrintAssets(project)
+    project.assets.orderabilityState !== "export_ready" &&
+    project.assets.orderabilityState !== "order_ready"
   ) {
+    return NextResponse.json(
+      { error: "This book still needs print review before checkout." },
+      { status: 409 }
+    );
+  }
+
+  if (hasBlockingProofingIssue(project) || !hasLuluPrintAssets(project)) {
     return NextResponse.json(
       { error: "Lulu print files are not ready yet." },
       { status: 409 }

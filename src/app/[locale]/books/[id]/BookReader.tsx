@@ -17,6 +17,11 @@ type ReaderSpread = {
   webImageUrl?: string;
 };
 
+type NarrationPayload = {
+  audioUrl: string;
+  words: WordTiming[];
+};
+
 function isPlaceholder(url?: string): boolean {
   if (!url) return true;
   const lower = url.toLowerCase();
@@ -83,34 +88,90 @@ export default function BookReader({
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const wordsRef = useRef<WordTiming[]>([]);
-  const preloadCache = useRef<
-    Map<string, Promise<{ audioUrl: string; words: WordTiming[] } | null>>
-  >(new Map());
+  const preloadCache = useRef<Map<string, Promise<NarrationPayload | null>>>(
+    new Map()
+  );
 
   const total = spreads.length;
   const spread = spreads[index];
   const t = useTranslations("books");
   const tc = useTranslations("common");
 
-  function stopAudio() {
+  const stopAudio = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
-      audioRef.current.src = "";
+      audioRef.current.removeAttribute("src");
+      audioRef.current.load();
       audioRef.current = null;
     }
-  }
+  }, []);
+
+  const getNarrationUrl = useCallback(
+    (spreadId: string) =>
+      `/api/books/${project.id}/narrate?spreadId=${encodeURIComponent(spreadId)}&voiceId=${encodeURIComponent(DEFAULT_NARRATION_VOICE_ID)}`,
+    [project.id]
+  );
+
+  const fetchNarration = useCallback(
+    async (spreadId: string): Promise<NarrationPayload | null> => {
+      const cached = preloadCache.current.get(spreadId);
+      if (cached) {
+        const cachedResult = await cached;
+        if (cachedResult) return cachedResult;
+        preloadCache.current.delete(spreadId);
+      }
+
+      const res = await fetch(getNarrationUrl(spreadId));
+      if (!res.ok) return null;
+      return (await res.json()) as NarrationPayload;
+    },
+    [getNarrationUrl]
+  );
+
+  const preloadNarration = useCallback(
+    (nextSpread: ReaderSpread | undefined) => {
+      if (!nextSpread || nextSpread.id === "cover") return;
+      if (preloadCache.current.has(nextSpread.id)) return;
+
+      const nextText = [nextSpread.leftPageText, nextSpread.rightPageText]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      if (!nextText) return;
+
+      const promise = fetch(getNarrationUrl(nextSpread.id))
+        .then((r) =>
+          r.ok ? (r.json() as Promise<NarrationPayload>) : null
+        )
+        .catch(() => null)
+        .then((data) => {
+          if (!data) preloadCache.current.delete(nextSpread.id);
+          return data;
+        });
+      preloadCache.current.set(nextSpread.id, promise);
+
+      void promise.then((data) => {
+        if (data?.audioUrl) {
+          const hint = new Audio();
+          hint.preload = "auto";
+          hint.src = data.audioUrl;
+        }
+      });
+    },
+    [getNarrationUrl]
+  );
 
   const prev = useCallback(() => {
     setNarrating(false);
     stopAudio();
     setIndex((i) => Math.max(0, i - 1));
-  }, []);
+  }, [stopAudio]);
 
   const next = useCallback(() => {
     setNarrating(false);
     stopAudio();
     setIndex((i) => Math.min(total - 1, i + 1));
-  }, [total]);
+  }, [stopAudio, total]);
 
   // Keyboard navigation in fullscreen
   useEffect(() => {
@@ -161,17 +222,35 @@ export default function BookReader({
     }
 
     let cancelled = false;
+    let activeAudio: HTMLAudioElement | null = null;
+    const onTimeUpdate = () => {
+      if (!activeAudio) return;
+      const t = activeAudio.currentTime;
+      const ws = wordsRef.current;
+      // Highlight the last word whose start time has passed (no gaps between words)
+      let idx = -1;
+      for (let i = ws.length - 1; i >= 0; i--) {
+        if (ws[i]!.start <= t) {
+          idx = i;
+          break;
+        }
+      }
+      setCurrentWordIndex(idx);
+    };
+    const onEnded = () => {
+      if (cancelled) return;
+      setCurrentWordIndex(-1);
+      setIndex((i) => {
+        if (i < spreads.length - 1) return i + 1;
+        setNarrating(false);
+        return i;
+      });
+    };
     setIsLoadingAudio(true);
 
     const narrate = async () => {
       try {
-        const apiUrl = `/api/books/${project.id}/narrate?spreadId=${encodeURIComponent(currentSpread.id)}&voiceId=${encodeURIComponent(DEFAULT_NARRATION_VOICE_ID)}`;
-
-        // Use preloaded response if available, otherwise fetch now
-        const existing = preloadCache.current.get(currentSpread.id);
-        const result = existing
-          ? await existing
-          : await fetch(apiUrl).then((r) => (r.ok ? r.json() : null));
+        const result = await fetchNarration(currentSpread.id);
 
         if (!result || cancelled) {
           if (!cancelled) setNarrating(false);
@@ -187,68 +266,18 @@ export default function BookReader({
         wordsRef.current = pageWords ?? [];
         setWords(pageWords ?? []);
 
-        const audio = new Audio(audioUrl);
+        const audio = audioRef.current ?? new Audio();
+        audio.preload = "auto";
+        audio.src = audioUrl;
+        audio.currentTime = 0;
+        activeAudio = audio;
         audioRef.current = audio;
 
         // Preload the next spread's audio while this one plays
-        const nextSpread = spreads[index + 1];
-        if (
-          nextSpread &&
-          nextSpread.id !== "cover" &&
-          !preloadCache.current.has(nextSpread.id)
-        ) {
-          const nextText = [nextSpread.leftPageText, nextSpread.rightPageText]
-            .filter(Boolean)
-            .join(" ")
-            .trim();
-          if (nextText) {
-            const nextUrl = `/api/books/${project.id}/narrate?spreadId=${encodeURIComponent(nextSpread.id)}&voiceId=${encodeURIComponent(DEFAULT_NARRATION_VOICE_ID)}`;
-            const promise = fetch(nextUrl)
-              .then((r) =>
-                r.ok
-                  ? (r.json() as Promise<{
-                      audioUrl: string;
-                      words: WordTiming[];
-                    }>)
-                  : null
-              )
-              .catch(() => null);
-            preloadCache.current.set(nextSpread.id, promise);
-            // Also hint the browser to buffer the audio once we have the URL
-            void promise.then((data) => {
-              if (data?.audioUrl) {
-                const hint = new Audio();
-                hint.preload = "auto";
-                hint.src = data.audioUrl;
-              }
-            });
-          }
-        }
+        preloadNarration(spreads[index + 1]);
 
-        audio.addEventListener("timeupdate", () => {
-          const t = audio.currentTime;
-          const ws = wordsRef.current;
-          // Highlight the last word whose start time has passed (no gaps between words)
-          let idx = -1;
-          for (let i = ws.length - 1; i >= 0; i--) {
-            if (ws[i]!.start <= t) {
-              idx = i;
-              break;
-            }
-          }
-          setCurrentWordIndex(idx);
-        });
-
-        audio.addEventListener("ended", () => {
-          audioRef.current = null;
-          if (cancelled) return;
-          setCurrentWordIndex(-1);
-          setIndex((i) => {
-            if (i < spreads.length - 1) return i + 1;
-            setNarrating(false);
-            return i;
-          });
-        });
+        audio.addEventListener("timeupdate", onTimeUpdate);
+        audio.addEventListener("ended", onEnded);
 
         await audio.play();
       } catch {
@@ -262,13 +291,18 @@ export default function BookReader({
 
     return () => {
       cancelled = true;
-      stopAudio();
+      const audio = activeAudio;
+      if (audio) {
+        audio.removeEventListener("timeupdate", onTimeUpdate);
+        audio.removeEventListener("ended", onEnded);
+        if (!audio.ended && audioRef.current === audio) stopAudio();
+      }
       setIsLoadingAudio(false);
       wordsRef.current = [];
       setWords([]);
       setCurrentWordIndex(-1);
     };
-  }, [narrating, index, spreads, project.id]);
+  }, [narrating, index, spreads, fetchNarration, preloadNarration, stopAudio]);
 
   if (!spread || total === 0) return null;
 

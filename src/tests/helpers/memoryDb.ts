@@ -1,4 +1,4 @@
-import type { ChildProfile, Story, Character } from "@/types";
+import type { ChildProfile, Story, Character, StoryPerson } from "@/types";
 import type {
   BookBuildJob,
   BookProject,
@@ -9,6 +9,7 @@ export function createMemoryDb() {
   const profileMap = new Map<string, ChildProfile>();
   const storyMap = new Map<string, Story>();
   const characterMap = new Map<string, Character>();
+  const storyPersonMap = new Map<string, StoryPerson>();
   const bookProjectMap = new Map<string, BookProject>();
   const bookBuildJobMap = new Map<string, BookBuildJob>();
   const printOrderMap = new Map<string, PrintOrderRecord>();
@@ -19,6 +20,7 @@ export function createMemoryDb() {
       profileMap.clear();
       storyMap.clear();
       characterMap.clear();
+      storyPersonMap.clear();
       bookProjectMap.clear();
       bookBuildJobMap.clear();
       printOrderMap.clear();
@@ -95,6 +97,52 @@ export function createMemoryDb() {
           await db.bookProjects.delete(book.id);
         }
         return storyMap.delete(id);
+      },
+    },
+
+    storyPeople: {
+      async getByUserId(userId: string): Promise<StoryPerson[]> {
+        return [...storyPersonMap.values()].filter((p) => p.userId === userId);
+      },
+      async getByProfileId(
+        profileId: string,
+        userId: string
+      ): Promise<StoryPerson[]> {
+        return [...storyPersonMap.values()].filter(
+          (person) =>
+            person.userId === userId &&
+            (person.availableToAllProfiles ||
+              person.profileIds.includes(profileId))
+        );
+      },
+      async getByIds(ids: string[], userId: string): Promise<StoryPerson[]> {
+        const idSet = new Set(ids);
+        return [...storyPersonMap.values()].filter(
+          (person) => person.userId === userId && idSet.has(person.id)
+        );
+      },
+      async getById(id: string): Promise<StoryPerson | undefined> {
+        return storyPersonMap.get(id);
+      },
+      async create(person: StoryPerson): Promise<void> {
+        storyPersonMap.set(person.id, person);
+      },
+      async update(
+        id: string,
+        updates: Partial<StoryPerson>
+      ): Promise<StoryPerson | undefined> {
+        const current = storyPersonMap.get(id);
+        if (!current) return undefined;
+        const next = {
+          ...current,
+          ...updates,
+          updatedAt: updates.updatedAt ?? new Date().toISOString(),
+        };
+        storyPersonMap.set(id, next);
+        return next;
+      },
+      async delete(id: string): Promise<boolean> {
+        return storyPersonMap.delete(id);
       },
     },
 

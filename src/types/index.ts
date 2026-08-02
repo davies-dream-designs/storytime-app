@@ -165,6 +165,7 @@ export interface Story {
   premise?: string;
   notes: string;
   storyPreset?: StoryPreset;
+  storyPersonIds?: string[];
   ipPolicy?: StoryIpPolicy;
   createdAt: string;
   status?: "generating" | "ready" | "failed";
@@ -189,6 +190,45 @@ export interface Character {
   appearance: string;
   profileId: string;
   createdAt: string;
+}
+
+export const STORY_PERSON_RELATIONSHIPS = [
+  "mum",
+  "dad",
+  "parent",
+  "grandparent",
+  "sibling",
+  "friend",
+  "pet",
+  "other",
+] as const;
+
+export type StoryPersonRelationship =
+  (typeof STORY_PERSON_RELATIONSHIPS)[number];
+
+export interface StoryPerson {
+  id: string;
+  userId: string;
+  name: string;
+  relationship: StoryPersonRelationship;
+  description: string;
+  personality: string;
+  appearance: string;
+  pronouns?: string;
+  avatarImageUrl?: string;
+  appearanceSummary?: string;
+  availableToAllProfiles: boolean;
+  profileIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function sanitizeStoryPersonRelationship(
+  value: unknown
+): StoryPersonRelationship {
+  return STORY_PERSON_RELATIONSHIPS.includes(value as StoryPersonRelationship)
+    ? (value as StoryPersonRelationship)
+    : "other";
 }
 
 export const LESSON_OPTIONS = [

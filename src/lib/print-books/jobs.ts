@@ -76,6 +76,7 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
       profile: context.profile,
       story: context.story,
       characters: context.characters,
+      storyPeople: context.storyPeople,
     });
 
     const spreads = composePrintBookSpreads({

@@ -16,12 +16,18 @@ export async function loadBuildContext(project: BookProject) {
     throw new Error("Profile not found");
   }
 
+  const storyPeople = await db.storyPeople.getByIds(
+    story.storyPersonIds ?? [],
+    project.userId
+  );
+
   return {
     story,
     profile,
     characters: characters.filter(
       (character) => character.userId === project.userId
     ),
+    storyPeople,
   };
 }
 

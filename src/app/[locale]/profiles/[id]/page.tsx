@@ -27,14 +27,18 @@ export default async function ProfilePage({
   const profile = await db.profiles.getById(id);
   if (!profile || profile.userId !== userId) notFound();
 
-  const [storiesRaw, characters] = await Promise.all([
+  const [storiesRaw, characters, storyPeople] = await Promise.all([
     db.stories.getByProfileId(id),
     db.characters.getByProfileId(id),
+    db.storyPeople.getByProfileId(id, userId),
   ]);
   const stories = storiesRaw
     .filter((s) => s.userId === userId)
     .sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1));
-  const myCharacters = characters.filter((c) => c.userId === userId);
+  const storyPersonIds = new Set(storyPeople.map((person) => person.id));
+  const myCharacters = characters.filter(
+    (c) => c.userId === userId && !storyPersonIds.has(c.id)
+  );
 
   let ageString: string;
   if (profile.dateOfBirth) {
@@ -70,7 +74,11 @@ export default async function ProfilePage({
   return (
     <>
       <Nav />
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-5xl px-5 py-10">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto max-w-5xl px-5 py-10"
+      >
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-star-300 to-moon-300 font-display text-3xl font-bold text-night-800">
@@ -170,14 +178,22 @@ export default async function ProfilePage({
               </Link>
             </div>
 
-            {myCharacters.length > 0 && (
-              <div className="rounded-2xl border border-night-100 bg-white p-5">
-                <h2 className="mb-4 font-display text-lg font-bold text-night-700">
-                  {t("characterMemory")}
-                </h2>
+            <div className="rounded-2xl border border-night-100 bg-white p-5">
+              <h2 className="mb-4 font-display text-lg font-bold text-night-700">
+                Family & Friends
+              </h2>
+              {storyPeople.length > 0 || myCharacters.length > 0 ? (
                 <div className="space-y-3">
-                  {myCharacters.map((c) => (
-                    <div key={c.id} className="rounded-xl bg-star-50 p-3">
+                  {storyPeople.slice(0, 4).map((person) => (
+                    <div key={person.id} className="rounded-xl bg-star-50 p-3">
+                      <p className="font-bold text-night-700">{person.name}</p>
+                      <p className="mt-0.5 text-xs capitalize text-night-500">
+                        {person.relationship.replace("_", " ")}
+                      </p>
+                    </div>
+                  ))}
+                  {myCharacters.slice(0, 2).map((c) => (
+                    <div key={c.id} className="rounded-xl bg-night-50 p-3">
                       <p className="font-bold text-night-700">{c.name}</p>
                       {c.description && (
                         <p className="mt-0.5 text-xs text-night-500">
@@ -187,14 +203,19 @@ export default async function ProfilePage({
                     </div>
                   ))}
                 </div>
-                <Link
-                  href={`/profiles/${id}/characters` as string}
-                  className="mt-4 block text-center text-sm font-bold text-star-500 hover:text-star-600"
-                >
-                  {t("manageCharacters")}
-                </Link>
-              </div>
-            )}
+              ) : (
+                <p className="text-sm leading-6 text-night-500">
+                  Add Mum, Dad, grandparents, siblings, friends, or pets once
+                  and choose who appears in each story.
+                </p>
+              )}
+              <Link
+                href={`/profiles/${id}/characters` as string}
+                className="mt-4 block text-center text-sm font-bold text-star-500 hover:text-star-600"
+              >
+                Manage Family & Friends
+              </Link>
+            </div>
           </div>
 
           <div className="lg:col-span-2">

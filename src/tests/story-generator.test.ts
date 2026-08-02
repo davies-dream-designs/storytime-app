@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ChildProfile, Character } from "@/types";
+import type { ChildProfile, Character, StoryPerson } from "@/types";
 import {
   buildStoryPostCheckPrompt,
   buildStoryPrompt,
@@ -112,6 +112,83 @@ describe("buildStoryPrompt", () => {
 
     expect(prompt).not.toContain("Bluey");
     expect(prompt).toContain("Pip");
+  });
+
+  it("includes selected reusable story people and warns against inventing family", () => {
+    const storyPeople: StoryPerson[] = [
+      {
+        id: "person-1",
+        userId: "user-1",
+        name: "Nanna Jo",
+        relationship: "grandparent",
+        description: "Bailey's calm bedtime storyteller.",
+        personality: "Warm and patient",
+        appearance: "Silver hair and round purple glasses.",
+        pronouns: "she/her",
+        availableToAllProfiles: true,
+        profileIds: [],
+        createdAt: "2026-07-15T00:00:00.000Z",
+        updatedAt: "2026-07-15T00:00:00.000Z",
+      },
+    ];
+
+    const prompt = buildStoryPrompt({
+      profile: createProfile(),
+      characters: [],
+      storyPeople,
+      theme: "kindness",
+      notes: "",
+      storyPreset: "preschool-story",
+      locale: "en",
+    });
+
+    expect(prompt).toContain("Selected family, friends, pets");
+    expect(prompt).toContain("Nanna Jo (grandparent, she/her)");
+    expect(prompt).toContain("Does not invent named parents");
+  });
+
+  it("filters selected story people that look like protected source material", () => {
+    const storyPeople: StoryPerson[] = [
+      {
+        id: "person-1",
+        userId: "user-1",
+        name: "Elsa",
+        relationship: "friend",
+        description: "A snow queen from a famous movie.",
+        personality: "Magical",
+        appearance: "Looks like the Disney character.",
+        availableToAllProfiles: true,
+        profileIds: [],
+        createdAt: "2026-07-15T00:00:00.000Z",
+        updatedAt: "2026-07-15T00:00:00.000Z",
+      },
+      {
+        id: "person-2",
+        userId: "user-1",
+        name: "Grandad Ray",
+        relationship: "grandparent",
+        description: "A gentle gardener.",
+        personality: "Patient",
+        appearance: "Brown cardigan and kind eyes.",
+        availableToAllProfiles: true,
+        profileIds: [],
+        createdAt: "2026-07-15T00:00:00.000Z",
+        updatedAt: "2026-07-15T00:00:00.000Z",
+      },
+    ];
+
+    const prompt = buildStoryPrompt({
+      profile: createProfile(),
+      characters: [],
+      storyPeople,
+      theme: "kindness",
+      notes: "",
+      storyPreset: "preschool-story",
+      locale: "en",
+    });
+
+    expect(prompt).not.toContain("Elsa");
+    expect(prompt).toContain("Grandad Ray");
   });
 });
 

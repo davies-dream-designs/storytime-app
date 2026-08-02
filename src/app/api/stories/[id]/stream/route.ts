@@ -93,9 +93,14 @@ export async function POST(
           db.stories.getByProfileId(story.profileId),
         ]);
         const safeCharacters = characters.filter((c) => c.userId === userId);
+        const selectedStoryPeople = await db.storyPeople.getByIds(
+          story.storyPersonIds ?? [],
+          userId
+        );
         const profileIpPolicy = assessProfileIp({
           ...profile,
           characters: safeCharacters,
+          storyPeople: selectedStoryPeople,
         });
         if (profileIpPolicy.printAllowed === false) {
           const response = profileIpErrorResponse(profileIpPolicy);
@@ -112,6 +117,7 @@ export async function POST(
           {
             profile,
             characters: safeCharacters,
+            storyPeople: selectedStoryPeople,
             theme: story.theme,
             premise: story.premise,
             notes: story.notes,

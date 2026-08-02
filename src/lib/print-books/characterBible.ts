@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { Character, ChildProfile, Story } from "@/types";
+import type { Character, ChildProfile, Story, StoryPerson } from "@/types";
 import {
   buildChildAppearanceDoNotChange,
   buildChildAppearanceSummary,
@@ -23,6 +23,23 @@ function buildCharacterList(characters: Character[]): string {
         `- ${character.name}: ${character.description || "No description provided."} Personality: ${
           character.personality || "No personality notes provided."
         } Appearance: ${character.appearance || "No appearance notes provided."}`
+    )
+    .join("\n");
+}
+
+function buildStoryPeopleList(people: StoryPerson[]): string {
+  if (people.length === 0) return "None selected.";
+
+  return people
+    .map(
+      (person) =>
+        `- ${person.name} (${person.relationship}${person.pronouns ? `, ${person.pronouns}` : ""}): ${
+          person.description || "No description provided."
+        } Personality: ${person.personality || "No personality notes provided."} Appearance: ${
+          person.appearanceSummary ||
+          person.appearance ||
+          "No appearance notes provided."
+        }`
     )
     .join("\n");
 }
@@ -56,8 +73,9 @@ function buildCharacterBiblePrompt(input: {
   profile: ChildProfile;
   story: Story;
   characters: Character[];
+  storyPeople?: StoryPerson[];
 }): string {
-  const { profile, story, characters } = input;
+  const { profile, story, characters, storyPeople = [] } = input;
 
   return `You are preparing a character bible for a children's print-ready picture book.
 
@@ -83,6 +101,9 @@ Story context:
 
 Saved supporting characters:
 ${buildCharacterList(characters)}
+
+Selected family, friends, pets, or story people:
+${buildStoryPeopleList(storyPeople)}
 
 Key source pages and illustration cues:
 ${summarizeStoryVisuals(story)}
@@ -186,6 +207,7 @@ export async function generateCharacterBible(input: {
   profile: ChildProfile;
   story: Story;
   characters: Character[];
+  storyPeople?: StoryPerson[];
 }): Promise<CharacterBible> {
   const prompt = buildCharacterBiblePrompt(input);
 

@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type {
   ChildProfile,
   Character,
+  StoryPerson,
   StoryPage,
   StorySuggestion,
   StoryPreset,
@@ -138,6 +139,7 @@ function buildGenderPromptLine(profile: ChildProfile): string {
 interface GenerateStoryInput {
   profile: ChildProfile;
   characters: Character[];
+  storyPeople?: StoryPerson[];
   theme: string;
   premise?: string;
   notes: string;
@@ -219,6 +221,7 @@ export function buildStoryPrompt(input: GenerateStoryInput): string {
   const {
     profile,
     characters,
+    storyPeople = [],
     theme,
     premise,
     notes,
@@ -235,10 +238,22 @@ export function buildStoryPrompt(input: GenerateStoryInput): string {
     });
     return policy.riskLevel === "clear";
   });
+  const originalStoryPeople = storyPeople.filter((person) => {
+    const policy = assessStoryIdeaIp({
+      premise: `${person.name} ${person.relationship} ${person.description}`,
+      notes: `${person.personality} ${person.appearance} ${person.appearanceSummary ?? ""}`,
+    });
+    return policy.riskLevel === "clear";
+  });
 
+  const familySection =
+    originalStoryPeople.length > 0
+      ? `\n\nSelected family, friends, pets, or story people to include when they fit naturally:
+${originalStoryPeople.map((person) => `- ${person.name} (${person.relationship}${person.pronouns ? `, ${person.pronouns}` : ""}): ${person.description || "No description provided."} Personality: ${person.personality || "No personality notes provided."} Appearance: ${person.appearanceSummary || person.appearance || "No appearance notes provided."}`).join("\n")}`
+      : "";
   const characterSection =
     originalCharacters.length > 0
-      ? `\n\nEstablished characters (use these exactly as described):
+      ? `\n\nLegacy saved characters for this child:
 ${originalCharacters.map((c) => `- ${c.name}: ${c.description}. Personality: ${c.personality}. Appearance: ${c.appearance}.`).join("\n")}`
       : "";
 
@@ -261,7 +276,7 @@ ${recentTitles.map((t) => `- ${t}`).join("\n")}`
 Child: ${profile.name}, age ${getAge(profile)}
 ${buildGenderPromptLine(profile)}
 - Theme/lesson: ${theme || "a gentle adventure"}
-${characterSection}${premiseSection}${notesSection}${avoidSection}
+${familySection}${characterSection}${premiseSection}${notesSection}${avoidSection}
 
 Write the story in ${language}. Write a warm, age-appropriate bedtime story that:
 1. Features ${profile.name} as the main character
@@ -273,12 +288,13 @@ Write the story in ${language}. Write a warm, age-appropriate bedtime story that
 7. Clearly weaves in the theme: ${theme || "a gentle adventure"}. Include one small age-appropriate moment where ${profile.name} notices, practices, or learns this theme through action, then carry that lesson into the calm ending.
 8. Feels FRESH and DIFFERENT from typical stories - surprise us with the opening
 9. Uses warm repetition for ages 0-5; uses chapter-like progression and less repetition for ages 6+
-10. Does NOT include "The End", "Sweet dreams", "Goodnight", or any closing sign-off in the story text - the last page ends naturally with the child drifting to sleep
-11. Avoids scenes that could look unsafe or sensitive when illustrated: no bathing, toilets, undressing, visible underwear/nappies, medical treatment, injuries, restraint, scary peril, weapons, drowning, or a child alone in risky water.
-12. Keeps ${profile.name} visibly clothed, safe, comfortable, and supervised or clearly secure in every visual moment. If water appears, keep it shallow/calm and frame ${profile.name} safely on dry ground or with a trusted adult nearby.
-13. Avoids close-up descriptions of private/sensitive body areas. Do not focus illustration prompts on feet, bare skin, mud on body parts, vulnerability, fear, hiding, or being watched.
-14. Makes every illustrationPrompt image-safe: describe setting, characters, action, mood, clothing, and composition only. Do not quote story prose. Do not include wording about nudity, bare body parts, bathing, toilets, fear, injury, danger, restraint, or a child being alone near water.
-15. Follows all IP originality requirements below.
+10. Does not invent named parents, grandparents, siblings, friends, or pets. Use only selected people listed above, legacy saved characters, or generic phrases like "a grown-up nearby" when an adult presence is needed.
+11. Does NOT include "The End", "Sweet dreams", "Goodnight", or any closing sign-off in the story text - the last page ends naturally with the child drifting to sleep
+12. Avoids scenes that could look unsafe or sensitive when illustrated: no bathing, toilets, undressing, visible underwear/nappies, medical treatment, injuries, restraint, scary peril, weapons, drowning, or a child alone in risky water.
+13. Keeps ${profile.name} visibly clothed, safe, comfortable, and supervised or clearly secure in every visual moment. If water appears, keep it shallow/calm and frame ${profile.name} safely on dry ground or with a trusted adult nearby.
+14. Avoids close-up descriptions of private/sensitive body areas. Do not focus illustration prompts on feet, bare skin, mud on body parts, vulnerability, fear, hiding, or being watched.
+15. Makes every illustrationPrompt image-safe: describe setting, characters, action, mood, clothing, and composition only. Do not quote story prose. Do not include wording about nudity, bare body parts, bathing, toilets, fear, injury, danger, restraint, or a child being alone near water.
+16. Follows all IP originality requirements below.
 
 ${ipSection}
 

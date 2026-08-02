@@ -10,7 +10,12 @@ import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 import { choiceCardClassName, formStyles } from "@/components/ui/formStyles";
-import type { ChildProfile, StorySuggestion, StoryPreset } from "@/types";
+import type {
+  ChildProfile,
+  StoryPerson,
+  StorySuggestion,
+  StoryPreset,
+} from "@/types";
 import {
   STORY_PRESETS,
   LESSON_OPTIONS,
@@ -132,6 +137,11 @@ function GenerateForm() {
   const [selectedSuggestion, setSelectedSuggestion] =
     useState<StorySuggestion | null>(null);
   const [selectedTheme, setSelectedTheme] = useState("calm bedtime");
+  const [storyPeople, setStoryPeople] = useState<StoryPerson[]>([]);
+  const [selectedStoryPersonIds, setSelectedStoryPersonIds] = useState<
+    string[]
+  >([]);
+  const [loadingStoryPeople, setLoadingStoryPeople] = useState(false);
   const [builderCompanion, setBuilderCompanion] = useState("");
   const [builderPlace, setBuilderPlace] = useState("");
   const [builderMoment, setBuilderMoment] = useState("");
@@ -190,6 +200,29 @@ function GenerateForm() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (!profileId) {
+      setStoryPeople([]);
+      setSelectedStoryPersonIds([]);
+      return;
+    }
+
+    setLoadingStoryPeople(true);
+    fetch(`/api/story-people?profileId=${encodeURIComponent(profileId)}`)
+      .then((r) => (r.ok ? (r.json() as Promise<StoryPerson[]>) : []))
+      .then((people) => {
+        setStoryPeople(people);
+        setSelectedStoryPersonIds((current) =>
+          current.filter((id) => people.some((person) => person.id === id))
+        );
+      })
+      .catch(() => {
+        setStoryPeople([]);
+        setSelectedStoryPersonIds([]);
+      })
+      .finally(() => setLoadingStoryPeople(false));
+  }, [profileId]);
+
   async function fetchSuggestions(pid: string, fresh = false) {
     if (!pid) return;
     setLoadingSuggestions(true);
@@ -219,6 +252,7 @@ function GenerateForm() {
     setProfileId(pid);
     setSuggestions([]);
     setSelectedSuggestion(null);
+    setSelectedStoryPersonIds([]);
     setBuilderCompanion("");
     setBuilderPlace("");
     setBuilderMoment("");
@@ -271,6 +305,7 @@ function GenerateForm() {
             premise: selectedSuggestion.premise,
             notes,
             storyPreset,
+            storyPersonIds: selectedStoryPersonIds,
             locale,
           }
         : {
@@ -279,6 +314,7 @@ function GenerateForm() {
             premise,
             notes,
             storyPreset,
+            storyPersonIds: selectedStoryPersonIds,
             locale,
           };
 
@@ -366,6 +402,17 @@ function GenerateForm() {
   const outOfCredits =
     creditInfo !== null && !creditInfo.isAdmin && creditInfo.credits < 1;
   const canGetMoreIdeas = suggestions.length > 0 && suggestions.length < 9;
+  const selectedStoryPeople = storyPeople.filter((person) =>
+    selectedStoryPersonIds.includes(person.id)
+  );
+
+  function toggleStoryPerson(id: string) {
+    setSelectedStoryPersonIds((current) =>
+      current.includes(id)
+        ? current.filter((currentId) => currentId !== id)
+        : [...current, id]
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -456,6 +503,83 @@ function GenerateForm() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="rounded-2xl border border-night-100 bg-white/70 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="font-display font-bold text-night-800">
+                    Who&rsquo;s In This Story?
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-night-500">
+                    {selectedProfile?.name} is always the star. Add reusable
+                    family, friends, or pets when they should appear.
+                  </p>
+                </div>
+                <Link
+                  href={`/profiles/${profileId}/characters` as string}
+                  className={buttonClassName({
+                    variant: "secondary",
+                    size: "compact",
+                    className: "shrink-0",
+                  })}
+                >
+                  <Icon name="profile" />
+                  Manage
+                </Link>
+              </div>
+
+              {loadingStoryPeople ? (
+                <p className="mt-3 text-sm text-night-400">
+                  Loading family and friends...
+                </p>
+              ) : storyPeople.length > 0 ? (
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {storyPeople.map((person) => {
+                    const selected = selectedStoryPersonIds.includes(person.id);
+                    return (
+                      <button
+                        key={person.id}
+                        type="button"
+                        onClick={() => toggleStoryPerson(person.id)}
+                        className={choiceCardClassName(
+                          selected,
+                          "flex min-h-20 items-center gap-3 rounded-xl p-3 text-left"
+                        )}
+                      >
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-moon-100 font-display font-bold text-night-700">
+                          {person.name[0]?.toUpperCase()}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate font-bold text-night-800">
+                            {person.name}
+                          </span>
+                          <span className="block text-xs capitalize text-night-400">
+                            {person.relationship.replace("_", " ")}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="mt-4 rounded-xl border border-dashed border-night-200 bg-white px-4 py-3">
+                  <p className="text-sm font-bold text-night-700">
+                    No reusable story people yet
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-night-500">
+                    Add Mum, Dad, grandparents, siblings, friends, or pets once
+                    and reuse them across children.
+                  </p>
+                </div>
+              )}
+
+              {selectedStoryPeople.length > 0 ? (
+                <p className="mt-3 text-xs font-semibold text-night-400">
+                  Selected:{" "}
+                  {selectedStoryPeople.map((person) => person.name).join(", ")}
+                </p>
+              ) : null}
             </div>
 
             <div className="rounded-2xl border border-night-100 bg-white/70 p-4">

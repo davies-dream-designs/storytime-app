@@ -41,6 +41,30 @@ const EMPTY_FORM: FormState = {
   profileIds: [],
 };
 
+const PERSONALITY_OPTIONS = [
+  "gentle",
+  "funny",
+  "calm",
+  "playful",
+  "patient",
+  "adventurous",
+  "kind",
+  "curious",
+  "protective",
+  "sleepy",
+] as const;
+
+const STORY_ROLE_OPTIONS = [
+  "helps with bedtime",
+  "joins the adventure",
+  "offers comfort",
+  "makes things silly",
+  "teaches a gentle lesson",
+  "keeps watch",
+  "needs help from the child",
+  "celebrates at the end",
+] as const;
+
 function relationshipLabel(value: StoryPersonRelationship): string {
   return value
     .split("_")
@@ -66,6 +90,17 @@ function isStoryPerson(
   value: StoryPerson | { error?: string }
 ): value is StoryPerson {
   return "id" in value;
+}
+
+function splitList(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function joinList(values: string[]): string {
+  return Array.from(new Set(values)).join(", ");
 }
 
 export default function StoryPeopleManager({
@@ -99,6 +134,20 @@ export default function StoryPeopleManager({
         ? current.profileIds.filter((id) => id !== profileId)
         : [...current.profileIds, profileId],
     }));
+  }
+
+  function toggleListField(
+    field: "personality" | "description",
+    value: string,
+    max = 3
+  ) {
+    setForm((current) => {
+      const values = splitList(current[field]);
+      const nextValues = values.includes(value)
+        ? values.filter((item) => item !== value)
+        : [...values.slice(0, max - 1), value];
+      return { ...current, [field]: joinList(nextValues) };
+    });
   }
 
   async function submit() {
@@ -141,7 +190,7 @@ export default function StoryPeopleManager({
   }
 
   async function remove(person: StoryPerson) {
-    if (!window.confirm(`Remove ${person.name} from Story People?`)) return;
+    if (!window.confirm(`Remove ${person.name} from Family & Friends?`)) return;
     const res = await fetch(`/api/story-people/${person.id}`, {
       method: "DELETE",
     });
@@ -283,7 +332,31 @@ export default function StoryPeopleManager({
           </div>
 
           <div>
-            <label className={formStyles.subLabel}>Personality</label>
+            <div className="flex items-center justify-between gap-3">
+              <label className={formStyles.subLabel}>Personality</label>
+              <span className="text-xs font-bold text-night-300">
+                {splitList(form.personality).length}/3
+              </span>
+            </div>
+            <div className="mb-2 flex flex-wrap gap-2">
+              {PERSONALITY_OPTIONS.map((option) => {
+                const selected = splitList(form.personality).includes(option);
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => toggleListField("personality", option)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                      selected
+                        ? "bg-night-700 text-moon-200"
+                        : "bg-night-50 text-night-600 hover:bg-night-100"
+                    }`}
+                  >
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
             <input
               value={form.personality}
               onChange={(event) =>
@@ -292,7 +365,7 @@ export default function StoryPeopleManager({
                   personality: event.target.value,
                 }))
               }
-              placeholder="gentle, funny, calm, adventurous"
+              placeholder="Choose up to 3, or add your own comma-separated notes."
               className={formStyles.field}
             />
           </div>
@@ -314,7 +387,31 @@ export default function StoryPeopleManager({
           </div>
 
           <div>
-            <label className={formStyles.subLabel}>Story Role</label>
+            <div className="flex items-center justify-between gap-3">
+              <label className={formStyles.subLabel}>Story Role</label>
+              <span className="text-xs font-bold text-night-300">
+                {splitList(form.description).length}/3
+              </span>
+            </div>
+            <div className="mb-2 flex flex-wrap gap-2">
+              {STORY_ROLE_OPTIONS.map((option) => {
+                const selected = splitList(form.description).includes(option);
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => toggleListField("description", option)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                      selected
+                        ? "bg-night-700 text-moon-200"
+                        : "bg-night-50 text-night-600 hover:bg-night-100"
+                    }`}
+                  >
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
             <textarea
               value={form.description}
               onChange={(event) =>
@@ -324,7 +421,7 @@ export default function StoryPeopleManager({
                 }))
               }
               rows={2}
-              placeholder="How this person or pet should feel in stories."
+              placeholder="Choose up to 3, or add your own comma-separated notes."
               className={formStyles.textarea}
             />
           </div>
@@ -342,7 +439,7 @@ export default function StoryPeopleManager({
                 }
                 className="mt-1 h-4 w-4 rounded border-night-300"
               />
-              Available For All Child Profiles
+              Available For All Children
             </label>
             {!form.availableToAllProfiles ? (
               <div className="mt-3 flex flex-wrap gap-2">
@@ -639,7 +736,7 @@ export default function StoryPeopleManager({
 
                     <p className="mt-4 rounded-full bg-night-50 px-3 py-1 text-xs font-semibold text-night-500">
                       {person.availableToAllProfiles
-                        ? "Available for all child profiles"
+                        ? "Available for all children"
                         : `Linked to ${person.profileIds.length} child profile${
                             person.profileIds.length === 1 ? "" : "s"
                           }`}
@@ -653,7 +750,7 @@ export default function StoryPeopleManager({
           <div className="rounded-2xl border-2 border-dashed border-night-200 p-8 text-center">
             <Icon name="profile" className="mx-auto h-8 w-8 text-star-500" />
             <p className="mt-3 font-display font-bold text-night-700">
-              No Story People Yet
+              No Family & Friends Yet
             </p>
             <p className="mt-1 text-sm leading-6 text-night-500">
               Start with Mum, Dad, a grandparent, sibling, or pet. You can pick

@@ -68,13 +68,13 @@ export default function Nav() {
   const mobileLinks = [
     { href: "/dashboard", label: t("dashboard"), icon: "dashboard" },
     { href: "/profiles", label: t("profilesMobile"), icon: "profile" },
-    { href: "/family", label: "Family", icon: "profile" },
+    { href: "/family", label: "Family & Friends", icon: "profile" },
     { href: "/stories", label: t("storiesMobile"), icon: "book" },
     { href: "/account", label: t("accountMobile"), icon: "account" },
   ] satisfies Array<{ href: string; label: string; icon: IconName }>;
   const desktopAuthedLinks = [
     { href: "/profiles", label: t("profiles"), icon: "profile" },
-    { href: "/family", label: "Family", icon: "profile" },
+    { href: "/family", label: "Family & Friends", icon: "profile" },
     { href: "/stories", label: t("stories"), icon: "book" },
     { href: "/stories/new", label: t("newStory"), icon: "plus" },
   ] satisfies Array<{ href: string; label: string; icon: IconName }>;

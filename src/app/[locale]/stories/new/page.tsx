@@ -19,6 +19,8 @@ import type {
 import {
   STORY_PRESETS,
   LESSON_OPTIONS,
+  buildChildAppearanceSummary,
+  formatAge,
   getDefaultPreset,
   getAge,
   getAgeInMonths,
@@ -53,6 +55,39 @@ const FALLBACK_THEME_OPTIONS = [
   "friendship",
   "confidence",
 ] as const;
+
+const CHILD_CAST_ID_PREFIX = "child:";
+
+function buildChildCastId(profileId: string): string {
+  return `${CHILD_CAST_ID_PREFIX}${profileId}`;
+}
+
+function childProfileToCastPerson(profile: ChildProfile): StoryPerson {
+  const appearance =
+    profile.appearanceSummary ||
+    buildChildAppearanceSummary(profile.appearance);
+  return {
+    id: buildChildCastId(profile.id),
+    userId: profile.userId,
+    name: profile.name,
+    relationship: "sibling",
+    pronouns:
+      profile.gender && profile.gender !== "not_specified"
+        ? profile.gender.replace("_", " ")
+        : undefined,
+    description: `Child profile, ${formatAge(profile)} old.`,
+    personality: [
+      ...(profile.lessons ?? []).slice(0, 3),
+      ...(profile.favouriteActivities ?? []).slice(0, 2),
+    ].join(", "),
+    appearance,
+    appearanceSummary: appearance,
+    availableToAllProfiles: true,
+    profileIds: [],
+    createdAt: profile.createdAt,
+    updatedAt: profile.createdAt,
+  };
+}
 
 const SAFETY_ERRORS: Record<
   string,
@@ -212,16 +247,22 @@ function GenerateForm() {
       .then((r) => (r.ok ? (r.json() as Promise<StoryPerson[]>) : []))
       .then((people) => {
         setStoryPeople(people);
-        setSelectedStoryPersonIds((current) =>
-          current.filter((id) => people.some((person) => person.id === id))
-        );
+        setSelectedStoryPersonIds((current) => {
+          const allowedIds = new Set([
+            ...people.map((person) => person.id),
+            ...profiles
+              .filter((profile) => profile.id !== profileId)
+              .map((profile) => buildChildCastId(profile.id)),
+          ]);
+          return current.filter((id) => allowedIds.has(id));
+        });
       })
       .catch(() => {
         setStoryPeople([]);
         setSelectedStoryPersonIds([]);
       })
       .finally(() => setLoadingStoryPeople(false));
-  }, [profileId]);
+  }, [profileId, profiles]);
 
   async function fetchSuggestions(pid: string, fresh = false) {
     if (!pid) return;
@@ -402,7 +443,11 @@ function GenerateForm() {
   const outOfCredits =
     creditInfo !== null && !creditInfo.isAdmin && creditInfo.credits < 1;
   const canGetMoreIdeas = suggestions.length > 0 && suggestions.length < 9;
-  const selectedStoryPeople = storyPeople.filter((person) =>
+  const childCastPeople = profiles
+    .filter((profile) => profile.id !== profileId)
+    .map(childProfileToCastPerson);
+  const castPeople = [...childCastPeople, ...storyPeople];
+  const selectedStoryPeople = castPeople.filter((person) =>
     selectedStoryPersonIds.includes(person.id)
   );
 
@@ -512,8 +557,9 @@ function GenerateForm() {
                     Who&rsquo;s In This Story?
                   </p>
                   <p className="mt-1 text-sm leading-6 text-night-500">
-                    {selectedProfile?.name} is always the star. Add reusable
-                    family, friends, or pets when they should appear.
+                    {selectedProfile?.name} is always the star. Add another
+                    child profile, family member, friend, or pet when they
+                    should appear.
                   </p>
                 </div>
                 <Link
@@ -533,10 +579,12 @@ function GenerateForm() {
                 <p className="mt-3 text-sm text-night-400">
                   Loading family and friends...
                 </p>
-              ) : storyPeople.length > 0 ? (
+              ) : castPeople.length > 0 ? (
                 <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {storyPeople.map((person) => {
+                  {castPeople.map((person) => {
                     const selected = selectedStoryPersonIds.includes(person.id);
+                    const isChildProfile =
+                      person.id.startsWith(CHILD_CAST_ID_PREFIX);
                     return (
                       <button
                         key={person.id}
@@ -565,7 +613,9 @@ function GenerateForm() {
                             {person.name}
                           </span>
                           <span className="block text-xs capitalize text-night-400">
-                            {person.relationship.replace("_", " ")}
+                            {isChildProfile
+                              ? "Child profile"
+                              : person.relationship.replace("_", " ")}
                           </span>
                         </span>
                       </button>
@@ -575,11 +625,11 @@ function GenerateForm() {
               ) : (
                 <div className="mt-4 rounded-xl border border-dashed border-night-200 bg-white px-4 py-3">
                   <p className="text-sm font-bold text-night-700">
-                    No reusable story people yet
+                    No Family & Friends yet
                   </p>
                   <p className="mt-1 text-sm leading-6 text-night-500">
-                    Add Mum, Dad, grandparents, siblings, friends, or pets once
-                    and reuse them across children.
+                    Add family members, friends, or pets once and reuse them
+                    across children.
                   </p>
                 </div>
               )}

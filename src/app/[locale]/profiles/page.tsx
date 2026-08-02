@@ -6,7 +6,7 @@ import Icon from "@/components/ui/Icon";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 import { db } from "@/lib/db";
 
-export const metadata = { title: "Profiles - Storycot" };
+export const metadata = { title: "Children - Storycot" };
 
 export default async function ProfilesPage() {
   const { userId } = await auth();

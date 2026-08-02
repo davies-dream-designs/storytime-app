@@ -33,7 +33,9 @@ function buildAvatarPrompt(person: StoryPerson): string {
     person.personality ? `Personality: ${person.personality}.` : "",
     person.appearance ? `User appearance notes: ${person.appearance}.` : "",
     "Use the uploaded photo only as private visual reference for broad visible features, posture, colouring, and expression.",
-    "Do not make a photorealistic portrait. Render a warm original bedtime storybook illustration with soft texture, gentle lighting, kind expression, and simple clean background.",
+    "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
+    "Make it suitable as a reusable character reference for Storycot hardcover interiors and child profile illustrations: square crop, head-and-shoulders or full pet pose, clear visible features, stable outfit/markings, no scene-specific props unless requested.",
+    "Do not make a photorealistic portrait, caricature, sticker, logo, toy packaging image, or social-media avatar.",
     "No text, watermark, logos, franchise styling, celebrity styling, or exact copy of clothing logos.",
   ]
     .filter(Boolean)

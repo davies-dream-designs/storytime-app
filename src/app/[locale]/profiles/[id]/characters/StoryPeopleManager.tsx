@@ -24,6 +24,11 @@ type FormState = {
   profileIds: string[];
 };
 
+type PendingPhoto = {
+  file: File;
+  previewUrl: string;
+};
+
 const EMPTY_FORM: FormState = {
   name: "",
   relationship: "parent",
@@ -81,6 +86,9 @@ export default function StoryPeopleManager({
   const [generatingAvatarForId, setGeneratingAvatarForId] = useState<
     string | null
   >(null);
+  const [pendingPhotos, setPendingPhotos] = useState<
+    Record<string, PendingPhoto>
+  >({});
   const [error, setError] = useState("");
 
   function toggleProfile(profileId: string) {
@@ -143,13 +151,40 @@ export default function StoryPeopleManager({
     }
   }
 
-  async function generateAvatar(person: StoryPerson, file: File | undefined) {
+  function stagePhoto(person: StoryPerson, file: File | undefined) {
     if (!file) return;
+    setError("");
+    setPendingPhotos((current) => {
+      const existing = current[person.id];
+      if (existing) URL.revokeObjectURL(existing.previewUrl);
+      return {
+        ...current,
+        [person.id]: {
+          file,
+          previewUrl: URL.createObjectURL(file),
+        },
+      };
+    });
+  }
+
+  function clearStagedPhoto(personId: string) {
+    setPendingPhotos((current) => {
+      const existing = current[personId];
+      if (existing) URL.revokeObjectURL(existing.previewUrl);
+      const next = { ...current };
+      delete next[personId];
+      return next;
+    });
+  }
+
+  async function generateAvatar(person: StoryPerson) {
+    const pending = pendingPhotos[person.id];
+    if (!pending) return;
     setError("");
     setGeneratingAvatarForId(person.id);
     try {
       const formData = new FormData();
-      formData.append("photo", file);
+      formData.append("photo", pending.file);
       const res = await fetch(`/api/story-people/${person.id}/avatar`, {
         method: "POST",
         body: formData,
@@ -169,6 +204,7 @@ export default function StoryPeopleManager({
         )
       );
       if (form.id === data.id) setForm(formFromPerson(data));
+      clearStagedPhoto(person.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -355,128 +391,228 @@ export default function StoryPeopleManager({
               key={person.id}
               className="rounded-2xl border border-night-100 bg-white p-5"
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex min-w-0 gap-3">
-                  {person.avatarImageUrl ? (
-                    <div
-                      className="h-12 w-12 shrink-0 rounded-full bg-cover bg-center"
-                      style={{
-                        backgroundImage: `url("${person.avatarImageUrl}")`,
-                      }}
-                      aria-hidden="true"
-                    />
-                  ) : (
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-star-200 to-moon-200 font-display text-lg font-bold text-night-800">
-                      {person.name[0]?.toUpperCase()}
+              {(() => {
+                const pendingPhoto = pendingPhotos[person.id];
+                const busy = generatingAvatarForId === person.id;
+
+                return (
+                  <>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex min-w-0 gap-3">
+                        {person.avatarImageUrl ? (
+                          <div
+                            className="h-12 w-12 shrink-0 rounded-full bg-cover bg-center"
+                            style={{
+                              backgroundImage: `url("${person.avatarImageUrl}")`,
+                            }}
+                            aria-hidden="true"
+                          />
+                        ) : (
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-star-200 to-moon-200 font-display text-lg font-bold text-night-800">
+                            {person.name[0]?.toUpperCase()}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <h3 className="truncate font-display text-xl font-bold text-night-800">
+                            {person.name}
+                          </h3>
+                          <p className="text-sm capitalize text-night-400">
+                            {relationshipLabel(person.relationship)}
+                            {person.pronouns ? ` · ${person.pronouns}` : ""}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setForm(formFromPerson(person))}
+                          className={buttonClassName({
+                            variant: "secondary",
+                            size: "compact",
+                          })}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => remove(person)}
+                          className={buttonClassName({
+                            variant: "danger",
+                            size: "compact",
+                          })}
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
-                  )}
-                  <div className="min-w-0">
-                    <h3 className="truncate font-display text-xl font-bold text-night-800">
-                      {person.name}
-                    </h3>
-                    <p className="text-sm capitalize text-night-400">
-                      {relationshipLabel(person.relationship)}
-                      {person.pronouns ? ` · ${person.pronouns}` : ""}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setForm(formFromPerson(person))}
-                    className={buttonClassName({
-                      variant: "secondary",
-                      size: "compact",
-                    })}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => remove(person)}
-                    className={buttonClassName({
-                      variant: "danger",
-                      size: "compact",
-                    })}
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
 
-              <div className="mt-4 grid gap-3 text-sm leading-6 text-night-600 sm:grid-cols-2">
-                {person.personality ? (
-                  <p>
-                    <span className="font-bold text-night-700">
-                      Personality:
-                    </span>{" "}
-                    {person.personality}
-                  </p>
-                ) : null}
-                {person.description ? (
-                  <p>
-                    <span className="font-bold text-night-700">Role:</span>{" "}
-                    {person.description}
-                  </p>
-                ) : null}
-                {person.appearance ? (
-                  <p className="sm:col-span-2">
-                    <span className="font-bold text-night-700">
-                      Appearance:
-                    </span>{" "}
-                    {person.appearance}
-                  </p>
-                ) : null}
-              </div>
+                    <div className="mt-4 grid gap-3 text-sm leading-6 text-night-600 sm:grid-cols-2">
+                      {person.personality ? (
+                        <p>
+                          <span className="font-bold text-night-700">
+                            Personality:
+                          </span>{" "}
+                          {person.personality}
+                        </p>
+                      ) : null}
+                      {person.description ? (
+                        <p>
+                          <span className="font-bold text-night-700">
+                            Role:
+                          </span>{" "}
+                          {person.description}
+                        </p>
+                      ) : null}
+                      {person.appearance ? (
+                        <p className="sm:col-span-2">
+                          <span className="font-bold text-night-700">
+                            Appearance:
+                          </span>{" "}
+                          {person.appearance}
+                        </p>
+                      ) : null}
+                    </div>
 
-              <div className="mt-4 rounded-xl border border-night-100 bg-night-50 p-3">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-bold text-night-700">
-                      Illustrated Reference
-                    </p>
-                    <p className="mt-1 text-xs leading-5 text-night-500">
-                      Upload a photo to create a Storycot-style reference. The
-                      source photo is used once and is not stored.
-                    </p>
-                  </div>
-                  <label
-                    className={buttonClassName({
-                      variant: "secondary",
-                      size: "compact",
-                      className:
-                        generatingAvatarForId === person.id
-                          ? "pointer-events-none opacity-60"
-                          : "cursor-pointer",
-                    })}
-                  >
-                    <Icon name="image" />
-                    {generatingAvatarForId === person.id
-                      ? "Creating..."
-                      : person.avatarImageUrl
-                        ? "Replace"
-                        : "Add Photo"}
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      className="sr-only"
-                      disabled={generatingAvatarForId === person.id}
-                      onChange={(event) => {
-                        void generateAvatar(person, event.target.files?.[0]);
-                        event.target.value = "";
-                      }}
-                    />
-                  </label>
-                </div>
-              </div>
+                    <div className="mt-4 rounded-xl border border-night-100 bg-night-50 p-3">
+                      <div className="grid gap-4 md:grid-cols-[8rem_1fr]">
+                        <div className="overflow-hidden rounded-xl border border-night-100 bg-white">
+                          <div
+                            className="aspect-square bg-cover bg-center"
+                            style={{
+                              backgroundImage: person.avatarImageUrl
+                                ? `url("${person.avatarImageUrl}")`
+                                : undefined,
+                            }}
+                          >
+                            {!person.avatarImageUrl ? (
+                              <div className="flex h-full items-center justify-center px-3 text-center text-xs font-bold text-night-300">
+                                No Reference Yet
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
 
-              <p className="mt-4 rounded-full bg-night-50 px-3 py-1 text-xs font-semibold text-night-500">
-                {person.availableToAllProfiles
-                  ? "Available for all child profiles"
-                  : `Linked to ${person.profileIds.length} child profile${
-                      person.profileIds.length === 1 ? "" : "s"
-                    }`}
-              </p>
+                        <div>
+                          <p className="text-sm font-bold text-night-700">
+                            Illustrated Reference
+                          </p>
+                          <p className="mt-1 text-xs leading-5 text-night-500">
+                            Upload or take a photo, preview it here, then create
+                            a Storycot-style reference. The source photo is used
+                            once and is not stored.
+                          </p>
+
+                          {pendingPhoto ? (
+                            <div className="mt-3 rounded-xl border border-star-200 bg-white p-3">
+                              <div className="grid gap-3 sm:grid-cols-[6rem_1fr]">
+                                <div
+                                  className="aspect-square rounded-lg bg-cover bg-center"
+                                  style={{
+                                    backgroundImage: `url("${pendingPhoto.previewUrl}")`,
+                                  }}
+                                  aria-label="Selected source photo preview"
+                                />
+                                <div>
+                                  <p className="text-sm font-bold text-night-700">
+                                    Photo Preview
+                                  </p>
+                                  <p className="mt-1 text-xs leading-5 text-night-500">
+                                    This photo has not been saved. It will be
+                                    used once to create the illustrated
+                                    reference.
+                                  </p>
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    <Button
+                                      size="compact"
+                                      onClick={() =>
+                                        void generateAvatar(person)
+                                      }
+                                      disabled={busy}
+                                    >
+                                      {busy
+                                        ? "Creating..."
+                                        : "Create Reference"}
+                                    </Button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        clearStagedPhoto(person.id)
+                                      }
+                                      className={buttonClassName({
+                                        variant: "secondary",
+                                        size: "compact",
+                                      })}
+                                      disabled={busy}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <label
+                              className={buttonClassName({
+                                variant: "secondary",
+                                size: "compact",
+                                className: busy
+                                  ? "pointer-events-none opacity-60"
+                                  : "cursor-pointer",
+                              })}
+                            >
+                              <Icon name="image" />
+                              Upload Photo
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                className="sr-only"
+                                disabled={busy}
+                                onChange={(event) => {
+                                  stagePhoto(person, event.target.files?.[0]);
+                                  event.target.value = "";
+                                }}
+                              />
+                            </label>
+                            <label
+                              className={buttonClassName({
+                                variant: "secondary",
+                                size: "compact",
+                                className: busy
+                                  ? "pointer-events-none opacity-60"
+                                  : "cursor-pointer",
+                              })}
+                            >
+                              <Icon name="image" />
+                              Take Photo
+                              <input
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                className="sr-only"
+                                disabled={busy}
+                                onChange={(event) => {
+                                  stagePhoto(person, event.target.files?.[0]);
+                                  event.target.value = "";
+                                }}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="mt-4 rounded-full bg-night-50 px-3 py-1 text-xs font-semibold text-night-500">
+                      {person.availableToAllProfiles
+                        ? "Available for all child profiles"
+                        : `Linked to ${person.profileIds.length} child profile${
+                            person.profileIds.length === 1 ? "" : "s"
+                          }`}
+                    </p>
+                  </>
+                );
+              })()}
             </article>
           ))
         ) : (

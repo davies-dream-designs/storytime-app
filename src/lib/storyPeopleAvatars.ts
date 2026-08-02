@@ -143,6 +143,18 @@ async function generateEditedImage(input: {
   return Buffer.from(base64, "base64");
 }
 
+async function loadReferenceImage(url: string): Promise<Buffer> {
+  if (url.startsWith("data:")) {
+    const base64 = url.split(",", 2)[1];
+    if (!base64) throw new Error("Reference image is unavailable");
+    return Buffer.from(base64, "base64");
+  }
+
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("Reference image is unavailable");
+  return Buffer.from(await response.arrayBuffer());
+}
+
 function parseAnalysis(raw: string): PhotoAnalysis {
   const cleaned = raw
     .replace(/^```(?:json)?\s*/i, "")
@@ -306,6 +318,59 @@ export async function createStoryPersonAvatar(input: {
   };
 }
 
+export async function redoStoryPersonAvatar(input: {
+  person: StoryPerson;
+  adjustment: string;
+}): Promise<{
+  avatarImageUrl: string;
+  appearance: string;
+  appearanceSummary: string;
+}> {
+  if (!input.person.avatarImageUrl) {
+    throw new Error("Create a reference from a photo before redoing it.");
+  }
+  const adjustment = input.adjustment.trim().slice(0, 240);
+  if (!adjustment) {
+    throw new Error("Tell us what should change before redoing the reference.");
+  }
+
+  const currentImage = await loadReferenceImage(input.person.avatarImageUrl);
+  const normalizedImage = await sharp(currentImage)
+    .resize(1024, 1024, { fit: "cover" })
+    .png({ compressionLevel: 8 })
+    .toBuffer();
+  const generated = await generateEditedImage({
+    image: normalizedImage,
+    prompt: [
+      buildAvatarPrompt(input.person, adjustment),
+      "Keep the same reusable Storycot reference composition and overall likeness from the supplied generated illustration. Change only the requested detail.",
+    ].join(" "),
+  });
+  const webImage = await sharp(generated)
+    .resize(768, 768, { fit: "cover" })
+    .jpeg({ quality: 88, mozjpeg: true })
+    .toBuffer();
+
+  const avatarImageUrl = await storeBookAsset({
+    pathname: `story-people/${input.person.userId}/${input.person.id}/avatar-${Date.now()}.jpg`,
+    body: webImage,
+    contentType: "image/jpeg",
+  });
+
+  await deletePreviousReference(input.person.avatarImageUrl);
+  const appearance = input.person.appearance.trim();
+
+  return {
+    avatarImageUrl,
+    appearance,
+    appearanceSummary: buildAdjustedSummary(
+      input.person.appearanceSummary ||
+        buildStoryPersonAppearanceSummary(input.person),
+      adjustment
+    ),
+  };
+}
+
 export async function createChildProfileAvatar(input: {
   profile: ChildProfile;
   file: File;
@@ -349,5 +414,62 @@ export async function createChildProfileAvatar(input: {
       input.adjustment
     ),
     consistencyNote: analysis.appearance || undefined,
+  };
+}
+
+export async function redoChildProfileAvatar(input: {
+  profile: ChildProfile;
+  adjustment: string;
+}): Promise<{
+  avatarImageUrl: string;
+  appearanceSummary: string;
+  consistencyNote?: string;
+}> {
+  if (!input.profile.avatarImageUrl) {
+    throw new Error("Create a reference from a photo before redoing it.");
+  }
+  const adjustment = input.adjustment.trim().slice(0, 240);
+  if (!adjustment) {
+    throw new Error("Tell us what should change before redoing the reference.");
+  }
+
+  const currentImage = await loadReferenceImage(input.profile.avatarImageUrl);
+  const normalizedImage = await sharp(currentImage)
+    .resize(1024, 1024, { fit: "cover" })
+    .png({ compressionLevel: 8 })
+    .toBuffer();
+  const generated = await generateEditedImage({
+    image: normalizedImage,
+    prompt: [
+      buildChildAvatarPrompt(
+        input.profile,
+        { appearance: "", appearanceSummary: "" },
+        adjustment
+      ),
+      "Keep the same reusable Storycot reference composition and overall likeness from the supplied generated illustration. Change only the requested detail.",
+    ].join(" "),
+  });
+  const webImage = await sharp(generated)
+    .resize(768, 768, { fit: "cover" })
+    .jpeg({ quality: 88, mozjpeg: true })
+    .toBuffer();
+
+  const avatarImageUrl = await storeBookAsset({
+    pathname: `profiles/${input.profile.userId}/${input.profile.id}/avatar-${Date.now()}.jpg`,
+    body: webImage,
+    contentType: "image/jpeg",
+  });
+
+  await deletePreviousReference(input.profile.avatarImageUrl);
+
+  return {
+    avatarImageUrl,
+    appearanceSummary: buildAdjustedSummary(
+      input.profile.appearanceSummary ||
+        buildChildAppearanceSummary(input.profile.appearance) ||
+        "",
+      adjustment
+    ),
+    consistencyNote: adjustment,
   };
 }

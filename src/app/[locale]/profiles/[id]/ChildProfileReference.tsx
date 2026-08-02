@@ -28,6 +28,8 @@ export default function ChildProfileReference({
   const [profile, setProfile] = useState(initialProfile);
   const [pendingPhoto, setPendingPhoto] = useState<PendingPhoto | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [redoNote, setRedoNote] = useState("");
+  const [showRedo, setShowRedo] = useState(false);
   const [error, setError] = useState("");
   const [creditInfo, setCreditInfo] = useState<{
     credits: number;
@@ -107,6 +109,53 @@ export default function ChildProfileReference({
     }
   }
 
+  async function redoReference() {
+    const adjustment = redoNote.trim();
+    if (!adjustment) {
+      setError("Tell us what should change before redoing the reference.");
+      return;
+    }
+    const cost = creditInfo?.isAdmin ? 0 : 1;
+    if (cost > 0 && creditInfo && creditInfo.credits < cost) {
+      setError("You need 1 credit to redo this illustrated reference.");
+      return;
+    }
+    if (
+      !window.confirm(
+        cost > 0
+          ? "Redoing this illustrated reference will use 1 credit. Continue?"
+          : "Redoing this illustrated reference is free for admins. Continue?"
+      )
+    ) {
+      return;
+    }
+    setError("");
+    setGenerating(true);
+    try {
+      const res = await fetch(`/api/profiles/${profile.id}/avatar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adjustment }),
+      });
+      const data = (await res.json()) as ChildProfile | { error?: string };
+      if (!res.ok || !isChildProfile(data)) {
+        throw new Error(
+          isChildProfile(data)
+            ? "Could not redo the child reference"
+            : data.error || "Could not redo the child reference"
+        );
+      }
+      setProfile(data);
+      setRedoNote("");
+      setShowRedo(false);
+      window.dispatchEvent(new Event("storycot:credits-updated"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   return (
     <section className="rounded-2xl border border-night-100 bg-white p-5">
       <div className="grid gap-4 md:grid-cols-[9rem_1fr]">
@@ -147,6 +196,65 @@ export default function ChildProfileReference({
             <p className="mt-3 rounded-xl bg-night-50 px-3 py-2 text-sm leading-6 text-night-600">
               {profile.appearanceSummary}
             </p>
+          ) : null}
+
+          {profile.avatarImageUrl ? (
+            <div className="mt-3 rounded-xl border border-night-100 bg-night-50 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-bold uppercase tracking-wide text-night-400">
+                  Redo Current Reference:{" "}
+                  {creditInfo?.isAdmin ? "0 Credits (Admin)" : "1 Credit"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowRedo((current) => !current)}
+                  className={buttonClassName({
+                    variant: "secondary",
+                    size: "compact",
+                  })}
+                  disabled={generating}
+                >
+                  Redo
+                </button>
+              </div>
+              {showRedo ? (
+                <div className="mt-3">
+                  <textarea
+                    value={redoNote}
+                    onChange={(event) =>
+                      setRedoNote(event.target.value.slice(0, 240))
+                    }
+                    rows={2}
+                    placeholder="Example: remove text, softer smile, hair closer to the photo."
+                    className={formStyles.textarea}
+                    disabled={generating}
+                  />
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Button
+                      size="compact"
+                      onClick={() => void redoReference()}
+                      disabled={generating || !redoNote.trim()}
+                    >
+                      {generating ? "Redoing..." : "Redo Reference"}
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowRedo(false);
+                        setRedoNote("");
+                      }}
+                      className={buttonClassName({
+                        variant: "secondary",
+                        size: "compact",
+                      })}
+                      disabled={generating}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           ) : null}
 
           {pendingPhoto ? (

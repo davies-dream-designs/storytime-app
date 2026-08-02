@@ -9,12 +9,16 @@ const {
   mockCreateStoryPersonAvatar,
   mockDb,
   mockRefundReferenceRedoCredit,
+  mockRedoChildProfileAvatar,
+  mockRedoStoryPersonAvatar,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(async () => ({ userId: "user-1" })),
   mockChargeReferenceRedoCredit: vi.fn(),
   mockCreateChildProfileAvatar: vi.fn(),
   mockCreateStoryPersonAvatar: vi.fn(),
   mockRefundReferenceRedoCredit: vi.fn(),
+  mockRedoChildProfileAvatar: vi.fn(),
+  mockRedoStoryPersonAvatar: vi.fn(),
   mockDb: {
     profiles: {
       getByUserId: vi.fn(),
@@ -42,6 +46,8 @@ vi.mock("@/lib/db", () => ({
 vi.mock("@/lib/storyPeopleAvatars", () => ({
   createChildProfileAvatar: mockCreateChildProfileAvatar,
   createStoryPersonAvatar: mockCreateStoryPersonAvatar,
+  redoChildProfileAvatar: mockRedoChildProfileAvatar,
+  redoStoryPersonAvatar: mockRedoStoryPersonAvatar,
 }));
 
 vi.mock("@/lib/credits", () => ({
@@ -92,6 +98,16 @@ describe("/api/story-people", () => {
       avatarImageUrl: "https://assets.example.com/avatar.jpg",
       appearance: "Dark curls and a warm smile.",
       appearanceSummary: "Warm storybook reference.",
+    });
+    mockRedoChildProfileAvatar.mockResolvedValue({
+      avatarImageUrl: "https://assets.example.com/child-redo.jpg",
+      appearanceSummary: "Adjusted child reference.",
+      consistencyNote: "Remove text labels.",
+    });
+    mockRedoStoryPersonAvatar.mockResolvedValue({
+      avatarImageUrl: "https://assets.example.com/redo.jpg",
+      appearance: "Dark curls and a warm smile.",
+      appearanceSummary: "Adjusted storybook reference.",
     });
   });
 
@@ -242,6 +258,50 @@ describe("/api/story-people", () => {
     });
   });
 
+  it("redoes an existing story person reference without a new photo", async () => {
+    const person: StoryPerson = {
+      id: "person-1",
+      userId: "user-1",
+      name: "Mum",
+      relationship: "mum",
+      description: "",
+      personality: "",
+      appearance: "Dark curls.",
+      appearanceSummary: "Warm storybook reference.",
+      avatarImageUrl: "https://assets.example.com/old-avatar.jpg",
+      availableToAllProfiles: true,
+      profileIds: [],
+      createdAt: "2026-07-15T00:00:00.000Z",
+      updatedAt: "2026-07-15T00:00:00.000Z",
+    };
+    mockDb.storyPeople.getById.mockResolvedValue(person);
+    mockDb.storyPeople.update.mockResolvedValue({
+      ...person,
+      avatarImageUrl: "https://assets.example.com/redo.jpg",
+    });
+
+    const { POST } = await import("@/app/api/story-people/[id]/avatar/route");
+    const req = new NextRequest(
+      "http://localhost/api/story-people/person-1/avatar",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adjustment: "remove the text label" }),
+      }
+    );
+
+    const res = await POST(req, {
+      params: Promise.resolve({ id: "person-1" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockChargeReferenceRedoCredit).toHaveBeenCalledWith("user-1");
+    expect(mockRedoStoryPersonAvatar).toHaveBeenCalledWith({
+      person,
+      adjustment: "remove the text label",
+    });
+  });
+
   it("creates an illustrated child profile reference from an owned profile photo", async () => {
     const profile: ChildProfile = {
       ...profiles[0],
@@ -338,6 +398,41 @@ describe("/api/story-people", () => {
       profile,
       file: expect.any(File),
       adjustment: "closer to the photo",
+    });
+  });
+
+  it("redoes an existing child reference without a new photo", async () => {
+    const profile: ChildProfile = {
+      ...profiles[0],
+      avatarImageUrl: "https://assets.example.com/old-child-avatar.jpg",
+      appearanceSummary: "Warm child storybook reference.",
+    };
+    mockDb.profiles.getById.mockResolvedValue(profile);
+    mockDb.profiles.update.mockResolvedValue({
+      ...profile,
+      avatarImageUrl: "https://assets.example.com/child-redo.jpg",
+      appearanceSummary: "Adjusted child reference.",
+    });
+
+    const { POST } = await import("@/app/api/profiles/[id]/avatar/route");
+    const req = new NextRequest(
+      "http://localhost/api/profiles/profile-1/avatar",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adjustment: "remove the age label" }),
+      }
+    );
+
+    const res = await POST(req, {
+      params: Promise.resolve({ id: "profile-1" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockChargeReferenceRedoCredit).toHaveBeenCalledWith("user-1");
+    expect(mockRedoChildProfileAvatar).toHaveBeenCalledWith({
+      profile,
+      adjustment: "remove the age label",
     });
   });
 

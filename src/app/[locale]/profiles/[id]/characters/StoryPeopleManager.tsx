@@ -123,6 +123,8 @@ export default function StoryPeopleManager({
   const [generatingAvatarForId, setGeneratingAvatarForId] = useState<
     string | null
   >(null);
+  const [redoNotes, setRedoNotes] = useState<Record<string, string>>({});
+  const [redoOpenForId, setRedoOpenForId] = useState<string | null>(null);
   const [pendingPhotos, setPendingPhotos] = useState<
     Record<string, PendingPhoto>
   >({});
@@ -291,6 +293,58 @@ export default function StoryPeopleManager({
       if (form.id === data.id) setForm(formFromPerson(data));
       window.dispatchEvent(new Event("storycot:credits-updated"));
       clearStagedPhoto(person.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setGeneratingAvatarForId(null);
+    }
+  }
+
+  async function redoAvatar(person: StoryPerson) {
+    const adjustment = (redoNotes[person.id] ?? "").trim();
+    if (!adjustment) {
+      setError("Tell us what should change before redoing the reference.");
+      return;
+    }
+    const cost = creditInfo?.isAdmin ? 0 : 1;
+    if (cost > 0 && creditInfo && creditInfo.credits < cost) {
+      setError("You need 1 credit to redo this illustrated reference.");
+      return;
+    }
+    if (
+      !window.confirm(
+        cost > 0
+          ? `Redoing ${person.name}'s illustrated reference will use 1 credit. Continue?`
+          : `Redoing ${person.name}'s illustrated reference is free for admins. Continue?`
+      )
+    ) {
+      return;
+    }
+    setError("");
+    setGeneratingAvatarForId(person.id);
+    try {
+      const res = await fetch(`/api/story-people/${person.id}/avatar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adjustment }),
+      });
+      const data = (await res.json()) as StoryPerson | { error?: string };
+      if (!res.ok || !isStoryPerson(data)) {
+        throw new Error(
+          isStoryPerson(data)
+            ? "Could not redo the illustrated reference"
+            : data.error || "Could not redo the illustrated reference"
+        );
+      }
+      setPeople((current) =>
+        current.map((currentPerson) =>
+          currentPerson.id === data.id ? data : currentPerson
+        )
+      );
+      if (form.id === data.id) setForm(formFromPerson(data));
+      setRedoNotes((current) => ({ ...current, [person.id]: "" }));
+      setRedoOpenForId(null);
+      window.dispatchEvent(new Event("storycot:credits-updated"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -907,6 +961,83 @@ export default function StoryPeopleManager({
                             a Storycot-style reference. The source photo is used
                             once and is not stored.
                           </p>
+
+                          {person.avatarImageUrl ? (
+                            <div className="mt-3 rounded-xl border border-night-100 bg-white p-3">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="text-xs font-bold uppercase tracking-wide text-night-400">
+                                  Redo Current Reference:{" "}
+                                  {creditInfo?.isAdmin
+                                    ? "0 Credits (Admin)"
+                                    : "1 Credit"}
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setRedoOpenForId((current) =>
+                                      current === person.id ? null : person.id
+                                    )
+                                  }
+                                  className={buttonClassName({
+                                    variant: "secondary",
+                                    size: "compact",
+                                  })}
+                                  disabled={busy}
+                                >
+                                  Redo
+                                </button>
+                              </div>
+                              {redoOpenForId === person.id ? (
+                                <div className="mt-3">
+                                  <textarea
+                                    value={redoNotes[person.id] ?? ""}
+                                    onChange={(event) =>
+                                      setRedoNotes((current) => ({
+                                        ...current,
+                                        [person.id]: event.target.value.slice(
+                                          0,
+                                          240
+                                        ),
+                                      }))
+                                    }
+                                    rows={2}
+                                    placeholder="Example: less broad, softer smile, closer hair colour, keep the glasses."
+                                    className={formStyles.textarea}
+                                    disabled={busy}
+                                  />
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    <Button
+                                      size="compact"
+                                      onClick={() => void redoAvatar(person)}
+                                      disabled={
+                                        busy ||
+                                        !(redoNotes[person.id] ?? "").trim()
+                                      }
+                                    >
+                                      {busy ? "Redoing..." : "Redo Reference"}
+                                    </Button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setRedoOpenForId(null);
+                                        setRedoNotes((current) => ({
+                                          ...current,
+                                          [person.id]: "",
+                                        }));
+                                      }}
+                                      className={buttonClassName({
+                                        variant: "secondary",
+                                        size: "compact",
+                                      })}
+                                      disabled={busy}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
 
                           {pendingPhoto ? (
                             <div className="mt-3 rounded-xl border border-star-200 bg-white p-3">

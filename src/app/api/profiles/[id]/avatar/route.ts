@@ -5,7 +5,10 @@ import {
   chargeReferenceRedoCredit,
   refundReferenceRedoCredit,
 } from "@/lib/credits";
-import { createChildProfileAvatar } from "@/lib/storyPeopleAvatars";
+import {
+  createChildProfileAvatar,
+  redoChildProfileAvatar,
+} from "@/lib/storyPeopleAvatars";
 import type { ChildAppearance } from "@/types/profileAppearance";
 
 function mergeConsistencyNote(
@@ -37,6 +40,41 @@ export async function POST(
   const profile = await db.profiles.getById(id);
   if (!profile || profile.userId !== userId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const contentType = req.headers?.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    const payload = (await req.json().catch(() => ({}))) as {
+      adjustment?: string;
+    };
+    let charged = false;
+    try {
+      const charge = await chargeReferenceRedoCredit(userId);
+      charged = charge.charged;
+      const avatar = await redoChildProfileAvatar({
+        profile,
+        adjustment: payload.adjustment ?? "",
+      });
+      const updated = await db.profiles.update(id, {
+        avatarImageUrl: avatar.avatarImageUrl,
+        appearanceSummary: avatar.appearanceSummary,
+        appearance: mergeConsistencyNote(
+          profile.appearance,
+          avatar.consistencyNote
+        ),
+      });
+      return NextResponse.json(updated);
+    } catch (err) {
+      if (charged) await refundReferenceRedoCredit(userId);
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Could not redo the child reference.";
+      return NextResponse.json(
+        { error: message },
+        { status: /insufficient credits/i.test(message) ? 402 : 502 }
+      );
+    }
   }
 
   const formData = await req.formData();

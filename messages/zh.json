@@ -104,7 +104,10 @@
     "story": "故事",
     "stories": "故事",
     "profile": "档案",
-    "profiles": "档案"
+    "profiles": "档案",
+    "statFamily": "Family & Friends",
+    "familyTitle": "Add Family & Friends",
+    "familySub": "Reusable people, pets, and photo references."
   },
   "profiles": {
     "title": "儿童档案",

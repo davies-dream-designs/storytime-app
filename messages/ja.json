@@ -104,7 +104,10 @@
     "story": "物語",
     "stories": "物語",
     "profile": "プロフィール",
-    "profiles": "プロフィール"
+    "profiles": "プロフィール",
+    "statFamily": "Family & Friends",
+    "familyTitle": "Add Family & Friends",
+    "familySub": "Reusable people, pets, and photo references."
   },
   "profiles": {
     "title": "子供のプロフィール",

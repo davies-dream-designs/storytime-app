@@ -104,7 +104,10 @@
     "story": "hikaye",
     "stories": "hikayeler",
     "profile": "profil",
-    "profiles": "profiller"
+    "profiles": "profiller",
+    "statFamily": "Family & Friends",
+    "familyTitle": "Add Family & Friends",
+    "familySub": "Reusable people, pets, and photo references."
   },
   "profiles": {
     "title": "Çocuk profilleri",

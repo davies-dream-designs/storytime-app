@@ -39,6 +39,19 @@ function summarizeStoryVisuals(story: Story): string {
     .join("\n");
 }
 
+function buildGenderPromptLine(profile: ChildProfile): string {
+  switch (profile.gender) {
+    case "girl":
+      return "- Gender/pronouns: girl; use she/her where pronouns are needed";
+    case "boy":
+      return "- Gender/pronouns: boy; use he/him where pronouns are needed";
+    case "non_binary":
+      return "- Gender/pronouns: non-binary; use they/them where pronouns are needed";
+    default:
+      return "- Gender/pronouns: not specified; do not infer gender from the child's name";
+  }
+}
+
 function buildCharacterBiblePrompt(input: {
   profile: ChildProfile;
   story: Story;
@@ -53,6 +66,7 @@ Your job is to create one stable visual identity package that can be reused acro
 Child profile:
 - Name: ${profile.name}
 - Age: ${getAge(profile)}
+${buildGenderPromptLine(profile)}
 - Visual appearance: ${buildChildAppearanceSummary(profile.appearance) || "No structured appearance details provided."}
 - Keep consistent: ${buildChildAppearanceDoNotChange(profile.appearance).join(", ") || "none"}
 - Favourite toys: ${(profile.favouriteCharacters ?? []).join(", ") || "none"}

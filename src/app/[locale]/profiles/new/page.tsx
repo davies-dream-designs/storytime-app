@@ -13,7 +13,12 @@ import {
   ProfileIpConfirmation,
   TagsField,
 } from "@/components/profiles/ProfileFormControls";
-import { createEmptyChildAppearance, type ChildAppearance } from "@/types";
+import {
+  CHILD_GENDERS,
+  createEmptyChildAppearance,
+  type ChildAppearance,
+  type ChildGender,
+} from "@/types";
 
 export default function NewProfilePage() {
   const router = useRouter();
@@ -22,6 +27,7 @@ export default function NewProfilePage() {
   const [dobDay, setDobDay] = useState("");
   const [dobMonth, setDobMonth] = useState("");
   const [dobYear, setDobYear] = useState("");
+  const [gender, setGender] = useState<ChildGender>("not_specified");
   const [favouriteCharacters, setFavouriteCharacters] = useState<string[]>([]);
   const [favouriteActivities, setFavouriteActivities] = useState<string[]>([]);
   const [favouriteAnimals, setFavouriteAnimals] = useState<string[]>([]);
@@ -114,6 +120,7 @@ export default function NewProfilePage() {
           name: name.trim(),
           age,
           dateOfBirth,
+          gender,
           appearance,
           favouriteCharacters,
           favouriteActivities,
@@ -172,6 +179,24 @@ export default function NewProfilePage() {
             onMonthChange={setDobMonth}
             onYearChange={setDobYear}
           />
+
+          <div>
+            <label className={formStyles.label} htmlFor="gender">
+              {t("genderLabel")}
+            </label>
+            <select
+              id="gender"
+              value={gender}
+              onChange={(event) => setGender(event.target.value as ChildGender)}
+              className={formStyles.field}
+            >
+              {CHILD_GENDERS.map((value) => (
+                <option key={value} value={value}>
+                  {t(`genderOptions.${value}`)}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <TagsField
             label={t("charsLabel")}

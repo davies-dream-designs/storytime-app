@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import type { ChildProfile } from "@/types";
-import { sanitizeChildAppearance } from "@/types";
+import { sanitizeChildAppearance, sanitizeChildGender } from "@/types";
 import {
   hasProfileIpConfirmation,
   PROFILE_IP_CONFIRMATION_ERROR,
@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
     name: body.name.trim(),
     age: body.age ?? 0,
     dateOfBirth: body.dateOfBirth,
+    gender: sanitizeChildGender(body.gender),
     appearance: sanitizeChildAppearance(body.appearance),
     favouriteCharacters: body.favouriteCharacters ?? [],
     favouriteActivities: body.favouriteActivities ?? [],

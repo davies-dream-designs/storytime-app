@@ -208,7 +208,7 @@ export async function POST(req: NextRequest) {
             product_data: {
               name: `Storycot Digital Book - ${story?.title ?? "Illustrated Story"}`,
               description:
-                "Illustrated PDF and EPUB - download to any device, read forever.",
+                "Illustrated PDF and e-reader file - download to any device, read forever.",
             },
             unit_amount: 995,
           },

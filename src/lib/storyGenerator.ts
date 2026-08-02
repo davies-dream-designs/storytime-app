@@ -47,6 +47,19 @@ const STORY_PRESET_CONFIG = {
   },
 } as const;
 
+function buildGenderPromptLine(profile: ChildProfile): string {
+  switch (profile.gender) {
+    case "girl":
+      return "- Gender/pronouns: girl; use she/her where pronouns are needed";
+    case "boy":
+      return "- Gender/pronouns: boy; use he/him where pronouns are needed";
+    case "non_binary":
+      return "- Gender/pronouns: non-binary; use they/them where pronouns are needed";
+    default:
+      return "- Gender/pronouns: not specified; avoid assuming gender from the child's name and use the child's name when pronouns would be unclear";
+  }
+}
+
 interface GenerateStoryInput {
   profile: ChildProfile;
   characters: Character[];
@@ -171,6 +184,7 @@ ${recentTitles.map((t) => `- ${t}`).join("\n")}`
   return `You are a magical storyteller creating a personalised bedtime story for a child.
 
 Child: ${profile.name}, age ${getAge(profile)}
+${buildGenderPromptLine(profile)}
 - Theme/lesson: ${theme || "a gentle adventure"}
 ${characterSection}${premiseSection}${notesSection}${avoidSection}
 
@@ -497,9 +511,7 @@ export async function generateSuggestions(
 ): Promise<StorySuggestion[]> {
   const language = LOCALE_LANGUAGE[locale ?? "en"] ?? "English";
   const selectedTheme =
-    options.selectedTheme?.trim() ||
-    profile.lessons?.[0] ||
-    "calm bedtime";
+    options.selectedTheme?.trim() || profile.lessons?.[0] || "calm bedtime";
 
   const avoidSection =
     recentTitles.length > 0
@@ -519,6 +531,7 @@ export async function generateSuggestions(
 
 Child profile:
 - Name: ${profile.name}, age ${getAge(profile)}
+${buildGenderPromptLine(profile)}
 - Appearance: ${buildChildAppearanceSummary(profile.appearance) || "No structured appearance details provided."}
 - Favourite toys: ${(profile.favouriteCharacters ?? []).join(", ") || "none"}
 - Favourite activities: ${(profile.favouriteActivities ?? []).join(", ") || "none"}

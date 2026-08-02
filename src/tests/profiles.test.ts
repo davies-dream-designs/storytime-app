@@ -56,6 +56,7 @@ describe("POST /api/profiles", () => {
       body: JSON.stringify({
         name: "Max",
         age: 3,
+        gender: "girl",
         ipConfirmationAccepted: true,
         favouriteAnimals: ["Fox"],
         appearance: {
@@ -79,6 +80,7 @@ describe("POST /api/profiles", () => {
     const body = await res.json();
     expect(body.name).toBe("Max");
     expect(body.age).toBe(3);
+    expect(body.gender).toBe("girl");
     expect(body.userId).toBe("user-1");
     expect(body.appearance.skinTone).toBe("medium");
     expect(body.appearance.hairStyles).toEqual(["pigtails"]);
@@ -182,6 +184,7 @@ describe("PUT /api/profiles/[id]", () => {
       body: JSON.stringify({
         name: "Max",
         age: 4,
+        gender: "boy",
         ipConfirmationAccepted: true,
       }),
     });
@@ -194,6 +197,7 @@ describe("PUT /api/profiles/[id]", () => {
       expect.objectContaining({
         name: "Max",
         age: 4,
+        gender: "boy",
       })
     );
   });

@@ -11,7 +11,12 @@ import Icon from "@/components/ui/Icon";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 import { choiceCardClassName, formStyles } from "@/components/ui/formStyles";
 import type { ChildProfile, StorySuggestion, StoryPreset } from "@/types";
-import { STORY_PRESETS, LESSON_OPTIONS, getDefaultPreset, getAge } from "@/types";
+import {
+  STORY_PRESETS,
+  LESSON_OPTIONS,
+  getDefaultPreset,
+  getAge,
+} from "@/types";
 import { assessStoryIdeaIp } from "@/lib/ipGuardrails";
 
 const THEME_EMOJIS: Record<string, string> = {
@@ -126,7 +131,6 @@ function GenerateForm() {
   const [selectedSuggestion, setSelectedSuggestion] =
     useState<StorySuggestion | null>(null);
   const [selectedTheme, setSelectedTheme] = useState("calm bedtime");
-  const [customPremise, setCustomPremise] = useState("");
   const [builderCompanion, setBuilderCompanion] = useState("");
   const [builderPlace, setBuilderPlace] = useState("");
   const [builderMoment, setBuilderMoment] = useState("");
@@ -212,7 +216,6 @@ function GenerateForm() {
     setProfileId(pid);
     setSuggestions([]);
     setSelectedSuggestion(null);
-    setCustomPremise("");
     setBuilderCompanion("");
     setBuilderPlace("");
     setBuilderMoment("");
@@ -239,8 +242,7 @@ function GenerateForm() {
   async function handleGenerate() {
     setError("");
     setErrorCategory(null);
-    const builderPremise = buildBuilderPremise();
-    const premise = customPremise.trim() || builderPremise;
+    const premise = buildBuilderPremise();
     if (!profileId) {
       setError(t("errorNoProfile"));
       return;
@@ -310,7 +312,7 @@ function GenerateForm() {
   ).slice(0, 8);
   const ipPolicyPreview = assessStoryIdeaIp({
     theme: selectedTheme,
-    premise: selectedSuggestion?.premise ?? (customPremise || buildBuilderPremise()),
+    premise: selectedSuggestion?.premise ?? buildBuilderPremise(),
     notes,
   });
 
@@ -355,8 +357,7 @@ function GenerateForm() {
 
   const showIdeas = suggestions.length > 0 || loadingSuggestions;
   const readyToGenerate =
-    profileId &&
-    (selectedSuggestion || customPremise.trim() || buildBuilderPremise());
+    profileId && (selectedSuggestion || buildBuilderPremise());
   const outOfCredits =
     creditInfo !== null && !creditInfo.isAdmin && creditInfo.credits < 1;
   const canGetMoreIdeas = suggestions.length > 0 && suggestions.length < 9;
@@ -452,34 +453,6 @@ function GenerateForm() {
               </div>
             </div>
 
-            <div>
-              <label className={formStyles.label}>{t("storyIdeaLabel")}</label>
-              <textarea
-                value={customPremise}
-                onChange={(e) => {
-                  setCustomPremise(e.target.value);
-                  setSelectedSuggestion(null);
-                  setBuilderCompanion("");
-                  setBuilderPlace("");
-                  setBuilderMoment("");
-                }}
-                rows={2}
-                placeholder={t("storyIdeaPlaceholder", {
-                  name: selectedProfile?.name ?? "",
-                })}
-                className={formStyles.textarea}
-              />
-              <p className="mt-2 text-xs leading-5 text-night-400">
-                {t("storyIdeaHelp")}
-              </p>
-              <p className="mt-1 text-xs leading-5 text-night-400">
-                Storycot creates original bedtime stories. If an idea mentions
-                an existing character, brand, show, film, game, celebrity, logo,
-                or story world, we will turn it into a new original version
-                before generation.
-              </p>
-            </div>
-
             <div className="rounded-2xl border border-night-100 bg-white/70 p-4">
               <p className="font-display font-bold text-night-800">
                 {t("builderTitle")}
@@ -493,7 +466,6 @@ function GenerateForm() {
                     value={builderCompanion}
                     onChange={(event) => {
                       setBuilderCompanion(event.target.value);
-                      setCustomPremise("");
                       setSelectedSuggestion(null);
                     }}
                     placeholder={t("builderCompanionPlaceholder")}
@@ -508,7 +480,6 @@ function GenerateForm() {
                     value={builderPlace}
                     onChange={(event) => {
                       setBuilderPlace(event.target.value);
-                      setCustomPremise("");
                       setSelectedSuggestion(null);
                     }}
                     placeholder={t("builderPlacePlaceholder")}
@@ -523,7 +494,6 @@ function GenerateForm() {
                     value={builderMoment}
                     onChange={(event) => {
                       setBuilderMoment(event.target.value);
-                      setCustomPremise("");
                       setSelectedSuggestion(null);
                     }}
                     placeholder={t("builderMomentPlaceholder")}
@@ -572,10 +542,7 @@ function GenerateForm() {
                 <button
                   key={i}
                   type="button"
-                  onClick={() => {
-                    setSelectedSuggestion(s);
-                    setCustomPremise("");
-                  }}
+                  onClick={() => setSelectedSuggestion(s)}
                   className={choiceCardClassName(
                     selectedSuggestion === s,
                     "w-full p-4 text-left"

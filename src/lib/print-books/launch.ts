@@ -3,4 +3,4 @@ export function canStartPrintCheckout(_isAdmin: boolean) {
 }
 
 export const PRINT_ORDERING_COMING_SOON_MESSAGE =
-  "Printed books are coming soon. You can still create and download your PDF or EPUB today.";
+  "Printed books are coming soon. You can still create and download your PDF or e-reader file today.";

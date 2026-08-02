@@ -1,11 +1,27 @@
 import type { ChildAppearance } from "./profileAppearance";
 
+export const CHILD_GENDERS = [
+  "girl",
+  "boy",
+  "non_binary",
+  "not_specified",
+] as const;
+
+export type ChildGender = (typeof CHILD_GENDERS)[number];
+
+export function sanitizeChildGender(value: unknown): ChildGender {
+  return CHILD_GENDERS.includes(value as ChildGender)
+    ? (value as ChildGender)
+    : "not_specified";
+}
+
 export interface ChildProfile {
   id: string;
   userId: string;
   name: string;
   age: number; // kept for backward compat; prefer computing from dateOfBirth
   dateOfBirth?: string; // YYYY-MM-DD
+  gender?: ChildGender;
   appearance?: ChildAppearance;
   favouriteCharacters: string[];
   favouriteActivities: string[];

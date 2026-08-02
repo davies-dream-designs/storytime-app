@@ -8,6 +8,7 @@ import {
 } from "drizzle-orm/pg-core";
 import type { ChildAppearance } from "@/types/profileAppearance";
 import type {
+  ChildGender,
   PublicReviewStatus,
   StoryPage,
   StoryIpPolicy,
@@ -37,6 +38,10 @@ export const profiles = pgTable(
     name: text("name").notNull(),
     age: integer("age").notNull().default(0),
     dateOfBirth: text("date_of_birth"),
+    gender: text("gender")
+      .$type<ChildGender>()
+      .notNull()
+      .default("not_specified"),
     appearance: jsonb("appearance").$type<ChildAppearance>(),
     favouriteCharacters: text("favourite_characters")
       .array()

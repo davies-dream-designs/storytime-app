@@ -106,8 +106,8 @@ export default function DigitalDownloadSection({
         <p className="text-sm text-night-400">AUD · one-time</p>
       </div>
       <p className="mt-2 text-sm leading-6 text-night-500">
-        Download your illustrated book as a high-quality PDF and EPUB - read on
-        any device, keep forever.
+        Download your illustrated book as a high-quality PDF and e-reader file -
+        read on any device, keep forever.
       </p>
       <ul className="mt-3 space-y-1.5 text-sm text-night-600">
         <li className="flex items-center gap-2">
@@ -120,7 +120,7 @@ export default function DigitalDownloadSection({
           <span className="text-green-500" aria-hidden="true">
             ✓
           </span>
-          EPUB - for Kindle, Apple Books, or any e-reader
+          E-reader file - for Kindle, Apple Books, or any e-reader
         </li>
         <li className="flex items-center gap-2">
           <span className="text-green-500" aria-hidden="true">

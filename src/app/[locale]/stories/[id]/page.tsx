@@ -308,7 +308,7 @@ export default async function StoryPage({
           <CheckoutResultNotice
             tone="success"
             title="Digital download unlocked!"
-            body="Your illustrated PDF and EPUB are ready to download below."
+            body="Your illustrated PDF and e-reader file are ready to download below."
           />
         ) : null}
         {query.download_canceled ? (

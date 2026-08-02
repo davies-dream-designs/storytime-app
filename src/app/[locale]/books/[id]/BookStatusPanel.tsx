@@ -838,9 +838,7 @@ export default function BookStatusPanel({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={expandedImage.url}
-                    alt={
-                      expandedImage.displayLabel ?? "Selected illustration"
-                    }
+                    alt={expandedImage.displayLabel ?? "Selected illustration"}
                     className="max-h-[76vh] w-full object-contain"
                   />
                 </div>
@@ -883,7 +881,7 @@ export default function BookStatusPanel({
           </h2>
           <p className="mt-2 text-night-500">
             {isExportRefresh
-              ? "We’re refreshing the PDF, EPUB, and print-order export files from the existing artwork."
+              ? "We’re refreshing the PDF, e-reader file, and print-order files from the existing artwork."
               : displayStatus === "ready"
                 ? t("illustratedPdfReadySub")
                 : displayStatus === "failed"

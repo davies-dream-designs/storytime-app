@@ -91,7 +91,7 @@ export async function sendBookReadyEmail(input: {
               <h1 style="margin:0 0 16px;font-size:30px;font-weight:800;color:#1e1344;line-height:1.18;">${safeStoryTitle}</h1>
 
               <p style="margin:0 0 28px;font-size:16px;color:#5b4e8a;line-height:1.65;">
-                Hi ${safeName}, the illustrations are done and your personalised Storycot book is waiting for you. Open it to review the art, download the PDF or EPUB, or prepare it for print.
+                Hi ${safeName}, the illustrations are done and your personalised Storycot book is waiting for you. Open it to review the art, download the PDF or e-reader file, or prepare it for print.
               </p>
 
               <!-- CTA -->

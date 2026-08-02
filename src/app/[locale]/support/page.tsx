@@ -57,11 +57,11 @@ export default function SupportPage() {
     },
     {
       q: "How much does an illustrated book cost?",
-      a: "Generating illustrations costs from 6 credits, depending on your child's age and book length — 6 for Tiny Tales, 9 for Bedtime Adventures, and 11 for Older Readers. Once illustrations are ready, you can unlock your digital download (PDF, EPUB, and illustrations) for a separate one-off payment of $9.95 AUD.",
+      a: "Generating illustrations costs from 6 credits, depending on your child's age and book length — 6 for Tiny Tales, 9 for Bedtime Adventures, and 11 for Older Readers. Once illustrations are ready, you can unlock your digital download (PDF, e-reader file, and illustrations) for a separate one-off payment of $9.95 AUD.",
     },
     {
       q: "Can I download my illustrated book?",
-      a: "Yes - once illustrations are ready, you can download your book as a PDF or EPUB from the book page. Downloads are available for 180 days after your book is ready.",
+      a: "Yes - once illustrations are ready, you can download your book as a PDF or e-reader file from the book page. Downloads are available for 180 days after your book is ready.",
     },
     {
       q: "What happens if the illustrations fail to generate?",

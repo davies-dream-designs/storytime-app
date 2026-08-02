@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import type { ChildProfile } from "@/types";
-import { sanitizeChildAppearance } from "@/types";
+import { sanitizeChildAppearance, sanitizeChildGender } from "@/types";
 import {
   hasProfileIpConfirmation,
   PROFILE_IP_CONFIRMATION_ERROR,
@@ -51,6 +51,9 @@ export async function PUT(
   delete profileUpdates.ipConfirmationAccepted;
   const updated = await db.profiles.update(id, {
     ...profileUpdates,
+    ...(profileUpdates.gender !== undefined
+      ? { gender: sanitizeChildGender(profileUpdates.gender) }
+      : {}),
     ...(profileUpdates.appearance !== undefined
       ? { appearance: sanitizeChildAppearance(profileUpdates.appearance) }
       : {}),

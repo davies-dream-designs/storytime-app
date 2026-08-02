@@ -59,6 +59,22 @@ describe("buildStoryPrompt", () => {
     expect(prompt).toContain("no text in image");
     expect(prompt).toContain("IP originality requirements");
     expect(prompt).toContain("Do not use or imitate existing franchises");
+    expect(prompt).toContain(
+      "Gender/pronouns: not specified; avoid assuming gender"
+    );
+  });
+
+  it("uses selected gender guidance when the profile provides it", () => {
+    const prompt = buildStoryPrompt({
+      profile: { ...createProfile(), gender: "girl" },
+      characters: [],
+      theme: "kindness",
+      notes: "",
+      storyPreset: "moonlit-adventures",
+      locale: "en",
+    });
+
+    expect(prompt).toContain("Gender/pronouns: girl; use she/her");
   });
 
   it("does not include saved characters that look like protected source material", () => {
@@ -143,7 +159,9 @@ describe("generateSuggestions", () => {
     expect(prompt).toContain("Selected theme for this batch: listening");
     expect(prompt).toContain("Already shown to the parent today");
     expect(prompt).toContain("The Garden Rocket");
-    expect(prompt).toContain("Don't suggest stories similar to these recent ones: The Moon Pond");
+    expect(prompt).toContain(
+      "Don't suggest stories similar to these recent ones: The Moon Pond"
+    );
   });
 });
 

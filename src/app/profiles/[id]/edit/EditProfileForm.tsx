@@ -14,7 +14,7 @@ import {
   ProfileIpConfirmation,
   TagsField,
 } from "@/components/profiles/ProfileFormControls";
-import type { ChildProfile } from "@/types";
+import { CHILD_GENDERS, type ChildGender, type ChildProfile } from "@/types";
 
 const MONTHS = [
   "January",
@@ -44,6 +44,9 @@ export default function EditProfileForm({
   const [dobMonth, setDobMonth] = useState(initial.month);
   const [dobYear, setDobYear] = useState(
     initial.year || fallbackBirthYear(profile.age)
+  );
+  const [gender, setGender] = useState<ChildGender>(
+    profile.gender ?? "not_specified"
   );
   const [favouriteCharacters, setFavouriteCharacters] = useState(
     profile.favouriteCharacters
@@ -109,6 +112,7 @@ export default function EditProfileForm({
           name: name.trim(),
           age,
           dateOfBirth,
+          gender,
           favouriteCharacters,
           favouriteActivities,
           favouriteAnimals,
@@ -170,6 +174,31 @@ export default function EditProfileForm({
             onMonthChange={setDobMonth}
             onYearChange={setDobYear}
           />
+
+          <div>
+            <label className={formStyles.label} htmlFor="gender">
+              Gender
+            </label>
+            <select
+              id="gender"
+              value={gender}
+              onChange={(event) => setGender(event.target.value as ChildGender)}
+              className={formStyles.field}
+            >
+              {CHILD_GENDERS.map((value) => (
+                <option key={value} value={value}>
+                  {
+                    {
+                      girl: "Girl",
+                      boy: "Boy",
+                      non_binary: "Non-binary",
+                      not_specified: "Prefer not to say",
+                    }[value]
+                  }
+                </option>
+              ))}
+            </select>
+          </div>
 
           <TagsField
             label="Favourite Toys (Choose 3 Max)"

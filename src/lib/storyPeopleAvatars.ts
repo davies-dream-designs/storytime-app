@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import Anthropic from "@anthropic-ai/sdk";
 import type { ChildProfile, StoryPerson } from "@/types";
-import { buildChildAppearanceSummary } from "@/types";
+import { buildChildAppearanceSummary, getAgeInMonths } from "@/types";
 import { deleteBookAssetUrls, storeBookAsset } from "@/lib/print-books/storage";
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
@@ -11,12 +11,36 @@ const ALLOWED_CONTENT_TYPES = new Set([
   "image/webp",
 ]);
 
-const anthropic = new Anthropic();
-
-type PhotoAnalysis = {
+export type PhotoAnalysis = {
   appearance: string;
   appearanceSummary: string;
 };
+
+const NO_VISIBLE_TEXT_IN_REFERENCE =
+  "The image must contain only the illustrated subject and simple background. Do not include any written words, letters, numbers, labels, UI text, signs, captions, name tags, initials, age labels, pronouns, relationship labels, speech bubbles, or watermarks.";
+
+function formatAdjustmentInstruction(adjustment?: string): string {
+  const clean = adjustment?.trim().slice(0, 240);
+  if (!clean) return "";
+
+  if (
+    /\b(text|word|words|label|labels|caption|captions|name|names|pronoun|pronouns|letter|letters|number|numbers|age|mumma|mama|mum|mummy|dad|daddy|he\/|she\/|they\/)\b/i.test(
+      clean
+    )
+  ) {
+    return "Correction instruction only: remove all visible writing, labels, name tags, pronouns, letters, numbers, captions, and age/name text from the image. Do not add replacement text.";
+  }
+
+  return `Correction instruction only, never text to draw: ${clean}. If the instruction mentions words, labels, names, pronouns, letters, or numbers, remove or avoid those visible marks rather than reproducing them.`;
+}
+
+function getChildDrawingStage(profile: ChildProfile): string {
+  const months = getAgeInMonths(profile);
+  if (months < 12) return "baby proportions";
+  if (months < 36) return "toddler proportions";
+  if (months < 60) return "preschool child proportions";
+  return "young child proportions";
+}
 
 export function validateStoryPersonPhoto(file: File): string | null {
   if (!ALLOWED_CONTENT_TYPES.has(file.type)) {
@@ -28,21 +52,24 @@ export function validateStoryPersonPhoto(file: File): string | null {
   return null;
 }
 
-function buildAvatarPrompt(person: StoryPerson, adjustment?: string): string {
+export function buildStoryPersonAvatarPrompt(
+  person: StoryPerson,
+  adjustment?: string
+): string {
   const subject =
     person.relationship === "pet"
       ? "beloved family pet"
-      : `${person.relationship} or family friend`;
+      : "family member or friend";
 
   return [
+    NO_VISIBLE_TEXT_IN_REFERENCE,
     `Create a square Storycot-style illustrated character reference of this ${subject}.`,
-    `Display name: ${person.name}.`,
-    person.pronouns ? `Pronouns: ${person.pronouns}.` : "",
-    person.description ? `Role notes: ${person.description}.` : "",
-    person.personality ? `Personality: ${person.personality}.` : "",
-    adjustment
-      ? `User adjustment request for this new reference: ${adjustment}. Apply only if it does not conflict with the photo, safety, or IP rules.`
+    "Use relationship, name, and pronoun data only as private context outside the image; never draw words, labels, or name tags.",
+    person.description
+      ? `Role notes for behaviour/context only: ${person.description}.`
       : "",
+    person.personality ? `Personality: ${person.personality}.` : "",
+    formatAdjustmentInstruction(adjustment),
     "Use the uploaded photo only as private visual reference for broad visible body, face, hair or fur, posture, colouring, and expression.",
     "Treat the uploaded photo as the visual source of truth. Do not exaggerate body shape, age, expression, or proportions from written profile notes.",
     "Do not copy any clothing graphics, logos, printed text, costumes, branded characters, franchise characters, toy characters, mascot art, or recognisable protected designs visible in the photo.",
@@ -51,27 +78,26 @@ function buildAvatarPrompt(person: StoryPerson, adjustment?: string): string {
     "Make it suitable as a reusable character reference for Storycot hardcover interiors and child profile illustrations: square crop, head-and-shoulders person portrait or full pet pose, clear visible features, stable unbranded outfit or pet markings, no scene-specific props unless requested.",
     "Do not make a photorealistic portrait, caricature, sticker, logo, toy packaging image, or social-media avatar.",
     "No text, captions, name labels, age labels, watermark, logos, franchise styling, celebrity styling, recognisable character prints, or exact copy of clothing designs.",
+    NO_VISIBLE_TEXT_IN_REFERENCE,
   ]
     .filter(Boolean)
     .join(" ");
 }
 
-function buildChildAvatarPrompt(
+export function buildChildProfileAvatarPrompt(
   profile: ChildProfile,
   analysis: PhotoAnalysis,
   adjustment?: string
 ): string {
   return [
+    NO_VISIBLE_TEXT_IN_REFERENCE,
     "Create a square Storycot-style illustrated child profile reference.",
-    `Child name: ${profile.name}.`,
-    `Age: ${profile.age}.`,
-    profile.gender ? `Gender/pronoun setting: ${profile.gender}.` : "",
+    "Use child profile metadata only as private context outside the image; never draw the child's name, age, gender, pronouns, labels, or captions.",
+    `Use ${getChildDrawingStage(profile)} only for visual scale and proportions.`,
     analysis.appearance
-      ? `Photo-derived visible notes: ${analysis.appearance}.`
+      ? `Photo-derived visible notes: ${analysis.appearance}. These details are visual guidance only and must not be rendered as visible writing.`
       : "",
-    adjustment
-      ? `User adjustment request for this new reference: ${adjustment}. Apply only if it does not conflict with the photo, safety, or IP rules.`
-      : "",
+    formatAdjustmentInstruction(adjustment),
     "Use the uploaded photo only as private visual reference for broad visible face, hair, posture, colouring, and expression.",
     "Treat the uploaded photo as the visual source of truth. Do not exaggerate body shape, age, expression, or proportions from written profile notes.",
     "Do not copy any clothing graphics, logos, printed text, costumes, branded characters, franchise characters, toy characters, mascot art, or recognisable protected designs visible in the photo.",
@@ -79,6 +105,7 @@ function buildChildAvatarPrompt(
     "Make it suitable as a reusable child reference for Storycot hardcover interiors: square crop, head-and-shoulders portrait, plain unbranded child-safe clothing in a gentle Storycot palette, clear visible features, stable outfit guidance, no scene-specific props unless already in the profile.",
     "Do not make a photorealistic portrait, caricature, sticker, logo, toy packaging image, or social-media avatar.",
     "No text, captions, name labels, age labels, watermark, logos, franchise styling, celebrity styling, recognisable character prints, or exact copy of clothing designs.",
+    NO_VISIBLE_TEXT_IN_REFERENCE,
   ]
     .filter(Boolean)
     .join(" ");
@@ -184,6 +211,7 @@ async function analyzePhoto(input: {
   }
 
   try {
+    const anthropic = new Anthropic();
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 700,
@@ -281,12 +309,9 @@ export async function createStoryPersonAvatar(input: {
   const generated = await generateEditedImage({
     image: normalizedPhoto,
     prompt: [
-      buildAvatarPrompt(input.person),
-      input.adjustment
-        ? `Keep this adjustment subtle: ${input.adjustment}.`
-        : "",
+      buildStoryPersonAvatarPrompt(input.person, input.adjustment),
       analysis.appearance
-        ? `Additional visible reference details from photo: ${analysis.appearance}.`
+        ? `Additional visible reference details from photo: ${analysis.appearance}. These details are visual guidance only and must not be rendered as visible writing.`
         : "",
     ]
       .filter(Boolean)
@@ -342,7 +367,7 @@ export async function redoStoryPersonAvatar(input: {
   const generated = await generateEditedImage({
     image: normalizedImage,
     prompt: [
-      buildAvatarPrompt(input.person, adjustment),
+      buildStoryPersonAvatarPrompt(input.person, adjustment),
       "Keep the same reusable Storycot reference composition and overall likeness from the supplied generated illustration. Change only the requested detail.",
     ].join(" "),
   });
@@ -390,7 +415,11 @@ export async function createChildProfileAvatar(input: {
   });
   const generated = await generateEditedImage({
     image: normalizedPhoto,
-    prompt: buildChildAvatarPrompt(input.profile, analysis, input.adjustment),
+    prompt: buildChildProfileAvatarPrompt(
+      input.profile,
+      analysis,
+      input.adjustment
+    ),
   });
   const webImage = await sharp(generated)
     .resize(768, 768, { fit: "cover" })
@@ -441,7 +470,7 @@ export async function redoChildProfileAvatar(input: {
   const generated = await generateEditedImage({
     image: normalizedImage,
     prompt: [
-      buildChildAvatarPrompt(
+      buildChildProfileAvatarPrompt(
         input.profile,
         { appearance: "", appearanceSummary: "" },
         adjustment

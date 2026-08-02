@@ -16,6 +16,8 @@ type TagsFieldProps = {
   onChange: (vals: string[]) => void;
   placeholder: string;
   addLabel?: string;
+  hint?: string;
+  maxItems?: number;
 };
 
 export function TagsField({
@@ -24,12 +26,23 @@ export function TagsField({
   onChange,
   placeholder,
   addLabel = "Add",
+  hint,
+  maxItems,
 }: TagsFieldProps) {
   const [input, setInput] = useState("");
 
   function add() {
-    const trimmed = input.trim();
-    if (trimmed && !values.includes(trimmed)) onChange([...values, trimmed]);
+    const tags = input
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const next = [...values];
+    for (const tag of tags) {
+      if (next.includes(tag)) continue;
+      if (maxItems && next.length >= maxItems) break;
+      next.push(tag);
+    }
+    onChange(next);
     setInput("");
   }
 
@@ -40,6 +53,7 @@ export function TagsField({
   return (
     <div>
       <label className={formStyles.label}>{label}</label>
+      {hint ? <p className={formStyles.hint}>{hint}</p> : null}
       <div className="flex gap-2">
         <input
           value={input}
@@ -51,12 +65,23 @@ export function TagsField({
             }
           }}
           placeholder={placeholder}
+          disabled={Boolean(maxItems && values.length >= maxItems)}
           className={formStyles.field}
         />
-        <Button variant="secondary" size="compact" onClick={add}>
+        <Button
+          variant="secondary"
+          size="compact"
+          onClick={add}
+          disabled={Boolean(maxItems && values.length >= maxItems)}
+        >
           {addLabel}
         </Button>
       </div>
+      {maxItems ? (
+        <p className="mt-1 text-xs font-bold text-night-400">
+          {values.length}/{maxItems} added
+        </p>
+      ) : null}
       {values.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-2">
           {values.map((value) => (
@@ -182,30 +207,44 @@ type LessonsFieldProps = {
   label: string;
   values: string[];
   onChange: (values: string[]) => void;
+  maxItems?: number;
 };
 
-export function LessonsField({ label, values, onChange }: LessonsFieldProps) {
+export function LessonsField({
+  label,
+  values,
+  onChange,
+  maxItems = 3,
+}: LessonsFieldProps) {
   return (
     <div>
       <p className="mb-2 text-sm font-bold text-night-700">{label}</p>
       <div className="flex flex-wrap gap-2">
-        {LESSON_OPTIONS.map((lesson) => (
-          <button
-            key={lesson}
-            type="button"
-            onClick={() =>
-              onChange(
-                values.includes(lesson)
-                  ? values.filter((item) => item !== lesson)
-                  : [...values, lesson]
-              )
-            }
-            className={pillClassName(values.includes(lesson))}
-          >
-            {lesson}
-          </button>
-        ))}
+        {LESSON_OPTIONS.map((lesson) => {
+          const selected = values.includes(lesson);
+          const disabled = !selected && values.length >= maxItems;
+          return (
+            <button
+              key={lesson}
+              type="button"
+              disabled={disabled}
+              onClick={() =>
+                onChange(
+                  selected
+                    ? values.filter((item) => item !== lesson)
+                    : [...values, lesson]
+                )
+              }
+              className={`${pillClassName(selected)} ${disabled ? "cursor-not-allowed opacity-45" : ""}`}
+            >
+              {lesson}
+            </button>
+          );
+        })}
       </div>
+      <p className="mt-1 text-xs font-bold text-night-400">
+        {values.length}/{maxItems} selected
+      </p>
     </div>
   );
 }

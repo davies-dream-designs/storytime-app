@@ -198,7 +198,8 @@
     "deleteConfirm": "Hapus profil ini? Cerita tidak akan dihapus.",
     "deleting": "Menghapus…",
     "characterMemory": "Memori karakter",
-    "manageCharacters": "Kelola karakter →"
+    "manageCharacters": "Kelola karakter →",
+    "tagHint": "Tambahkan beberapa item dengan koma, lalu tekan Tambah."
   },
   "stories": {
     "libraryTitle": "Perpustakaan cerita",
@@ -216,12 +217,12 @@
     "createProfileButton": "Buat profil",
     "getIdeas": "✨ Dapatkan ide cerita untuk {name}",
     "customOption": "Sesuatu yang lain…",
-    "themeLabel": "Tema atau ide",
+    "themeLabel": "Tema Pengantar Tidur",
     "themePlaceholder": "misalnya keberanian, petualangan luar angkasa, membantu teman…",
     "storyIdeaLabel": "Story idea",
     "storyIdeaPlaceholder": "e.g. {name} meets a friendly dragon in the garden…",
     "getIdeasHint": "Don't have an idea? We can weave some magic for you…",
-    "suggestionsNote": "These suggestions are saved for 24 hours. Come back tomorrow for fresh ones.",
+    "suggestionsNote": "Saran ini disimpan selama 24 jam. Ide tambahan menambah variasi ke daftar ini, bukan menggantinya.",
     "notesLabel": "Detail tambahan (opsional)",
     "notesPlaceholder": "misalnya Sertakan perjalanan {name} ke pantai minggu ini…",
     "errorNoProfile": "Silakan pilih profil anak",
@@ -307,7 +308,22 @@
       }
     },
     "exportText": "Ekspor teks",
-    "shareFacebook": "Facebook"
+    "shareFacebook": "Facebook",
+    "storyIdeaHelp": "Ide singkat bisa dipakai, tetapi detail yang lebih kaya membuat cerita lebih baik. Tambahkan siapa yang ada, lokasinya, serta rasa atau pelajaran yang diinginkan.",
+    "creditNotice": "Membuat cerita pengantar tidur ini memakai 1 kredit.",
+    "creditConfirm": "Membuat cerita pengantar tidur ini akan memakai 1 kredit. Lanjutkan?",
+    "noCreditsTitle": "Kredit Anda Habis",
+    "noCreditsBody": "Isi ulang sebelum menulis cerita pengantar tidur berikutnya.",
+    "topUpCredits": "Isi Ulang Kredit",
+    "builderTitle": "Atau Buat Ide Sendiri",
+    "builderCompanionLabel": "Siapa Yang Ikut?",
+    "builderCompanionPlaceholder": "mis. boneka beruang",
+    "builderPlaceLabel": "Di Mana Terjadi?",
+    "builderPlacePlaceholder": "mis. taman bulan",
+    "builderMomentLabel": "Apa Yang Penting?",
+    "builderMomentPlaceholder": "mis. merasa berani",
+    "getMoreIdeas": "Dapatkan 3 Ide Berbeda Lagi",
+    "themeBadge": "Tema: {theme}"
   },
   "books": {
     "createButton": "Hasilkan PDF bergambar",
@@ -501,7 +517,8 @@
     "estimatedPrice": "Perkiraan harga cetak AU",
     "printOrderingComingSoon": "Buku cetak segera hadir. Anda masih bisa membuat dan mengunduh PDF atau EPUB hari ini.",
     "comingSoon": "Segera hadir",
-    "failedContactLink": "Email us if you need help ->"
+    "failedContactLink": "Email us if you need help ->",
+    "creditConfirm": "Membuat buku bergambar ini akan memakai {credits} kredit. Lanjutkan?"
   },
   "account": {
     "title": "Akun Anda",

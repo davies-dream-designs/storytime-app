@@ -178,24 +178,32 @@ export default function NewProfilePage() {
             values={favouriteCharacters}
             onChange={setFavouriteCharacters}
             placeholder={t("charsPlaceholder")}
+            hint={t("tagHint")}
+            maxItems={3}
           />
           <TagsField
             label={t("activitiesLabel")}
             values={favouriteActivities}
             onChange={setFavouriteActivities}
             placeholder={t("activitiesPlaceholder")}
+            hint={t("tagHint")}
+            maxItems={3}
           />
           <TagsField
             label={t("animalsLabel")}
             values={favouriteAnimals}
             onChange={setFavouriteAnimals}
             placeholder={t("animalsPlaceholder")}
+            hint={t("tagHint")}
+            maxItems={3}
           />
           <TagsField
             label={t("placesLabel")}
             values={favouritePlaces}
             onChange={setFavouritePlaces}
             placeholder={t("placesPlaceholder")}
+            hint={t("tagHint")}
+            maxItems={3}
           />
 
           <AppearanceFields appearance={appearance} onChange={setAppearance} />

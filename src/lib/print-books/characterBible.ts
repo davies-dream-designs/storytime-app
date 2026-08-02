@@ -55,7 +55,7 @@ Child profile:
 - Age: ${getAge(profile)}
 - Visual appearance: ${buildChildAppearanceSummary(profile.appearance) || "No structured appearance details provided."}
 - Keep consistent: ${buildChildAppearanceDoNotChange(profile.appearance).join(", ") || "none"}
-- Favourite characters or toys: ${(profile.favouriteCharacters ?? []).join(", ") || "none"}
+- Favourite toys: ${(profile.favouriteCharacters ?? []).join(", ") || "none"}
 - Favourite activities: ${(profile.favouriteActivities ?? []).join(", ") || "none"}
 - Favourite animals: ${(profile.favouriteAnimals ?? []).join(", ") || "none"}
 - Favourite places: ${(profile.favouritePlaces ?? []).join(", ") || "none"}

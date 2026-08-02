@@ -198,7 +198,8 @@
     "deleteConfirm": "このプロフィールを削除しますか?ストーリーは削除されません。",
     "deleting": "削除中…",
     "characterMemory": "キャラクターメモリー",
-    "manageCharacters": "キャラクターの管理 →"
+    "manageCharacters": "キャラクターの管理 →",
+    "tagHint": "複数の項目はカンマで区切って入力し、追加を押してください。"
   },
   "stories": {
     "libraryTitle": "ストーリーライブラリ",
@@ -216,12 +217,12 @@
     "createProfileButton": "プロフィールを作成する",
     "getIdeas": "✨ {name} のストーリーのアイデアを入手",
     "customOption": "他にも何か…",
-    "themeLabel": "テーマやアイデア",
+    "themeLabel": "おやすみテーマ",
     "themePlaceholder": "例:勇気、宇宙の冒険、友達を助ける…",
     "storyIdeaLabel": "Story idea",
     "storyIdeaPlaceholder": "e.g. {name} meets a friendly dragon in the garden…",
     "getIdeasHint": "Don't have an idea? We can weave some magic for you…",
-    "suggestionsNote": "These suggestions are saved for 24 hours. Come back tomorrow for fresh ones.",
+    "suggestionsNote": "この提案は24時間保存されます。さらに見ると、置き換えずにこのリストへ追加されます。",
     "notesLabel": "追加の詳細 (オプション)",
     "notesPlaceholder": "例:今週の {name} のビーチ旅行も含めてください…",
     "errorNoProfile": "お子様のプロフィールを選択してください",
@@ -307,7 +308,22 @@
       }
     },
     "exportText": "テキストをエクスポート",
-    "shareFacebook": "Facebook"
+    "shareFacebook": "Facebook",
+    "storyIdeaHelp": "短いアイデアでも使えますが、詳しいほどよいお話になります。登場する人、場所、入れたい気持ちや学びを書いてください。",
+    "creditNotice": "この bedtime story の作成には1クレジットを使用します。",
+    "creditConfirm": "この bedtime story の作成に1クレジットを使用します。続けますか？",
+    "noCreditsTitle": "クレジットがありません",
+    "noCreditsBody": "次の bedtime story を作る前にクレジットを追加してください。",
+    "topUpCredits": "クレジットを追加",
+    "builderTitle": "または自分のアイデアを作る",
+    "builderCompanionLabel": "誰が一緒？",
+    "builderCompanionPlaceholder": "例：ぬいぐるみ",
+    "builderPlaceLabel": "どこで？",
+    "builderPlacePlaceholder": "例：月の庭",
+    "builderMomentLabel": "大事なことは？",
+    "builderMomentPlaceholder": "例：勇気を出す",
+    "getMoreIdeas": "もっと違うアイデアを3つ見る",
+    "themeBadge": "テーマ：{theme}"
   },
   "books": {
     "createButton": "イラスト付きの PDF を生成",
@@ -501,7 +517,8 @@
     "estimatedPrice": "AU推定印刷価格",
     "printOrderingComingSoon": "印刷本は近日公開予定です。今すぐPDFやEPUBを作成してダウンロードできます。",
     "comingSoon": "近日公開",
-    "failedContactLink": "Email us if you need help ->"
+    "failedContactLink": "Email us if you need help ->",
+    "creditConfirm": "このイラスト付き本の作成に{credits}クレジットを使用します。続けますか？"
   },
   "account": {
     "title": "あなたのアカウント",

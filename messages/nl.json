@@ -198,7 +198,8 @@
     "deleteConfirm": "Dit profiel verwijderen? Verhalen worden niet verwijderd.",
     "deleting": "Bezig met verwijderen",
     "characterMemory": "Karaktergeheugen",
-    "manageCharacters": "Tekens beheren →"
+    "manageCharacters": "Tekens beheren →",
+    "tagHint": "Voeg meerdere items toe met komma’s en druk daarna op Toevoegen."
   },
   "stories": {
     "libraryTitle": "Verhalenbibliotheek",
@@ -216,12 +217,12 @@
     "createProfileButton": "Maak een profiel aan",
     "getIdeas": "✨ Krijg verhaalideeën voor {name}",
     "customOption": "Wat anders",
-    "themeLabel": "Thema of idee",
+    "themeLabel": "Bedtijdthema",
     "themePlaceholder": "bijv. moed, ruimteavontuur, vrienden helpen...",
     "storyIdeaLabel": "Story idea",
     "storyIdeaPlaceholder": "e.g. {name} meets a friendly dragon in the garden…",
     "getIdeasHint": "Don't have an idea? We can weave some magic for you…",
-    "suggestionsNote": "These suggestions are saved for 24 hours. Come back tomorrow for fresh ones.",
+    "suggestionsNote": "Deze suggesties worden 24 uur bewaard. Meer ideeën voegen variatie toe aan deze lijst in plaats van haar te vervangen.",
     "notesLabel": "Extra informatie (optioneel)",
     "notesPlaceholder": "bijv. de reis van {name} naar het strand deze week opnemen...",
     "errorNoProfile": "Selecteer een profiel.",
@@ -307,7 +308,22 @@
       }
     },
     "exportText": "Tekst exporteren",
-    "shareFacebook": "Facebook"
+    "shareFacebook": "Facebook",
+    "storyIdeaHelp": "Korte ideeën werken, maar meer details maken betere verhalen. Voeg toe wie meedoet, waar het gebeurt en welk gevoel of les je wilt.",
+    "creditNotice": "Dit bedtijdverhaal maken kost 1 credit.",
+    "creditConfirm": "Dit bedtijdverhaal maken kost 1 credit. Doorgaan?",
+    "noCreditsTitle": "Je Credits Zijn Op",
+    "noCreditsBody": "Vul aan voordat je het volgende bedtijdverhaal schrijft.",
+    "topUpCredits": "Credits Aanvullen",
+    "builderTitle": "Of Bouw Je Eigen Idee",
+    "builderCompanionLabel": "Wie Doet Mee?",
+    "builderCompanionPlaceholder": "bijv. teddy",
+    "builderPlaceLabel": "Waar Gebeurt Het?",
+    "builderPlacePlaceholder": "bijv. maantuin",
+    "builderMomentLabel": "Wat Is Belangrijk?",
+    "builderMomentPlaceholder": "bijv. dapper voelen",
+    "getMoreIdeas": "Krijg 3 Meer Andere Ideeën",
+    "themeBadge": "Thema: {theme}"
   },
   "books": {
     "createButton": "Genereer geïllustreerde PDF",
@@ -501,7 +517,8 @@
     "estimatedPrice": "Geschatte AU-drukprijs",
     "printOrderingComingSoon": "Gedrukte boeken komen binnenkort. Je kunt vandaag nog je PDF of EPUB maken en downloaden.",
     "comingSoon": "Binnenkort beschikbaar",
-    "failedContactLink": "Email us if you need help ->"
+    "failedContactLink": "Email us if you need help ->",
+    "creditConfirm": "Dit geïllustreerde boek maken kost {credits} credits. Doorgaan?"
   },
   "account": {
     "title": "Uw account",

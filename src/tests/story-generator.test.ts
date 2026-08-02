@@ -3,6 +3,7 @@ import type { ChildProfile, Character } from "@/types";
 import {
   buildStoryPostCheckPrompt,
   buildStoryPrompt,
+  generateSuggestions,
   generateStory,
   normalizeGeneratedStory,
   prepareGeneratedStoryForPostCheck,
@@ -95,6 +96,54 @@ describe("buildStoryPrompt", () => {
 
     expect(prompt).not.toContain("Bluey");
     expect(prompt).toContain("Pip");
+  });
+});
+
+describe("generateSuggestions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("asks for fresh ideas around the selected theme while avoiding already-shown ideas", async () => {
+    mockMessagesCreate.mockResolvedValueOnce({
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify([
+            {
+              title: "The Listening Lantern",
+              premise: "Bailey helps a lantern hear the stars.",
+              theme: "listening",
+            },
+          ]),
+        },
+      ],
+    });
+
+    await expect(
+      generateSuggestions(createProfile(), ["The Moon Pond"], "en", {
+        selectedTheme: "listening",
+        previousSuggestions: [
+          {
+            title: "The Garden Rocket",
+            premise: "Bailey and a teddy fly to a garden moon.",
+            theme: "kindness",
+          },
+        ],
+      })
+    ).resolves.toEqual([
+      {
+        title: "The Listening Lantern",
+        premise: "Bailey helps a lantern hear the stars.",
+        theme: "listening",
+      },
+    ]);
+
+    const prompt = mockMessagesCreate.mock.calls[0]?.[0].messages[0].content;
+    expect(prompt).toContain("Selected theme for this batch: listening");
+    expect(prompt).toContain("Already shown to the parent today");
+    expect(prompt).toContain("The Garden Rocket");
+    expect(prompt).toContain("Don't suggest stories similar to these recent ones: The Moon Pond");
   });
 });
 

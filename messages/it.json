@@ -198,7 +198,8 @@
     "deleteConfirm": "Eliminare questo profilo? Le storie non verranno eliminate.",
     "deleting": "Eliminazione…",
     "characterMemory": "Memoria dei personaggi",
-    "manageCharacters": "Gestisci personaggi →"
+    "manageCharacters": "Gestisci personaggi →",
+    "tagHint": "Aggiungi più elementi con le virgole, poi premi Aggiungi."
   },
   "stories": {
     "libraryTitle": "Biblioteca delle storie",
@@ -216,12 +217,12 @@
     "createProfileButton": "Crea un profilo",
     "getIdeas": "✨ Ottieni idee per {name}",
     "customOption": "Qualcos'altro…",
-    "themeLabel": "Tema o idea",
+    "themeLabel": "Tema Della Buonanotte",
     "themePlaceholder": "es. coraggio, avventura spaziale, aiutare gli amici…",
     "storyIdeaLabel": "Story idea",
     "storyIdeaPlaceholder": "e.g. {name} meets a friendly dragon in the garden…",
     "getIdeasHint": "Don't have an idea? We can weave some magic for you…",
-    "suggestionsNote": "These suggestions are saved for 24 hours. Come back tomorrow for fresh ones.",
+    "suggestionsNote": "Questi suggerimenti sono salvati per 24 ore. Altre idee aggiungono varietà a questa lista invece di sostituirla.",
     "notesLabel": "Dettagli extra (opzionali)",
     "notesPlaceholder": "es. Includi la gita di {name} in spiaggia questa settimana…",
     "errorNoProfile": "Seleziona un profilo bambino",
@@ -307,7 +308,22 @@
       }
     },
     "exportText": "Esporta testo",
-    "shareFacebook": "Facebook"
+    "shareFacebook": "Facebook",
+    "storyIdeaHelp": "Le idee brevi funzionano, ma più dettagli creano storie migliori. Aggiungi chi c’è, dove succede e l’emozione o la lezione che vuoi.",
+    "creditNotice": "Generare questa storia della buonanotte usa 1 credito.",
+    "creditConfirm": "Generare questa storia della buonanotte userà 1 credito. Continuare?",
+    "noCreditsTitle": "Hai Finito I Crediti",
+    "noCreditsBody": "Ricarica prima di scrivere la prossima storia della buonanotte.",
+    "topUpCredits": "Ricarica Crediti",
+    "builderTitle": "Oppure Crea La Tua Idea",
+    "builderCompanionLabel": "Chi Partecipa?",
+    "builderCompanionPlaceholder": "es. orsacchiotto",
+    "builderPlaceLabel": "Dove Succede?",
+    "builderPlacePlaceholder": "es. giardino lunare",
+    "builderMomentLabel": "Cosa Conta?",
+    "builderMomentPlaceholder": "es. sentirsi coraggiosi",
+    "getMoreIdeas": "Ottieni 3 Idee Più Diverse",
+    "themeBadge": "Tema: {theme}"
   },
   "books": {
     "createButton": "Genera PDF illustrato",
@@ -501,7 +517,8 @@
     "estimatedPrice": "Prezzo di stampa AU stimato",
     "printOrderingComingSoon": "I libri stampati sono in arrivo. Puoi ancora creare e scaricare il tuo PDF o EPUB oggi.",
     "comingSoon": "Prossimamente",
-    "failedContactLink": "Email us if you need help ->"
+    "failedContactLink": "Email us if you need help ->",
+    "creditConfirm": "Generare questo libro illustrato userà {credits} crediti. Continuare?"
   },
   "account": {
     "title": "Il tuo account",

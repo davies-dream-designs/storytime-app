@@ -11,7 +11,7 @@ import Icon from "@/components/ui/Icon";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 import { choiceCardClassName, formStyles } from "@/components/ui/formStyles";
 import type { ChildProfile, StorySuggestion, StoryPreset } from "@/types";
-import { STORY_PRESETS, getDefaultPreset, getAge } from "@/types";
+import { STORY_PRESETS, LESSON_OPTIONS, getDefaultPreset, getAge } from "@/types";
 import { assessStoryIdeaIp } from "@/lib/ipGuardrails";
 
 const THEME_EMOJIS: Record<string, string> = {
@@ -25,7 +25,23 @@ const THEME_EMOJIS: Record<string, string> = {
   honesty: "✅",
   gratitude: "🙏",
   perseverance: "💪",
+  confidence: "⭐",
+  "calm bedtime": "🌙",
+  listening: "👂",
+  "gentle routines": "🛏️",
+  "problem solving": "🧩",
+  curiosity: "🔎",
+  "being helpful": "🤲",
+  "self belief": "🌟",
 };
+
+const FALLBACK_THEME_OPTIONS = [
+  "calm bedtime",
+  "kindness",
+  "bravery",
+  "friendship",
+  "confidence",
+] as const;
 
 const SAFETY_ERRORS: Record<
   string,
@@ -109,7 +125,11 @@ function GenerateForm() {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] =
     useState<StorySuggestion | null>(null);
+  const [selectedTheme, setSelectedTheme] = useState("calm bedtime");
   const [customPremise, setCustomPremise] = useState("");
+  const [builderCompanion, setBuilderCompanion] = useState("");
+  const [builderPlace, setBuilderPlace] = useState("");
+  const [builderMoment, setBuilderMoment] = useState("");
   const [notes, setNotes] = useState("");
   const [storyPreset, setStoryPreset] =
     useState<StoryPreset>("moonlit-adventures");
@@ -117,6 +137,10 @@ function GenerateForm() {
   const [error, setError] = useState("");
   const [errorCategory, setErrorCategory] = useState<string | null>(null);
   const [profilesError, setProfilesError] = useState("");
+  const [creditInfo, setCreditInfo] = useState<{
+    credits: number;
+    isAdmin: boolean;
+  } | null>(null);
 
   useEffect(() => {
     fetch("/api/profiles")
@@ -136,6 +160,7 @@ function GenerateForm() {
           : data[0];
         if (initial) {
           setProfileId(initial.id);
+          setSelectedTheme(initial.lessons[0] ?? "calm bedtime");
           setStoryPreset(getDefaultPreset(getAge(initial)));
         }
       })
@@ -147,16 +172,32 @@ function GenerateForm() {
       .finally(() => setLoadingProfiles(false));
   }, [defaultProfileId]);
 
+  useEffect(() => {
+    fetch("/api/user/credits")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) {
+          setCreditInfo(data as { credits: number; isAdmin: boolean });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   async function fetchSuggestions(pid: string, fresh = false) {
     if (!pid) return;
     setLoadingSuggestions(true);
-    setSuggestions([]);
+    if (!fresh) setSuggestions([]);
     setSelectedSuggestion(null);
     try {
       const res = await fetch("/api/stories/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId: pid, locale, fresh }),
+        body: JSON.stringify({
+          profileId: pid,
+          locale,
+          fresh,
+          theme: selectedTheme,
+        }),
       });
       const data = await res.json();
       if (res.ok) setSuggestions(data);
@@ -172,28 +213,54 @@ function GenerateForm() {
     setSuggestions([]);
     setSelectedSuggestion(null);
     setCustomPremise("");
+    setBuilderCompanion("");
+    setBuilderPlace("");
+    setBuilderMoment("");
     const profile = profiles.find((p) => p.id === pid);
-    if (profile) setStoryPreset(getDefaultPreset(getAge(profile)));
+    if (profile) {
+      setSelectedTheme(profile.lessons[0] ?? "calm bedtime");
+      setStoryPreset(getDefaultPreset(getAge(profile)));
+    }
+  }
+
+  function buildBuilderPremise() {
+    const parts = [
+      builderCompanion.trim()
+        ? `${selectedProfile?.name ?? "The child"} shares the story with ${builderCompanion.trim()}`
+        : "",
+      builderPlace.trim() ? `in ${builderPlace.trim()}` : "",
+      builderMoment.trim()
+        ? `and the story gently explores ${builderMoment.trim()}`
+        : "",
+    ].filter(Boolean);
+    return parts.length > 0 ? `${parts.join(" ")}.` : "";
   }
 
   async function handleGenerate() {
     setError("");
     setErrorCategory(null);
+    const builderPremise = buildBuilderPremise();
+    const premise = customPremise.trim() || builderPremise;
     if (!profileId) {
       setError(t("errorNoProfile"));
       return;
     }
-    if (!selectedSuggestion && !customPremise.trim()) {
+    if (!selectedSuggestion && !premise) {
       setError(t("errorNoIdea"));
       return;
     }
+    if (creditInfo && !creditInfo.isAdmin && creditInfo.credits < 1) {
+      setError(t("noCreditsBody"));
+      return;
+    }
+    if (!window.confirm(t("creditConfirm"))) return;
 
     setGenerating(true);
     try {
       const body = selectedSuggestion
         ? {
             profileId,
-            theme: selectedSuggestion.theme,
+            theme: selectedTheme,
             premise: selectedSuggestion.premise,
             notes,
             storyPreset,
@@ -201,7 +268,8 @@ function GenerateForm() {
           }
         : {
             profileId,
-            premise: customPremise.trim(),
+            theme: selectedTheme,
+            premise,
             notes,
             storyPreset,
             locale,
@@ -233,9 +301,16 @@ function GenerateForm() {
   }
 
   const selectedProfile = profiles.find((p) => p.id === profileId);
+  const themeOptions = Array.from(
+    new Set([
+      ...(selectedProfile?.lessons ?? []),
+      ...FALLBACK_THEME_OPTIONS,
+      ...LESSON_OPTIONS.slice(0, 5),
+    ])
+  ).slice(0, 8);
   const ipPolicyPreview = assessStoryIdeaIp({
-    theme: selectedSuggestion?.theme,
-    premise: selectedSuggestion?.premise ?? customPremise,
+    theme: selectedTheme,
+    premise: selectedSuggestion?.premise ?? (customPremise || buildBuilderPremise()),
     notes,
   });
 
@@ -280,7 +355,11 @@ function GenerateForm() {
 
   const showIdeas = suggestions.length > 0 || loadingSuggestions;
   const readyToGenerate =
-    profileId && (selectedSuggestion || customPremise.trim());
+    profileId &&
+    (selectedSuggestion || customPremise.trim() || buildBuilderPremise());
+  const outOfCredits =
+    creditInfo !== null && !creditInfo.isAdmin && creditInfo.credits < 1;
+  const canGetMoreIdeas = suggestions.length > 0 && suggestions.length < 9;
 
   return (
     <div className="space-y-8">
@@ -348,10 +427,42 @@ function GenerateForm() {
             </div>
 
             <div>
+              <p className="mb-2 text-sm font-bold uppercase tracking-wide text-night-400">
+                {t("themeLabel")}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {themeOptions.map((theme) => (
+                  <button
+                    key={theme}
+                    type="button"
+                    onClick={() => {
+                      setSelectedTheme(theme);
+                      setSuggestions([]);
+                      setSelectedSuggestion(null);
+                    }}
+                    className={`rounded-full px-3 py-1.5 text-sm font-bold transition ${
+                      selectedTheme === theme
+                        ? "bg-night-700 text-moon-200"
+                        : "bg-white text-night-600 hover:bg-night-50"
+                    }`}
+                  >
+                    {theme}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
               <label className={formStyles.label}>{t("storyIdeaLabel")}</label>
               <textarea
                 value={customPremise}
-                onChange={(e) => setCustomPremise(e.target.value)}
+                onChange={(e) => {
+                  setCustomPremise(e.target.value);
+                  setSelectedSuggestion(null);
+                  setBuilderCompanion("");
+                  setBuilderPlace("");
+                  setBuilderMoment("");
+                }}
                 rows={2}
                 placeholder={t("storyIdeaPlaceholder", {
                   name: selectedProfile?.name ?? "",
@@ -359,11 +470,67 @@ function GenerateForm() {
                 className={formStyles.textarea}
               />
               <p className="mt-2 text-xs leading-5 text-night-400">
-                Storycot creates original stories. If an idea mentions an
-                existing character, brand, show, film, game, celebrity, logo, or
-                story world, we will turn it into a new original version before
-                generation.
+                {t("storyIdeaHelp")}
               </p>
+              <p className="mt-1 text-xs leading-5 text-night-400">
+                Storycot creates original bedtime stories. If an idea mentions
+                an existing character, brand, show, film, game, celebrity, logo,
+                or story world, we will turn it into a new original version
+                before generation.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-night-100 bg-white/70 p-4">
+              <p className="font-display font-bold text-night-800">
+                {t("builderTitle")}
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <div>
+                  <label className={formStyles.subLabel}>
+                    {t("builderCompanionLabel")}
+                  </label>
+                  <input
+                    value={builderCompanion}
+                    onChange={(event) => {
+                      setBuilderCompanion(event.target.value);
+                      setCustomPremise("");
+                      setSelectedSuggestion(null);
+                    }}
+                    placeholder={t("builderCompanionPlaceholder")}
+                    className={formStyles.field}
+                  />
+                </div>
+                <div>
+                  <label className={formStyles.subLabel}>
+                    {t("builderPlaceLabel")}
+                  </label>
+                  <input
+                    value={builderPlace}
+                    onChange={(event) => {
+                      setBuilderPlace(event.target.value);
+                      setCustomPremise("");
+                      setSelectedSuggestion(null);
+                    }}
+                    placeholder={t("builderPlacePlaceholder")}
+                    className={formStyles.field}
+                  />
+                </div>
+                <div>
+                  <label className={formStyles.subLabel}>
+                    {t("builderMomentLabel")}
+                  </label>
+                  <input
+                    value={builderMoment}
+                    onChange={(event) => {
+                      setBuilderMoment(event.target.value);
+                      setCustomPremise("");
+                      setSelectedSuggestion(null);
+                    }}
+                    placeholder={t("builderMomentPlaceholder")}
+                    className={formStyles.field}
+                  />
+                </div>
+              </div>
             </div>
 
             {!showIdeas && (
@@ -405,7 +572,10 @@ function GenerateForm() {
                 <button
                   key={i}
                   type="button"
-                  onClick={() => setSelectedSuggestion(s)}
+                  onClick={() => {
+                    setSelectedSuggestion(s);
+                    setCustomPremise("");
+                  }}
                   className={choiceCardClassName(
                     selectedSuggestion === s,
                     "w-full p-4 text-left"
@@ -421,7 +591,7 @@ function GenerateForm() {
                       </p>
                       <p className="mt-1 text-sm text-night-500">{s.premise}</p>
                       <span className="mt-2 inline-block rounded-full bg-night-100 px-2.5 py-0.5 text-xs font-bold text-night-500">
-                        {s.theme}
+                        {t("themeBadge", { theme: s.theme || selectedTheme })}
                       </span>
                     </div>
                   </div>
@@ -429,6 +599,15 @@ function GenerateForm() {
               ))}
 
               <p className="text-xs text-night-400">{t("suggestionsNote")}</p>
+              {canGetMoreIdeas ? (
+                <button
+                  type="button"
+                  onClick={() => fetchSuggestions(profileId, true)}
+                  className="w-full rounded-xl border border-night-200 bg-white py-3 text-sm font-bold text-night-600 transition hover:bg-night-50"
+                >
+                  {t("getMoreIdeas")}
+                </button>
+              ) : null}
             </div>
           )}
         </div>
@@ -467,33 +646,53 @@ function GenerateForm() {
                 Original stories can be printed
               </p>
               <p className="mt-1">
-                Lulu ordering is only available for stories made from original
-                characters, settings, images, and story details that you have
-                the right to use.
+                Printed hardcovers are only available for stories made from
+                original characters, settings, images, and story details that
+                you have the right to use.
               </p>
             </div>
           )}
 
           {error && <StoryErrorCard category={errorCategory} message={error} />}
 
-          {readyToGenerate && (
-            <Button
-              onClick={handleGenerate}
-              disabled={generating}
-              fullWidth
-              size="large"
-              className="font-display"
-            >
-              {generating ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Icon name="sparkle" className="h-4 w-4 animate-spin" />
-                  {t("generating")}
-                </span>
-              ) : (
-                t("generateButton2")
-              )}
-            </Button>
-          )}
+          {outOfCredits ? (
+            <div className="rounded-2xl border border-blush-200 bg-blush-50 px-5 py-4 text-sm text-blush-700">
+              <p className="font-display font-bold">{t("noCreditsTitle")}</p>
+              <p className="mt-1">{t("noCreditsBody")}</p>
+              <Link
+                href="/account"
+                className={buttonClassName({
+                  size: "compact",
+                  className: "mt-3",
+                })}
+              >
+                <Icon name="account" />
+                {t("topUpCredits")}
+              </Link>
+            </div>
+          ) : readyToGenerate ? (
+            <div className="space-y-3">
+              <p className="rounded-2xl border border-night-100 bg-white/70 px-4 py-3 text-center text-sm font-bold text-night-600">
+                {t("creditNotice")}
+              </p>
+              <Button
+                onClick={handleGenerate}
+                disabled={generating}
+                fullWidth
+                size="large"
+                className="font-display"
+              >
+                {generating ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Icon name="sparkle" className="h-4 w-4 animate-spin" />
+                    {t("generating")}
+                  </span>
+                ) : (
+                  t("generateButton2")
+                )}
+              </Button>
+            </div>
+          ) : null}
 
           {generating && (
             <p className="text-center text-sm text-night-400">

@@ -146,6 +146,14 @@ export const LESSON_OPTIONS = [
   "honesty",
   "gratitude",
   "perseverance",
+  "confidence",
+  "calm bedtime",
+  "listening",
+  "gentle routines",
+  "problem solving",
+  "curiosity",
+  "being helpful",
+  "self belief",
 ] as const;
 
 export type Lesson = (typeof LESSON_OPTIONS)[number];

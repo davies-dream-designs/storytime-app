@@ -180,7 +180,7 @@ Write the story in ${language}. Write a warm, age-appropriate bedtime story that
 3. Uses simple vocabulary appropriate for age ${getAge(profile)}
 4. Is approximately ${len.words} words total
 5. Has a positive, cosy tone ending with ${profile.name} settling down to sleep
-6. Naturally weaves in the theme: ${theme || "a gentle adventure"}
+6. Clearly weaves in the theme: ${theme || "a gentle adventure"}. Include one small age-appropriate moment where ${profile.name} notices, practices, or learns this theme through action, then carry that lesson into the calm ending.
 7. Feels FRESH and DIFFERENT from typical stories - surprise us with the opening
 8. Uses some warm repetition suitable for young children
 9. Does NOT include "The End", "Sweet dreams", "Goodnight", or any closing sign-off in the story text - the last page ends naturally with the child drifting to sleep
@@ -489,13 +489,30 @@ export async function streamStory(
 export async function generateSuggestions(
   profile: ChildProfile,
   recentTitles: string[],
-  locale?: string
+  locale?: string,
+  options: {
+    selectedTheme?: string;
+    previousSuggestions?: StorySuggestion[];
+  } = {}
 ): Promise<StorySuggestion[]> {
   const language = LOCALE_LANGUAGE[locale ?? "en"] ?? "English";
+  const selectedTheme =
+    options.selectedTheme?.trim() ||
+    profile.lessons?.[0] ||
+    "calm bedtime";
 
   const avoidSection =
     recentTitles.length > 0
       ? `\nDon't suggest stories similar to these recent ones: ${recentTitles.join(", ")}`
+      : "";
+  const previousIdeasSection =
+    options.previousSuggestions && options.previousSuggestions.length > 0
+      ? `\n\nAlready shown to the parent today (do NOT repeat these plots, settings, conflicts, titles, or endings):\n${options.previousSuggestions
+          .map(
+            (suggestion) =>
+              `- ${suggestion.title}: ${suggestion.premise} [theme: ${suggestion.theme}]`
+          )
+          .join("\n")}`
       : "";
 
   const prompt = `You are a creative children's story idea generator.
@@ -503,22 +520,26 @@ export async function generateSuggestions(
 Child profile:
 - Name: ${profile.name}, age ${getAge(profile)}
 - Appearance: ${buildChildAppearanceSummary(profile.appearance) || "No structured appearance details provided."}
-- Favourite characters/toys: ${(profile.favouriteCharacters ?? []).join(", ") || "none"}
+- Favourite toys: ${(profile.favouriteCharacters ?? []).join(", ") || "none"}
 - Favourite activities: ${(profile.favouriteActivities ?? []).join(", ") || "none"}
 - Favourite animals: ${(profile.favouriteAnimals ?? []).join(", ") || "none"}
 - Favourite places: ${(profile.favouritePlaces ?? []).join(", ") || "none"}
 - Themes they like: ${(profile.lessons ?? []).join(", ") || "adventure, kindness"}
+Selected theme for this batch: ${selectedTheme}
 ${avoidSection}
+${previousIdeasSection}
 
 Generate exactly 3 unique, imaginative bedtime story ideas for ${profile.name}.
 Each should:
+- Clearly express the selected theme: ${selectedTheme}
 - Use DIFFERENT elements from their profile (don't repeat the same toys/places across all 3)
+- Avoid repeating any profile element, setting, problem, or ending from the already-shown ideas
 - Have a fresh, specific premise - not generic ("goes on an adventure")
 - Be warm and cosy, suitable for bedtime
 - Feel genuinely different from each other in setting, tone, and focus
 
 Write the title and premise in ${language}.
-The "theme" field must always be a single English word (e.g. bravery, kindness, curiosity) - this is used as a database key.
+The "theme" field must be the selected theme in English, simplified to a short lowercase key if needed (e.g. bravery, kindness, curiosity, calm bedtime) - this is used as a database key.
 
 Respond ONLY with valid JSON - no markdown, no extra text:
 [

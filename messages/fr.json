@@ -198,7 +198,8 @@
     "deleteConfirm": "Supprimer ce profil ? Les histoires ne seront pas supprimées.",
     "deleting": "Suppression…",
     "characterMemory": "Mémoire des personnages",
-    "manageCharacters": "Gérer les personnages →"
+    "manageCharacters": "Gérer les personnages →",
+    "tagHint": "Ajoutez plusieurs éléments avec des virgules, puis appuyez sur Ajouter."
   },
   "stories": {
     "libraryTitle": "Bibliothèque d'histoires",
@@ -216,12 +217,12 @@
     "createProfileButton": "Créer un profil",
     "getIdeas": "✨ Obtenir des idées pour {name}",
     "customOption": "Autre chose…",
-    "themeLabel": "Thème ou idée",
+    "themeLabel": "Thème Du Soir",
     "themePlaceholder": "ex. courage, aventure spatiale, aider des amis…",
     "storyIdeaLabel": "Story idea",
     "storyIdeaPlaceholder": "e.g. {name} meets a friendly dragon in the garden…",
     "getIdeasHint": "Don't have an idea? We can weave some magic for you…",
-    "suggestionsNote": "These suggestions are saved for 24 hours. Come back tomorrow for fresh ones.",
+    "suggestionsNote": "Ces suggestions sont enregistrées pendant 24 heures. Les nouvelles idées ajoutent de la variété à cette liste au lieu de la remplacer.",
     "notesLabel": "Détails supplémentaires (optionnel)",
     "notesPlaceholder": "ex. Inclure le voyage de {name} à la plage cette semaine…",
     "errorNoProfile": "Veuillez sélectionner un profil enfant",
@@ -307,7 +308,22 @@
       }
     },
     "exportText": "Exporter le texte",
-    "shareFacebook": "Facebook"
+    "shareFacebook": "Facebook",
+    "storyIdeaHelp": "Les idées courtes fonctionnent, mais plus de détails donnent de meilleures histoires. Indiquez qui est présent, où cela se passe et l’émotion ou la leçon souhaitée.",
+    "creditNotice": "Générer cette histoire du soir utilise 1 crédit.",
+    "creditConfirm": "Générer cette histoire du soir utilisera 1 crédit. Continuer ?",
+    "noCreditsTitle": "Vous N’avez Plus De Crédits",
+    "noCreditsBody": "Rechargez avant d’écrire la prochaine histoire du soir.",
+    "topUpCredits": "Recharger Les Crédits",
+    "builderTitle": "Ou Construisez Votre Idée",
+    "builderCompanionLabel": "Qui Participe ?",
+    "builderCompanionPlaceholder": "ex. doudou",
+    "builderPlaceLabel": "Où Cela Se Passe ?",
+    "builderPlacePlaceholder": "ex. jardin lunaire",
+    "builderMomentLabel": "Qu’est-ce Qui Compte ?",
+    "builderMomentPlaceholder": "ex. se sentir courageux",
+    "getMoreIdeas": "Obtenir 3 Idées Plus Différentes",
+    "themeBadge": "Thème : {theme}"
   },
   "books": {
     "createButton": "Générer le PDF illustré",
@@ -501,7 +517,8 @@
     "estimatedPrice": "Prix d'impression AU estimé",
     "printOrderingComingSoon": "Les livres imprimés arrivent bientôt. Vous pouvez encore créer et télécharger votre PDF ou EPUB aujourd'hui.",
     "comingSoon": "Bientôt disponible",
-    "failedContactLink": "Email us if you need help ->"
+    "failedContactLink": "Email us if you need help ->",
+    "creditConfirm": "Générer ce livre illustré utilisera {credits} crédits. Continuer ?"
   },
   "account": {
     "title": "Votre compte",

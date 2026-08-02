@@ -883,7 +883,7 @@ export default function BookStatusPanel({
           </h2>
           <p className="mt-2 text-night-500">
             {isExportRefresh
-              ? "We’re refreshing the PDF, EPUB, and Lulu export files from the existing artwork."
+              ? "We’re refreshing the PDF, EPUB, and print-order export files from the existing artwork."
               : displayStatus === "ready"
                 ? t("illustratedPdfReadySub")
                 : displayStatus === "failed"

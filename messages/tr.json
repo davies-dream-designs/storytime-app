@@ -198,7 +198,8 @@
     "deleteConfirm": "Bu profil silinsin mi? Hikayeler silinmeyecektir.",
     "deleting": "Siliniyor…",
     "characterMemory": "Karakter hafızası",
-    "manageCharacters": "Karakterleri yönet →"
+    "manageCharacters": "Karakterleri yönet →",
+    "tagHint": "Birden fazla öğeyi virgülle ekleyin, sonra Ekle’ye basın."
   },
   "stories": {
     "libraryTitle": "Hikaye kitaplığı",
@@ -216,12 +217,12 @@
     "createProfileButton": "Profil oluştur",
     "getIdeas": "✨ {name} için hikaye fikirleri alın",
     "customOption": "Başka bir şey…",
-    "themeLabel": "Tema veya fikir",
+    "themeLabel": "Uyku Öncesi Teması",
     "themePlaceholder": "örneğin cesaret, uzay macerası, arkadaşlara yardım etmek…",
     "storyIdeaLabel": "Story idea",
     "storyIdeaPlaceholder": "e.g. {name} meets a friendly dragon in the garden…",
     "getIdeasHint": "Don't have an idea? We can weave some magic for you…",
-    "suggestionsNote": "These suggestions are saved for 24 hours. Come back tomorrow for fresh ones.",
+    "suggestionsNote": "Bu öneriler 24 saat saklanır. Daha fazla fikir bu listeyi değiştirmek yerine ona çeşitlilik ekler.",
     "notesLabel": "Ekstra ayrıntılar (isteğe bağlı)",
     "notesPlaceholder": "örneğin {name}'nin bu haftaki plaj gezisini de dahil edin…",
     "errorNoProfile": "Lütfen bir çocuk profili seçin",
@@ -307,7 +308,22 @@
       }
     },
     "exportText": "Metni dışa aktar",
-    "shareFacebook": "Facebook"
+    "shareFacebook": "Facebook",
+    "storyIdeaHelp": "Kısa fikirler işe yarar, ama daha fazla ayrıntı daha iyi hikâyeler oluşturur. Kimlerin olduğunu, nerede geçtiğini ve istediğiniz duyguyu ya da dersi ekleyin.",
+    "creditNotice": "Bu uyku öncesi hikâyeyi oluşturmak 1 kredi kullanır.",
+    "creditConfirm": "Bu uyku öncesi hikâyeyi oluşturmak 1 kredi kullanacak. Devam edilsin mi?",
+    "noCreditsTitle": "Krediniz Kalmadı",
+    "noCreditsBody": "Bir sonraki uyku öncesi hikâyeden önce kredi yükleyin.",
+    "topUpCredits": "Kredi Yükle",
+    "builderTitle": "Veya Kendi Fikrini Kur",
+    "builderCompanionLabel": "Kim Katılıyor?",
+    "builderCompanionPlaceholder": "örn. oyuncak ayı",
+    "builderPlaceLabel": "Nerede Geçiyor?",
+    "builderPlacePlaceholder": "örn. ay bahçesi",
+    "builderMomentLabel": "Ne Önemli?",
+    "builderMomentPlaceholder": "örn. cesur hissetmek",
+    "getMoreIdeas": "3 Daha Farklı Fikir Al",
+    "themeBadge": "Tema: {theme}"
   },
   "books": {
     "createButton": "Resimli PDF oluştur",
@@ -501,7 +517,8 @@
     "estimatedPrice": "Tahmini AU baskı fiyatı",
     "printOrderingComingSoon": "Basılı kitaplar yakında geliyor. PDF veya EPUB'unuzu bugün hâlâ oluşturabilir ve indirebilirsiniz.",
     "comingSoon": "Yakında",
-    "failedContactLink": "Email us if you need help ->"
+    "failedContactLink": "Email us if you need help ->",
+    "creditConfirm": "Bu resimli kitabı oluşturmak {credits} kredi kullanacak. Devam edilsin mi?"
   },
   "account": {
     "title": "Hesabınız",

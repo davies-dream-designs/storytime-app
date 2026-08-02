@@ -50,6 +50,10 @@ export default function CreatePrintBookButton({
   }
 
   async function handleCreate() {
+    if (!window.confirm(t("creditConfirm", { credits }))) {
+      return;
+    }
+
     setLoading(true);
     setError(null);
 

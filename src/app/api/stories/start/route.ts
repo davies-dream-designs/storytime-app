@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
 
   if (!isAdmin && credits < STORY_CREDIT_COST) {
     return NextResponse.json(
-      { error: "No credits remaining. Visit /account to purchase more." },
+      { error: "You're out of credits. Visit your account to top up." },
       { status: 402 }
     );
   }

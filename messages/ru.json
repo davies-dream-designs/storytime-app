@@ -198,7 +198,8 @@
     "deleteConfirm": "Удалить этот профиль? Истории не будут удалены.",
     "deleting": "Удаление…",
     "characterMemory": "Память персонажей",
-    "manageCharacters": "Управление персонажами →"
+    "manageCharacters": "Управление персонажами →",
+    "tagHint": "Добавьте несколько пунктов через запятую, затем нажмите Добавить."
   },
   "stories": {
     "libraryTitle": "Библиотека историй",
@@ -216,12 +217,12 @@
     "createProfileButton": "Создать профиль",
     "getIdeas": "✨ Получите идеи для историй для {name}.",
     "customOption": "Что-то еще…",
-    "themeLabel": "Тема или идея",
+    "themeLabel": "Тема На Ночь",
     "themePlaceholder": "например храбрость, космические приключения, помощь друзьям…",
     "storyIdeaLabel": "Story idea",
     "storyIdeaPlaceholder": "e.g. {name} meets a friendly dragon in the garden…",
     "getIdeasHint": "Don't have an idea? We can weave some magic for you…",
-    "suggestionsNote": "These suggestions are saved for 24 hours. Come back tomorrow for fresh ones.",
+    "suggestionsNote": "Эти идеи сохраняются на 24 часа. Новые идеи добавляются к списку для разнообразия, а не заменяют его.",
     "notesLabel": "Дополнительные сведения (необязательно)",
     "notesPlaceholder": "например Включите поездку {name} на пляж на этой неделе…",
     "errorNoProfile": "Пожалуйста, выберите детский профиль",
@@ -307,7 +308,22 @@
       }
     },
     "exportText": "Экспорт текста",
-    "shareFacebook": "Facebook"
+    "shareFacebook": "Facebook",
+    "storyIdeaHelp": "Короткие идеи подойдут, но подробности делают историю лучше. Укажите, кто участвует, где всё происходит и какое чувство или урок нужны.",
+    "creditNotice": "Создание этой сказки на ночь использует 1 кредит.",
+    "creditConfirm": "Создание этой сказки на ночь использует 1 кредит. Продолжить?",
+    "noCreditsTitle": "У Вас Закончились Кредиты",
+    "noCreditsBody": "Пополните баланс перед следующей сказкой на ночь.",
+    "topUpCredits": "Пополнить Кредиты",
+    "builderTitle": "Или Соберите Свою Идею",
+    "builderCompanionLabel": "Кто Участвует?",
+    "builderCompanionPlaceholder": "например, мишка",
+    "builderPlaceLabel": "Где Всё Происходит?",
+    "builderPlacePlaceholder": "например, лунный сад",
+    "builderMomentLabel": "Что Важно?",
+    "builderMomentPlaceholder": "например, почувствовать смелость",
+    "getMoreIdeas": "Получить Ещё 3 Другие Идеи",
+    "themeBadge": "Тема: {theme}"
   },
   "books": {
     "createButton": "Создать иллюстрированный PDF",
@@ -501,7 +517,8 @@
     "estimatedPrice": "Ориентировочная цена печати AU",
     "printOrderingComingSoon": "Печатные книги скоро появятся. Вы уже можете создать и загрузить PDF или EPUB.",
     "comingSoon": "Скоро",
-    "failedContactLink": "Email us if you need help ->"
+    "failedContactLink": "Email us if you need help ->",
+    "creditConfirm": "Создание этой иллюстрированной книги использует {credits} кредитов. Продолжить?"
   },
   "account": {
     "title": "Ваш аккаунт",

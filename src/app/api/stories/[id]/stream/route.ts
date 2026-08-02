@@ -68,7 +68,7 @@ export async function POST(
   if (!isAdmin && credits < STORY_CREDIT_COST) {
     await db.stories.update(id, {
       status: "failed",
-      generationError: "No credits remaining. Visit /account to purchase more.",
+      generationError: "You're out of credits. Visit your account to top up.",
     });
     return new Response("No credits remaining", { status: 402 });
   }

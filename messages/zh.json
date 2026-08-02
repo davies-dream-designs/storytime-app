@@ -198,7 +198,8 @@
     "deleteConfirm": "删除此档案？故事不会被删除。",
     "deleting": "删除中…",
     "characterMemory": "角色记忆",
-    "manageCharacters": "管理角色 →"
+    "manageCharacters": "管理角色 →",
+    "tagHint": "可用逗号添加多个项目，然后点击添加。"
   },
   "stories": {
     "libraryTitle": "故事图书馆",
@@ -216,12 +217,12 @@
     "createProfileButton": "创建档案",
     "getIdeas": "✨ 为 {name} 获取故事创意",
     "customOption": "其他创意…",
-    "themeLabel": "主题或创意",
+    "themeLabel": "睡前主题",
     "themePlaceholder": "例如：勇敢、太空冒险、帮助朋友…",
     "storyIdeaLabel": "Story idea",
     "storyIdeaPlaceholder": "e.g. {name} meets a friendly dragon in the garden…",
     "getIdeasHint": "Don't have an idea? We can weave some magic for you…",
-    "suggestionsNote": "These suggestions are saved for 24 hours. Come back tomorrow for fresh ones.",
+    "suggestionsNote": "这些建议会保存 24 小时。更多想法会添加到列表中，而不是替换它。",
     "notesLabel": "额外细节（可选）",
     "notesPlaceholder": "例如：包含 {name} 这周去海滩的经历…",
     "errorNoProfile": "请选择一个儿童档案",
@@ -307,7 +308,22 @@
       }
     },
     "exportText": "导出文本",
-    "shareFacebook": "Facebook"
+    "shareFacebook": "Facebook",
+    "storyIdeaHelp": "简短想法也可以，但细节越多，故事越好。请写出人物、地点，以及想要的感受或主题。",
+    "creditNotice": "生成这个睡前故事会使用 1 个点数。",
+    "creditConfirm": "生成这个睡前故事将使用 1 个点数。是否继续？",
+    "noCreditsTitle": "你的点数已用完",
+    "noCreditsBody": "请先充值，再写下一个睡前故事。",
+    "topUpCredits": "充值点数",
+    "builderTitle": "或创建你自己的想法",
+    "builderCompanionLabel": "谁一起加入？",
+    "builderCompanionPlaceholder": "例如：泰迪熊",
+    "builderPlaceLabel": "发生在哪里？",
+    "builderPlacePlaceholder": "例如：月亮花园",
+    "builderMomentLabel": "什么最重要？",
+    "builderMomentPlaceholder": "例如：变得勇敢",
+    "getMoreIdeas": "再获取 3 个不同想法",
+    "themeBadge": "主题：{theme}"
   },
   "books": {
     "createButton": "生成插图 PDF",
@@ -501,7 +517,8 @@
     "estimatedPrice": "澳大利亚预计印刷价格",
     "printOrderingComingSoon": "印刷书籍即将上线。您今天仍然可以创建并下载 PDF 或 EPUB。",
     "comingSoon": "即将推出",
-    "failedContactLink": "Email us if you need help ->"
+    "failedContactLink": "Email us if you need help ->",
+    "creditConfirm": "生成这本插画书将使用 {credits} 个点数。是否继续？"
   },
   "account": {
     "title": "您的账户",

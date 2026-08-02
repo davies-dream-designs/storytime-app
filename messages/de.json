@@ -198,7 +198,8 @@
     "deleteConfirm": "Dieses Profil löschen? Geschichten werden nicht gelöscht.",
     "deleting": "Wird gelöscht…",
     "characterMemory": "Figurengedächtnis",
-    "manageCharacters": "Figuren verwalten →"
+    "manageCharacters": "Figuren verwalten →",
+    "tagHint": "Füge mehrere Einträge mit Kommas hinzu und drücke dann Hinzufügen."
   },
   "stories": {
     "libraryTitle": "Geschichtenbibliothek",
@@ -216,12 +217,12 @@
     "createProfileButton": "Profil erstellen",
     "getIdeas": "✨ Geschichtenideen für {name} holen",
     "customOption": "Etwas anderes…",
-    "themeLabel": "Thema oder Idee",
+    "themeLabel": "Gute-Nacht-Thema",
     "themePlaceholder": "z. B. Mut, Weltraumabenteuer, Freunden helfen…",
     "storyIdeaLabel": "Story idea",
     "storyIdeaPlaceholder": "e.g. {name} meets a friendly dragon in the garden…",
     "getIdeasHint": "Don't have an idea? We can weave some magic for you…",
-    "suggestionsNote": "These suggestions are saved for 24 hours. Come back tomorrow for fresh ones.",
+    "suggestionsNote": "Diese Vorschläge werden 24 Stunden gespeichert. Weitere Ideen ergänzen diese Liste, statt sie zu ersetzen.",
     "notesLabel": "Weitere Details (optional)",
     "notesPlaceholder": "z. B. {name}s Ausflug zum Strand diese Woche einbauen…",
     "errorNoProfile": "Bitte wähle ein Kinderprofil",
@@ -307,7 +308,22 @@
       }
     },
     "exportText": "Text exportieren",
-    "shareFacebook": "Facebook"
+    "shareFacebook": "Facebook",
+    "storyIdeaHelp": "Kurze Ideen funktionieren, aber mehr Details machen bessere Geschichten. Nenne die Figuren, den Ort und das Gefühl oder die Lektion.",
+    "creditNotice": "Diese Gute-Nacht-Geschichte zu erstellen kostet 1 Guthaben.",
+    "creditConfirm": "Diese Gute-Nacht-Geschichte zu erstellen kostet 1 Guthaben. Fortfahren?",
+    "noCreditsTitle": "Dein Guthaben Ist Aufgebraucht",
+    "noCreditsBody": "Lade Guthaben auf, bevor du die nächste Gute-Nacht-Geschichte schreibst.",
+    "topUpCredits": "Guthaben Aufladen",
+    "builderTitle": "Oder Eigene Idee Bauen",
+    "builderCompanionLabel": "Wer Ist Dabei?",
+    "builderCompanionPlaceholder": "z. B. Teddy",
+    "builderPlaceLabel": "Wo Passiert Es?",
+    "builderPlacePlaceholder": "z. B. Mondgarten",
+    "builderMomentLabel": "Was Ist Wichtig?",
+    "builderMomentPlaceholder": "z. B. mutig sein",
+    "getMoreIdeas": "3 Weitere Andere Ideen Holen",
+    "themeBadge": "Thema: {theme}"
   },
   "books": {
     "createButton": "Illustriertes PDF erstellen",
@@ -501,7 +517,8 @@
     "estimatedPrice": "Geschätzter AU-Druckpreis",
     "printOrderingComingSoon": "Gedruckte Bücher kommen bald. Du kannst heute noch dein PDF oder EPUB erstellen und herunterladen.",
     "comingSoon": "Kommt bald",
-    "failedContactLink": "Email us if you need help ->"
+    "failedContactLink": "Email us if you need help ->",
+    "creditConfirm": "Dieses illustrierte Buch zu erstellen kostet {credits} Guthaben. Fortfahren?"
   },
   "account": {
     "title": "Dein Konto",

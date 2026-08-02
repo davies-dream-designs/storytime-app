@@ -59,6 +59,8 @@ describe("story people avatar prompts", () => {
 
     expect(prompt).not.toMatch(/Levi|Age:\s*2|Gender\/pronoun setting|boy/i);
     expect(prompt).toContain("toddler proportions");
+    expect(prompt).toContain("upper chest to top of head");
+    expect(prompt).toContain("Do not create a full-body");
     expect(prompt).toContain("remove all visible writing");
     expect(prompt).toContain("Do not include any written words");
   });

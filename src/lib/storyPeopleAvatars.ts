@@ -2,7 +2,7 @@ import sharp from "sharp";
 import Anthropic from "@anthropic-ai/sdk";
 import type { ChildProfile, StoryPerson } from "@/types";
 import { buildChildAppearanceSummary } from "@/types";
-import { storeBookAsset } from "@/lib/print-books/storage";
+import { deleteBookAssetUrls, storeBookAsset } from "@/lib/print-books/storage";
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 const ALLOWED_CONTENT_TYPES = new Set([
@@ -40,8 +40,8 @@ function buildAvatarPrompt(person: StoryPerson): string {
     person.pronouns ? `Pronouns: ${person.pronouns}.` : "",
     person.description ? `Role notes: ${person.description}.` : "",
     person.personality ? `Personality: ${person.personality}.` : "",
-    person.appearance ? `User appearance notes: ${person.appearance}.` : "",
     "Use the uploaded photo only as private visual reference for broad visible features, posture, colouring, and expression.",
+    "Treat the uploaded photo as the visual source of truth. Do not exaggerate body shape, age, expression, or proportions from written profile notes.",
     "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
     "Make it suitable as a reusable character reference for Storycot hardcover interiors and child profile illustrations: square crop, head-and-shoulders or full pet pose, clear visible features, stable outfit/markings, no scene-specific props unless requested.",
     "Do not make a photorealistic portrait, caricature, sticker, logo, toy packaging image, or social-media avatar.",
@@ -60,11 +60,11 @@ function buildChildAvatarPrompt(
     `Child name: ${profile.name}.`,
     `Age: ${profile.age}.`,
     profile.gender ? `Gender/pronoun setting: ${profile.gender}.` : "",
-    `Structured appearance: ${buildChildAppearanceSummary(profile.appearance) || "Not provided."}`,
     analysis.appearance
       ? `Photo-derived visible notes: ${analysis.appearance}.`
       : "",
     "Use the uploaded photo only as private visual reference for broad visible features, posture, colouring, and expression.",
+    "Treat the uploaded photo as the visual source of truth. Do not exaggerate body shape, age, expression, or proportions from written profile notes.",
     "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
     "Make it suitable as a reusable child reference for Storycot hardcover interiors: square crop, child-safe clothing, clear visible features, stable outfit guidance, no scene-specific props unless already in the profile.",
     "Do not make a photorealistic portrait, caricature, sticker, logo, toy packaging image, or social-media avatar.",
@@ -218,6 +218,17 @@ export function buildStoryPersonAppearanceSummary(person: StoryPerson): string {
     .join(" ");
 }
 
+async function deletePreviousReference(url?: string) {
+  if (!url) return;
+  try {
+    await deleteBookAssetUrls([url]);
+  } catch (err) {
+    console.warn("Could not delete previous illustrated reference.", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 export async function createStoryPersonAvatar(input: {
   person: StoryPerson;
   file: File;
@@ -256,7 +267,9 @@ export async function createStoryPersonAvatar(input: {
     contentType: "image/jpeg",
   });
 
-  const appearance = input.person.appearance.trim() || analysis.appearance;
+  await deletePreviousReference(input.person.avatarImageUrl);
+
+  const appearance = analysis.appearance || input.person.appearance.trim();
 
   return {
     avatarImageUrl,
@@ -297,6 +310,8 @@ export async function createChildProfileAvatar(input: {
     body: webImage,
     contentType: "image/jpeg",
   });
+
+  await deletePreviousReference(input.profile.avatarImageUrl);
 
   return {
     avatarImageUrl,

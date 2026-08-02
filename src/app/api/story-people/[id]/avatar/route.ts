@@ -25,6 +25,15 @@ export async function POST(
       { status: 400 }
     );
   }
+  if (formData.get("photoConsent") !== "yes") {
+    return NextResponse.json(
+      {
+        error:
+          "Please confirm you have permission to use this photo and understand it will be used once to create an illustrated reference.",
+      },
+      { status: 400 }
+    );
+  }
 
   try {
     const avatar = await createStoryPersonAvatar({ person, file: photo });

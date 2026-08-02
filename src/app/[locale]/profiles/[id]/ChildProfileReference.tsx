@@ -10,6 +10,7 @@ import type { ChildProfile } from "@/types";
 type PendingPhoto = {
   file: File;
   previewUrl: string;
+  consent: boolean;
 };
 
 function isChildProfile(
@@ -35,6 +36,7 @@ export default function ChildProfileReference({
     setPendingPhoto({
       file,
       previewUrl: URL.createObjectURL(file),
+      consent: false,
     });
   }
 
@@ -45,11 +47,16 @@ export default function ChildProfileReference({
 
   async function generateReference() {
     if (!pendingPhoto) return;
+    if (!pendingPhoto.consent) {
+      setError("Please confirm photo permission before creating a reference.");
+      return;
+    }
     setError("");
     setGenerating(true);
     try {
       const formData = new FormData();
       formData.append("photo", pendingPhoto.file);
+      formData.append("photoConsent", "yes");
       const res = await fetch(`/api/profiles/${profile.id}/avatar`, {
         method: "POST",
         body: formData,
@@ -75,7 +82,9 @@ export default function ChildProfileReference({
       <div className="grid gap-4 md:grid-cols-[9rem_1fr]">
         <div className="overflow-hidden rounded-xl border border-night-100 bg-night-50">
           <div
-            className="aspect-square bg-cover bg-center"
+            className={`relative aspect-square bg-cover bg-center ${
+              pendingPhoto ? "opacity-45" : ""
+            }`}
             style={{
               backgroundImage: profile.avatarImageUrl
                 ? `url("${profile.avatarImageUrl}")`
@@ -85,6 +94,11 @@ export default function ChildProfileReference({
             {!profile.avatarImageUrl ? (
               <div className="flex h-full items-center justify-center px-3 text-center text-xs font-bold text-night-300">
                 No Child Reference Yet
+              </div>
+            ) : null}
+            {pendingPhoto && profile.avatarImageUrl ? (
+              <div className="absolute inset-x-2 bottom-2 rounded-full bg-white/90 px-2 py-1 text-center text-[0.7rem] font-bold uppercase text-night-500">
+                Will Be Replaced
               </div>
             ) : null}
           </div>
@@ -124,11 +138,28 @@ export default function ChildProfileReference({
                     create the illustrated child reference and fill visible
                     appearance notes where helpful.
                   </p>
+                  <label className="mt-3 flex items-start gap-2 text-xs font-semibold leading-5 text-night-600">
+                    <input
+                      type="checkbox"
+                      checked={pendingPhoto.consent}
+                      onChange={(event) =>
+                        setPendingPhoto((current) =>
+                          current
+                            ? { ...current, consent: event.target.checked }
+                            : current
+                        )
+                      }
+                      className="mt-1 h-4 w-4 rounded border-night-300"
+                      disabled={generating}
+                    />
+                    I have permission to use this photo and understand it will
+                    be used once to create an illustrated Storycot reference.
+                  </label>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
                       size="compact"
                       onClick={() => void generateReference()}
-                      disabled={generating}
+                      disabled={generating || !pendingPhoto.consent}
                     >
                       {generating ? "Creating..." : "Create Reference"}
                     </Button>

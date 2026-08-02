@@ -27,6 +27,7 @@ type FormState = {
 type PendingPhoto = {
   file: File;
   previewUrl: string;
+  consent: boolean;
 };
 
 const EMPTY_FORM: FormState = {
@@ -162,6 +163,7 @@ export default function StoryPeopleManager({
         [person.id]: {
           file,
           previewUrl: URL.createObjectURL(file),
+          consent: false,
         },
       };
     });
@@ -180,11 +182,16 @@ export default function StoryPeopleManager({
   async function generateAvatar(person: StoryPerson) {
     const pending = pendingPhotos[person.id];
     if (!pending) return;
+    if (!pending.consent) {
+      setError("Please confirm photo permission before creating a reference.");
+      return;
+    }
     setError("");
     setGeneratingAvatarForId(person.id);
     try {
       const formData = new FormData();
       formData.append("photo", pending.file);
+      formData.append("photoConsent", "yes");
       const res = await fetch(`/api/story-people/${person.id}/avatar`, {
         method: "POST",
         body: formData,
@@ -477,7 +484,9 @@ export default function StoryPeopleManager({
                       <div className="grid gap-4 md:grid-cols-[8rem_1fr]">
                         <div className="overflow-hidden rounded-xl border border-night-100 bg-white">
                           <div
-                            className="aspect-square bg-cover bg-center"
+                            className={`relative aspect-square bg-cover bg-center ${
+                              pendingPhoto ? "opacity-45" : ""
+                            }`}
                             style={{
                               backgroundImage: person.avatarImageUrl
                                 ? `url("${person.avatarImageUrl}")`
@@ -487,6 +496,11 @@ export default function StoryPeopleManager({
                             {!person.avatarImageUrl ? (
                               <div className="flex h-full items-center justify-center px-3 text-center text-xs font-bold text-night-300">
                                 No Reference Yet
+                              </div>
+                            ) : null}
+                            {pendingPhoto && person.avatarImageUrl ? (
+                              <div className="absolute inset-x-2 bottom-2 rounded-full bg-white/90 px-2 py-1 text-center text-[0.7rem] font-bold uppercase text-night-500">
+                                Will Be Replaced
                               </div>
                             ) : null}
                           </div>
@@ -521,13 +535,33 @@ export default function StoryPeopleManager({
                                     used once to create the illustrated
                                     reference.
                                   </p>
+                                  <label className="mt-3 flex items-start gap-2 text-xs font-semibold leading-5 text-night-600">
+                                    <input
+                                      type="checkbox"
+                                      checked={pendingPhoto.consent}
+                                      onChange={(event) =>
+                                        setPendingPhotos((current) => ({
+                                          ...current,
+                                          [person.id]: {
+                                            ...pendingPhoto,
+                                            consent: event.target.checked,
+                                          },
+                                        }))
+                                      }
+                                      className="mt-1 h-4 w-4 rounded border-night-300"
+                                      disabled={busy}
+                                    />
+                                    I have permission to use this photo and
+                                    understand it will be used once to create an
+                                    illustrated Storycot reference.
+                                  </label>
                                   <div className="mt-3 flex flex-wrap gap-2">
                                     <Button
                                       size="compact"
                                       onClick={() =>
                                         void generateAvatar(person)
                                       }
-                                      disabled={busy}
+                                      disabled={busy || !pendingPhoto.consent}
                                     >
                                       {busy
                                         ? "Creating..."

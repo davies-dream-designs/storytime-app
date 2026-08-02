@@ -161,6 +161,7 @@ describe("/api/story-people", () => {
     const { POST } = await import("@/app/api/story-people/[id]/avatar/route");
     const form = new FormData();
     form.append("photo", new File(["fake"], "mum.jpg", { type: "image/jpeg" }));
+    form.append("photoConsent", "yes");
     const req = {
       formData: async () => form,
     } as NextRequest;
@@ -208,6 +209,7 @@ describe("/api/story-people", () => {
       "photo",
       new File(["fake"], "mila.jpg", { type: "image/jpeg" })
     );
+    form.append("photoConsent", "yes");
     const req = {
       formData: async () => form,
     } as NextRequest;
@@ -232,5 +234,36 @@ describe("/api/story-people", () => {
         consistencyNote: "Soft curls and a bright smile.",
       },
     });
+  });
+
+  it("requires photo permission before creating a story person reference", async () => {
+    const person: StoryPerson = {
+      id: "person-1",
+      userId: "user-1",
+      name: "Mum",
+      relationship: "mum",
+      description: "",
+      personality: "",
+      appearance: "",
+      availableToAllProfiles: true,
+      profileIds: [],
+      createdAt: "2026-07-15T00:00:00.000Z",
+      updatedAt: "2026-07-15T00:00:00.000Z",
+    };
+    mockDb.storyPeople.getById.mockResolvedValue(person);
+
+    const { POST } = await import("@/app/api/story-people/[id]/avatar/route");
+    const form = new FormData();
+    form.append("photo", new File(["fake"], "mum.jpg", { type: "image/jpeg" }));
+    const req = {
+      formData: async () => form,
+    } as NextRequest;
+
+    const res = await POST(req, {
+      params: Promise.resolve({ id: "person-1" }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(mockCreateStoryPersonAvatar).not.toHaveBeenCalled();
   });
 });

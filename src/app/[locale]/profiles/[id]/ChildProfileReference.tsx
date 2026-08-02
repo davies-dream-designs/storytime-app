@@ -11,6 +11,7 @@ type PendingPhoto = {
   file: File;
   previewUrl: string;
   consent: boolean;
+  adjustment: string;
 };
 
 function isChildProfile(
@@ -37,6 +38,7 @@ export default function ChildProfileReference({
       file,
       previewUrl: URL.createObjectURL(file),
       consent: false,
+      adjustment: "",
     });
   }
 
@@ -57,6 +59,7 @@ export default function ChildProfileReference({
       const formData = new FormData();
       formData.append("photo", pendingPhoto.file);
       formData.append("photoConsent", "yes");
+      formData.append("adjustment", pendingPhoto.adjustment);
       const res = await fetch(`/api/profiles/${profile.id}/avatar`, {
         method: "POST",
         body: formData,
@@ -138,6 +141,24 @@ export default function ChildProfileReference({
                     create the illustrated child reference and fill visible
                     appearance notes where helpful.
                   </p>
+                  <label className="mt-3 block text-xs font-bold uppercase tracking-wide text-night-400">
+                    Optional Adjustment
+                  </label>
+                  <textarea
+                    value={pendingPhoto.adjustment}
+                    onChange={(event) =>
+                      setPendingPhoto((current) =>
+                        current
+                          ? { ...current, adjustment: event.target.value }
+                          : current
+                      )
+                    }
+                    rows={2}
+                    maxLength={240}
+                    placeholder="Example: closer to the photo, softer smile, darker hair, no text in the image."
+                    className={formStyles.textarea}
+                    disabled={generating}
+                  />
                   <label className="mt-3 flex items-start gap-2 text-xs font-semibold leading-5 text-night-600">
                     <input
                       type="checkbox"

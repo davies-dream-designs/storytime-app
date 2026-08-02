@@ -15,7 +15,6 @@ function mergeConsistencyNote(
     distinguishingFeatures: [],
     expressionVibes: [],
   };
-  if (current.consistencyNote?.trim()) return current;
   return {
     ...current,
     consistencyNote: consistencyNote.slice(0, 140),
@@ -53,9 +52,16 @@ export async function POST(
       { status: 400 }
     );
   }
+  const adjustment = String(formData.get("adjustment") ?? "")
+    .trim()
+    .slice(0, 240);
 
   try {
-    const avatar = await createChildProfileAvatar({ profile, file: photo });
+    const avatar = await createChildProfileAvatar({
+      profile,
+      file: photo,
+      adjustment,
+    });
     const updated = await db.profiles.update(id, {
       avatarImageUrl: avatar.avatarImageUrl,
       appearanceSummary: avatar.appearanceSummary,

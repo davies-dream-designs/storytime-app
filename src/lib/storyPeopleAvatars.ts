@@ -28,7 +28,7 @@ export function validateStoryPersonPhoto(file: File): string | null {
   return null;
 }
 
-function buildAvatarPrompt(person: StoryPerson): string {
+function buildAvatarPrompt(person: StoryPerson, adjustment?: string): string {
   const subject =
     person.relationship === "pet"
       ? "beloved family pet"
@@ -40,6 +40,9 @@ function buildAvatarPrompt(person: StoryPerson): string {
     person.pronouns ? `Pronouns: ${person.pronouns}.` : "",
     person.description ? `Role notes: ${person.description}.` : "",
     person.personality ? `Personality: ${person.personality}.` : "",
+    adjustment
+      ? `User adjustment request for this new reference: ${adjustment}. Apply only if it does not conflict with the photo, safety, or IP rules.`
+      : "",
     "Use the uploaded photo only as private visual reference for broad visible body, face, hair or fur, posture, colouring, and expression.",
     "Treat the uploaded photo as the visual source of truth. Do not exaggerate body shape, age, expression, or proportions from written profile notes.",
     "Do not copy any clothing graphics, logos, printed text, costumes, branded characters, franchise characters, toy characters, mascot art, or recognisable protected designs visible in the photo.",
@@ -47,7 +50,7 @@ function buildAvatarPrompt(person: StoryPerson): string {
     "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
     "Make it suitable as a reusable character reference for Storycot hardcover interiors and child profile illustrations: square crop, head-and-shoulders person portrait or full pet pose, clear visible features, stable unbranded outfit or pet markings, no scene-specific props unless requested.",
     "Do not make a photorealistic portrait, caricature, sticker, logo, toy packaging image, or social-media avatar.",
-    "No text, watermark, logos, franchise styling, celebrity styling, recognisable character prints, or exact copy of clothing designs.",
+    "No text, captions, name labels, age labels, watermark, logos, franchise styling, celebrity styling, recognisable character prints, or exact copy of clothing designs.",
   ]
     .filter(Boolean)
     .join(" ");
@@ -55,7 +58,8 @@ function buildAvatarPrompt(person: StoryPerson): string {
 
 function buildChildAvatarPrompt(
   profile: ChildProfile,
-  analysis: PhotoAnalysis
+  analysis: PhotoAnalysis,
+  adjustment?: string
 ): string {
   return [
     "Create a square Storycot-style illustrated child profile reference.",
@@ -65,13 +69,16 @@ function buildChildAvatarPrompt(
     analysis.appearance
       ? `Photo-derived visible notes: ${analysis.appearance}.`
       : "",
+    adjustment
+      ? `User adjustment request for this new reference: ${adjustment}. Apply only if it does not conflict with the photo, safety, or IP rules.`
+      : "",
     "Use the uploaded photo only as private visual reference for broad visible face, hair, posture, colouring, and expression.",
     "Treat the uploaded photo as the visual source of truth. Do not exaggerate body shape, age, expression, or proportions from written profile notes.",
     "Do not copy any clothing graphics, logos, printed text, costumes, branded characters, franchise characters, toy characters, mascot art, or recognisable protected designs visible in the photo.",
     "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
-    "Make it suitable as a reusable child reference for Storycot hardcover interiors: square crop, plain unbranded child-safe clothing in a gentle Storycot palette, clear visible features, stable outfit guidance, no scene-specific props unless already in the profile.",
+    "Make it suitable as a reusable child reference for Storycot hardcover interiors: square crop, head-and-shoulders portrait, plain unbranded child-safe clothing in a gentle Storycot palette, clear visible features, stable outfit guidance, no scene-specific props unless already in the profile.",
     "Do not make a photorealistic portrait, caricature, sticker, logo, toy packaging image, or social-media avatar.",
-    "No text, watermark, logos, franchise styling, celebrity styling, recognisable character prints, or exact copy of clothing designs.",
+    "No text, captions, name labels, age labels, watermark, logos, franchise styling, celebrity styling, recognisable character prints, or exact copy of clothing designs.",
   ]
     .filter(Boolean)
     .join(" ");
@@ -232,9 +239,20 @@ async function deletePreviousReference(url?: string) {
   }
 }
 
+function buildAdjustedSummary(summary: string, adjustment?: string): string {
+  const cleanSummary = summary.trim();
+  const cleanAdjustment = adjustment?.trim();
+  if (!cleanAdjustment) return cleanSummary;
+  return [cleanSummary, `Adjustment: ${cleanAdjustment}.`]
+    .filter(Boolean)
+    .join(" ")
+    .slice(0, 600);
+}
+
 export async function createStoryPersonAvatar(input: {
   person: StoryPerson;
   file: File;
+  adjustment?: string;
 }): Promise<{
   avatarImageUrl: string;
   appearance: string;
@@ -252,6 +270,9 @@ export async function createStoryPersonAvatar(input: {
     image: normalizedPhoto,
     prompt: [
       buildAvatarPrompt(input.person),
+      input.adjustment
+        ? `Keep this adjustment subtle: ${input.adjustment}.`
+        : "",
       analysis.appearance
         ? `Additional visible reference details from photo: ${analysis.appearance}.`
         : "",
@@ -277,15 +298,18 @@ export async function createStoryPersonAvatar(input: {
   return {
     avatarImageUrl,
     appearance,
-    appearanceSummary:
+    appearanceSummary: buildAdjustedSummary(
       analysis.appearanceSummary ||
-      buildStoryPersonAppearanceSummary({ ...input.person, appearance }),
+        buildStoryPersonAppearanceSummary({ ...input.person, appearance }),
+      input.adjustment
+    ),
   };
 }
 
 export async function createChildProfileAvatar(input: {
   profile: ChildProfile;
   file: File;
+  adjustment?: string;
 }): Promise<{
   avatarImageUrl: string;
   appearanceSummary: string;
@@ -301,7 +325,7 @@ export async function createChildProfileAvatar(input: {
   });
   const generated = await generateEditedImage({
     image: normalizedPhoto,
-    prompt: buildChildAvatarPrompt(input.profile, analysis),
+    prompt: buildChildAvatarPrompt(input.profile, analysis, input.adjustment),
   });
   const webImage = await sharp(generated)
     .resize(768, 768, { fit: "cover" })
@@ -318,10 +342,12 @@ export async function createChildProfileAvatar(input: {
 
   return {
     avatarImageUrl,
-    appearanceSummary:
+    appearanceSummary: buildAdjustedSummary(
       analysis.appearanceSummary ||
-      buildChildAppearanceSummary(input.profile.appearance) ||
-      "",
+        buildChildAppearanceSummary(input.profile.appearance) ||
+        "",
+      input.adjustment
+    ),
     consistencyNote: analysis.appearance || undefined,
   };
 }

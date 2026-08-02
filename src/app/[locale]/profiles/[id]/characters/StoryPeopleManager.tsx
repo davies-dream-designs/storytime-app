@@ -28,6 +28,7 @@ type PendingPhoto = {
   file: File;
   previewUrl: string;
   consent: boolean;
+  adjustment: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -213,6 +214,7 @@ export default function StoryPeopleManager({
           file,
           previewUrl: URL.createObjectURL(file),
           consent: false,
+          adjustment: "",
         },
       };
     });
@@ -241,6 +243,7 @@ export default function StoryPeopleManager({
       const formData = new FormData();
       formData.append("photo", pending.file);
       formData.append("photoConsent", "yes");
+      formData.append("adjustment", pending.adjustment);
       const res = await fetch(`/api/story-people/${person.id}/avatar`, {
         method: "POST",
         body: formData,
@@ -279,213 +282,241 @@ export default function StoryPeopleManager({
           reuse them across children.
         </p>
 
-        <div className="mt-5 space-y-4">
-          <div>
-            <label className={formStyles.subLabel}>Display Name</label>
-            <input
-              value={form.name}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  name: event.target.value,
-                }))
+        {form.id ? (
+          <div className="mt-5 rounded-xl border border-star-200 bg-star-50 p-4">
+            <p className="text-sm font-bold text-night-700">
+              Editing {form.name} below
+            </p>
+            <p className="mt-1 text-sm leading-6 text-night-500">
+              Make changes in the matching Family & Friends card.
+            </p>
+            <button
+              type="button"
+              onClick={() =>
+                setForm({
+                  ...EMPTY_FORM,
+                  profileIds: defaultProfileId ? [defaultProfileId] : [],
+                })
               }
-              placeholder="Mum, Nanna, Grandad Tom, Daisy"
-              className={formStyles.field}
-            />
+              className={buttonClassName({
+                variant: "secondary",
+                size: "compact",
+                className: "mt-3",
+              })}
+            >
+              Cancel Edit
+            </button>
           </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
+        ) : (
+          <div className="mt-5 space-y-4">
             <div>
-              <label className={formStyles.subLabel}>Relationship</label>
-              <select
-                value={form.relationship}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    relationship: event.target.value as StoryPersonRelationship,
-                  }))
-                }
-                className={formStyles.field}
-              >
-                {STORY_PERSON_RELATIONSHIPS.map((relationship) => (
-                  <option key={relationship} value={relationship}>
-                    {relationshipLabel(relationship)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={formStyles.subLabel}>Pronouns</label>
+              <label className={formStyles.subLabel}>Display Name</label>
               <input
-                value={form.pronouns}
+                value={form.name}
                 onChange={(event) =>
                   setForm((current) => ({
                     ...current,
-                    pronouns: event.target.value,
+                    name: event.target.value,
                   }))
                 }
-                placeholder="she/her, he/him, they/them"
+                placeholder="Mum, Nanna, Grandad Tom, Daisy"
                 className={formStyles.field}
               />
             </div>
-          </div>
 
-          <div>
-            <div className="flex items-center justify-between gap-3">
-              <label className={formStyles.subLabel}>Personality</label>
-              <span className="text-xs font-bold text-night-300">
-                {splitList(form.personality).length}/3
-              </span>
-            </div>
-            <div className="mb-2 flex flex-wrap gap-2">
-              {PERSONALITY_OPTIONS.map((option) => {
-                const selected = splitList(form.personality).includes(option);
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => toggleListField("personality", option)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                      selected
-                        ? "bg-night-700 text-moon-200"
-                        : "bg-night-50 text-night-600 hover:bg-night-100"
-                    }`}
-                  >
-                    {option}
-                  </button>
-                );
-              })}
-            </div>
-            <input
-              value={form.personality}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  personality: event.target.value,
-                }))
-              }
-              placeholder="Choose up to 3, or add your own comma-separated notes."
-              className={formStyles.field}
-            />
-          </div>
-
-          <div>
-            <label className={formStyles.subLabel}>Appearance</label>
-            <textarea
-              value={form.appearance}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  appearance: event.target.value,
-                }))
-              }
-              rows={3}
-              placeholder="Short visual notes for storybook illustrations."
-              className={formStyles.textarea}
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between gap-3">
-              <label className={formStyles.subLabel}>Story Role</label>
-              <span className="text-xs font-bold text-night-300">
-                {splitList(form.description).length}/3
-              </span>
-            </div>
-            <div className="mb-2 flex flex-wrap gap-2">
-              {STORY_ROLE_OPTIONS.map((option) => {
-                const selected = splitList(form.description).includes(option);
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => toggleListField("description", option)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                      selected
-                        ? "bg-night-700 text-moon-200"
-                        : "bg-night-50 text-night-600 hover:bg-night-100"
-                    }`}
-                  >
-                    {option}
-                  </button>
-                );
-              })}
-            </div>
-            <textarea
-              value={form.description}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  description: event.target.value,
-                }))
-              }
-              rows={2}
-              placeholder="Choose up to 3, or add your own comma-separated notes."
-              className={formStyles.textarea}
-            />
-          </div>
-
-          <div className="rounded-xl border border-night-100 bg-night-50 p-3">
-            <label className="flex items-start gap-3 text-sm font-semibold text-night-700">
-              <input
-                type="checkbox"
-                checked={form.availableToAllProfiles}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    availableToAllProfiles: event.target.checked,
-                  }))
-                }
-                className="mt-1 h-4 w-4 rounded border-night-300"
-              />
-              Available For All Children
-            </label>
-            {!form.availableToAllProfiles ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {profiles.map((profile) => (
-                  <button
-                    key={profile.id}
-                    type="button"
-                    onClick={() => toggleProfile(profile.id)}
-                    className={`rounded-full px-3 py-1.5 text-sm font-bold transition ${
-                      form.profileIds.includes(profile.id)
-                        ? "bg-night-700 text-moon-200"
-                        : "bg-white text-night-600 hover:bg-night-100"
-                    }`}
-                  >
-                    {profile.name}
-                  </button>
-                ))}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className={formStyles.subLabel}>Relationship</label>
+                <select
+                  value={form.relationship}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      relationship: event.target
+                        .value as StoryPersonRelationship,
+                    }))
+                  }
+                  className={formStyles.field}
+                >
+                  {STORY_PERSON_RELATIONSHIPS.map((relationship) => (
+                    <option key={relationship} value={relationship}>
+                      {relationshipLabel(relationship)}
+                    </option>
+                  ))}
+                </select>
               </div>
-            ) : null}
-          </div>
+              <div>
+                <label className={formStyles.subLabel}>Pronouns</label>
+                <input
+                  value={form.pronouns}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      pronouns: event.target.value,
+                    }))
+                  }
+                  placeholder="she/her, he/him, they/them"
+                  className={formStyles.field}
+                />
+              </div>
+            </div>
 
-          {error ? <p className={formStyles.error}>{error}</p> : null}
-
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={submit} disabled={saving || !form.name.trim()}>
-              {saving ? "Saving..." : form.id ? "Save Changes" : "Add Person"}
-            </Button>
-            {form.id ? (
-              <button
-                type="button"
-                onClick={() =>
-                  setForm({
-                    ...EMPTY_FORM,
-                    profileIds: defaultProfileId ? [defaultProfileId] : [],
-                  })
-                }
-                className={buttonClassName({
-                  variant: "secondary",
-                  size: "compact",
+            <div>
+              <div className="flex items-center justify-between gap-3">
+                <label className={formStyles.subLabel}>Personality</label>
+                <span className="text-xs font-bold text-night-300">
+                  {splitList(form.personality).length}/3
+                </span>
+              </div>
+              <div className="mb-2 flex flex-wrap gap-2">
+                {PERSONALITY_OPTIONS.map((option) => {
+                  const selected = splitList(form.personality).includes(option);
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => toggleListField("personality", option)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                        selected
+                          ? "bg-night-700 text-moon-200"
+                          : "bg-night-50 text-night-600 hover:bg-night-100"
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  );
                 })}
-              >
-                Cancel
-              </button>
-            ) : null}
+              </div>
+              <input
+                value={form.personality}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    personality: event.target.value,
+                  }))
+                }
+                placeholder="Choose up to 3, or add your own comma-separated notes."
+                className={formStyles.field}
+              />
+            </div>
+
+            <div>
+              <label className={formStyles.subLabel}>Appearance</label>
+              <textarea
+                value={form.appearance}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    appearance: event.target.value,
+                  }))
+                }
+                rows={3}
+                placeholder="Short visual notes for storybook illustrations."
+                className={formStyles.textarea}
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between gap-3">
+                <label className={formStyles.subLabel}>Story Role</label>
+                <span className="text-xs font-bold text-night-300">
+                  {splitList(form.description).length}/3
+                </span>
+              </div>
+              <div className="mb-2 flex flex-wrap gap-2">
+                {STORY_ROLE_OPTIONS.map((option) => {
+                  const selected = splitList(form.description).includes(option);
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => toggleListField("description", option)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                        selected
+                          ? "bg-night-700 text-moon-200"
+                          : "bg-night-50 text-night-600 hover:bg-night-100"
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  );
+                })}
+              </div>
+              <textarea
+                value={form.description}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    description: event.target.value,
+                  }))
+                }
+                rows={2}
+                placeholder="Choose up to 3, or add your own comma-separated notes."
+                className={formStyles.textarea}
+              />
+            </div>
+
+            <div className="rounded-xl border border-night-100 bg-night-50 p-3">
+              <label className="flex items-start gap-3 text-sm font-semibold text-night-700">
+                <input
+                  type="checkbox"
+                  checked={form.availableToAllProfiles}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      availableToAllProfiles: event.target.checked,
+                    }))
+                  }
+                  className="mt-1 h-4 w-4 rounded border-night-300"
+                />
+                Available For All Children
+              </label>
+              {!form.availableToAllProfiles ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {profiles.map((profile) => (
+                    <button
+                      key={profile.id}
+                      type="button"
+                      onClick={() => toggleProfile(profile.id)}
+                      className={`rounded-full px-3 py-1.5 text-sm font-bold transition ${
+                        form.profileIds.includes(profile.id)
+                          ? "bg-night-700 text-moon-200"
+                          : "bg-white text-night-600 hover:bg-night-100"
+                      }`}
+                    >
+                      {profile.name}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            {error ? <p className={formStyles.error}>{error}</p> : null}
+
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={submit} disabled={saving || !form.name.trim()}>
+                {saving ? "Saving..." : form.id ? "Save Changes" : "Add Person"}
+              </Button>
+              {form.id ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm({
+                      ...EMPTY_FORM,
+                      profileIds: defaultProfileId ? [defaultProfileId] : [],
+                    })
+                  }
+                  className={buttonClassName({
+                    variant: "secondary",
+                    size: "compact",
+                  })}
+                >
+                  Cancel
+                </button>
+              ) : null}
+            </div>
           </div>
-        </div>
+        )}
       </section>
 
       <section className="space-y-3">
@@ -498,6 +529,7 @@ export default function StoryPeopleManager({
               {(() => {
                 const pendingPhoto = pendingPhotos[person.id];
                 const busy = generatingAvatarForId === person.id;
+                const editing = form.id === person.id;
 
                 return (
                   <>
@@ -550,32 +582,268 @@ export default function StoryPeopleManager({
                       </div>
                     </div>
 
-                    <div className="mt-4 grid gap-3 text-sm leading-6 text-night-600 sm:grid-cols-2">
-                      {person.personality ? (
-                        <p>
-                          <span className="font-bold text-night-700">
-                            Personality:
-                          </span>{" "}
-                          {person.personality}
-                        </p>
-                      ) : null}
-                      {person.description ? (
-                        <p>
-                          <span className="font-bold text-night-700">
-                            Role:
-                          </span>{" "}
-                          {person.description}
-                        </p>
-                      ) : null}
-                      {person.appearance ? (
-                        <p className="sm:col-span-2">
-                          <span className="font-bold text-night-700">
-                            Appearance:
-                          </span>{" "}
-                          {person.appearance}
-                        </p>
-                      ) : null}
-                    </div>
+                    {editing ? (
+                      <div className="mt-4 rounded-xl border border-star-200 bg-star-50 p-4">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className={formStyles.subLabel}>
+                              Display Name
+                            </label>
+                            <input
+                              value={form.name}
+                              onChange={(event) =>
+                                setForm((current) => ({
+                                  ...current,
+                                  name: event.target.value,
+                                }))
+                              }
+                              className={formStyles.field}
+                            />
+                          </div>
+                          <div>
+                            <label className={formStyles.subLabel}>
+                              Relationship
+                            </label>
+                            <select
+                              value={form.relationship}
+                              onChange={(event) =>
+                                setForm((current) => ({
+                                  ...current,
+                                  relationship: event.target
+                                    .value as StoryPersonRelationship,
+                                }))
+                              }
+                              className={formStyles.field}
+                            >
+                              {STORY_PERSON_RELATIONSHIPS.map(
+                                (relationship) => (
+                                  <option
+                                    key={relationship}
+                                    value={relationship}
+                                  >
+                                    {relationshipLabel(relationship)}
+                                  </option>
+                                )
+                              )}
+                            </select>
+                          </div>
+                          <div>
+                            <label className={formStyles.subLabel}>
+                              Pronouns
+                            </label>
+                            <input
+                              value={form.pronouns}
+                              onChange={(event) =>
+                                setForm((current) => ({
+                                  ...current,
+                                  pronouns: event.target.value,
+                                }))
+                              }
+                              placeholder="she/her, he/him, they/them"
+                              className={formStyles.field}
+                            />
+                          </div>
+                          <div>
+                            <div className="flex items-center justify-between gap-3">
+                              <label className={formStyles.subLabel}>
+                                Personality
+                              </label>
+                              <span className="text-xs font-bold text-night-300">
+                                {splitList(form.personality).length}/3
+                              </span>
+                            </div>
+                            <div className="mb-2 flex flex-wrap gap-2">
+                              {PERSONALITY_OPTIONS.map((option) => {
+                                const selected = splitList(
+                                  form.personality
+                                ).includes(option);
+                                return (
+                                  <button
+                                    key={option}
+                                    type="button"
+                                    onClick={() =>
+                                      toggleListField("personality", option)
+                                    }
+                                    className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                                      selected
+                                        ? "bg-night-700 text-moon-200"
+                                        : "bg-white text-night-600 hover:bg-night-100"
+                                    }`}
+                                  >
+                                    {option}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <input
+                              value={form.personality}
+                              onChange={(event) =>
+                                setForm((current) => ({
+                                  ...current,
+                                  personality: event.target.value,
+                                }))
+                              }
+                              className={formStyles.field}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className={formStyles.subLabel}>
+                              Appearance
+                            </label>
+                            <textarea
+                              value={form.appearance}
+                              onChange={(event) =>
+                                setForm((current) => ({
+                                  ...current,
+                                  appearance: event.target.value,
+                                }))
+                              }
+                              rows={3}
+                              className={formStyles.textarea}
+                            />
+                          </div>
+                          <div>
+                            <div className="flex items-center justify-between gap-3">
+                              <label className={formStyles.subLabel}>
+                                Story Role
+                              </label>
+                              <span className="text-xs font-bold text-night-300">
+                                {splitList(form.description).length}/3
+                              </span>
+                            </div>
+                            <div className="mb-2 flex flex-wrap gap-2">
+                              {STORY_ROLE_OPTIONS.map((option) => {
+                                const selected = splitList(
+                                  form.description
+                                ).includes(option);
+                                return (
+                                  <button
+                                    key={option}
+                                    type="button"
+                                    onClick={() =>
+                                      toggleListField("description", option)
+                                    }
+                                    className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                                      selected
+                                        ? "bg-night-700 text-moon-200"
+                                        : "bg-white text-night-600 hover:bg-night-100"
+                                    }`}
+                                  >
+                                    {option}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <textarea
+                              value={form.description}
+                              onChange={(event) =>
+                                setForm((current) => ({
+                                  ...current,
+                                  description: event.target.value,
+                                }))
+                              }
+                              rows={3}
+                              className={formStyles.textarea}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mt-3 rounded-xl border border-night-100 bg-white p-3">
+                          <label className="flex items-start gap-3 text-sm font-semibold text-night-700">
+                            <input
+                              type="checkbox"
+                              checked={form.availableToAllProfiles}
+                              onChange={(event) =>
+                                setForm((current) => ({
+                                  ...current,
+                                  availableToAllProfiles: event.target.checked,
+                                }))
+                              }
+                              className="mt-1 h-4 w-4 rounded border-night-300"
+                            />
+                            Available For All Children
+                          </label>
+                          {!form.availableToAllProfiles ? (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {profiles.map((profile) => (
+                                <button
+                                  key={profile.id}
+                                  type="button"
+                                  onClick={() => toggleProfile(profile.id)}
+                                  className={`rounded-full px-3 py-1.5 text-sm font-bold transition ${
+                                    form.profileIds.includes(profile.id)
+                                      ? "bg-night-700 text-moon-200"
+                                      : "bg-night-50 text-night-600 hover:bg-night-100"
+                                  }`}
+                                >
+                                  {profile.name}
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <Button
+                            size="compact"
+                            onClick={submit}
+                            disabled={saving || !form.name.trim()}
+                          >
+                            {saving ? "Saving..." : "Save Changes"}
+                          </Button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setForm({
+                                ...EMPTY_FORM,
+                                profileIds: defaultProfileId
+                                  ? [defaultProfileId]
+                                  : [],
+                              })
+                            }
+                            className={buttonClassName({
+                              variant: "secondary",
+                              size: "compact",
+                            })}
+                            disabled={saving}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {!editing ? (
+                      <div className="mt-4 grid gap-3 text-sm leading-6 text-night-600 sm:grid-cols-2">
+                        {person.personality ? (
+                          <p>
+                            <span className="font-bold text-night-700">
+                              Personality:
+                            </span>{" "}
+                            {person.personality}
+                          </p>
+                        ) : null}
+                        {person.description ? (
+                          <p>
+                            <span className="font-bold text-night-700">
+                              Role:
+                            </span>{" "}
+                            {person.description}
+                          </p>
+                        ) : null}
+                        {person.appearance ? (
+                          <p className="sm:col-span-2">
+                            <span className="font-bold text-night-700">
+                              Appearance:
+                            </span>{" "}
+                            {person.appearance}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
 
                     <div className="mt-4 rounded-xl border border-night-100 bg-night-50 p-3">
                       <div className="grid gap-4 md:grid-cols-[8rem_1fr]">
@@ -632,6 +900,26 @@ export default function StoryPeopleManager({
                                     used once to create the illustrated
                                     reference.
                                   </p>
+                                  <label className="mt-3 block text-xs font-bold uppercase tracking-wide text-night-400">
+                                    Optional Adjustment
+                                  </label>
+                                  <textarea
+                                    value={pendingPhoto.adjustment}
+                                    onChange={(event) =>
+                                      setPendingPhotos((current) => ({
+                                        ...current,
+                                        [person.id]: {
+                                          ...pendingPhoto,
+                                          adjustment: event.target.value,
+                                        },
+                                      }))
+                                    }
+                                    rows={2}
+                                    maxLength={240}
+                                    placeholder="Example: less broad, softer smile, darker hair, keep the same glasses."
+                                    className={formStyles.textarea}
+                                    disabled={busy}
+                                  />
                                   <label className="mt-3 flex items-start gap-2 text-xs font-semibold leading-5 text-night-600">
                                     <input
                                       type="checkbox"

@@ -34,9 +34,16 @@ export async function POST(
       { status: 400 }
     );
   }
+  const adjustment = String(formData.get("adjustment") ?? "")
+    .trim()
+    .slice(0, 240);
 
   try {
-    const avatar = await createStoryPersonAvatar({ person, file: photo });
+    const avatar = await createStoryPersonAvatar({
+      person,
+      file: photo,
+      adjustment,
+    });
     const updated = await db.storyPeople.update(id, {
       avatarImageUrl: avatar.avatarImageUrl,
       appearance: avatar.appearance,

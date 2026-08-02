@@ -174,6 +174,7 @@ describe("/api/story-people", () => {
     expect(mockCreateStoryPersonAvatar).toHaveBeenCalledWith({
       person,
       file: expect.any(File),
+      adjustment: "",
     });
     expect(mockDb.storyPeople.update).toHaveBeenCalledWith("person-1", {
       avatarImageUrl: "https://assets.example.com/avatar.jpg",
@@ -222,6 +223,7 @@ describe("/api/story-people", () => {
     expect(mockCreateChildProfileAvatar).toHaveBeenCalledWith({
       profile,
       file: expect.any(File),
+      adjustment: "",
     });
     expect(mockDb.profiles.update).toHaveBeenCalledWith("profile-1", {
       avatarImageUrl: "https://assets.example.com/child-avatar.jpg",

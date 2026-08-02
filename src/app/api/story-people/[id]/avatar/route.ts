@@ -1,0 +1,47 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+import { db } from "@/lib/db";
+import { createStoryPersonAvatar } from "@/lib/storyPeopleAvatars";
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { userId } = await auth();
+  if (!userId)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  const person = await db.storyPeople.getById(id);
+  if (!person || person.userId !== userId) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const formData = await req.formData();
+  const photo = formData.get("photo");
+  if (!(photo instanceof File)) {
+    return NextResponse.json(
+      { error: "Please upload a photo." },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const avatar = await createStoryPersonAvatar({ person, file: photo });
+    const updated = await db.storyPeople.update(id, {
+      avatarImageUrl: avatar.avatarImageUrl,
+      appearanceSummary: avatar.appearanceSummary,
+    });
+    return NextResponse.json(updated);
+  } catch (err) {
+    return NextResponse.json(
+      {
+        error:
+          err instanceof Error
+            ? err.message
+            : "Could not create the illustrated reference.",
+      },
+      { status: 502 }
+    );
+  }
+}

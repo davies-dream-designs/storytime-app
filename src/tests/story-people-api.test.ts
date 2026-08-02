@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import type { ChildProfile, StoryPerson } from "@/types";
 
-const { mockAuth, mockDb } = vi.hoisted(() => ({
+const { mockAuth, mockCreateStoryPersonAvatar, mockDb } = vi.hoisted(() => ({
   mockAuth: vi.fn(async () => ({ userId: "user-1" })),
+  mockCreateStoryPersonAvatar: vi.fn(),
   mockDb: {
     profiles: {
       getByUserId: vi.fn(),
@@ -11,7 +12,9 @@ const { mockAuth, mockDb } = vi.hoisted(() => ({
     storyPeople: {
       getByUserId: vi.fn(),
       getByProfileId: vi.fn(),
+      getById: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
     },
   },
 }));
@@ -22,6 +25,10 @@ vi.mock("@clerk/nextjs/server", () => ({
 
 vi.mock("@/lib/db", () => ({
   db: mockDb,
+}));
+
+vi.mock("@/lib/storyPeopleAvatars", () => ({
+  createStoryPersonAvatar: mockCreateStoryPersonAvatar,
 }));
 
 const profiles: ChildProfile[] = [
@@ -46,8 +53,14 @@ describe("/api/story-people", () => {
     mockAuth.mockResolvedValue({ userId: "user-1" });
     mockDb.profiles.getByUserId.mockResolvedValue(profiles);
     mockDb.storyPeople.create.mockResolvedValue(undefined);
+    mockDb.storyPeople.getById.mockResolvedValue(undefined);
+    mockDb.storyPeople.update.mockResolvedValue(undefined);
     mockDb.storyPeople.getByUserId.mockResolvedValue([]);
     mockDb.storyPeople.getByProfileId.mockResolvedValue([]);
+    mockCreateStoryPersonAvatar.mockResolvedValue({
+      avatarImageUrl: "https://assets.example.com/avatar.jpg",
+      appearanceSummary: "Warm storybook reference.",
+    });
   });
 
   it("creates a reusable story person linked only to owned profiles", async () => {
@@ -105,5 +118,48 @@ describe("/api/story-people", () => {
       "profile-1",
       "user-1"
     );
+  });
+
+  it("creates an illustrated reference from a photo for an owned story person", async () => {
+    const person: StoryPerson = {
+      id: "person-1",
+      userId: "user-1",
+      name: "Mum",
+      relationship: "mum",
+      description: "",
+      personality: "",
+      appearance: "",
+      availableToAllProfiles: true,
+      profileIds: [],
+      createdAt: "2026-07-15T00:00:00.000Z",
+      updatedAt: "2026-07-15T00:00:00.000Z",
+    };
+    mockDb.storyPeople.getById.mockResolvedValue(person);
+    mockDb.storyPeople.update.mockResolvedValue({
+      ...person,
+      avatarImageUrl: "https://assets.example.com/avatar.jpg",
+      appearanceSummary: "Warm storybook reference.",
+    });
+
+    const { POST } = await import("@/app/api/story-people/[id]/avatar/route");
+    const form = new FormData();
+    form.append("photo", new File(["fake"], "mum.jpg", { type: "image/jpeg" }));
+    const req = {
+      formData: async () => form,
+    } as NextRequest;
+
+    const res = await POST(req, {
+      params: Promise.resolve({ id: "person-1" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockCreateStoryPersonAvatar).toHaveBeenCalledWith({
+      person,
+      file: expect.any(File),
+    });
+    expect(mockDb.storyPeople.update).toHaveBeenCalledWith("person-1", {
+      avatarImageUrl: "https://assets.example.com/avatar.jpg",
+      appearanceSummary: "Warm storybook reference.",
+    });
   });
 });

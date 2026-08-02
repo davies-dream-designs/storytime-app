@@ -67,16 +67,20 @@ export default function StoryPeopleManager({
   profiles,
   initialPeople,
 }: {
-  currentProfileId: string;
+  currentProfileId?: string;
   profiles: ChildProfile[];
   initialPeople: StoryPerson[];
 }) {
+  const defaultProfileId = currentProfileId ?? profiles[0]?.id ?? "";
   const [people, setPeople] = useState(initialPeople);
   const [form, setForm] = useState<FormState>({
     ...EMPTY_FORM,
-    profileIds: [currentProfileId],
+    profileIds: defaultProfileId ? [defaultProfileId] : [],
   });
   const [saving, setSaving] = useState(false);
+  const [generatingAvatarForId, setGeneratingAvatarForId] = useState<
+    string | null
+  >(null);
   const [error, setError] = useState("");
 
   function toggleProfile(profileId: string) {
@@ -116,7 +120,10 @@ export default function StoryPeopleManager({
           ? current.map((person) => (person.id === data.id ? data : person))
           : [data, ...current]
       );
-      setForm({ ...EMPTY_FORM, profileIds: [currentProfileId] });
+      setForm({
+        ...EMPTY_FORM,
+        profileIds: defaultProfileId ? [defaultProfileId] : [],
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -133,6 +140,39 @@ export default function StoryPeopleManager({
       setPeople((current) =>
         current.filter((currentPerson) => currentPerson.id !== person.id)
       );
+    }
+  }
+
+  async function generateAvatar(person: StoryPerson, file: File | undefined) {
+    if (!file) return;
+    setError("");
+    setGeneratingAvatarForId(person.id);
+    try {
+      const formData = new FormData();
+      formData.append("photo", file);
+      const res = await fetch(`/api/story-people/${person.id}/avatar`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = (await res.json()) as StoryPerson | { error?: string };
+      if (!res.ok || !isStoryPerson(data)) {
+        const message = isStoryPerson(data)
+          ? "Could not create the illustrated reference"
+          : data.error;
+        throw new Error(
+          message ?? "Could not create the illustrated reference"
+        );
+      }
+      setPeople((current) =>
+        current.map((currentPerson) =>
+          currentPerson.id === data.id ? data : currentPerson
+        )
+      );
+      if (form.id === data.id) setForm(formFromPerson(data));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setGeneratingAvatarForId(null);
     }
   }
 
@@ -291,7 +331,10 @@ export default function StoryPeopleManager({
               <button
                 type="button"
                 onClick={() =>
-                  setForm({ ...EMPTY_FORM, profileIds: [currentProfileId] })
+                  setForm({
+                    ...EMPTY_FORM,
+                    profileIds: defaultProfileId ? [defaultProfileId] : [],
+                  })
                 }
                 className={buttonClassName({
                   variant: "secondary",
@@ -314,9 +357,19 @@ export default function StoryPeopleManager({
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex min-w-0 gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-star-200 to-moon-200 font-display text-lg font-bold text-night-800">
-                    {person.name[0]?.toUpperCase()}
-                  </div>
+                  {person.avatarImageUrl ? (
+                    <div
+                      className="h-12 w-12 shrink-0 rounded-full bg-cover bg-center"
+                      style={{
+                        backgroundImage: `url("${person.avatarImageUrl}")`,
+                      }}
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-star-200 to-moon-200 font-display text-lg font-bold text-night-800">
+                      {person.name[0]?.toUpperCase()}
+                    </div>
+                  )}
                   <div className="min-w-0">
                     <h3 className="truncate font-display text-xl font-bold text-night-800">
                       {person.name}
@@ -374,6 +427,47 @@ export default function StoryPeopleManager({
                     {person.appearance}
                   </p>
                 ) : null}
+              </div>
+
+              <div className="mt-4 rounded-xl border border-night-100 bg-night-50 p-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-night-700">
+                      Illustrated Reference
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-night-500">
+                      Upload a photo to create a Storycot-style reference. The
+                      source photo is used once and is not stored.
+                    </p>
+                  </div>
+                  <label
+                    className={buttonClassName({
+                      variant: "secondary",
+                      size: "compact",
+                      className:
+                        generatingAvatarForId === person.id
+                          ? "pointer-events-none opacity-60"
+                          : "cursor-pointer",
+                    })}
+                  >
+                    <Icon name="image" />
+                    {generatingAvatarForId === person.id
+                      ? "Creating..."
+                      : person.avatarImageUrl
+                        ? "Replace"
+                        : "Add Photo"}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="sr-only"
+                      disabled={generatingAvatarForId === person.id}
+                      onChange={(event) => {
+                        void generateAvatar(person, event.target.files?.[0]);
+                        event.target.value = "";
+                      }}
+                    />
+                  </label>
+                </div>
               </div>
 
               <p className="mt-4 rounded-full bg-night-50 px-3 py-1 text-xs font-semibold text-night-500">

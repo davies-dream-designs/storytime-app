@@ -186,7 +186,20 @@ export default async function ProfilePage({
                 <div className="space-y-3">
                   {storyPeople.slice(0, 4).map((person) => (
                     <div key={person.id} className="rounded-xl bg-star-50 p-3">
-                      <p className="font-bold text-night-700">{person.name}</p>
+                      <div className="flex items-center gap-2">
+                        {person.avatarImageUrl ? (
+                          <span
+                            className="h-8 w-8 shrink-0 rounded-full bg-cover bg-center"
+                            style={{
+                              backgroundImage: `url("${person.avatarImageUrl}")`,
+                            }}
+                            aria-hidden="true"
+                          />
+                        ) : null}
+                        <p className="font-bold text-night-700">
+                          {person.name}
+                        </p>
+                      </div>
                       <p className="mt-0.5 text-xs capitalize text-night-500">
                         {person.relationship.replace("_", " ")}
                       </p>
@@ -210,7 +223,7 @@ export default async function ProfilePage({
                 </p>
               )}
               <Link
-                href={`/profiles/${id}/characters` as string}
+                href="/family"
                 className="mt-4 block text-center text-sm font-bold text-star-500 hover:text-star-600"
               >
                 Manage Family & Friends

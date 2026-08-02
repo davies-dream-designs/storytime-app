@@ -517,7 +517,7 @@ function GenerateForm() {
                   </p>
                 </div>
                 <Link
-                  href={`/profiles/${profileId}/characters` as string}
+                  href="/family"
                   className={buttonClassName({
                     variant: "secondary",
                     size: "compact",
@@ -547,9 +547,19 @@ function GenerateForm() {
                           "flex min-h-20 items-center gap-3 rounded-xl p-3 text-left"
                         )}
                       >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-moon-100 font-display font-bold text-night-700">
-                          {person.name[0]?.toUpperCase()}
-                        </span>
+                        {person.avatarImageUrl ? (
+                          <span
+                            className="h-10 w-10 shrink-0 rounded-full bg-cover bg-center"
+                            style={{
+                              backgroundImage: `url("${person.avatarImageUrl}")`,
+                            }}
+                            aria-hidden="true"
+                          />
+                        ) : (
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-moon-100 font-display font-bold text-night-700">
+                            {person.name[0]?.toUpperCase()}
+                          </span>
+                        )}
                         <span className="min-w-0">
                           <span className="block truncate font-bold text-night-800">
                             {person.name}

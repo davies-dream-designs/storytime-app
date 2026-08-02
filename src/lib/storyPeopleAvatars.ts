@@ -40,12 +40,14 @@ function buildAvatarPrompt(person: StoryPerson): string {
     person.pronouns ? `Pronouns: ${person.pronouns}.` : "",
     person.description ? `Role notes: ${person.description}.` : "",
     person.personality ? `Personality: ${person.personality}.` : "",
-    "Use the uploaded photo only as private visual reference for broad visible features, posture, colouring, and expression.",
+    "Use the uploaded photo only as private visual reference for broad visible body, face, hair or fur, posture, colouring, and expression.",
     "Treat the uploaded photo as the visual source of truth. Do not exaggerate body shape, age, expression, or proportions from written profile notes.",
+    "Do not copy any clothing graphics, logos, printed text, costumes, branded characters, franchise characters, toy characters, mascot art, or recognisable protected designs visible in the photo.",
+    "For people, use a head-and-shoulders portrait with a plain unbranded jumper or top in a gentle Storycot palette. If the photo shows character-print clothing, replace it with simple solid-colour clothing with no graphics or lettering.",
     "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
-    "Make it suitable as a reusable character reference for Storycot hardcover interiors and child profile illustrations: square crop, head-and-shoulders or full pet pose, clear visible features, stable outfit/markings, no scene-specific props unless requested.",
+    "Make it suitable as a reusable character reference for Storycot hardcover interiors and child profile illustrations: square crop, head-and-shoulders person portrait or full pet pose, clear visible features, stable unbranded outfit or pet markings, no scene-specific props unless requested.",
     "Do not make a photorealistic portrait, caricature, sticker, logo, toy packaging image, or social-media avatar.",
-    "No text, watermark, logos, franchise styling, celebrity styling, or exact copy of clothing logos.",
+    "No text, watermark, logos, franchise styling, celebrity styling, recognisable character prints, or exact copy of clothing designs.",
   ]
     .filter(Boolean)
     .join(" ");
@@ -63,12 +65,13 @@ function buildChildAvatarPrompt(
     analysis.appearance
       ? `Photo-derived visible notes: ${analysis.appearance}.`
       : "",
-    "Use the uploaded photo only as private visual reference for broad visible features, posture, colouring, and expression.",
+    "Use the uploaded photo only as private visual reference for broad visible face, hair, posture, colouring, and expression.",
     "Treat the uploaded photo as the visual source of truth. Do not exaggerate body shape, age, expression, or proportions from written profile notes.",
+    "Do not copy any clothing graphics, logos, printed text, costumes, branded characters, franchise characters, toy characters, mascot art, or recognisable protected designs visible in the photo.",
     "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
-    "Make it suitable as a reusable child reference for Storycot hardcover interiors: square crop, child-safe clothing, clear visible features, stable outfit guidance, no scene-specific props unless already in the profile.",
+    "Make it suitable as a reusable child reference for Storycot hardcover interiors: square crop, plain unbranded child-safe clothing in a gentle Storycot palette, clear visible features, stable outfit guidance, no scene-specific props unless already in the profile.",
     "Do not make a photorealistic portrait, caricature, sticker, logo, toy packaging image, or social-media avatar.",
-    "No text, watermark, logos, franchise styling, celebrity styling, or exact copy of clothing logos.",
+    "No text, watermark, logos, franchise styling, celebrity styling, recognisable character prints, or exact copy of clothing designs.",
   ]
     .filter(Boolean)
     .join(" ");
@@ -179,9 +182,9 @@ async function analyzePhoto(input: {
             },
             {
               type: "text",
-              text: `Describe only visible, non-sensitive appearance details that help keep this ${input.subject} consistent in original Storycot bedtime illustrations. Do not identify the person, infer ethnicity, health, personality, age beyond broad child/adult if obvious, or any sensitive trait. Do not mention the photo or camera. Return only JSON:
+              text: `Describe only visible, non-sensitive appearance details that help keep this ${input.subject} consistent in original Storycot bedtime illustrations. Do not identify the person, infer ethnicity, health, personality, age beyond broad child/adult if obvious, or any sensitive trait. Ignore and do not name any logos, text, brand marks, franchise characters, toy characters, mascot art, costumes, or clothing graphics; for clothing mention only plain generic colour/type if useful. Do not mention the photo or camera. Return only JSON:
 {
-  "appearance": "one concise sentence of visible features, hair/fur/markings/clothing/accessories/expression",
+  "appearance": "one concise sentence of visible features, hair/fur/markings, plain generic clothing colour/type if useful, accessories, and expression, with no brands or character prints",
   "appearanceSummary": "short reusable illustration reference summary"
 }`,
             },

@@ -27,6 +27,7 @@ describe("IP guardrails", () => {
       riskLevel: "originalized",
       printAllowed: true,
       reasons: expect.arrayContaining(["protected_reference"]),
+      matchedTerms: ["Toy Story", "Woody"],
     });
     expect(result.originalizedPremise).toContain(
       "Replace any named source material"
@@ -80,6 +81,74 @@ describe("IP guardrails", () => {
     expect(result).toMatchObject({
       riskLevel: "restricted",
       printAllowed: false,
+      matchedTerms: ["Buzz Lightyear"],
+    });
+  });
+
+  it("does not block ordinary uses of broad words like frozen", () => {
+    const result = assessGeneratedStoryIp({
+      title: "Bailey and the Frozen Pond",
+      theme: "patience",
+      premise: "",
+      notes: "",
+      pages: [
+        {
+          pageNumber: 1,
+          text: "Bailey watched a frozen pond sparkle in the morning light.",
+          illustrationPrompt:
+            "An original winter pond with a warmly dressed child nearby.",
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      riskLevel: "clear",
+      printAllowed: true,
+    });
+  });
+
+  it("does not block ordinary phrases like brand new", () => {
+    const result = assessGeneratedStoryIp({
+      title: "Bailey's Brand New Boat",
+      theme: "curiosity",
+      premise: "",
+      notes: "",
+      pages: [
+        {
+          pageNumber: 1,
+          text: "Bailey found a brand new paper boat beside the window.",
+          illustrationPrompt:
+            "An original cosy bedroom scene with a child holding a paper boat.",
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      riskLevel: "clear",
+      printAllowed: true,
+    });
+  });
+
+  it("still blocks explicit brand or logo source wording", () => {
+    const result = assessGeneratedStoryIp({
+      title: "Bailey's Boat",
+      theme: "curiosity",
+      premise: "",
+      notes: "",
+      pages: [
+        {
+          pageNumber: 1,
+          text: "Bailey found a toy with a brand logo on the sail.",
+          illustrationPrompt:
+            "A toy boat with a brand logo in a cosy bedroom.",
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      riskLevel: "restricted",
+      printAllowed: false,
+      reasons: expect.arrayContaining(["source_or_style_reference"]),
     });
   });
 

@@ -34,7 +34,7 @@ export default function SupportPage() {
   const gettingStarted: FAQItem[] = [
     {
       q: "How do credits work?",
-      a: "Every new account gets 3 free credits to get started. Each text story costs 1 credit, and generating illustrations costs from 8 credits depending on your child's age. You can buy more credit packs any time from your account page.",
+      a: "Every new account gets 3 free credits to get started. Each text story costs 1 credit, and generating illustrations costs from 6 credits depending on your child's age and book length. You can buy more credit packs any time from your account page.",
     },
     {
       q: "How do I generate a story?",
@@ -57,11 +57,11 @@ export default function SupportPage() {
     },
     {
       q: "How much does an illustrated book cost?",
-      a: "Generating illustrations costs from 8 credits, depending on your child's age — 8 for ages 0–2, 9 for ages 3–5, and 11 for ages 6–8. Once illustrations are ready, you can unlock your digital download (PDF, EPUB, and illustrations) for a separate one-off payment of $9.95 AUD.",
+      a: "Generating illustrations costs from 6 credits, depending on your child's age and book length — 6 for Tiny Tales, 9 for Bedtime Adventures, and 11 for Older Readers. Once illustrations are ready, you can unlock your digital download (PDF, e-reader file, and illustrations) for a separate one-off payment of $9.95 AUD.",
     },
     {
       q: "Can I download my illustrated book?",
-      a: "Yes - once illustrations are ready, you can download your book as a PDF or EPUB from the book page. Downloads are available for 180 days after your book is ready.",
+      a: "Yes - once illustrations are ready, you can download your book as a PDF or e-reader file from the book page. Downloads are available for 180 days after your book is ready.",
     },
     {
       q: "What happens if the illustrations fail to generate?",
@@ -111,6 +111,41 @@ export default function SupportPage() {
     },
   ];
 
+  const publicGallery: FAQItem[] = [
+    {
+      q: "Can I make a story public?",
+      a: "Yes. Once a story has an illustrated book with a cover, you can submit it for public review. It will not appear in the public gallery until Storycot approves it.",
+    },
+    {
+      q: "Can I share a plain text story publicly?",
+      a: "Not right now. Public gallery and share links are for illustrated Storycot books, so readers see the cover art and creators have a reason to turn favourite stories into finished books.",
+    },
+    {
+      q: "Why does public sharing need review first?",
+      a: "Public illustrated stories can include child names, family details, generated images, or copyrighted ideas by mistake. Review helps keep the gallery safe, original, and suitable for families before anyone else can discover it.",
+    },
+    {
+      q: "Can other people vote for my public story?",
+      a: "Yes. Signed-in readers can vote once per story each month. Story creators cannot count votes on their own stories.",
+    },
+    {
+      q: "Are public stories purchasable?",
+      a: "Not yet. Public book purchases are planned once moderation, legal wording, pricing safeguards, and Lulu print-on-demand handling are ready. Having an illustrated book and cover is the first eligibility step.",
+    },
+    {
+      q: "Do public gallery winners get paid?",
+      a: "No cash payouts are offered for public gallery rewards. Storycot may offer small promotional rewards such as credits, badges, discounts, or featured placement.",
+    },
+    {
+      q: "Can a public story be reported or removed?",
+      a: "Yes. Signed-in readers can report public stories. Storycot can hide, reject, or remove a public story if it includes private details, unsafe content, spam, or material the creator does not have rights to use.",
+    },
+    {
+      q: "Can I fix a public story after review?",
+      a: "Yes. You can edit the title, theme, author display name, and story page text from the story page. Saving edits removes public/share access and sends the story back to private so you can resubmit it for review.",
+    },
+  ];
+
   const billing: FAQItem[] = [
     {
       q: "How do I buy more credits?",
@@ -154,6 +189,7 @@ export default function SupportPage() {
         <FAQSection title="Illustrated books" items={illustratedBooks} />
         <FAQSection title="Voice narration" items={voiceNarration} />
         <FAQSection title="Hardcover books" items={hardcoverBooks} />
+        <FAQSection title="Public gallery" items={publicGallery} />
         <FAQSection title="Billing &amp; refunds" items={billing} />
 
         {/* Contact card */}

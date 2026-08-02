@@ -27,14 +27,38 @@ const LOCALE_LANGUAGE: Record<string, string> = {
 };
 
 const STORY_PRESET_CONFIG = {
-  "tiny-tales": { words: "150–250", pages: "4–6", sentencesPerPage: "1" },
+  "tiny-tales": {
+    words: "150–250",
+    pages: "4–6",
+    maxPages: 6,
+    sentencesPerPage: "1",
+  },
   "moonlit-adventures": {
     words: "350–550",
     pages: "8–10",
+    maxPages: 10,
     sentencesPerPage: "2–3",
   },
-  "epic-sagas": { words: "600–900", pages: "10–14", sentencesPerPage: "3–4" },
+  "epic-sagas": {
+    words: "600–900",
+    pages: "10–14",
+    maxPages: 14,
+    sentencesPerPage: "3–4",
+  },
 } as const;
+
+function buildGenderPromptLine(profile: ChildProfile): string {
+  switch (profile.gender) {
+    case "girl":
+      return "- Gender/pronouns: girl; use she/her where pronouns are needed";
+    case "boy":
+      return "- Gender/pronouns: boy; use he/him where pronouns are needed";
+    case "non_binary":
+      return "- Gender/pronouns: non-binary; use they/them where pronouns are needed";
+    default:
+      return "- Gender/pronouns: not specified; avoid assuming gender from the child's name and use the child's name when pronouns would be unclear";
+  }
+}
 
 interface GenerateStoryInput {
   profile: ChildProfile;
@@ -52,6 +76,19 @@ interface GeneratedStory {
   pages: StoryPage[];
 }
 
+export const STORY_GENERATION_RETRY_MESSAGE =
+  "Story generation hit a formatting problem. Please try again.";
+
+export class StoryGenerationError extends Error {
+  constructor(
+    message = STORY_GENERATION_RETRY_MESSAGE,
+    public readonly technicalMessage?: string
+  ) {
+    super(message);
+    this.name = "StoryGenerationError";
+  }
+}
+
 function removeDashPunctuation(value: string): string {
   return value
     .replace(/[\u2013\u2014]/g, " ")
@@ -67,6 +104,38 @@ export function normalizeGeneratedStory(story: GeneratedStory): GeneratedStory {
       ...page,
       text: removeDashPunctuation(page.text),
       illustrationPrompt: removeDashPunctuation(page.illustrationPrompt),
+    })),
+  };
+}
+
+function pageTextFingerprint(value: string): string {
+  return removeDashPunctuation(value)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function prepareGeneratedStoryForPostCheck(
+  input: Pick<GenerateStoryInput, "storyPreset">,
+  story: GeneratedStory
+): GeneratedStory {
+  const preset = STORY_PRESET_CONFIG[input.storyPreset ?? "moonlit-adventures"];
+  const seenTexts = new Set<string>();
+  const uniquePages: StoryPage[] = [];
+
+  for (const page of story.pages) {
+    const fingerprint = pageTextFingerprint(page.text);
+    if (fingerprint && seenTexts.has(fingerprint)) continue;
+    if (fingerprint) seenTexts.add(fingerprint);
+    uniquePages.push(page);
+  }
+
+  return {
+    ...story,
+    pages: uniquePages.slice(0, preset.maxPages).map((page, index) => ({
+      ...page,
+      pageNumber: index + 1,
     })),
   };
 }
@@ -115,6 +184,7 @@ ${recentTitles.map((t) => `- ${t}`).join("\n")}`
   return `You are a magical storyteller creating a personalised bedtime story for a child.
 
 Child: ${profile.name}, age ${getAge(profile)}
+${buildGenderPromptLine(profile)}
 - Theme/lesson: ${theme || "a gentle adventure"}
 ${characterSection}${premiseSection}${notesSection}${avoidSection}
 
@@ -124,7 +194,7 @@ Write the story in ${language}. Write a warm, age-appropriate bedtime story that
 3. Uses simple vocabulary appropriate for age ${getAge(profile)}
 4. Is approximately ${len.words} words total
 5. Has a positive, cosy tone ending with ${profile.name} settling down to sleep
-6. Naturally weaves in the theme: ${theme || "a gentle adventure"}
+6. Clearly weaves in the theme: ${theme || "a gentle adventure"}. Include one small age-appropriate moment where ${profile.name} notices, practices, or learns this theme through action, then carry that lesson into the calm ending.
 7. Feels FRESH and DIFFERENT from typical stories - surprise us with the opening
 8. Uses some warm repetition suitable for young children
 9. Does NOT include "The End", "Sweet dreams", "Goodnight", or any closing sign-off in the story text - the last page ends naturally with the child drifting to sleep
@@ -235,7 +305,7 @@ async function postCheckStory(
 
   return validatePostCheckedStory(
     normalized,
-    parseGeneratedStory(content.text.trim())
+    await parseGeneratedStoryWithRepair(content.text.trim(), "post-check")
   );
 }
 
@@ -252,17 +322,91 @@ export async function generateStory(
   if (content.type !== "text")
     throw new Error("Unexpected response type from AI");
 
-  return postCheckStory(input, parseGeneratedStory(content.text.trim()));
+  return postCheckStory(
+    input,
+    prepareGeneratedStoryForPostCheck(
+      input,
+      await parseGeneratedStoryWithRepair(content.text.trim(), "initial story")
+    )
+  );
 }
 
-function parseGeneratedStory(raw: string): GeneratedStory {
+function parseGeneratedStory(raw: string): GeneratedStory | undefined {
   try {
     return JSON.parse(raw) as GeneratedStory;
   } catch {
     const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("Could not parse story from AI response");
-    return JSON.parse(match[0]) as GeneratedStory;
+    if (!match) return undefined;
+    try {
+      return JSON.parse(match[0]) as GeneratedStory;
+    } catch {
+      return undefined;
+    }
   }
+}
+
+async function repairGeneratedStoryJson(raw: string, stage: string) {
+  const message = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 4096,
+    messages: [
+      {
+        role: "user",
+        content: `Repair this malformed Storycot story JSON from the ${stage} step.
+
+Return ONLY valid JSON matching:
+{
+  "title": "A short magical title",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "text": "Story text",
+      "illustrationPrompt": "Image-safe illustration prompt"
+    }
+  ]
+}
+
+Do not add markdown or commentary. Preserve the story content as much as possible.
+
+Malformed JSON:
+${raw}`,
+      },
+    ],
+  });
+
+  const content = message.content[0];
+  if (content.type !== "text") {
+    throw new StoryGenerationError(
+      STORY_GENERATION_RETRY_MESSAGE,
+      "Unexpected response type from story JSON repair"
+    );
+  }
+  return content.text.trim();
+}
+
+async function parseGeneratedStoryWithRepair(
+  raw: string,
+  stage: string
+): Promise<GeneratedStory> {
+  const parsed = parseGeneratedStory(raw);
+  if (parsed) return parsed;
+
+  try {
+    const repaired = await repairGeneratedStoryJson(raw, stage);
+    const parsedRepair = parseGeneratedStory(repaired);
+    if (parsedRepair) return parsedRepair;
+  } catch (error) {
+    if (error instanceof StoryGenerationError) throw error;
+    throw new StoryGenerationError(
+      STORY_GENERATION_RETRY_MESSAGE,
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+
+  throw new StoryGenerationError(
+    STORY_GENERATION_RETRY_MESSAGE,
+    `Could not parse story JSON from ${stage}`
+  );
 }
 
 function unescapePartialJsonString(value: string): string {
@@ -325,8 +469,10 @@ export function extractStoryTextSnapshot(raw: string): string[] {
 
 export async function streamStory(
   input: GenerateStoryInput,
-  onSnapshot: (pages: string[]) => void
+  onSnapshot: (pages: string[]) => void,
+  onStage?: (stage: "drafting" | "polishing") => void
 ): Promise<GeneratedStory> {
+  onStage?.("drafting");
   const stream = client.messages.stream({
     model: "claude-sonnet-4-6",
     max_tokens: 4096,
@@ -344,42 +490,69 @@ export async function streamStory(
   });
 
   const raw = await stream.finalText();
-  return postCheckStory(input, parseGeneratedStory(raw.trim()));
+  onStage?.("polishing");
+  return postCheckStory(
+    input,
+    prepareGeneratedStoryForPostCheck(
+      input,
+      await parseGeneratedStoryWithRepair(raw.trim(), "streamed story")
+    )
+  );
 }
 
 export async function generateSuggestions(
   profile: ChildProfile,
   recentTitles: string[],
-  locale?: string
+  locale?: string,
+  options: {
+    selectedTheme?: string;
+    previousSuggestions?: StorySuggestion[];
+  } = {}
 ): Promise<StorySuggestion[]> {
   const language = LOCALE_LANGUAGE[locale ?? "en"] ?? "English";
+  const selectedTheme =
+    options.selectedTheme?.trim() || profile.lessons?.[0] || "calm bedtime";
 
   const avoidSection =
     recentTitles.length > 0
       ? `\nDon't suggest stories similar to these recent ones: ${recentTitles.join(", ")}`
+      : "";
+  const previousIdeasSection =
+    options.previousSuggestions && options.previousSuggestions.length > 0
+      ? `\n\nAlready shown to the parent today (do NOT repeat these plots, settings, conflicts, titles, or endings):\n${options.previousSuggestions
+          .map(
+            (suggestion) =>
+              `- ${suggestion.title}: ${suggestion.premise} [theme: ${suggestion.theme}]`
+          )
+          .join("\n")}`
       : "";
 
   const prompt = `You are a creative children's story idea generator.
 
 Child profile:
 - Name: ${profile.name}, age ${getAge(profile)}
+${buildGenderPromptLine(profile)}
 - Appearance: ${buildChildAppearanceSummary(profile.appearance) || "No structured appearance details provided."}
-- Favourite characters/toys: ${(profile.favouriteCharacters ?? []).join(", ") || "none"}
+- Favourite toys: ${(profile.favouriteCharacters ?? []).join(", ") || "none"}
 - Favourite activities: ${(profile.favouriteActivities ?? []).join(", ") || "none"}
 - Favourite animals: ${(profile.favouriteAnimals ?? []).join(", ") || "none"}
 - Favourite places: ${(profile.favouritePlaces ?? []).join(", ") || "none"}
 - Themes they like: ${(profile.lessons ?? []).join(", ") || "adventure, kindness"}
+Selected theme for this batch: ${selectedTheme}
 ${avoidSection}
+${previousIdeasSection}
 
 Generate exactly 3 unique, imaginative bedtime story ideas for ${profile.name}.
 Each should:
+- Clearly express the selected theme: ${selectedTheme}
 - Use DIFFERENT elements from their profile (don't repeat the same toys/places across all 3)
+- Avoid repeating any profile element, setting, problem, or ending from the already-shown ideas
 - Have a fresh, specific premise - not generic ("goes on an adventure")
 - Be warm and cosy, suitable for bedtime
 - Feel genuinely different from each other in setting, tone, and focus
 
 Write the title and premise in ${language}.
-The "theme" field must always be a single English word (e.g. bravery, kindness, curiosity) - this is used as a database key.
+The "theme" field must be the selected theme in English, simplified to a short lowercase key if needed (e.g. bravery, kindness, curiosity, calm bedtime) - this is used as a database key.
 
 Respond ONLY with valid JSON - no markdown, no extra text:
 [

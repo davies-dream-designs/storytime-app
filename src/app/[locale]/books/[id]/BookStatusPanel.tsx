@@ -516,6 +516,10 @@ export default function BookStatusPanel({
   const isActiveBuild =
     (displayStatus !== "ready" && displayStatus !== "failed") ||
     Boolean(activeJobStatus);
+  const isPreparingFinalFiles =
+    displayStatus === "composing" &&
+    artworkPreviews.length > 0 &&
+    completedArtworkCount >= artworkPreviews.length;
 
   // Auto-advance reader to latest completed illustration during active builds
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -834,9 +838,7 @@ export default function BookStatusPanel({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={expandedImage.url}
-                    alt={
-                      expandedImage.displayLabel ?? "Selected illustration"
-                    }
+                    alt={expandedImage.displayLabel ?? "Selected illustration"}
                     className="max-h-[76vh] w-full object-contain"
                   />
                 </div>
@@ -879,7 +881,7 @@ export default function BookStatusPanel({
           </h2>
           <p className="mt-2 text-night-500">
             {isExportRefresh
-              ? "We’re refreshing the PDF, EPUB, and Lulu export files from the existing artwork."
+              ? "We’re refreshing the PDF, e-reader file, and print-order files from the existing artwork."
               : displayStatus === "ready"
                 ? t("illustratedPdfReadySub")
                 : displayStatus === "failed"
@@ -1058,8 +1060,9 @@ export default function BookStatusPanel({
           {/* Progress header */}
           <div className="mb-3 flex items-center justify-between gap-4">
             <p className="text-xs font-bold uppercase tracking-wide text-night-400">
-              {completedArtworkCount} of {artworkPreviews.length} illustrations
-              {isActiveBuild ? " loading…" : " complete"}
+              {isPreparingFinalFiles
+                ? "Preparing final book files..."
+                : `${completedArtworkCount} of ${artworkPreviews.length} illustrations${isActiveBuild ? " loading..." : " complete"}`}
             </p>
             {!isActiveBuild ? (
               <p className="text-xs font-bold text-night-400">

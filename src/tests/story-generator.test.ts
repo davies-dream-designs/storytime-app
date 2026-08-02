@@ -1,13 +1,27 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChildProfile, Character } from "@/types";
 import {
   buildStoryPostCheckPrompt,
   buildStoryPrompt,
+  generateSuggestions,
+  generateStory,
   normalizeGeneratedStory,
+  prepareGeneratedStoryForPostCheck,
+  streamStory,
 } from "@/lib/storyGenerator";
 
+const { mockMessagesCreate, mockMessagesStream } = vi.hoisted(() => ({
+  mockMessagesCreate: vi.fn(),
+  mockMessagesStream: vi.fn(),
+}));
+
 vi.mock("@anthropic-ai/sdk", () => ({
-  default: vi.fn(() => ({})),
+  default: vi.fn(() => ({
+    messages: {
+      create: mockMessagesCreate,
+      stream: mockMessagesStream,
+    },
+  })),
 }));
 
 function createProfile(): ChildProfile {
@@ -45,6 +59,22 @@ describe("buildStoryPrompt", () => {
     expect(prompt).toContain("no text in image");
     expect(prompt).toContain("IP originality requirements");
     expect(prompt).toContain("Do not use or imitate existing franchises");
+    expect(prompt).toContain(
+      "Gender/pronouns: not specified; avoid assuming gender"
+    );
+  });
+
+  it("uses selected gender guidance when the profile provides it", () => {
+    const prompt = buildStoryPrompt({
+      profile: { ...createProfile(), gender: "girl" },
+      characters: [],
+      theme: "kindness",
+      notes: "",
+      storyPreset: "moonlit-adventures",
+      locale: "en",
+    });
+
+    expect(prompt).toContain("Gender/pronouns: girl; use she/her");
   });
 
   it("does not include saved characters that look like protected source material", () => {
@@ -85,7 +115,61 @@ describe("buildStoryPrompt", () => {
   });
 });
 
+describe("generateSuggestions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("asks for fresh ideas around the selected theme while avoiding already-shown ideas", async () => {
+    mockMessagesCreate.mockResolvedValueOnce({
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify([
+            {
+              title: "The Listening Lantern",
+              premise: "Bailey helps a lantern hear the stars.",
+              theme: "listening",
+            },
+          ]),
+        },
+      ],
+    });
+
+    await expect(
+      generateSuggestions(createProfile(), ["The Moon Pond"], "en", {
+        selectedTheme: "listening",
+        previousSuggestions: [
+          {
+            title: "The Garden Rocket",
+            premise: "Bailey and a teddy fly to a garden moon.",
+            theme: "kindness",
+          },
+        ],
+      })
+    ).resolves.toEqual([
+      {
+        title: "The Listening Lantern",
+        premise: "Bailey helps a lantern hear the stars.",
+        theme: "listening",
+      },
+    ]);
+
+    const prompt = mockMessagesCreate.mock.calls[0]?.[0].messages[0].content;
+    expect(prompt).toContain("Selected theme for this batch: listening");
+    expect(prompt).toContain("Already shown to the parent today");
+    expect(prompt).toContain("The Garden Rocket");
+    expect(prompt).toContain(
+      "Don't suggest stories similar to these recent ones: The Moon Pond"
+    );
+  });
+});
+
 describe("story post-check", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("instructs the final editor to fix grammar, attribution, dashes, and IP leaks", () => {
     const prompt = buildStoryPostCheckPrompt(
       {
@@ -116,6 +200,134 @@ describe("story post-check", () => {
     expect(prompt).toContain("valid JSON");
   });
 
+  it("repairs malformed story JSON before surfacing a generation failure", async () => {
+    mockMessagesCreate
+      .mockResolvedValueOnce({
+        content: [
+          {
+            type: "text",
+            text: '{"title":"Bailey Moon","pages":[{"pageNumber":1,"text":"Bailey waved" "illustrationPrompt":"Bailey in a cosy room"}]}',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              title: "Bailey Moon",
+              pages: [
+                {
+                  pageNumber: 1,
+                  text: "Bailey waved.",
+                  illustrationPrompt: "Bailey in a cosy room.",
+                },
+              ],
+            }),
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              title: "Bailey Moon",
+              pages: [
+                {
+                  pageNumber: 1,
+                  text: "Bailey waved.",
+                  illustrationPrompt: "Bailey in a cosy room.",
+                },
+              ],
+            }),
+          },
+        ],
+      });
+
+    await expect(
+      generateStory({
+        profile: createProfile(),
+        characters: [],
+        theme: "kindness",
+        notes: "",
+        storyPreset: "tiny-tales",
+        locale: "en",
+      })
+    ).resolves.toEqual({
+      title: "Bailey Moon",
+      pages: [
+        {
+          pageNumber: 1,
+          text: "Bailey waved.",
+          illustrationPrompt: "Bailey in a cosy room.",
+        },
+      ],
+    });
+    expect(mockMessagesCreate).toHaveBeenCalledTimes(3);
+    expect(mockMessagesCreate.mock.calls[1]?.[0].messages[0].content).toContain(
+      "Repair this malformed Storycot story JSON"
+    );
+  });
+
+  it("reports drafting and polishing stages while streaming a story", async () => {
+    const generatedStory = {
+      title: "Bailey Moon",
+      pages: [
+        {
+          pageNumber: 1,
+          text: "Bailey waved.",
+          illustrationPrompt: "Bailey in a cosy room.",
+        },
+      ],
+    };
+    const stream = {
+      on: vi.fn(
+        (
+          event: string,
+          callback: (delta: string, snapshot: string) => void
+        ) => {
+          if (event === "text") {
+            callback("", JSON.stringify(generatedStory));
+          }
+          return stream;
+        }
+      ),
+      finalText: vi.fn(async () => JSON.stringify(generatedStory)),
+    };
+    mockMessagesStream.mockReturnValueOnce(stream);
+    mockMessagesCreate.mockResolvedValueOnce({
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(generatedStory),
+        },
+      ],
+    });
+    const stages: string[] = [];
+    const snapshots: string[][] = [];
+
+    await expect(
+      streamStory(
+        {
+          profile: createProfile(),
+          characters: [],
+          theme: "kindness",
+          notes: "",
+          storyPreset: "tiny-tales",
+          locale: "en",
+        },
+        (pages) => snapshots.push(pages),
+        (stage) => stages.push(stage)
+      )
+    ).resolves.toEqual(generatedStory);
+
+    expect(stages).toEqual(["drafting", "polishing"]);
+    expect(snapshots).toEqual([["Bailey waved."]]);
+    expect(mockMessagesStream).toHaveBeenCalledTimes(1);
+    expect(mockMessagesCreate).toHaveBeenCalledTimes(1);
+  });
+
   it("removes em and en dashes from generated story fields", () => {
     expect(
       normalizeGeneratedStory({
@@ -138,5 +350,67 @@ describe("story post-check", () => {
         },
       ],
     });
+  });
+
+  it("removes repeated generated pages before the final post-check", () => {
+    expect(
+      prepareGeneratedStoryForPostCheck(
+        { storyPreset: "tiny-tales" },
+        {
+          title: "Bailey Moon",
+          pages: [
+            {
+              pageNumber: 1,
+              text: "Bailey found a moon boat.",
+              illustrationPrompt: "Bailey beside a moon boat.",
+            },
+            {
+              pageNumber: 2,
+              text: "The moon boat bobbed gently.",
+              illustrationPrompt: "A moon boat bobbing gently.",
+            },
+            {
+              pageNumber: 3,
+              text: "The moon boat bobbed gently.",
+              illustrationPrompt: "A repeated extra page.",
+            },
+          ],
+        }
+      )
+    ).toEqual({
+      title: "Bailey Moon",
+      pages: [
+        {
+          pageNumber: 1,
+          text: "Bailey found a moon boat.",
+          illustrationPrompt: "Bailey beside a moon boat.",
+        },
+        {
+          pageNumber: 2,
+          text: "The moon boat bobbed gently.",
+          illustrationPrompt: "A moon boat bobbing gently.",
+        },
+      ],
+    });
+  });
+
+  it("caps generated pages to the selected preset maximum", () => {
+    const prepared = prepareGeneratedStoryForPostCheck(
+      { storyPreset: "tiny-tales" },
+      {
+        title: "Bailey Moon",
+        pages: Array.from({ length: 9 }, (_, index) => ({
+          pageNumber: index + 1,
+          text: `Bailey page ${index + 1}.`,
+          illustrationPrompt: `Illustration ${index + 1}.`,
+        })),
+      }
+    );
+
+    expect(prepared.pages).toHaveLength(6);
+    expect(prepared.pages.map((page) => page.pageNumber)).toEqual([
+      1, 2, 3, 4, 5, 6,
+    ]);
+    expect(prepared.pages.at(-1)?.text).toBe("Bailey page 6.");
   });
 });

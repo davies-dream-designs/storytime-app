@@ -9,19 +9,26 @@ import {
   lt,
   or,
   ilike,
+  sql,
 } from "drizzle-orm";
 import { getClient } from "./client";
 import * as schema from "./schema";
-import type { ChildProfile, Story, Character } from "@/types";
+import type { ChildProfile, Story, Character, StoryPreset } from "@/types";
 import type {
   BookBuildJob,
   BookProject,
+  BookAsset,
   PrintBookOrder,
+  PrintOrderRecord,
 } from "@/types/printBook";
 import type { GiftOrder } from "@/types/gift";
 import type { ErrorEventRecord, ErrorEventFilters } from "@/lib/errors";
 import { SEVERITY_RANK, type ErrorSeverity } from "@/lib/errors";
 import { deleteBookProjectAssets } from "@/lib/print-books/storage";
+import {
+  getPublicStoryPrintReadiness,
+  type PublicStoryPrintReadiness,
+} from "@/lib/publicStoryPrintReadiness";
 
 // ── Row ↔ type converters ─────────────────────────────────────────────────────
 
@@ -31,6 +38,22 @@ type CharacterRow = typeof schema.characters.$inferSelect;
 type BookProjectRow = typeof schema.bookProjects.$inferSelect;
 type BookBuildJobRow = typeof schema.bookBuildJobs.$inferSelect;
 type GiftOrderRow = typeof schema.giftOrders.$inferSelect;
+type PrintOrderRow = typeof schema.printOrders.$inferSelect;
+type PublicStoryReportRow = typeof schema.publicStoryReports.$inferSelect;
+type PublicStoryModerationEventRow =
+  typeof schema.publicStoryModerationEvents.$inferSelect;
+
+function isDisplayablePublicImage(url?: string): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return !lower.startsWith("data:image/svg") && !lower.endsWith(".svg");
+}
+
+function getPublicThumbnailFromAssets(assets: BookAsset): string | undefined {
+  return [assets.coverWebImageUrl, assets.coverImageUrl].find(
+    isDisplayablePublicImage
+  );
+}
 
 function rowToProfile(row: ProfileRow): ChildProfile {
   return {
@@ -39,6 +62,7 @@ function rowToProfile(row: ProfileRow): ChildProfile {
     name: row.name,
     age: row.age,
     dateOfBirth: row.dateOfBirth ?? undefined,
+    gender: row.gender ?? "not_specified",
     appearance: row.appearance ?? undefined,
     favouriteCharacters: row.favouriteCharacters ?? [],
     favouriteActivities: row.favouriteActivities ?? [],
@@ -56,6 +80,7 @@ function profileToRow(p: ChildProfile) {
     name: p.name,
     age: p.age,
     dateOfBirth: p.dateOfBirth ?? null,
+    gender: p.gender ?? "not_specified",
     appearance: p.appearance ?? null,
     favouriteCharacters: p.favouriteCharacters,
     favouriteActivities: p.favouriteActivities,
@@ -84,6 +109,14 @@ function rowToStory(row: StoryRow): Story {
     status: row.status ?? undefined,
     generationError: row.generationError ?? undefined,
     shareToken: row.shareToken ?? undefined,
+    visibility: row.visibility,
+    publicReviewStatus: row.publicReviewStatus,
+    publicSubmittedAt: row.publicSubmittedAt ?? undefined,
+    publicReviewedAt: row.publicReviewedAt ?? undefined,
+    publicReviewedBy: row.publicReviewedBy ?? undefined,
+    publicRejectionReason: row.publicRejectionReason ?? undefined,
+    publicAuthorName: row.publicAuthorName ?? undefined,
+    publicTermsAcceptedAt: row.publicTermsAcceptedAt ?? undefined,
   };
 }
 
@@ -105,6 +138,14 @@ function storyToRow(s: Story) {
     status: s.status ?? null,
     generationError: s.generationError ?? null,
     shareToken: s.shareToken ?? null,
+    visibility: s.visibility ?? "private",
+    publicReviewStatus: s.publicReviewStatus ?? "not_submitted",
+    publicSubmittedAt: s.publicSubmittedAt ?? null,
+    publicReviewedAt: s.publicReviewedAt ?? null,
+    publicReviewedBy: s.publicReviewedBy ?? null,
+    publicRejectionReason: s.publicRejectionReason ?? null,
+    publicAuthorName: s.publicAuthorName ?? null,
+    publicTermsAcceptedAt: s.publicTermsAcceptedAt ?? null,
   };
 }
 
@@ -286,6 +327,74 @@ function giftOrderToRow(gift: GiftOrder) {
   };
 }
 
+function rowToPrintOrder(row: PrintOrderRow): PrintOrderRecord {
+  return {
+    id: row.id,
+    type: row.type,
+    projectId: row.projectId,
+    storyId: row.storyId,
+    ownerUserId: row.ownerUserId,
+    buyerUserId: row.buyerUserId ?? undefined,
+    buyerEmail: row.buyerEmail ?? undefined,
+    productKey: row.productKey,
+    productLabel: row.productLabel,
+    provider: row.provider,
+    format: row.format,
+    status: row.status,
+    amountAudCents: row.amountAudCents,
+    subtotalAudCents: row.subtotalAudCents,
+    shippingAudCents: row.shippingAudCents,
+    luluCostAudCents: row.luluCostAudCents ?? undefined,
+    marginAudCents: row.marginAudCents ?? undefined,
+    pageCount: row.pageCount,
+    quantity: row.quantity,
+    checkoutSessionId: row.checkoutSessionId ?? undefined,
+    paymentIntentId: row.paymentIntentId ?? undefined,
+    billingCountry: row.billingCountry ?? undefined,
+    shipping: row.shipping ?? undefined,
+    fulfillment: row.fulfillment ?? undefined,
+    checkoutStartedAt: row.checkoutStartedAt ?? undefined,
+    paidAt: row.paidAt ?? undefined,
+    refundedAt: row.refundedAt ?? undefined,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function printOrderToRow(order: PrintOrderRecord) {
+  return {
+    id: order.id,
+    type: order.type,
+    projectId: order.projectId,
+    storyId: order.storyId,
+    ownerUserId: order.ownerUserId,
+    buyerUserId: order.buyerUserId ?? null,
+    buyerEmail: order.buyerEmail ?? null,
+    productKey: order.productKey,
+    productLabel: order.productLabel,
+    provider: order.provider,
+    format: order.format,
+    status: order.status,
+    amountAudCents: order.amountAudCents,
+    subtotalAudCents: order.subtotalAudCents,
+    shippingAudCents: order.shippingAudCents,
+    luluCostAudCents: order.luluCostAudCents ?? null,
+    marginAudCents: order.marginAudCents ?? null,
+    pageCount: order.pageCount,
+    quantity: order.quantity,
+    checkoutSessionId: order.checkoutSessionId ?? null,
+    paymentIntentId: order.paymentIntentId ?? null,
+    billingCountry: order.billingCountry ?? null,
+    shipping: order.shipping ?? null,
+    fulfillment: order.fulfillment ?? null,
+    checkoutStartedAt: order.checkoutStartedAt ?? null,
+    paidAt: order.paidAt ?? null,
+    refundedAt: order.refundedAt ?? null,
+    createdAt: order.createdAt,
+    updatedAt: order.updatedAt,
+  };
+}
+
 type ErrorEventRow = typeof schema.errorEvents.$inferSelect;
 
 function rowToErrorEvent(row: ErrorEventRow): ErrorEventRecord {
@@ -307,6 +416,10 @@ function rowToErrorEvent(row: ErrorEventRow): ErrorEventRecord {
     resolvedBy: row.resolvedBy ?? undefined,
     note: row.note ?? undefined,
   };
+}
+
+function getPublicVoteMonth(date = new Date()): string {
+  return date.toISOString().slice(0, 7);
 }
 
 // ── db object ─────────────────────────────────────────────────────────────────
@@ -388,6 +501,30 @@ export const db = {
         .from(schema.stories)
         .where(eq(schema.stories.shareToken, token));
       return rows[0] ? rowToStory(rows[0]) : undefined;
+    },
+    async getPublicGallery(limit = 50): Promise<Story[]> {
+      const rows = await getClient()
+        .select()
+        .from(schema.stories)
+        .where(
+          and(
+            eq(schema.stories.visibility, "public"),
+            eq(schema.stories.publicReviewStatus, "approved"),
+            eq(schema.stories.status, "ready")
+          )
+        )
+        .orderBy(desc(schema.stories.publicReviewedAt))
+        .limit(limit);
+      return rows.map(rowToStory);
+    },
+    async getPublicReviewQueue(limit = 100): Promise<Story[]> {
+      const rows = await getClient()
+        .select()
+        .from(schema.stories)
+        .where(eq(schema.stories.publicReviewStatus, "pending_review"))
+        .orderBy(desc(schema.stories.publicSubmittedAt))
+        .limit(limit);
+      return rows.map(rowToStory);
     },
     async create(story: Story): Promise<void> {
       await getClient().insert(schema.stories).values(storyToRow(story));
@@ -488,6 +625,58 @@ export const db = {
         .from(schema.bookProjects)
         .where(eq(schema.bookProjects.sourceStoryId, sourceStoryId));
       return rows.map(rowToBookProject);
+    },
+    async getPublicPrintReadinessByStoryIds(
+      storyIds: string[]
+    ): Promise<Record<string, PublicStoryPrintReadiness>> {
+      if (storyIds.length === 0) return {};
+      const rows = await getClient()
+        .select()
+        .from(schema.bookProjects)
+        .where(inArray(schema.bookProjects.sourceStoryId, storyIds))
+        .orderBy(desc(schema.bookProjects.updatedAt));
+      const projectsByStoryId = new Map<string, BookProject[]>();
+      for (const row of rows) {
+        const project = rowToBookProject(row);
+        const projects = projectsByStoryId.get(project.sourceStoryId) ?? [];
+        projects.push(project);
+        projectsByStoryId.set(project.sourceStoryId, projects);
+      }
+
+      return Object.fromEntries(
+        [...projectsByStoryId.entries()]
+          .map(([storyId, projects]) => [
+            storyId,
+            getPublicStoryPrintReadiness(projects),
+          ])
+          .filter(
+            (
+              entry
+            ): entry is [string, NonNullable<PublicStoryPrintReadiness>] =>
+              Boolean(entry[1])
+          )
+      );
+    },
+    async getPublicThumbnailsByStoryIds(
+      storyIds: string[]
+    ): Promise<Record<string, string>> {
+      if (storyIds.length === 0) return {};
+      const rows = await getClient()
+        .select()
+        .from(schema.bookProjects)
+        .where(inArray(schema.bookProjects.sourceStoryId, storyIds))
+        .orderBy(
+          desc(schema.bookProjects.readyAt),
+          desc(schema.bookProjects.updatedAt)
+        );
+
+      const thumbnails: Record<string, string> = {};
+      for (const row of rows) {
+        if (thumbnails[row.sourceStoryId] || row.status !== "ready") continue;
+        const thumbnailUrl = getPublicThumbnailFromAssets(row.assets);
+        if (thumbnailUrl) thumbnails[row.sourceStoryId] = thumbnailUrl;
+      }
+      return thumbnails;
     },
     async getByUserId(userId: string): Promise<BookProject[]> {
       const rows = await getClient()
@@ -605,6 +794,89 @@ export const db = {
         printOrder: r.printOrder as PrintBookOrder,
         updatedAt: r.updatedAt,
       }));
+    },
+  },
+
+  printOrders: {
+    async getById(id: string): Promise<PrintOrderRecord | undefined> {
+      const rows = await getClient()
+        .select()
+        .from(schema.printOrders)
+        .where(eq(schema.printOrders.id, id));
+      return rows[0] ? rowToPrintOrder(rows[0]) : undefined;
+    },
+    async getByCheckoutSessionId(
+      checkoutSessionId: string
+    ): Promise<PrintOrderRecord | undefined> {
+      const rows = await getClient()
+        .select()
+        .from(schema.printOrders)
+        .where(eq(schema.printOrders.checkoutSessionId, checkoutSessionId));
+      return rows[0] ? rowToPrintOrder(rows[0]) : undefined;
+    },
+    async getByProjectId(projectId: string): Promise<PrintOrderRecord[]> {
+      const rows = await getClient()
+        .select()
+        .from(schema.printOrders)
+        .where(eq(schema.printOrders.projectId, projectId))
+        .orderBy(desc(schema.printOrders.createdAt));
+      return rows.map(rowToPrintOrder);
+    },
+    async getByStoryId(storyId: string): Promise<PrintOrderRecord[]> {
+      const rows = await getClient()
+        .select()
+        .from(schema.printOrders)
+        .where(eq(schema.printOrders.storyId, storyId))
+        .orderBy(desc(schema.printOrders.createdAt));
+      return rows.map(rowToPrintOrder);
+    },
+    async getByOwnerUserId(ownerUserId: string): Promise<PrintOrderRecord[]> {
+      const rows = await getClient()
+        .select()
+        .from(schema.printOrders)
+        .where(eq(schema.printOrders.ownerUserId, ownerUserId))
+        .orderBy(desc(schema.printOrders.createdAt))
+        .limit(100);
+      return rows.map(rowToPrintOrder);
+    },
+    async getByBuyerUserId(buyerUserId: string): Promise<PrintOrderRecord[]> {
+      const rows = await getClient()
+        .select()
+        .from(schema.printOrders)
+        .where(eq(schema.printOrders.buyerUserId, buyerUserId))
+        .orderBy(desc(schema.printOrders.createdAt))
+        .limit(100);
+      return rows.map(rowToPrintOrder);
+    },
+    async listRecent(limit = 100): Promise<PrintOrderRecord[]> {
+      const rows = await getClient()
+        .select()
+        .from(schema.printOrders)
+        .orderBy(desc(schema.printOrders.createdAt))
+        .limit(Math.min(limit, 500));
+      return rows.map(rowToPrintOrder);
+    },
+    async create(order: PrintOrderRecord): Promise<void> {
+      await getClient()
+        .insert(schema.printOrders)
+        .values(printOrderToRow(order));
+    },
+    async update(
+      id: string,
+      updates: Partial<PrintOrderRecord>
+    ): Promise<PrintOrderRecord | undefined> {
+      const current = await this.getById(id);
+      if (!current) return undefined;
+      const next: PrintOrderRecord = {
+        ...current,
+        ...updates,
+        updatedAt: updates.updatedAt ?? new Date().toISOString(),
+      };
+      await getClient()
+        .update(schema.printOrders)
+        .set(printOrderToRow(next))
+        .where(eq(schema.printOrders.id, id));
+      return next;
     },
   },
 
@@ -936,6 +1208,207 @@ export const db = {
         .set(bookBuildJobToRow(next))
         .where(eq(schema.bookBuildJobs.id, id));
       return next;
+    },
+  },
+
+  publicStoryVotes: {
+    getVoteMonth(date = new Date()): string {
+      return getPublicVoteMonth(date);
+    },
+    async hasUserVoted(
+      storyId: string,
+      userId: string,
+      voteMonth = getPublicVoteMonth()
+    ): Promise<boolean> {
+      const rows = await getClient()
+        .select({ id: schema.publicStoryVotes.id })
+        .from(schema.publicStoryVotes)
+        .where(
+          and(
+            eq(schema.publicStoryVotes.storyId, storyId),
+            eq(schema.publicStoryVotes.userId, userId),
+            eq(schema.publicStoryVotes.voteMonth, voteMonth)
+          )
+        )
+        .limit(1);
+      return rows.length > 0;
+    },
+    async create(storyId: string, userId: string): Promise<boolean> {
+      const result = await getClient()
+        .insert(schema.publicStoryVotes)
+        .values({
+          id: crypto.randomUUID(),
+          storyId,
+          userId,
+          voteMonth: this.getVoteMonth(),
+          createdAt: new Date().toISOString(),
+        })
+        .onConflictDoNothing()
+        .returning({ id: schema.publicStoryVotes.id });
+      return result.length > 0;
+    },
+    async countByStoryIds(
+      storyIds: string[],
+      voteMonth = getPublicVoteMonth()
+    ): Promise<Record<string, number>> {
+      if (storyIds.length === 0) return {};
+      const rows = await getClient()
+        .select({
+          storyId: schema.publicStoryVotes.storyId,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(schema.publicStoryVotes)
+        .where(
+          and(
+            inArray(schema.publicStoryVotes.storyId, storyIds),
+            eq(schema.publicStoryVotes.voteMonth, voteMonth)
+          )
+        )
+        .groupBy(schema.publicStoryVotes.storyId);
+      return Object.fromEntries(rows.map((row) => [row.storyId, row.count]));
+    },
+    async leaderboard(
+      limit = 50,
+      options: { storyPreset?: StoryPreset } = {}
+    ): Promise<{ story: Story; votes: number }[]> {
+      const voteMonth = getPublicVoteMonth();
+      const rows = await getClient()
+        .select({
+          story: schema.stories,
+          votes: sql<number>`count(${schema.publicStoryVotes.id})::int`,
+        })
+        .from(schema.publicStoryVotes)
+        .innerJoin(
+          schema.stories,
+          eq(schema.publicStoryVotes.storyId, schema.stories.id)
+        )
+        .where(
+          and(
+            eq(schema.publicStoryVotes.voteMonth, voteMonth),
+            eq(schema.stories.visibility, "public"),
+            eq(schema.stories.publicReviewStatus, "approved"),
+            eq(schema.stories.status, "ready"),
+            options.storyPreset
+              ? eq(schema.stories.storyPreset, options.storyPreset)
+              : undefined
+          )
+        )
+        .groupBy(schema.stories.id)
+        .orderBy(sql`count(${schema.publicStoryVotes.id}) desc`)
+        .limit(limit);
+      return rows.map((row) => ({
+        story: rowToStory(row.story),
+        votes: row.votes,
+      }));
+    },
+  },
+
+  publicStoryReports: {
+    async create(input: {
+      storyId: string;
+      userId: string;
+      reason: string;
+      note?: string;
+    }): Promise<boolean> {
+      const result = await getClient()
+        .insert(schema.publicStoryReports)
+        .values({
+          id: crypto.randomUUID(),
+          storyId: input.storyId,
+          userId: input.userId,
+          reason: input.reason,
+          note: input.note ?? null,
+          createdAt: new Date().toISOString(),
+        })
+        .onConflictDoNothing()
+        .returning({ id: schema.publicStoryReports.id });
+      return result.length > 0;
+    },
+    async countOpenByStoryId(storyId: string): Promise<number> {
+      const rows = await getClient()
+        .select({ count: sql<number>`count(*)::int` })
+        .from(schema.publicStoryReports)
+        .where(
+          and(
+            eq(schema.publicStoryReports.storyId, storyId),
+            eq(schema.publicStoryReports.status, "open")
+          )
+        );
+      return rows[0]?.count ?? 0;
+    },
+    async listOpen(limit = 100): Promise<PublicStoryReportRow[]> {
+      return getClient()
+        .select()
+        .from(schema.publicStoryReports)
+        .where(eq(schema.publicStoryReports.status, "open"))
+        .orderBy(desc(schema.publicStoryReports.createdAt))
+        .limit(limit);
+    },
+    async closeForStory(input: {
+      storyId: string;
+      status: "reviewed" | "dismissed";
+      reviewedBy: string;
+    }): Promise<number> {
+      const rows = await getClient()
+        .update(schema.publicStoryReports)
+        .set({
+          status: input.status,
+          reviewedAt: new Date().toISOString(),
+          reviewedBy: input.reviewedBy,
+        })
+        .where(
+          and(
+            eq(schema.publicStoryReports.storyId, input.storyId),
+            eq(schema.publicStoryReports.status, "open")
+          )
+        )
+        .returning({ id: schema.publicStoryReports.id });
+      return rows.length;
+    },
+  },
+
+  publicStoryModerationEvents: {
+    async create(input: {
+      storyId: string;
+      actorUserId?: string;
+      actorLabel: string;
+      action: string;
+      note?: string;
+      metadata?: Record<string, unknown>;
+    }): Promise<void> {
+      await getClient()
+        .insert(schema.publicStoryModerationEvents)
+        .values({
+          id: crypto.randomUUID(),
+          storyId: input.storyId,
+          actorUserId: input.actorUserId ?? null,
+          actorLabel: input.actorLabel,
+          action: input.action,
+          note: input.note ?? null,
+          metadata: input.metadata ?? null,
+          createdAt: new Date().toISOString(),
+        });
+    },
+    async listRecent(limit = 100): Promise<PublicStoryModerationEventRow[]> {
+      return getClient()
+        .select()
+        .from(schema.publicStoryModerationEvents)
+        .orderBy(desc(schema.publicStoryModerationEvents.createdAt))
+        .limit(limit);
+    },
+    async listRewardEventsForMonth(
+      voteMonth: string
+    ): Promise<PublicStoryModerationEventRow[]> {
+      return getClient()
+        .select()
+        .from(schema.publicStoryModerationEvents)
+        .where(
+          and(
+            eq(schema.publicStoryModerationEvents.action, "reward_granted"),
+            sql`${schema.publicStoryModerationEvents.metadata}->>'voteMonth' = ${voteMonth}`
+          )
+        )
+        .orderBy(desc(schema.publicStoryModerationEvents.createdAt));
     },
   },
 };

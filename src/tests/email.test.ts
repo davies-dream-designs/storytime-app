@@ -30,13 +30,13 @@ describe("sendBookReadyEmail", () => {
 
     expect(mockSend).toHaveBeenCalledWith(
       expect.objectContaining({
-        from: "Storycot <noreply@storycot.com>",
+        from: "Storycot <noreply@storycot.com.au>",
         subject: "Your Storycot book is ready - Firefly Forest Walk",
       })
     );
     const message = mockSend.mock.calls[0]?.[0];
     expect(message.html).toContain(
-      'src="https://storycot.com/nav-icon-light.png"'
+      'src="https://storycot.com.au/nav-icon-light.png"'
     );
     expect(message.html).not.toContain("dev.storycot.com/nav-icon-light.png");
     expect(message.html).not.toContain("/en/nav-icon-light.png");

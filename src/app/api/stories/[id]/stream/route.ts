@@ -3,8 +3,12 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { kv } from "@vercel/kv";
 import { db } from "@/lib/db";
 import { STORY_CREDIT_COST } from "@/lib/pricing";
-import { streamStory } from "@/lib/storyGenerator";
-import { assessGeneratedStoryIp } from "@/lib/ipGuardrails";
+import { StoryGenerationError, streamStory } from "@/lib/storyGenerator";
+import {
+  assessGeneratedStoryIp,
+  assessProfileIp,
+  profileIpErrorResponse,
+} from "@/lib/ipGuardrails";
 import { logEvent } from "@/lib/logEvent";
 import { storyRatelimit, checkRatelimit } from "@/lib/ratelimit";
 import type { StoryPage } from "@/types";
@@ -64,7 +68,7 @@ export async function POST(
   if (!isAdmin && credits < STORY_CREDIT_COST) {
     await db.stories.update(id, {
       status: "failed",
-      generationError: "No credits remaining. Visit /account to purchase more.",
+      generationError: "You're out of credits. Visit your account to top up.",
     });
     return new Response("No credits remaining", { status: 402 });
   }
@@ -88,6 +92,15 @@ export async function POST(
           db.characters.getByProfileId(story.profileId),
           db.stories.getByProfileId(story.profileId),
         ]);
+        const safeCharacters = characters.filter((c) => c.userId === userId);
+        const profileIpPolicy = assessProfileIp({
+          ...profile,
+          characters: safeCharacters,
+        });
+        if (profileIpPolicy.printAllowed === false) {
+          const response = profileIpErrorResponse(profileIpPolicy);
+          throw new Error(response.error);
+        }
 
         const recentTitles = recentStories
           .filter((s) => s.userId === userId && s.id !== story.id)
@@ -98,7 +111,7 @@ export async function POST(
         const generated = await streamStory(
           {
             profile,
-            characters: characters.filter((c) => c.userId === userId),
+            characters: safeCharacters,
             theme: story.theme,
             premise: story.premise,
             notes: story.notes,
@@ -114,6 +127,9 @@ export async function POST(
                 illustrationPrompt: "",
               })),
             });
+          },
+          (stage) => {
+            sendEvent(controller, "status", { status: stage });
           }
         );
 
@@ -150,7 +166,17 @@ export async function POST(
         controller.close();
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : "Story generation failed";
+          err instanceof StoryGenerationError
+            ? err.message
+            : err instanceof Error
+              ? err.message
+              : "Story generation failed";
+        const technicalMessage =
+          err instanceof StoryGenerationError
+            ? err.technicalMessage
+            : err instanceof Error
+              ? err.message
+              : undefined;
         await db.stories.update(id, {
           status: "failed",
           generationError: message,
@@ -163,7 +189,11 @@ export async function POST(
           entityType: "story",
           entityId: id,
           source: "story/stream",
-          context: { theme: story.theme, profileId: story.profileId },
+          context: {
+            theme: story.theme,
+            profileId: story.profileId,
+            technicalMessage,
+          },
         });
         sendEvent(controller, "error", { error: message });
         controller.close();

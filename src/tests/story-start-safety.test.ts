@@ -8,6 +8,9 @@ const { mockAuth, mockClerkClient, mockDb } = vi.hoisted(() => ({
     profiles: {
       getById: vi.fn(),
     },
+    characters: {
+      getByProfileId: vi.fn(),
+    },
     stories: {
       create: vi.fn(),
     },
@@ -47,6 +50,7 @@ describe("POST /api/stories/start safety", () => {
       lessons: [],
       createdAt: "2026-07-15T00:00:00.000Z",
     });
+    mockDb.characters.getByProfileId.mockResolvedValue([]);
     process.env.ANTHROPIC_API_KEY = "test-key";
   });
 
@@ -97,5 +101,40 @@ describe("POST /api/stories/start safety", () => {
     });
     expect(storedStory.premise).not.toContain("Toy Story");
     expect(storedStory.premise).not.toContain("Woody");
+  });
+
+  it("rejects protected references saved on the child profile", async () => {
+    mockDb.profiles.getById.mockResolvedValue({
+      id: "profile-1",
+      userId: "user-1",
+      name: "Bailey",
+      age: 4,
+      favouriteCharacters: ["Buzz Lightyear"],
+      favouriteActivities: [],
+      favouriteAnimals: [],
+      favouritePlaces: [],
+      lessons: [],
+      createdAt: "2026-07-15T00:00:00.000Z",
+    });
+
+    const { POST } = await import("@/app/api/stories/start/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/stories/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profileId: "profile-1",
+          premise: "A gentle bedtime story.",
+        }),
+      })
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toMatchObject({
+      code: "story_idea_not_allowed",
+      category: "protected_ip",
+      error: expect.stringContaining("child profile"),
+    });
+    expect(mockDb.stories.create).not.toHaveBeenCalled();
   });
 });

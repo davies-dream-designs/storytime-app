@@ -6,8 +6,10 @@ import { Link } from "@/i18n/navigation";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 import Icon from "@/components/ui/Icon";
 import { getDateLocale } from "@/i18n/locales";
+import { db } from "@/lib/db";
 import { getSharedStoryByToken } from "@/lib/sharedStory";
 import SharedNarrationButton from "./SharedNarrationButton";
+import PublicStoryActions from "../../public/PublicStoryActions";
 
 export async function generateMetadata({
   params,
@@ -66,6 +68,11 @@ export default async function SharedStoryPage({
   const heroImageUrl =
     shared.coverImageUrl ??
     shared.spreads.find((spread) => spread.imageUrl)?.imageUrl;
+  const isPublicApproved =
+    story.visibility === "public" && story.publicReviewStatus === "approved";
+  const voteCounts = isPublicApproved
+    ? await db.publicStoryVotes.countByStoryIds([story.id])
+    : {};
 
   return (
     <div className="min-h-screen bg-night-50">
@@ -120,6 +127,16 @@ export default async function SharedStoryPage({
                 token={token}
                 spreadIds={shared.spreads.map((spread) => spread.id)}
               />
+            ) : null}
+            {isPublicApproved ? (
+              <div className="mt-6 rounded-2xl bg-white/10 p-4">
+                <PublicStoryActions
+                  storyId={story.id}
+                  storyTitle={story.title}
+                  shareToken={token}
+                  initialVotes={voteCounts[story.id] ?? 0}
+                />
+              </div>
             ) : null}
           </div>
         </div>

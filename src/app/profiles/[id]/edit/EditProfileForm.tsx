@@ -11,9 +11,10 @@ import {
   fallbackBirthYear,
   LessonsField,
   parseDateOfBirth,
+  ProfileIpConfirmation,
   TagsField,
 } from "@/components/profiles/ProfileFormControls";
-import type { ChildProfile } from "@/types";
+import { CHILD_GENDERS, type ChildGender, type ChildProfile } from "@/types";
 
 const MONTHS = [
   "January",
@@ -44,6 +45,9 @@ export default function EditProfileForm({
   const [dobYear, setDobYear] = useState(
     initial.year || fallbackBirthYear(profile.age)
   );
+  const [gender, setGender] = useState<ChildGender>(
+    profile.gender ?? "not_specified"
+  );
   const [favouriteCharacters, setFavouriteCharacters] = useState(
     profile.favouriteCharacters
   );
@@ -57,6 +61,7 @@ export default function EditProfileForm({
     profile.favouritePlaces
   );
   const [lessons, setLessons] = useState(profile.lessons);
+  const [ipConfirmed, setIpConfirmed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -69,6 +74,12 @@ export default function EditProfileForm({
     }
     if (!dobYear) {
       setError("Birth year is required");
+      return;
+    }
+    if (!ipConfirmed) {
+      setError(
+        "Please confirm the profile does not include branded characters or protected IP."
+      );
       return;
     }
 
@@ -101,11 +112,13 @@ export default function EditProfileForm({
           name: name.trim(),
           age,
           dateOfBirth,
+          gender,
           favouriteCharacters,
           favouriteActivities,
           favouriteAnimals,
           favouritePlaces,
           lessons,
+          ipConfirmationAccepted: ipConfirmed,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
@@ -137,7 +150,7 @@ export default function EditProfileForm({
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className={formStyles.label} htmlFor="name">
-              Child&apos;s name *
+              Child&apos;s Name *
             </label>
             <input
               id="name"
@@ -149,7 +162,7 @@ export default function EditProfileForm({
 
           <BirthdayFields
             title="Birthday"
-            hint="Used to calculate their age for stories and to celebrate their birthday with a free story"
+            hint="Used to calculate their age for stories and to celebrate their birthday with a free story."
             dayLabel="Day"
             monthLabel="Month"
             yearLabel="Year *"
@@ -162,35 +175,73 @@ export default function EditProfileForm({
             onYearChange={setDobYear}
           />
 
+          <div>
+            <label className={formStyles.label} htmlFor="gender">
+              Gender
+            </label>
+            <select
+              id="gender"
+              value={gender}
+              onChange={(event) => setGender(event.target.value as ChildGender)}
+              className={formStyles.field}
+            >
+              {CHILD_GENDERS.map((value) => (
+                <option key={value} value={value}>
+                  {
+                    {
+                      girl: "Girl",
+                      boy: "Boy",
+                      non_binary: "Non-binary",
+                      not_specified: "Prefer not to say",
+                    }[value]
+                  }
+                </option>
+              ))}
+            </select>
+          </div>
+
           <TagsField
-            label="Favourite characters or toys"
+            label="Favourite Toys (Choose 3 Max)"
             values={favouriteCharacters}
             onChange={setFavouriteCharacters}
-            placeholder="e.g. Piggy the astronaut pig"
+            placeholder="e.g. teddy, rocket ship, blanket"
+            hint="Add multiple items with commas, then press Add."
+            maxItems={3}
           />
           <TagsField
-            label="Favourite activities"
+            label="Favourite Activities (Choose 3 Max)"
             values={favouriteActivities}
             onChange={setFavouriteActivities}
             placeholder="e.g. space, pancakes, trucks"
+            hint="Add multiple items with commas, then press Add."
+            maxItems={3}
           />
           <TagsField
-            label="Favourite animals"
+            label="Favourite Animals (Choose 3 Max)"
             values={favouriteAnimals}
             onChange={setFavouriteAnimals}
             placeholder="e.g. elephants, dogs"
+            hint="Add multiple items with commas, then press Add."
+            maxItems={3}
           />
           <TagsField
-            label="Favourite places"
+            label="Favourite Places (Choose 3 Max)"
             values={favouritePlaces}
             onChange={setFavouritePlaces}
             placeholder="e.g. the beach, the park"
+            hint="Add multiple items with commas, then press Add."
+            maxItems={3}
           />
 
           <LessonsField
-            label="Lessons & themes to explore"
+            label="Lessons & Themes To Explore (Choose 3 Max)"
             values={lessons}
             onChange={setLessons}
+          />
+
+          <ProfileIpConfirmation
+            checked={ipConfirmed}
+            onChange={setIpConfirmed}
           />
 
           {error && <p className={formStyles.error}>{error}</p>}
@@ -199,7 +250,7 @@ export default function EditProfileForm({
             <Button variant="secondary" onClick={() => router.back()}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving} fullWidth>
+            <Button type="submit" disabled={saving || !ipConfirmed} fullWidth>
               {saving ? (
                 "Saving…"
               ) : (

@@ -10,9 +10,15 @@ import AppearanceFields from "@/components/profiles/AppearanceFields";
 import {
   BirthdayFields,
   LessonsField,
+  ProfileIpConfirmation,
   TagsField,
 } from "@/components/profiles/ProfileFormControls";
-import { createEmptyChildAppearance, type ChildAppearance } from "@/types";
+import {
+  CHILD_GENDERS,
+  createEmptyChildAppearance,
+  type ChildAppearance,
+  type ChildGender,
+} from "@/types";
 
 export default function NewProfilePage() {
   const router = useRouter();
@@ -21,6 +27,7 @@ export default function NewProfilePage() {
   const [dobDay, setDobDay] = useState("");
   const [dobMonth, setDobMonth] = useState("");
   const [dobYear, setDobYear] = useState("");
+  const [gender, setGender] = useState<ChildGender>("not_specified");
   const [favouriteCharacters, setFavouriteCharacters] = useState<string[]>([]);
   const [favouriteActivities, setFavouriteActivities] = useState<string[]>([]);
   const [favouriteAnimals, setFavouriteAnimals] = useState<string[]>([]);
@@ -29,6 +36,7 @@ export default function NewProfilePage() {
   const [appearance, setAppearance] = useState<ChildAppearance>(
     createEmptyChildAppearance()
   );
+  const [ipConfirmed, setIpConfirmed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -76,6 +84,12 @@ export default function NewProfilePage() {
       setError(t("errorYear"));
       return;
     }
+    if (!ipConfirmed) {
+      setError(
+        "Please confirm the profile does not include branded characters or protected IP."
+      );
+      return;
+    }
 
     const year = parseInt(dobYear, 10);
     const month = dobMonth ? parseInt(dobMonth, 10) : null;
@@ -106,12 +120,14 @@ export default function NewProfilePage() {
           name: name.trim(),
           age,
           dateOfBirth,
+          gender,
           appearance,
           favouriteCharacters,
           favouriteActivities,
           favouriteAnimals,
           favouritePlaces,
           lessons,
+          ipConfirmationAccepted: ipConfirmed,
         }),
       });
       if (!res.ok)
@@ -164,29 +180,55 @@ export default function NewProfilePage() {
             onYearChange={setDobYear}
           />
 
+          <div>
+            <label className={formStyles.label} htmlFor="gender">
+              {t("genderLabel")}
+            </label>
+            <select
+              id="gender"
+              value={gender}
+              onChange={(event) => setGender(event.target.value as ChildGender)}
+              className={formStyles.field}
+            >
+              {CHILD_GENDERS.map((value) => (
+                <option key={value} value={value}>
+                  {t(`genderOptions.${value}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <TagsField
             label={t("charsLabel")}
             values={favouriteCharacters}
             onChange={setFavouriteCharacters}
             placeholder={t("charsPlaceholder")}
+            hint={t("tagHint")}
+            maxItems={3}
           />
           <TagsField
             label={t("activitiesLabel")}
             values={favouriteActivities}
             onChange={setFavouriteActivities}
             placeholder={t("activitiesPlaceholder")}
+            hint={t("tagHint")}
+            maxItems={3}
           />
           <TagsField
             label={t("animalsLabel")}
             values={favouriteAnimals}
             onChange={setFavouriteAnimals}
             placeholder={t("animalsPlaceholder")}
+            hint={t("tagHint")}
+            maxItems={3}
           />
           <TagsField
             label={t("placesLabel")}
             values={favouritePlaces}
             onChange={setFavouritePlaces}
             placeholder={t("placesPlaceholder")}
+            hint={t("tagHint")}
+            maxItems={3}
           />
 
           <AppearanceFields appearance={appearance} onChange={setAppearance} />
@@ -197,13 +239,18 @@ export default function NewProfilePage() {
             onChange={setLessons}
           />
 
+          <ProfileIpConfirmation
+            checked={ipConfirmed}
+            onChange={setIpConfirmed}
+          />
+
           {error && <p className={formStyles.error}>{error}</p>}
 
           <div className="flex gap-3">
             <Button variant="secondary" onClick={() => router.back()}>
               {t("cancelButton")}
             </Button>
-            <Button type="submit" disabled={saving} fullWidth>
+            <Button type="submit" disabled={saving || !ipConfirmed} fullWidth>
               {saving ? "…" : t("createButton")}
             </Button>
           </div>

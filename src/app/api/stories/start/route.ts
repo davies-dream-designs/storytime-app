@@ -7,7 +7,11 @@ import {
   storyIdeaSafetyErrorResponse,
   validateStoryIdeaSafety,
 } from "@/lib/storySafety";
-import { assessStoryIdeaIp } from "@/lib/ipGuardrails";
+import {
+  assessProfileIp,
+  assessStoryIdeaIp,
+  profileIpErrorResponse,
+} from "@/lib/ipGuardrails";
 import type { Story } from "@/types";
 
 export async function POST(req: NextRequest) {
@@ -39,7 +43,7 @@ export async function POST(req: NextRequest) {
 
   if (!isAdmin && credits < STORY_CREDIT_COST) {
     return NextResponse.json(
-      { error: "No credits remaining. Visit /account to purchase more." },
+      { error: "You're out of credits. Visit your account to top up." },
       { status: 402 }
     );
   }
@@ -53,6 +57,17 @@ export async function POST(req: NextRequest) {
   const profile = await db.profiles.getById(profileId);
   if (!profile || profile.userId !== userId) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  }
+
+  const characters = await db.characters.getByProfileId(profileId);
+  const profileIpPolicy = assessProfileIp({
+    ...profile,
+    characters: characters.filter((c) => c.userId === userId),
+  });
+  if (profileIpPolicy.printAllowed === false) {
+    return NextResponse.json(profileIpErrorResponse(profileIpPolicy), {
+      status: 400,
+    });
   }
 
   if (!process.env.ANTHROPIC_API_KEY) {

@@ -150,7 +150,8 @@ export const ERROR_REGISTRY = {
     domain: "book",
     severity: "error",
     retryable: true,
-    userMessage: "We couldn't build the EPUB. Refresh exports to try again.",
+    userMessage:
+      "We couldn't build the e-reader file. Refresh exports to try again.",
   },
   "book.not_found": {
     domain: "book",

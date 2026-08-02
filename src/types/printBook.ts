@@ -221,6 +221,50 @@ export interface PrintFulfillment {
   payload?: unknown;
 }
 
+export type PrintOrderType = "owner_copy" | "public_purchase";
+
+export type PrintOrderStatus =
+  | "checkout_started"
+  | "paid"
+  | "fulfillment_pending"
+  | "fulfillment_submitted"
+  | "shipped"
+  | "delivered"
+  | "failed"
+  | "refunded";
+
+export interface PrintOrderRecord {
+  id: string;
+  type: PrintOrderType;
+  projectId: string;
+  storyId: string;
+  ownerUserId: string;
+  buyerUserId?: string;
+  buyerEmail?: string;
+  productKey: "hardcover";
+  productLabel: string;
+  provider: "lulu";
+  format: string;
+  status: PrintOrderStatus;
+  amountAudCents: number;
+  subtotalAudCents: number;
+  shippingAudCents: number;
+  luluCostAudCents?: number;
+  marginAudCents?: number;
+  pageCount: number;
+  quantity: number;
+  checkoutSessionId?: string;
+  paymentIntentId?: string;
+  billingCountry?: string;
+  shipping?: PrintShippingAddress;
+  fulfillment?: PrintFulfillment;
+  checkoutStartedAt?: string;
+  paidAt?: string;
+  refundedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface BookProject {
   id: string;
   userId: string;

@@ -1,11 +1,27 @@
 import type { ChildAppearance } from "./profileAppearance";
 
+export const CHILD_GENDERS = [
+  "girl",
+  "boy",
+  "non_binary",
+  "not_specified",
+] as const;
+
+export type ChildGender = (typeof CHILD_GENDERS)[number];
+
+export function sanitizeChildGender(value: unknown): ChildGender {
+  return CHILD_GENDERS.includes(value as ChildGender)
+    ? (value as ChildGender)
+    : "not_specified";
+}
+
 export interface ChildProfile {
   id: string;
   userId: string;
   name: string;
   age: number; // kept for backward compat; prefer computing from dateOfBirth
   dateOfBirth?: string; // YYYY-MM-DD
+  gender?: ChildGender;
   appearance?: ChildAppearance;
   favouriteCharacters: string[];
   favouriteActivities: string[];
@@ -75,9 +91,15 @@ export interface StoryIpPolicy {
   riskLevel: "clear" | "originalized" | "restricted";
   printAllowed: boolean;
   reasons: string[];
+  matchedTerms?: string[];
   originalizedPremise?: string;
   originalizedNotes?: string;
 }
+
+export type StoryVisibility = "private" | "share_link" | "public";
+
+export type PublicReviewStatus =
+  "not_submitted" | "pending_review" | "approved" | "rejected";
 
 export const STORY_PRESETS = [
   "tiny-tales",
@@ -108,6 +130,14 @@ export interface Story {
   status?: "generating" | "ready" | "failed";
   generationError?: string;
   shareToken?: string;
+  visibility?: StoryVisibility;
+  publicReviewStatus?: PublicReviewStatus;
+  publicSubmittedAt?: string;
+  publicReviewedAt?: string;
+  publicReviewedBy?: string;
+  publicRejectionReason?: string;
+  publicAuthorName?: string;
+  publicTermsAcceptedAt?: string;
 }
 
 export interface Character {
@@ -132,6 +162,14 @@ export const LESSON_OPTIONS = [
   "honesty",
   "gratitude",
   "perseverance",
+  "confidence",
+  "calm bedtime",
+  "listening",
+  "gentle routines",
+  "problem solving",
+  "curiosity",
+  "being helpful",
+  "self belief",
 ] as const;
 
 export type Lesson = (typeof LESSON_OPTIONS)[number];

@@ -6,7 +6,7 @@ export const metadata = {
 };
 
 const EFFECTIVE = "26 July 2026";
-const CONTACT = "hello@storycot.com";
+const CONTACT = "hello@storycot.com.au";
 const COMPANY = "Davies Dream Designs";
 
 function Section({
@@ -40,7 +40,7 @@ export default function PrivacyPage() {
 
         <p className="mt-6 text-sm text-night-600 leading-relaxed">
           {COMPANY} (&ldquo;we&rdquo;, &ldquo;us&rdquo;) operates Storycot at
-          storycot.com. This policy explains what personal information we
+          storycot.com.au. This policy explains what personal information we
           collect, why we collect it, and how we handle it. We comply with the
           Australian Privacy Act 1988 (Cth).
         </p>
@@ -61,6 +61,12 @@ export default function PrivacyPage() {
           <p>
             <strong>Story and book content:</strong> The stories and illustrated
             books we generate for you, stored so you can access them later.
+          </p>
+          <p>
+            <strong>Public gallery content:</strong> If you submit a story for
+            public review, we store the author display name, review status,
+            moderation notes, votes, reports, and public story metadata needed
+            to operate the gallery.
           </p>
           <p>
             <strong>Payment information:</strong> Payment is processed by
@@ -180,7 +186,22 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
-        <Section title="6. Your rights">
+        <Section title="6. Public gallery and reports">
+          <p>
+            Public gallery stories and share links are currently limited to
+            illustrated stories with book cover artwork. Anyone who can access
+            the public gallery or shared story link may see story text, images,
+            title, theme, author display name, vote counts, and publication
+            date. Do not submit private identifying details for public review.
+          </p>
+          <p>
+            Signed-in readers can vote for and report public stories. We use
+            reports to moderate the gallery and may temporarily hide a story
+            while it is reviewed.
+          </p>
+        </Section>
+
+        <Section title="7. Your rights">
           <p>
             Under the Australian Privacy Act you have the right to access,
             correct, or request deletion of your personal information. You can:
@@ -198,7 +219,7 @@ export default function PrivacyPage() {
           </ul>
         </Section>
 
-        <Section title="7. Cookies">
+        <Section title="8. Cookies">
           <p>
             Storycot uses cookies and local storage for authentication (Clerk)
             and to remember your session. Vercel Analytics uses anonymised
@@ -206,7 +227,7 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
-        <Section title="8. Changes to this policy">
+        <Section title="9. Changes to this policy">
           <p>
             We may update this policy from time to time. We&apos;ll post the new
             version here with an updated effective date. For material changes

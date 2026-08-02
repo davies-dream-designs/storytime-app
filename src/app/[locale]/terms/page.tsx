@@ -6,7 +6,7 @@ export const metadata = {
 };
 
 const EFFECTIVE = "26 July 2026";
-const CONTACT = "hello@storycot.com";
+const CONTACT = "hello@storycot.com.au";
 const COMPANY = "Davies Dream Designs";
 const ABN = ""; // Add ABN when registered
 
@@ -73,7 +73,8 @@ export default function TermsPage() {
           <p>
             Storycot uses a credit system. New accounts receive 3 free credits.
             Generating a plain text story costs 1 credit; generating an
-            illustrated book costs 8 credits.
+            illustrated book costs from 6 credits depending on the selected age
+            band, story preset, and book shape.
           </p>
           <p>
             Credit packs are purchased through Stripe. Prices are in Australian
@@ -151,7 +152,46 @@ export default function TermsPage() {
           </p>
         </Section>
 
-        <Section title="7. Service availability">
+        <Section title="7. Public gallery">
+          <p>
+            You can choose to submit an illustrated story for public review once
+            it has a generated book cover. Plain text stories are not eligible
+            for public gallery listing or public share links.
+            Public stories do not appear in the gallery until we approve them.
+            We may reject, hide, delist, or remove public stories at our
+            discretion, including after user reports.
+          </p>
+          <p>
+            By submitting a story for public review, you confirm that you have
+            permission to publish the story, images, names, likenesses, and any
+            personal details included. You must not include private identifying
+            details unless you have authority and it is appropriate to publish
+            them.
+          </p>
+          <p>
+            You still own the content you create. For public stories, you grant
+            Storycot a licence to display, host, promote, feature, moderate, and
+            share the illustrated story and related book cover/images as part of
+            the public gallery. If public book purchases are later enabled,
+            this licence will also need to cover printing, selling, and
+            fulfilling copies before purchase is turned on.
+          </p>
+          <p>
+            Public gallery rewards are promotional only. We do not
+            currently offer royalties or cash payouts for public stories.
+            Credits, badges, discounts, or featured placement may be offered at
+            Storycot&apos;s discretion and are not guaranteed.
+          </p>
+          <p>
+            If you edit a story after public submission, approval, rejection, or
+            delisting, Storycot may remove public/share access and require a new
+            moderation review before the story can appear publicly again.
+            Existing book exports may need to be regenerated before download,
+            print, or public purchase.
+          </p>
+        </Section>
+
+        <Section title="8. Service availability">
           <p>
             We aim for high availability but don&apos;t guarantee uninterrupted
             service. AI generation depends on third-party providers (Anthropic,
@@ -160,7 +200,7 @@ export default function TermsPage() {
           </p>
         </Section>
 
-        <Section title="8. Limitation of liability">
+        <Section title="9. Limitation of liability">
           <p>
             To the extent permitted by Australian law, our liability for any
             claim arising from your use of Storycot is limited to the amount you
@@ -173,7 +213,7 @@ export default function TermsPage() {
           </p>
         </Section>
 
-        <Section title="9. Changes to these terms">
+        <Section title="10. Changes to these terms">
           <p>
             We may update these terms from time to time. We&apos;ll post the new
             version here with an updated effective date. Continued use of
@@ -181,7 +221,7 @@ export default function TermsPage() {
           </p>
         </Section>
 
-        <Section title="10. Governing law">
+        <Section title="11. Governing law">
           <p>
             These terms are governed by the laws of South Australia, Australia.
             Any disputes will be resolved in the courts of South Australia.

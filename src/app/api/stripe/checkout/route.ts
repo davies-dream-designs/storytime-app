@@ -2,8 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes, randomUUID } from "crypto";
 import Stripe from "stripe";
 import { auth, clerkClient } from "@clerk/nextjs/server";
-import { getStripeLocale, isLocale, type Locale } from "@/i18n/locales";
+import { getStripeLocale, type Locale } from "@/i18n/locales";
 import { db } from "@/lib/db";
+import {
+  cleanEmail,
+  cleanText,
+  getRequestLocale,
+  getRequestOrigin,
+  isValidEmail,
+  parsePrintShippingAddress,
+} from "@/lib/checkout/request";
 import {
   isPrintProductKey,
   quotePrintProduct,
@@ -20,46 +28,6 @@ import {
 } from "@/lib/print-books/launch";
 import { isStoryPrintRestricted } from "@/lib/ipGuardrails";
 import { CREDIT_PACKS, isCreditPackId } from "@/lib/creditPacks";
-import type { PrintShippingAddress } from "@/types/printBook";
-
-function getRequestOrigin(req: NextRequest) {
-  const origin = req.headers.get("origin");
-  if (origin) return origin.replace(/\/$/, "");
-
-  const forwardedHost = req.headers.get("x-forwarded-host");
-  if (forwardedHost) {
-    const forwardedProto = req.headers.get("x-forwarded-proto") ?? "https";
-    return `${forwardedProto}://${forwardedHost}`.replace(/\/$/, "");
-  }
-
-  // Referer is reliable for same-origin fetches when Origin is omitted (common on iOS Safari)
-  const referer = req.headers.get("referer");
-  if (referer) {
-    try {
-      return new URL(referer).origin;
-    } catch {}
-  }
-
-  return (
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-    (process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000")
-  );
-}
-
-function getRequestLocale(req: NextRequest): Locale | undefined {
-  const referer = req.headers.get("referer");
-  if (!referer) return undefined;
-
-  try {
-    const pathname = new URL(referer).pathname;
-    const locale = pathname.split("/").filter(Boolean)[0];
-    return isLocale(locale) ? locale : undefined;
-  } catch {
-    return undefined;
-  }
-}
 
 function getAccountReturnPath(locale: Locale | undefined) {
   return locale ? `/${locale}/account` : "/account";
@@ -73,18 +41,6 @@ function getBookReturnPath(locale: Locale | undefined, projectId: string) {
   return locale ? `/${locale}/books/${projectId}` : `/books/${projectId}`;
 }
 
-function cleanText(value: unknown, maxLength: number) {
-  return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
-}
-
-function cleanEmail(value: unknown) {
-  return cleanText(value, 254).toLowerCase();
-}
-
-function isValidEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
-
 function getReferralCookie(req: NextRequest, userId: string) {
   const ref = req.cookies.get("storycot_ref")?.value;
   if (!ref || ref === userId || !/^user_[A-Za-z0-9]+$/.test(ref)) {
@@ -95,44 +51,6 @@ function getReferralCookie(req: NextRequest, userId: string) {
 
 function generateGiftToken() {
   return randomBytes(18).toString("base64url");
-}
-
-function parsePrintShippingAddress(
-  value: unknown
-): PrintShippingAddress | undefined {
-  if (!value || typeof value !== "object") return undefined;
-  const input = value as Record<string, unknown>;
-  const line1 = cleanText(input.line1, 120);
-  const line2 = cleanText(input.line2, 120);
-  const city = cleanText(input.city, 80);
-  const state = cleanText(input.state, 40).toUpperCase();
-  const postalCode = cleanText(input.postalCode, 12);
-  const countryCode = cleanText(input.countryCode, 2).toUpperCase();
-  const name = cleanText(input.name, 120);
-  const email = cleanEmail(input.email);
-  const phone = cleanText(input.phone, 40);
-
-  if (
-    !line1 ||
-    !city ||
-    !postalCode ||
-    countryCode !== "AU" ||
-    (email && !isValidEmail(email))
-  ) {
-    return undefined;
-  }
-
-  return {
-    name: name || undefined,
-    email: email || undefined,
-    phone: phone || undefined,
-    line1,
-    line2: line2 || undefined,
-    city,
-    state: state || undefined,
-    postalCode,
-    countryCode: "AU",
-  };
 }
 
 export async function POST(req: NextRequest) {
@@ -290,7 +208,7 @@ export async function POST(req: NextRequest) {
             product_data: {
               name: `Storycot Digital Book - ${story?.title ?? "Illustrated Story"}`,
               description:
-                "Illustrated PDF and EPUB - download to any device, read forever.",
+                "Illustrated PDF and e-reader file - download to any device, read forever.",
             },
             unit_amount: 995,
           },

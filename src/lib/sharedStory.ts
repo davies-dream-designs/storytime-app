@@ -63,14 +63,6 @@ function projectToSharedSpreads(project: BookProject): SharedStorySpread[] {
     .filter((spread) => spread.text || spread.imageUrl);
 }
 
-function storyToSharedSpreads(story: Story): SharedStorySpread[] {
-  return story.pages.map((page) => ({
-    id: `story-page-${page.pageNumber}`,
-    sequence: page.pageNumber,
-    text: page.text,
-  }));
-}
-
 function selectSharedProject(projects: BookProject[]): BookProject | undefined {
   return projects
     .filter((project) => project.status === "ready")
@@ -96,14 +88,13 @@ export async function getSharedStoryByToken(
       : project && !isPlaceholderImage(project.assets.coverImageUrl)
         ? project.assets.coverImageUrl
         : undefined;
+  if (!project || !coverImageUrl) return undefined;
 
   return {
     story,
     project,
     coverImageUrl,
-    spreads: project
-      ? projectToSharedSpreads(project)
-      : storyToSharedSpreads(story),
+    spreads: projectToSharedSpreads(project),
     narrationEnabled: Boolean(project?.assets.digitalDownloadUnlockedAt),
   };
 }

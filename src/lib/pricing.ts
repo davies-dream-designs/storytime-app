@@ -2,7 +2,7 @@ import type { AgeBand } from "@/types/printBook";
 import { getStorycotIllustrationCountForAgeBand } from "@/lib/print-books/printProducts";
 
 export const STORY_CREDIT_COST = 1;
-export const ILLUSTRATED_BOOK_CREDIT_COST = 8;
+export const ILLUSTRATED_BOOK_CREDIT_COST = 6;
 
 export function estimateIllustratedBookCredits(input: {
   ageBand: AgeBand;

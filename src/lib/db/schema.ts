@@ -7,7 +7,14 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type { ChildAppearance } from "@/types/profileAppearance";
-import type { StoryPage, StoryIpPolicy, StoryPreset } from "@/types";
+import type {
+  ChildGender,
+  PublicReviewStatus,
+  StoryPage,
+  StoryIpPolicy,
+  StoryPreset,
+  StoryVisibility,
+} from "@/types";
 import type {
   AgeBand,
   Beat,
@@ -15,6 +22,7 @@ import type {
   BookAsset,
   BookBilling,
   PrintBookOrder,
+  PrintOrderRecord,
   CharacterBible,
   BookProjectStatus,
   BookBuildMode,
@@ -30,6 +38,10 @@ export const profiles = pgTable(
     name: text("name").notNull(),
     age: integer("age").notNull().default(0),
     dateOfBirth: text("date_of_birth"),
+    gender: text("gender")
+      .$type<ChildGender>()
+      .notNull()
+      .default("not_specified"),
     appearance: jsonb("appearance").$type<ChildAppearance>(),
     favouriteCharacters: text("favourite_characters")
       .array()
@@ -66,10 +78,26 @@ export const stories = pgTable(
     status: text("status").$type<"generating" | "ready" | "failed">(),
     generationError: text("generation_error"),
     shareToken: text("share_token"),
+    visibility: text("visibility")
+      .$type<StoryVisibility>()
+      .notNull()
+      .default("private"),
+    publicReviewStatus: text("public_review_status")
+      .$type<PublicReviewStatus>()
+      .notNull()
+      .default("not_submitted"),
+    publicSubmittedAt: text("public_submitted_at"),
+    publicReviewedAt: text("public_reviewed_at"),
+    publicReviewedBy: text("public_reviewed_by"),
+    publicRejectionReason: text("public_rejection_reason"),
+    publicAuthorName: text("public_author_name"),
+    publicTermsAcceptedAt: text("public_terms_accepted_at"),
   },
   (t) => [
     index("stories_user_id_idx").on(t.userId),
     index("stories_profile_id_idx").on(t.profileId),
+    index("stories_public_review_status_idx").on(t.publicReviewStatus),
+    index("stories_public_gallery_idx").on(t.visibility, t.publicReviewStatus),
     uniqueIndex("stories_share_token_idx").on(t.shareToken),
   ]
 );
@@ -196,6 +224,52 @@ export const giftOrders = pgTable(
   ]
 );
 
+export const printOrders = pgTable(
+  "print_orders",
+  {
+    id: text("id").primaryKey(),
+    type: text("type").$type<PrintOrderRecord["type"]>().notNull(),
+    projectId: text("project_id").notNull(),
+    storyId: text("story_id").notNull(),
+    ownerUserId: text("owner_user_id").notNull(),
+    buyerUserId: text("buyer_user_id"),
+    buyerEmail: text("buyer_email"),
+    productKey: text("product_key")
+      .$type<PrintOrderRecord["productKey"]>()
+      .notNull(),
+    productLabel: text("product_label").notNull(),
+    provider: text("provider").$type<PrintOrderRecord["provider"]>().notNull(),
+    format: text("format").notNull(),
+    status: text("status").$type<PrintOrderRecord["status"]>().notNull(),
+    amountAudCents: integer("amount_aud_cents").notNull(),
+    subtotalAudCents: integer("subtotal_aud_cents").notNull(),
+    shippingAudCents: integer("shipping_aud_cents").notNull(),
+    luluCostAudCents: integer("lulu_cost_aud_cents"),
+    marginAudCents: integer("margin_aud_cents"),
+    pageCount: integer("page_count").notNull(),
+    quantity: integer("quantity").notNull().default(1),
+    checkoutSessionId: text("checkout_session_id"),
+    paymentIntentId: text("payment_intent_id"),
+    billingCountry: text("billing_country"),
+    shipping: jsonb("shipping").$type<PrintOrderRecord["shipping"]>(),
+    fulfillment: jsonb("fulfillment").$type<PrintOrderRecord["fulfillment"]>(),
+    checkoutStartedAt: text("checkout_started_at"),
+    paidAt: text("paid_at"),
+    refundedAt: text("refunded_at"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [
+    index("print_orders_project_id_idx").on(t.projectId),
+    index("print_orders_story_id_idx").on(t.storyId),
+    index("print_orders_owner_user_id_idx").on(t.ownerUserId),
+    index("print_orders_buyer_user_id_idx").on(t.buyerUserId),
+    uniqueIndex("print_orders_checkout_session_id_idx").on(t.checkoutSessionId),
+    index("print_orders_status_idx").on(t.status),
+    index("print_orders_created_at_idx").on(t.createdAt),
+  ]
+);
+
 export const bookBuildJobs = pgTable(
   "book_build_jobs",
   {
@@ -216,4 +290,66 @@ export const bookBuildJobs = pgTable(
     updatedAt: text("updated_at").notNull(),
   },
   (t) => [index("book_build_jobs_project_id_idx").on(t.projectId)]
+);
+
+export const publicStoryVotes = pgTable(
+  "public_story_votes",
+  {
+    id: text("id").primaryKey(),
+    storyId: text("story_id").notNull(),
+    userId: text("user_id").notNull(),
+    voteMonth: text("vote_month").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("public_story_votes_story_user_month_idx").on(
+      t.storyId,
+      t.userId,
+      t.voteMonth
+    ),
+    index("public_story_votes_story_month_idx").on(t.storyId, t.voteMonth),
+    index("public_story_votes_user_month_idx").on(t.userId, t.voteMonth),
+  ]
+);
+
+export const publicStoryReports = pgTable(
+  "public_story_reports",
+  {
+    id: text("id").primaryKey(),
+    storyId: text("story_id").notNull(),
+    userId: text("user_id").notNull(),
+    reason: text("reason").notNull(),
+    note: text("note"),
+    status: text("status")
+      .$type<"open" | "reviewed" | "dismissed">()
+      .notNull()
+      .default("open"),
+    createdAt: text("created_at").notNull(),
+    reviewedAt: text("reviewed_at"),
+    reviewedBy: text("reviewed_by"),
+  },
+  (t) => [
+    uniqueIndex("public_story_reports_story_user_idx").on(t.storyId, t.userId),
+    index("public_story_reports_story_status_idx").on(t.storyId, t.status),
+    index("public_story_reports_status_idx").on(t.status),
+  ]
+);
+
+export const publicStoryModerationEvents = pgTable(
+  "public_story_moderation_events",
+  {
+    id: text("id").primaryKey(),
+    storyId: text("story_id").notNull(),
+    actorUserId: text("actor_user_id"),
+    actorLabel: text("actor_label").notNull(),
+    action: text("action").notNull(),
+    note: text("note"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [
+    index("public_story_moderation_events_story_idx").on(t.storyId),
+    index("public_story_moderation_events_created_idx").on(t.createdAt),
+    index("public_story_moderation_events_action_idx").on(t.action),
+  ]
 );

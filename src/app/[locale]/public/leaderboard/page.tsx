@@ -19,19 +19,29 @@ const leaderboardCategories: Array<{
     description: "Overall monthly ranking",
   },
   {
-    key: "tiny-tales",
-    label: "Little listeners",
-    description: "Shorter stories for the youngest readers",
+    key: "baby-drift",
+    label: "Baby bedtime",
+    description: "Gentle sleepy stories for babies",
   },
   {
-    key: "moonlit-adventures",
-    label: "Bedtime adventures",
+    key: "toddler-tale",
+    label: "Toddler tales",
+    description: "Simple bedtime adventures for toddlers",
+  },
+  {
+    key: "preschool-story",
+    label: "Preschool stories",
     description: "Classic cosy Storycot reads",
   },
   {
-    key: "epic-sagas",
-    label: "Older readers",
-    description: "Longer stories with bigger arcs",
+    key: "big-kid-chapter",
+    label: "Big kid chapters",
+    description: "Richer stories with bigger arcs",
+  },
+  {
+    key: "young-reader-classic",
+    label: "Young readers",
+    description: "Chapter-style stories with fewer illustrations",
   },
 ];
 

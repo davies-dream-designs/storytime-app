@@ -200,7 +200,6 @@ export default async function StoryPage({
                     illustrationCount={estimatedIllustrationCount}
                     userCredits={userCredits}
                     isAdmin={isAdmin}
-                    storyPreset={story.storyPreset}
                     compact
                   />
                 ) : null}
@@ -275,29 +274,11 @@ export default async function StoryPage({
                 {tBooks("estimateTitle")}
               </p>
               <p className="mt-1">
-                {story.storyPreset === "tiny-tales"
-                  ? tBooks("estimateBodyTinyTales", {
-                      credits: illustrationEstimate.credits,
-                      pages: estimatedPageCount,
-                      illustrations: estimatedIllustrationCount,
-                    })
-                  : story.storyPreset === "moonlit-adventures"
-                    ? tBooks("estimateBodyMoonlitAdventures", {
-                        credits: illustrationEstimate.credits,
-                        pages: estimatedPageCount,
-                        illustrations: estimatedIllustrationCount,
-                      })
-                    : story.storyPreset === "epic-sagas"
-                      ? tBooks("estimateBodyEpicSagas", {
-                          credits: illustrationEstimate.credits,
-                          pages: estimatedPageCount,
-                          illustrations: estimatedIllustrationCount,
-                        })
-                      : tBooks("estimateBody", {
-                          credits: illustrationEstimate.credits,
-                          pages: estimatedPageCount,
-                          illustrations: estimatedIllustrationCount,
-                        })}
+                {tBooks("estimateBody", {
+                  credits: illustrationEstimate.credits,
+                  pages: estimatedPageCount,
+                  illustrations: estimatedIllustrationCount,
+                })}
               </p>
             </div>
           )}

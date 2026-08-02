@@ -213,6 +213,32 @@ describe("composePrintBookSpreads", () => {
     expect(spreads.at(-1)?.title).toBe("Back Cover");
   });
 
+  it("composes young reader chapter books with sparse illustrations", () => {
+    const story = createStory(30);
+    const spreads = composePrintBookSpreads({
+      bookProjectId: "book-1",
+      story,
+      profile: createProfile(10),
+      ageBand: "young-reader-classic",
+      beats: deriveBeatsFromStory(story),
+    });
+
+    const storyArtSpreads = spreads.filter(
+      (spread) =>
+        spread.layoutType === "text_art" ||
+        spread.layoutType === "hero" ||
+        spread.layoutType === "quiet"
+    );
+    const textOnlySpreads = spreads.filter(
+      (spread) => spread.layoutType === "text_only"
+    );
+
+    expect(spreads).toHaveLength(28);
+    expect(spreads.at(-1)?.pageEnd).toBe(56);
+    expect(storyArtSpreads).toHaveLength(10);
+    expect(textOnlySpreads.length).toBeGreaterThan(0);
+  });
+
   it("derives extra interior spreads from the story instead of using only generic filler", () => {
     const story = createStory(4);
     const spreads = composePrintBookSpreads({

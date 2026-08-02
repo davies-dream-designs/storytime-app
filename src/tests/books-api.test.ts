@@ -104,7 +104,7 @@ function createBookProject(): BookProject {
     userId: "user-1",
     sourceStoryId: "story-1",
     profileId: "profile-1",
-    ageBand: "3-5",
+    ageBand: "preschool-story",
     status: "queued",
     trimSize: "storycot-dynamic-square",
     pageCount: 28,
@@ -154,7 +154,7 @@ describe("/api/books", () => {
     const body = await res.json();
     expect(body.sourceStoryId).toBe("story-1");
     expect(body.status).toBe("queued");
-    expect(body.ageBand).toBe("3-5");
+    expect(body.ageBand).toBe("preschool-story");
     expect(mockDb.bookProjects.create).toHaveBeenCalledTimes(1);
   });
 

@@ -44,6 +44,21 @@ export function getAge(profile: ChildProfile): number {
   return profile.age ?? 0;
 }
 
+export function getAgeInMonths(profile: ChildProfile): number {
+  if (profile.dateOfBirth) {
+    const dob = new Date(profile.dateOfBirth);
+    const today = new Date();
+    return Math.max(
+      0,
+      (today.getFullYear() - dob.getFullYear()) * 12 +
+        (today.getMonth() - dob.getMonth()) -
+        (today.getDate() < dob.getDate() ? 1 : 0)
+    );
+  }
+
+  return Math.max(0, Math.round((profile.age ?? 0) * 12));
+}
+
 export function formatAge(profile: ChildProfile): string {
   if (profile.dateOfBirth) {
     const dob = new Date(profile.dateOfBirth);
@@ -85,7 +100,19 @@ export interface StorySuggestion {
   theme: string;
 }
 
-export type StoryPreset = "tiny-tales" | "moonlit-adventures" | "epic-sagas";
+export type StoryPreset =
+  | "baby-drift"
+  | "little-listener"
+  | "toddler-tale"
+  | "first-adventure"
+  | "preschool-story"
+  | "big-kid-chapter"
+  | "young-reader-short"
+  | "young-reader-classic"
+  | "young-reader-long"
+  | "tiny-tales"
+  | "moonlit-adventures"
+  | "epic-sagas";
 
 export interface StoryIpPolicy {
   riskLevel: "clear" | "originalized" | "restricted";
@@ -102,15 +129,28 @@ export type PublicReviewStatus =
   "not_submitted" | "pending_review" | "approved" | "rejected";
 
 export const STORY_PRESETS = [
-  "tiny-tales",
-  "moonlit-adventures",
-  "epic-sagas",
+  "baby-drift",
+  "little-listener",
+  "toddler-tale",
+  "first-adventure",
+  "preschool-story",
+  "big-kid-chapter",
+  "young-reader-short",
+  "young-reader-classic",
+  "young-reader-long",
 ] as const;
 
-export function getDefaultPreset(ageYears: number): StoryPreset {
-  if (ageYears <= 3) return "tiny-tales";
-  if (ageYears <= 6) return "moonlit-adventures";
-  return "epic-sagas";
+export function getDefaultPreset(
+  ageYears: number,
+  ageMonths = ageYears * 12
+): StoryPreset {
+  if (ageMonths < 12) return "baby-drift";
+  if (ageMonths < 24) return "little-listener";
+  if (ageMonths < 36) return "toddler-tale";
+  if (ageMonths < 48) return "first-adventure";
+  if (ageYears <= 5) return "preschool-story";
+  if (ageYears <= 8) return "big-kid-chapter";
+  return "young-reader-classic";
 }
 
 export interface Story {

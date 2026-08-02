@@ -11,6 +11,7 @@ type ReaderSpread = {
   id: string;
   sequence: number;
   title?: string;
+  layoutType?: BookSpread["layoutType"];
   leftPageText: string;
   rightPageText: string;
   imageUrl?: string;
@@ -37,7 +38,8 @@ function getReaderSpreads(project: BookProject): ReaderSpread[] {
       return (
         s.layoutType === "text_art" ||
         s.layoutType === "hero" ||
-        s.layoutType === "quiet"
+        s.layoutType === "quiet" ||
+        s.layoutType === "text_only"
       );
     })
     .sort((a, b) => a.sequence - b.sequence)
@@ -45,6 +47,7 @@ function getReaderSpreads(project: BookProject): ReaderSpread[] {
       id: s.id,
       sequence: s.sequence,
       title: s.title,
+      layoutType: s.layoutType,
       leftPageText: s.leftPageText,
       rightPageText: s.rightPageText,
       imageUrl: s.leftPageWebImageUrl ?? s.leftPageImageUrl ?? s.imageUrl,
@@ -140,9 +143,7 @@ export default function BookReader({
       if (!nextText) return;
 
       const promise = fetch(getNarrationUrl(nextSpread.id))
-        .then((r) =>
-          r.ok ? (r.json() as Promise<NarrationPayload>) : null
-        )
+        .then((r) => (r.ok ? (r.json() as Promise<NarrationPayload>) : null))
         .catch(() => null)
         .then((data) => {
           if (!data) preloadCache.current.delete(nextSpread.id);
@@ -307,6 +308,7 @@ export default function BookReader({
   if (!spread || total === 0) return null;
 
   const hasImage = spread.imageUrl && !isPlaceholder(spread.imageUrl);
+  const isTextOnlyPage = spread.layoutType === "text_only";
   const pageText = [spread.leftPageText, spread.rightPageText]
     .filter(Boolean)
     .join(" ")
@@ -322,7 +324,7 @@ export default function BookReader({
     <div className="select-none">
       {/* Main reader card */}
       <div
-        className={`overflow-hidden rounded-3xl border border-night-100 bg-white shadow-xl${pageText ? " lg:flex lg:min-h-[480px]" : ""}`}
+        className={`overflow-hidden rounded-3xl border border-night-100 bg-white shadow-xl${pageText && !isTextOnlyPage ? " lg:flex lg:min-h-[480px]" : ""}`}
       >
         {/* Image panel */}
         {hasImage ? (
@@ -368,7 +370,7 @@ export default function BookReader({
               {t("tapToExpand")}
             </div>
           </div>
-        ) : (
+        ) : !isTextOnlyPage ? (
           <div className="flex items-center justify-center bg-moon-50 px-8 py-16 lg:w-[55%] lg:shrink-0">
             <div className="text-center">
               <span className="text-5xl" aria-hidden="true">
@@ -379,12 +381,18 @@ export default function BookReader({
               </p>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Text + indicator (right side on desktop) - hidden for cover/pages without text */}
         {pageText ? (
           <div className="flex flex-col lg:flex-1">
-            <div className="flex-1 border-t border-night-50 px-7 pb-8 pt-6 lg:border-t-0 lg:border-l lg:flex lg:items-center">
+            <div
+              className={`flex-1 border-night-50 px-7 pb-8 pt-6 lg:flex lg:items-center ${
+                isTextOnlyPage
+                  ? "min-h-[420px] justify-center"
+                  : "border-t lg:border-t-0 lg:border-l"
+              }`}
+            >
               <p className="font-display text-xl font-medium leading-relaxed text-night-800">
                 {words.length > 0
                   ? words.map((w, i) => (

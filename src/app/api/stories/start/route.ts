@@ -12,7 +12,7 @@ import {
   assessStoryIdeaIp,
   profileIpErrorResponse,
 } from "@/lib/ipGuardrails";
-import type { Story } from "@/types";
+import type { Story, StoryPreset } from "@/types";
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       theme?: string;
       premise?: string;
       notes?: string;
-      storyPreset?: "tiny-tales" | "moonlit-adventures" | "epic-sagas";
+      storyPreset?: StoryPreset;
       locale?: string;
     };
 
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
     theme: theme ?? "a gentle adventure",
     premise: ipPolicy.originalizedPremise ?? premise,
     notes: ipPolicy.originalizedNotes ?? notes ?? "",
-    storyPreset: storyPreset ?? "moonlit-adventures",
+    storyPreset: storyPreset ?? "preschool-story",
     ipPolicy,
     createdAt: new Date().toISOString(),
     status: "generating",

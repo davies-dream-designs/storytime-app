@@ -69,12 +69,12 @@ describe("illustrated book credits", () => {
     const project = await reserveIllustratedBookCredits(createProject());
 
     expect(mockUpdateUserMetadata).toHaveBeenCalledWith("user-1", {
-      privateMetadata: { credits: 2 },
+      privateMetadata: { credits: 1 },
     });
     expect(project.billing).toMatchObject({
       product: "illustrated_book",
       status: "reserved",
-      credits: 8,
+      credits: 9,
     });
   });
 

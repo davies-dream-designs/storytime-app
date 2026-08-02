@@ -1,4 +1,16 @@
-export type AgeBand = "0-2" | "3-5" | "6-8";
+export type AgeBand =
+  | "baby-drift"
+  | "little-listener"
+  | "toddler-tale"
+  | "first-adventure"
+  | "preschool-story"
+  | "big-kid-chapter"
+  | "young-reader-short"
+  | "young-reader-classic"
+  | "young-reader-long"
+  | "0-2"
+  | "3-5"
+  | "6-8";
 
 export type BookProjectStatus =
   | "queued"
@@ -49,7 +61,7 @@ export interface ProofingCheck {
 }
 
 export type BookSpreadLayoutType =
-  "front_matter" | "text_art" | "hero" | "quiet" | "end_matter";
+  "front_matter" | "text_art" | "hero" | "quiet" | "text_only" | "end_matter";
 
 export type BeatPurpose =
   | "setup"

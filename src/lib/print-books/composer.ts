@@ -9,6 +9,7 @@ import type {
 } from "@/types/printBook";
 import { buildIllustrationDirection } from "@/lib/print-books/characterBible";
 import {
+  getStorycotIllustratedStorySpreadCountForAgeBand,
   getStorycotPageCountForAgeBand,
   getStorycotStorySpreadCountForAgeBand,
 } from "@/lib/print-books/printProducts";
@@ -34,18 +35,55 @@ function getTargetStorySpreadCount(
   );
 }
 
+function isYoungPictureBookBand(ageBand: AgeBand): boolean {
+  return (
+    ageBand === "0-2" ||
+    ageBand === "baby-drift" ||
+    ageBand === "little-listener" ||
+    ageBand === "toddler-tale"
+  );
+}
+
+function isPreschoolPictureBookBand(ageBand: AgeBand): boolean {
+  return (
+    ageBand === "3-5" ||
+    ageBand === "first-adventure" ||
+    ageBand === "preschool-story"
+  );
+}
+
 function getHeroSpreadSequences(ageBand: AgeBand, total: number): Set<number> {
   if (total <= 0) return new Set();
 
-  if (ageBand === "0-2")
+  if (isYoungPictureBookBand(ageBand))
     return new Set([Math.min(2, total), Math.max(total - 1, 1)]);
-  if (ageBand === "3-5")
+  if (isPreschoolPictureBookBand(ageBand))
     return new Set([Math.min(3, total), Math.max(total - 2, 1)]);
   return new Set([
     Math.min(3, total),
     Math.ceil(total / 2),
     Math.max(total - 1, 1),
   ]);
+}
+
+function shouldIllustrateStorySpread(
+  ageBand: AgeBand,
+  position: number,
+  total: number
+): boolean {
+  const target = Math.min(
+    getStorycotIllustratedStorySpreadCountForAgeBand(ageBand),
+    total
+  );
+  if (target >= total) return true;
+  if (position === 1 || position === total) return true;
+
+  const step = (total - 1) / Math.max(target - 1, 1);
+  const illustrated = new Set<number>();
+  for (let i = 0; i < target; i += 1) {
+    illustrated.add(Math.round(i * step) + 1);
+  }
+  return illustrated.has(position);
 }
 
 function buildSceneBrief(beat: Beat): string {
@@ -320,6 +358,7 @@ function createStoryExpansionSpread(input: {
   ageBand: AgeBand;
   sourceBeat: Beat;
   variantIndex: number;
+  illustrated: boolean;
   characterBible?: CharacterBible;
 }): BookSpread {
   const {
@@ -330,13 +369,14 @@ function createStoryExpansionSpread(input: {
     ageBand,
     sourceBeat,
     variantIndex,
+    illustrated,
     characterBible,
   } = input;
   const anchorLine = clampText(getFirstSentence(sourceBeat.textDraft), 120);
   const summary = clampText(sourceBeat.summary, 110);
   const roleIndex = variantIndex % 4;
 
-  if (ageBand === "0-2") {
+  if (isYoungPictureBookBand(ageBand)) {
     const toddlerRoles = [
       {
         sceneBrief: `A sensory close-up inspired by ${sourceBeat.summary}`,
@@ -373,7 +413,7 @@ function createStoryExpansionSpread(input: {
     );
   }
 
-  if (ageBand === "3-5") {
+  if (isPreschoolPictureBookBand(ageBand)) {
     const earlyReaderRoles = [
       {
         layoutType: "hero" as const,
@@ -455,11 +495,13 @@ function createStoryExpansionSpread(input: {
     bookProjectId,
     sequence,
     pageStart,
-    role.layoutType,
+    illustrated ? role.layoutType : "text_only",
     role.leftPageText,
     role.rightPageText,
     role.sceneBrief,
-    withCharacterBiblePrompt(role.illustrationPrompt, characterBible)
+    illustrated
+      ? withCharacterBiblePrompt(role.illustrationPrompt, characterBible)
+      : ""
   );
 }
 
@@ -487,15 +529,21 @@ function createStorySpreads(
 
   for (let i = 0; i < storyBeats.length; i += 1) {
     const beat = storyBeats[i];
-    const layoutType: BookSpreadLayoutType =
-      ageBand === "0-2" || beat.isQuietBeat
+    const shouldIllustrate = shouldIllustrateStorySpread(
+      ageBand,
+      i + 1,
+      storyBeats.length
+    );
+    const layoutType: BookSpreadLayoutType = !shouldIllustrate
+      ? "text_only"
+      : isYoungPictureBookBand(ageBand) || beat.isQuietBeat
         ? "quiet"
         : heroSpreadSequences.has(i + 1)
           ? "hero"
           : "text_art";
     const { leftPageText, rightPageText } = splitTextForSpread(
       beat.textDraft,
-      ageBand === "0-2" || beat.isQuietBeat
+      isYoungPictureBookBand(ageBand) || beat.isQuietBeat
     );
 
     spreads.push(
@@ -507,7 +555,9 @@ function createStorySpreads(
         leftPageText,
         rightPageText,
         buildSceneBrief(beat),
-        withCharacterBiblePrompt(beat.visualIntent, characterBible)
+        shouldIllustrate
+          ? withCharacterBiblePrompt(beat.visualIntent, characterBible)
+          : ""
       )
     );
 
@@ -520,6 +570,12 @@ function createStorySpreads(
   while (pageStart <= interiorEndPage) {
     const isFinalQuiet = pageStart >= interiorEndPage - 1;
     const sourceBeat = expansionSeed[variantIndex % expansionSeed.length];
+    const spreadPosition = storyBeats.length + variantIndex + 1;
+    const shouldIllustrate = shouldIllustrateStorySpread(
+      ageBand,
+      spreadPosition,
+      getMaxInteriorStorySpreads(pageCount)
+    );
 
     if (sourceBeat && !isFinalQuiet) {
       spreads.push(
@@ -531,6 +587,7 @@ function createStorySpreads(
           ageBand,
           sourceBeat,
           variantIndex,
+          illustrated: shouldIllustrate,
           characterBible,
         })
       );
@@ -545,14 +602,16 @@ function createStorySpreads(
         bookProjectId,
         sequence,
         pageStart,
-        "quiet",
+        shouldIllustrate ? "quiet" : "text_only",
         isFinalQuiet ? "A final calm breath before bedtime." : "",
         "",
         "A quiet visual pause that gives the story room to breathe.",
-        withCharacterBiblePrompt(
-          "A peaceful children’s-book spread with soft night-time atmosphere and room for reflection.",
-          characterBible
-        )
+        shouldIllustrate
+          ? withCharacterBiblePrompt(
+              "A peaceful children’s-book spread with soft night-time atmosphere and room for reflection.",
+              characterBible
+            )
+          : ""
       )
     );
     pageStart += 2;

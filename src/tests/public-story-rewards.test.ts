@@ -62,8 +62,8 @@ describe("admin public story rewards", () => {
 
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.awarded).toHaveLength(4);
-    expect(mockAdjustUserCredits).toHaveBeenCalledTimes(4);
+    expect(body.awarded).toHaveLength(6);
+    expect(mockAdjustUserCredits).toHaveBeenCalledTimes(6);
     expect(mockAdjustUserCredits).toHaveBeenCalledWith("creator-1", 8);
     expect(mockAdjustUserCredits).toHaveBeenCalledWith("creator-1", 3);
     expect(mockDb.publicStoryModerationEvents.create).toHaveBeenCalledWith(
@@ -105,11 +105,11 @@ describe("admin public story rewards", () => {
 
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.awarded).toHaveLength(3);
+    expect(body.awarded).toHaveLength(5);
     expect(body.skipped).toContainEqual({
       category: "all",
       reason: "already_awarded",
     });
-    expect(mockAdjustUserCredits).toHaveBeenCalledTimes(3);
+    expect(mockAdjustUserCredits).toHaveBeenCalledTimes(5);
   });
 });

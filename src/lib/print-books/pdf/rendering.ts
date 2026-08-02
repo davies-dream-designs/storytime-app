@@ -477,12 +477,22 @@ export function drawBlankPaddingPage(input: {
 
 export function getMaxTextBoxPt(preset?: StoryPreset): number {
   switch (preset) {
+    case "baby-drift":
+    case "little-listener":
+    case "toddler-tale":
     case "tiny-tales":
       return 110; // ~3 lines — image-first for toddlers
+    case "first-adventure":
+    case "preschool-story":
     case "moonlit-adventures":
       return 155; // ~5 lines — balanced
+    case "big-kid-chapter":
     case "epic-sagas":
       return 200; // ~7 lines — text-forward for older kids
+    case "young-reader-short":
+    case "young-reader-classic":
+    case "young-reader-long":
+      return 260; // chapter-style pages carry more text between illustrations
     default:
       return 155;
   }

@@ -4,6 +4,21 @@ import { getStorycotIllustrationCountForAgeBand } from "@/lib/print-books/printP
 export const STORY_CREDIT_COST = 1;
 export const ILLUSTRATED_BOOK_CREDIT_COST = 6;
 
+const ILLUSTRATED_BOOK_CREDIT_FLOORS_BY_AGE_BAND: Record<AgeBand, number> = {
+  "baby-drift": 6,
+  "little-listener": 6,
+  "toddler-tale": 7,
+  "first-adventure": 8,
+  "preschool-story": 9,
+  "big-kid-chapter": 10,
+  "young-reader-short": 10,
+  "young-reader-classic": 12,
+  "young-reader-long": 14,
+  "0-2": 6,
+  "3-5": 9,
+  "6-8": 11,
+};
+
 export function estimateIllustratedBookCredits(input: {
   ageBand: AgeBand;
   pageCount?: number;
@@ -12,7 +27,14 @@ export function estimateIllustratedBookCredits(input: {
   const illustrationCount =
     input.illustrationCount ??
     getStorycotIllustrationCountForAgeBand(input.ageBand);
-  const baseCredits = input.ageBand === "6-8" ? 3 : 2;
+  const baseCredits =
+    input.ageBand === "big-kid-chapter" ||
+    input.ageBand === "young-reader-short" ||
+    input.ageBand === "young-reader-classic" ||
+    input.ageBand === "young-reader-long" ||
+    input.ageBand === "6-8"
+      ? 3
+      : 2;
   const illustrationCredits = Math.ceil(illustrationCount * 0.5);
   const complexityCredits =
     input.pageCount && input.pageCount > 24
@@ -21,7 +43,7 @@ export function estimateIllustratedBookCredits(input: {
 
   return {
     credits: Math.max(
-      ILLUSTRATED_BOOK_CREDIT_COST,
+      ILLUSTRATED_BOOK_CREDIT_FLOORS_BY_AGE_BAND[input.ageBand],
       baseCredits + illustrationCredits + complexityCredits
     ),
     illustrationCount,

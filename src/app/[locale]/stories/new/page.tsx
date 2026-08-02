@@ -16,6 +16,7 @@ import {
   LESSON_OPTIONS,
   getDefaultPreset,
   getAge,
+  getAgeInMonths,
 } from "@/types";
 import { assessStoryIdeaIp } from "@/lib/ipGuardrails";
 
@@ -165,7 +166,9 @@ function GenerateForm() {
         if (initial) {
           setProfileId(initial.id);
           setSelectedTheme(initial.lessons[0] ?? "calm bedtime");
-          setStoryPreset(getDefaultPreset(getAge(initial)));
+          setStoryPreset(
+            getDefaultPreset(getAge(initial), getAgeInMonths(initial))
+          );
         }
       })
       .catch((err) => {
@@ -222,7 +225,9 @@ function GenerateForm() {
     const profile = profiles.find((p) => p.id === pid);
     if (profile) {
       setSelectedTheme(profile.lessons[0] ?? "calm bedtime");
-      setStoryPreset(getDefaultPreset(getAge(profile)));
+      setStoryPreset(
+        getDefaultPreset(getAge(profile), getAgeInMonths(profile))
+      );
     }
   }
 

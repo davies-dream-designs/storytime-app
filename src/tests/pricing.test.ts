@@ -36,6 +36,34 @@ describe("pricing policy", () => {
   it("estimates illustrated book credits by age and complexity", () => {
     expect(
       estimateIllustratedBookCredits({
+        ageBand: "baby-drift",
+        pageCount: 24,
+        illustrationCount: 9,
+      }).credits
+    ).toBe(7);
+    expect(
+      estimateIllustratedBookCredits({
+        ageBand: "toddler-tale",
+        pageCount: 24,
+        illustrationCount: 9,
+      }).credits
+    ).toBe(7);
+    expect(
+      estimateIllustratedBookCredits({
+        ageBand: "preschool-story",
+        pageCount: 28,
+        illustrationCount: 11,
+      }).credits
+    ).toBe(9);
+    expect(
+      estimateIllustratedBookCredits({
+        ageBand: "young-reader-classic",
+        pageCount: 56,
+        illustrationCount: 11,
+      }).credits
+    ).toBe(13);
+    expect(
+      estimateIllustratedBookCredits({
         ageBand: "0-2",
         pageCount: 20,
         illustrationCount: 7,

@@ -4,13 +4,17 @@ import type { ChildProfile, StoryPerson } from "@/types";
 
 const {
   mockAuth,
+  mockChargeReferenceRedoCredit,
   mockCreateChildProfileAvatar,
   mockCreateStoryPersonAvatar,
   mockDb,
+  mockRefundReferenceRedoCredit,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(async () => ({ userId: "user-1" })),
+  mockChargeReferenceRedoCredit: vi.fn(),
   mockCreateChildProfileAvatar: vi.fn(),
   mockCreateStoryPersonAvatar: vi.fn(),
+  mockRefundReferenceRedoCredit: vi.fn(),
   mockDb: {
     profiles: {
       getByUserId: vi.fn(),
@@ -38,6 +42,11 @@ vi.mock("@/lib/db", () => ({
 vi.mock("@/lib/storyPeopleAvatars", () => ({
   createChildProfileAvatar: mockCreateChildProfileAvatar,
   createStoryPersonAvatar: mockCreateStoryPersonAvatar,
+}));
+
+vi.mock("@/lib/credits", () => ({
+  chargeReferenceRedoCredit: mockChargeReferenceRedoCredit,
+  refundReferenceRedoCredit: mockRefundReferenceRedoCredit,
 }));
 
 const profiles: ChildProfile[] = [
@@ -68,6 +77,12 @@ describe("/api/story-people", () => {
     mockDb.storyPeople.update.mockResolvedValue(undefined);
     mockDb.storyPeople.getByUserId.mockResolvedValue([]);
     mockDb.storyPeople.getByProfileId.mockResolvedValue([]);
+    mockChargeReferenceRedoCredit.mockResolvedValue({
+      credits: 2,
+      isAdmin: false,
+      charged: true,
+    });
+    mockRefundReferenceRedoCredit.mockResolvedValue(undefined);
     mockCreateChildProfileAvatar.mockResolvedValue({
       avatarImageUrl: "https://assets.example.com/child-avatar.jpg",
       appearanceSummary: "Warm child storybook reference.",
@@ -176,10 +191,54 @@ describe("/api/story-people", () => {
       file: expect.any(File),
       adjustment: "",
     });
+    expect(mockChargeReferenceRedoCredit).not.toHaveBeenCalled();
     expect(mockDb.storyPeople.update).toHaveBeenCalledWith("person-1", {
       avatarImageUrl: "https://assets.example.com/avatar.jpg",
       appearance: "Dark curls and a warm smile.",
       appearanceSummary: "Warm storybook reference.",
+    });
+  });
+
+  it("charges one credit when redoing an existing story person reference", async () => {
+    const person: StoryPerson = {
+      id: "person-1",
+      userId: "user-1",
+      name: "Mum",
+      relationship: "mum",
+      description: "",
+      personality: "",
+      appearance: "",
+      avatarImageUrl: "https://assets.example.com/old-avatar.jpg",
+      availableToAllProfiles: true,
+      profileIds: [],
+      createdAt: "2026-07-15T00:00:00.000Z",
+      updatedAt: "2026-07-15T00:00:00.000Z",
+    };
+    mockDb.storyPeople.getById.mockResolvedValue(person);
+    mockDb.storyPeople.update.mockResolvedValue({
+      ...person,
+      avatarImageUrl: "https://assets.example.com/new-avatar.jpg",
+    });
+
+    const { POST } = await import("@/app/api/story-people/[id]/avatar/route");
+    const form = new FormData();
+    form.append("photo", new File(["fake"], "mum.jpg", { type: "image/jpeg" }));
+    form.append("photoConsent", "yes");
+    form.append("adjustment", "less broad");
+    const req = {
+      formData: async () => form,
+    } as NextRequest;
+
+    const res = await POST(req, {
+      params: Promise.resolve({ id: "person-1" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockChargeReferenceRedoCredit).toHaveBeenCalledWith("user-1");
+    expect(mockCreateStoryPersonAvatar).toHaveBeenCalledWith({
+      person,
+      file: expect.any(File),
+      adjustment: "less broad",
     });
   });
 
@@ -225,6 +284,7 @@ describe("/api/story-people", () => {
       file: expect.any(File),
       adjustment: "",
     });
+    expect(mockChargeReferenceRedoCredit).not.toHaveBeenCalled();
     expect(mockDb.profiles.update).toHaveBeenCalledWith("profile-1", {
       avatarImageUrl: "https://assets.example.com/child-avatar.jpg",
       appearanceSummary: "Warm child storybook reference.",
@@ -235,6 +295,49 @@ describe("/api/story-people", () => {
         expressionVibes: [],
         consistencyNote: "Soft curls and a bright smile.",
       },
+    });
+  });
+
+  it("charges one credit when redoing an existing child profile reference", async () => {
+    const profile: ChildProfile = {
+      ...profiles[0],
+      avatarImageUrl: "https://assets.example.com/old-child-avatar.jpg",
+      appearance: {
+        hairStyles: [],
+        featureEmphasis: [],
+        distinguishingFeatures: [],
+        expressionVibes: [],
+      },
+    };
+    mockDb.profiles.getById.mockResolvedValue(profile);
+    mockDb.profiles.update.mockResolvedValue({
+      ...profile,
+      avatarImageUrl: "https://assets.example.com/new-child-avatar.jpg",
+      appearanceSummary: "Warm child storybook reference.",
+    });
+
+    const { POST } = await import("@/app/api/profiles/[id]/avatar/route");
+    const form = new FormData();
+    form.append(
+      "photo",
+      new File(["fake"], "mila.jpg", { type: "image/jpeg" })
+    );
+    form.append("photoConsent", "yes");
+    form.append("adjustment", "closer to the photo");
+    const req = {
+      formData: async () => form,
+    } as NextRequest;
+
+    const res = await POST(req, {
+      params: Promise.resolve({ id: "profile-1" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockChargeReferenceRedoCredit).toHaveBeenCalledWith("user-1");
+    expect(mockCreateChildProfileAvatar).toHaveBeenCalledWith({
+      profile,
+      file: expect.any(File),
+      adjustment: "closer to the photo",
     });
   });
 

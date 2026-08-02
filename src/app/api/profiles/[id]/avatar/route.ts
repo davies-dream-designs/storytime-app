@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
+import {
+  chargeReferenceRedoCredit,
+  refundReferenceRedoCredit,
+} from "@/lib/credits";
 import { createChildProfileAvatar } from "@/lib/storyPeopleAvatars";
 import type { ChildAppearance } from "@/types/profileAppearance";
 
@@ -55,8 +59,14 @@ export async function POST(
   const adjustment = String(formData.get("adjustment") ?? "")
     .trim()
     .slice(0, 240);
+  const isRedo = Boolean(profile.avatarImageUrl);
+  let charged = false;
 
   try {
+    if (isRedo) {
+      const charge = await chargeReferenceRedoCredit(userId);
+      charged = charge.charged;
+    }
     const avatar = await createChildProfileAvatar({
       profile,
       file: photo,
@@ -72,6 +82,7 @@ export async function POST(
     });
     return NextResponse.json(updated);
   } catch (err) {
+    if (charged) await refundReferenceRedoCredit(userId);
     return NextResponse.json(
       {
         error:

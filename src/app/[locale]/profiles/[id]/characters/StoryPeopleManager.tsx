@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import { buttonClassName } from "@/components/ui/buttonStyles";
@@ -127,6 +127,19 @@ export default function StoryPeopleManager({
     Record<string, PendingPhoto>
   >({});
   const [error, setError] = useState("");
+  const [creditInfo, setCreditInfo] = useState<{
+    credits: number;
+    isAdmin: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/user/credits")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) setCreditInfo(data as { credits: number; isAdmin: boolean });
+      })
+      .catch(() => {});
+  }, []);
 
   function toggleProfile(profileId: string) {
     setForm((current) => ({
@@ -237,6 +250,19 @@ export default function StoryPeopleManager({
       setError("Please confirm photo permission before creating a reference.");
       return;
     }
+    const isRedo = Boolean(person.avatarImageUrl);
+    const cost = isRedo && !creditInfo?.isAdmin ? 1 : 0;
+    if (cost > 0 && creditInfo && creditInfo.credits < cost) {
+      setError("You need 1 credit to redo this illustrated reference.");
+      return;
+    }
+    const confirmMessage =
+      cost > 0
+        ? `Redoing ${person.name}'s illustrated reference will use 1 credit. Continue?`
+        : isRedo
+          ? `Redoing ${person.name}'s illustrated reference is free for admins. Continue?`
+          : `Creating ${person.name}'s first illustrated reference is free. Continue?`;
+    if (!window.confirm(confirmMessage)) return;
     setError("");
     setGeneratingAvatarForId(person.id);
     try {
@@ -263,6 +289,7 @@ export default function StoryPeopleManager({
         )
       );
       if (form.id === data.id) setForm(formFromPerson(data));
+      window.dispatchEvent(new Event("storycot:credits-updated"));
       clearStagedPhoto(person.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -941,6 +968,13 @@ export default function StoryPeopleManager({
                                     illustrated Storycot reference.
                                   </label>
                                   <div className="mt-3 flex flex-wrap gap-2">
+                                    <p className="w-full text-xs font-bold uppercase tracking-wide text-night-400">
+                                      {person.avatarImageUrl
+                                        ? creditInfo?.isAdmin
+                                          ? "Redo Cost: 0 Credits (Admin)"
+                                          : "Redo Cost: 1 Credit"
+                                        : "First Reference: Free"}
+                                    </p>
                                     <Button
                                       size="compact"
                                       onClick={() =>

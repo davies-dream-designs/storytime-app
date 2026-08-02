@@ -2,6 +2,7 @@ import type { AgeBand } from "@/types/printBook";
 import { getStorycotIllustrationCountForAgeBand } from "@/lib/print-books/printProducts";
 
 export const STORY_CREDIT_COST = 1;
+export const REFERENCE_REDO_CREDIT_COST = 1;
 export const ILLUSTRATED_BOOK_CREDIT_COST = 6;
 
 const ILLUSTRATED_BOOK_CREDIT_FLOORS_BY_AGE_BAND: Record<AgeBand, number> = {

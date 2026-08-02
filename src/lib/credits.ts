@@ -1,6 +1,9 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { estimateIllustratedBookCredits } from "@/lib/pricing";
+import {
+  estimateIllustratedBookCredits,
+  REFERENCE_REDO_CREDIT_COST,
+} from "@/lib/pricing";
 import { getStorycotIllustrationCountForAgeBand } from "@/lib/print-books/printProducts";
 import type { BookBilling, BookProject } from "@/types/printBook";
 
@@ -109,6 +112,41 @@ export async function refundImageRegenerationCredit(userId: string) {
   const currentCredits = getCredits(user.privateMetadata.credits);
   await client.users.updateUserMetadata(userId, {
     privateMetadata: { credits: currentCredits + 1 },
+  });
+}
+
+export async function chargeReferenceRedoCredit(
+  userId: string
+): Promise<{ credits: number; isAdmin: boolean; charged: boolean }> {
+  const client = await clerkClient();
+  const user = await client.users.getUser(userId);
+  const isAdmin = user.privateMetadata.isAdmin === true;
+  const currentCredits = getCredits(user.privateMetadata.credits);
+
+  if (isAdmin) return { credits: currentCredits, isAdmin, charged: false };
+
+  if (currentCredits < REFERENCE_REDO_CREDIT_COST) {
+    throw new Error(
+      `Insufficient credits. Redoing an illustrated reference costs ${REFERENCE_REDO_CREDIT_COST} credit.`
+    );
+  }
+
+  const nextCredits = currentCredits - REFERENCE_REDO_CREDIT_COST;
+  await client.users.updateUserMetadata(userId, {
+    privateMetadata: { credits: nextCredits },
+  });
+
+  return { credits: nextCredits, isAdmin, charged: true };
+}
+
+export async function refundReferenceRedoCredit(userId: string) {
+  const client = await clerkClient();
+  const user = await client.users.getUser(userId);
+  if (user.privateMetadata.isAdmin === true) return;
+
+  const currentCredits = getCredits(user.privateMetadata.credits);
+  await client.users.updateUserMetadata(userId, {
+    privateMetadata: { credits: currentCredits + REFERENCE_REDO_CREDIT_COST },
   });
 }
 

@@ -4,12 +4,14 @@ import {
   estimateDigitalGenerationCostAud,
   estimateIllustratedBookCredits,
   ILLUSTRATED_BOOK_CREDIT_COST,
+  REFERENCE_REDO_CREDIT_COST,
   STORY_CREDIT_COST,
 } from "@/lib/pricing";
 
 describe("pricing policy", () => {
   it("sets plain stories and illustrated books to distinct credit costs", () => {
     expect(STORY_CREDIT_COST).toBe(1);
+    expect(REFERENCE_REDO_CREDIT_COST).toBe(1);
     expect(ILLUSTRATED_BOOK_CREDIT_COST).toBe(6);
   });
 

@@ -26,6 +26,7 @@ import {
   getEffectiveStoryIpPolicy,
   isStoryPrintRestricted,
 } from "@/lib/ipGuardrails";
+import { loadBuildContext } from "@/lib/print-books/jobs/context";
 import StoryReader from "./StoryReader";
 import ShareButton from "./ShareButton";
 import PublicSubmissionPanel from "./PublicSubmissionPanel";
@@ -130,6 +131,15 @@ export default async function StoryPage({
   const shareableThumbnails =
     await db.bookProjects.getPublicThumbnailsByStoryIds([id]);
   const hasShareableIllustratedBook = Boolean(shareableThumbnails[id]);
+  const buildContext = existingBook
+    ? await loadBuildContext(existingBook).catch(() => null)
+    : null;
+  const initialReferencesAreStale = Boolean(
+    existingBook &&
+      buildContext?.referenceSnapshotKey &&
+      existingBook.assets.referenceSnapshotKey !==
+        buildContext.referenceSnapshotKey
+  );
 
   return (
     <>
@@ -459,6 +469,11 @@ export default async function StoryPage({
             <BookStatusPanel
               initialProject={existingBook}
               initialIsReady={isBookReady}
+              initialReferencesAreStale={initialReferencesAreStale}
+              initialReferenceImageCount={
+                buildContext?.visualReferences.length ?? 0
+              }
+              isAdmin={isAdmin}
             />
           </div>
         ) : null}

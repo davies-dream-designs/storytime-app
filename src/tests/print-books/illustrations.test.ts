@@ -241,10 +241,123 @@ describe("generateCoverIllustration", () => {
       side: "left",
     });
 
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.openai.com/v1/images/generations"
+    );
     const requestBody = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body);
     expect(requestBody.prompt).toContain("A gentle pond scene");
     expect(requestBody.prompt).not.toContain("bare little toes");
     expect(requestBody.prompt).not.toContain("Page moment:");
+
+    vi.unstubAllGlobals();
+    vi.doUnmock("sharp");
+    vi.doUnmock("@/lib/print-books/storage");
+  });
+
+  it("uses visual reference images for generated page art when available", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    vi.doMock("@/lib/print-books/storage", () => ({
+      storeBookAsset: mockStoreBookAsset,
+      isBookAssetStorageConfigured: () => true,
+    }));
+
+    vi.doMock("sharp", () => {
+      const instance = {
+        resize: vi.fn().mockReturnThis(),
+        composite: vi.fn().mockReturnThis(),
+        removeAlpha: vi.fn().mockReturnThis(),
+        raw: vi.fn().mockReturnThis(),
+        png: vi.fn().mockReturnThis(),
+        jpeg: vi.fn().mockReturnThis(),
+        rotate: vi.fn().mockReturnThis(),
+        toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
+          options?.resolveWithObject
+            ? Promise.resolve({
+                data: Buffer.from([128, 128, 128, 180, 180, 180]),
+                info: { channels: 3 },
+              })
+            : Promise.resolve(Buffer.from("upscaled-png"))
+        ),
+      };
+      const sharpFn = vi.fn(() => instance);
+      const sharpMock = Object.assign(sharpFn, {
+        kernel: { lanczos3: "lanczos3" },
+      });
+      return { default: sharpMock };
+    });
+
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      void init;
+      if (url === "https://assets.example.com/glenpa.jpg") {
+        return {
+          ok: true,
+          arrayBuffer: async () => Buffer.from("reference").buffer,
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          data: [{ b64_json: Buffer.from("image").toString("base64") }],
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mockStoreBookAsset.mockResolvedValue("https://example.com/page.png");
+
+    vi.resetModules();
+    const { generateSpreadPageIllustration } =
+      await import("@/lib/print-books/illustrations");
+
+    const project = createProject();
+    const spread = {
+      ...project.spreads[0]!,
+      id: "book-1:spread:2",
+      sequence: 2,
+      pageStart: 3,
+      pageEnd: 4,
+      title: "Beach",
+      leftPageText: "Glenpa smiled from the sand.",
+      rightPageText: "",
+      sceneBrief: "Glenpa and Bailey play gently near the beach.",
+      illustrationPrompt: "Glenpa and Bailey in a calm beach scene.",
+    };
+
+    await generateSpreadPageIllustration({
+      project,
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+      visualReferences: [
+        {
+          id: "person:glenpa",
+          name: "Glenpa",
+          role: "family_friend_pet",
+          relationship: "grandparent",
+          imageUrl: "https://assets.example.com/glenpa.jpg",
+          appearance:
+            "warm smile, dark-framed glasses, grey-brown shoulder-length hair, sturdy build",
+        },
+      ],
+      spread,
+      side: "left",
+    });
+
+    const editCall = fetchMock.mock.calls.find((call) =>
+      String(call[0]).includes("/images/edits")
+    );
+    expect(editCall?.[0]).toBe("https://api.openai.com/v1/images/edits");
+    expect(
+      fetchMock.mock.calls.some((call) =>
+        String(call[0]).includes("/images/generations")
+      )
+    ).toBe(false);
+    const body = editCall?.[1]?.body as FormData;
+    expect(body.get("prompt")).toContain(
+      "Attached visual reference sheet order"
+    );
+    expect(body.get("prompt")).toContain("Glenpa");
+    expect(body.get("image")).toBeInstanceOf(File);
 
     vi.unstubAllGlobals();
     vi.doUnmock("sharp");

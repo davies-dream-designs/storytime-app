@@ -10,6 +10,7 @@ import { getBookProjectStageLabel } from "@/lib/print-books/status";
 import type {
   BookProject,
   CharacterBible,
+  CharacterVisualReference,
 } from "@/types/printBook";
 import type { BuildContext } from "./context";
 import { getProjectArtMode } from "./artState";
@@ -21,6 +22,8 @@ export async function regenerateProjectArt(input: {
   story: BuildContext["story"];
   profile: BuildContext["profile"];
   characterBible: CharacterBible;
+  visualReferences?: CharacterVisualReference[];
+  referenceSnapshotKey?: string;
   buildMode: "full" | "art";
 }) {
   const totalArtSteps = input.project.spreads.length;
@@ -40,6 +43,8 @@ export async function regenerateProjectArt(input: {
         artGenerationTotal: totalArtSteps,
         artMode: input.project.assets.artMode ?? "placeholder",
         lastBuildMode: input.buildMode,
+        referenceSnapshotKey: input.referenceSnapshotKey,
+        referenceImageCount: input.visualReferences?.length ?? 0,
       },
     });
   }
@@ -50,6 +55,7 @@ export async function regenerateProjectArt(input: {
       story: input.story,
       profile: input.profile,
       characterBible: input.characterBible,
+      visualReferences: input.visualReferences,
     });
 
     return db.bookProjects.update(input.id, {
@@ -67,6 +73,8 @@ export async function regenerateProjectArt(input: {
         lastBuildMode: input.buildMode,
         artGenerationCursor: 1,
         artGenerationTotal: totalArtSteps,
+        referenceSnapshotKey: input.referenceSnapshotKey,
+        referenceImageCount: input.visualReferences?.length ?? 0,
       },
     });
   }
@@ -91,6 +99,8 @@ export async function regenerateProjectArt(input: {
         artGenerationTotal: totalArtSteps,
         artMode: input.project.assets.artMode ?? "placeholder",
         lastBuildMode: input.buildMode,
+        referenceSnapshotKey: input.referenceSnapshotKey,
+        referenceImageCount: input.visualReferences?.length ?? 0,
       },
     });
   }
@@ -103,6 +113,7 @@ export async function regenerateProjectArt(input: {
             story: input.story,
             profile: input.profile,
             characterBible: input.characterBible,
+            visualReferences: input.visualReferences,
             spread: s,
           })
         : Promise.resolve(null)
@@ -119,6 +130,7 @@ export async function regenerateProjectArt(input: {
         story: input.story,
         profile: input.profile,
         characterBible: input.characterBible,
+        visualReferences: input.visualReferences,
         spread: s,
       });
     })
@@ -169,6 +181,8 @@ export async function regenerateProjectArt(input: {
           lastBuildMode: input.buildMode,
           artGenerationCursor: undefined,
           artGenerationTotal: totalArtSteps,
+          referenceSnapshotKey: input.referenceSnapshotKey,
+          referenceImageCount: input.visualReferences?.length ?? 0,
         },
       });
     }
@@ -193,6 +207,8 @@ export async function regenerateProjectArt(input: {
         lastBuildMode: input.buildMode,
         artGenerationCursor: undefined,
         artGenerationTotal: totalArtSteps,
+        referenceSnapshotKey: input.referenceSnapshotKey,
+        referenceImageCount: input.visualReferences?.length ?? 0,
       },
     });
   }
@@ -216,6 +232,8 @@ export async function regenerateProjectArt(input: {
       lastBuildMode: input.buildMode,
       artGenerationCursor: nextCursor,
       artGenerationTotal: totalArtSteps,
+      referenceSnapshotKey: input.referenceSnapshotKey,
+      referenceImageCount: input.visualReferences?.length ?? 0,
     },
   });
 }

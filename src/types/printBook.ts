@@ -96,6 +96,15 @@ export interface CharacterBible {
   doNotChange: string[];
 }
 
+export interface CharacterVisualReference {
+  id: string;
+  name: string;
+  role: "main_child" | "family_friend_pet";
+  relationship?: string;
+  imageUrl: string;
+  appearance?: string;
+}
+
 export interface BookSpread {
   id: string;
   bookProjectId: string;
@@ -153,6 +162,8 @@ export interface BookAsset {
   activeJobUpdatedAt?: string;
   artGenerationCursor?: number;
   artGenerationTotal?: number;
+  referenceSnapshotKey?: string;
+  referenceImageCount?: number;
   openAIImageBatch?: OpenAIImageBatchAsset;
   orderabilityState?: BookOrderabilityState;
   finalizedAt?: string;

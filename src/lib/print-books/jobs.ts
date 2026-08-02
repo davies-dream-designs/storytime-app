@@ -53,7 +53,9 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
   if (
     project.status === "queued" ||
     project.status === "planning" ||
-    !project.beats.length
+    !project.beats.length ||
+    (project.assets.lastBuildMode === "full" &&
+      project.assets.referenceSnapshotKey !== context.referenceSnapshotKey)
   ) {
     const beats = deriveBeatsFromStory(context.story);
     return db.bookProjects.update(project.id, {
@@ -62,8 +64,15 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
       errorCode: undefined,
       errorMessage: undefined,
       beats,
+      characterBible: undefined,
+      spreads: [],
       completedSpreads: 0,
       totalSpreads: project.spreadCount,
+      assets: {
+        ...project.assets,
+        referenceSnapshotKey: context.referenceSnapshotKey,
+        referenceImageCount: context.visualReferences.length,
+      },
     });
   }
 
@@ -98,6 +107,8 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
       assets: {
         ...project.assets,
         lastBuildMode: "full",
+        referenceSnapshotKey: context.referenceSnapshotKey,
+        referenceImageCount: context.visualReferences.length,
         artGenerationCursor: 0,
         artGenerationTotal: spreads.length,
       },
@@ -111,6 +122,8 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
       story: context.story,
       profile: context.profile,
       characterBible: project.characterBible,
+      visualReferences: context.visualReferences,
+      referenceSnapshotKey: context.referenceSnapshotKey,
       buildMode: "full",
     });
   }
@@ -142,6 +155,8 @@ async function advanceArtBuild(project: BookProject, context: BuildContext) {
       story: context.story,
       profile: context.profile,
       characterBible: project.characterBible,
+      visualReferences: context.visualReferences,
+      referenceSnapshotKey: context.referenceSnapshotKey,
       buildMode: "art",
     });
   }
@@ -226,6 +241,7 @@ export async function regenerateBookSpreadPageImage(input: {
       story: context.story,
       profile: context.profile,
       characterBible: project.characterBible,
+      visualReferences: context.visualReferences,
       spread,
       side: input.side,
       correctionNote: input.correctionNote,

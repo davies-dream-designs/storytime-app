@@ -39,7 +39,7 @@ function buildStoryPeopleList(people: StoryPerson[]): string {
           person.appearanceSummary ||
           person.appearance ||
           "No appearance notes provided."
-        }`
+        } Generated reference image: ${person.avatarImageUrl ? "available for visual consistency" : "not available"}`
     )
     .join("\n");
 }
@@ -128,6 +128,7 @@ Requirements:
 - Outfit rules should be stable, reusable, and practical for many scenes.
 - Recurring props should be few, memorable, and visually helpful.
 - Companion characters should include only characters that should reappear visually.
+- For selected family/friends/pets, preserve the supplied appearance and reference-image notes. Do not turn relationship roles into generic stereotypes; for example, do not make grandparents much older, thinner, heavier, or frailer unless their reference/appearance says so.
 - Palette, renderStyle, and lightingTone should fit a warm bedtime picture book.
 - doNotChange must list the highest-value continuity constraints for later image prompts.
 - Keep every field concise but specific.`;
@@ -202,6 +203,7 @@ export function buildIllustrationDirection(bible: CharacterBible): string {
     `Render style: ${bible.renderStyle}`,
     `Lighting tone: ${bible.lightingTone}`,
     `Do not change: ${continuity}`,
+    "For selected family/friends/pets, preserve their described/reference apparent age, face shape, hair, glasses, body build, and markings. Do not make grandparents generically elderly or alter body build from the reference.",
   ].join(" ");
 }
 

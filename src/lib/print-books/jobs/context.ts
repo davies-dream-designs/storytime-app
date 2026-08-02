@@ -1,5 +1,13 @@
 import { db } from "@/lib/db";
-import type { BookProject } from "@/types/printBook";
+import { buildChildAppearanceSummary } from "@/types";
+import type {
+  BookProject,
+  CharacterVisualReference,
+} from "@/types/printBook";
+
+function normalizeSnapshotPart(value: string | undefined): string {
+  return (value ?? "").trim().replace(/\s+/g, " ");
+}
 
 export async function loadBuildContext(project: BookProject) {
   const [story, profile, characters] = await Promise.all([
@@ -21,6 +29,47 @@ export async function loadBuildContext(project: BookProject) {
     project.userId
   );
 
+  const visualReferences: CharacterVisualReference[] = [];
+  if (profile.avatarImageUrl) {
+    visualReferences.push({
+      id: `profile:${profile.id}`,
+      name: profile.name,
+      role: "main_child",
+      imageUrl: profile.avatarImageUrl,
+      appearance:
+        profile.appearanceSummary ||
+        buildChildAppearanceSummary(profile.appearance) ||
+        undefined,
+    });
+  }
+  for (const person of storyPeople) {
+    if (!person.avatarImageUrl) continue;
+    visualReferences.push({
+      id: `person:${person.id}`,
+      name: person.name,
+      role: "family_friend_pet",
+      relationship: person.relationship,
+      imageUrl: person.avatarImageUrl,
+      appearance: person.appearanceSummary || person.appearance || undefined,
+    });
+  }
+
+  const referenceSnapshotKey = [
+    "profile",
+    profile.id,
+    normalizeSnapshotPart(profile.avatarImageUrl),
+    normalizeSnapshotPart(profile.appearanceSummary),
+    normalizeSnapshotPart(buildChildAppearanceSummary(profile.appearance)),
+    ...storyPeople.flatMap((person) => [
+      "person",
+      person.id,
+      normalizeSnapshotPart(person.avatarImageUrl),
+      normalizeSnapshotPart(person.appearanceSummary),
+      normalizeSnapshotPart(person.appearance),
+      normalizeSnapshotPart(person.updatedAt),
+    ]),
+  ].join("|");
+
   return {
     story,
     profile,
@@ -28,6 +77,8 @@ export async function loadBuildContext(project: BookProject) {
       (character) => character.userId === project.userId
     ),
     storyPeople,
+    visualReferences,
+    referenceSnapshotKey,
   };
 }
 

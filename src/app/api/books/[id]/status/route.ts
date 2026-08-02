@@ -5,6 +5,7 @@ import {
   enqueueBookBuildJob,
   isBookBuildJobStale,
 } from "@/lib/print-books/jobs";
+import { loadBuildContext } from "@/lib/print-books/jobs/context";
 import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
 import type { BookBuildJob, BookProject } from "@/types/printBook";
 
@@ -91,6 +92,13 @@ export async function GET(
     await recoverExportJob(project, req.nextUrl.origin);
   }
 
+  const context = await loadBuildContext(project).catch(() => null);
+  const latestReferenceSnapshotKey = context?.referenceSnapshotKey;
+  const referencesAreStale = Boolean(
+    latestReferenceSnapshotKey &&
+      project.assets.referenceSnapshotKey !== latestReferenceSnapshotKey
+  );
+
   return NextResponse.json({
     id: project.id,
     status: project.status,
@@ -101,6 +109,8 @@ export async function GET(
     readyAt: project.readyAt,
     errorCode: project.errorCode,
     errorMessage: project.errorMessage,
+    referencesAreStale,
+    referenceImageCount: context?.visualReferences.length ?? 0,
     spreadPreviews: project.spreads
       .filter(
         (s) =>

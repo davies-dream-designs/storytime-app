@@ -53,7 +53,11 @@ type BookStatusPayload = Pick<
   | "errorCode"
   | "errorMessage"
   | "assets"
-> & { spreadPreviews?: SpreadPreview[] };
+> & {
+  spreadPreviews?: SpreadPreview[];
+  referencesAreStale?: boolean;
+  referenceImageCount?: number;
+};
 
 function getFailedImageTargets(spreads: SpreadPreview[]): ExpandedImage[] {
   return spreads
@@ -135,9 +139,15 @@ function getSpreadPreviews(project: BookProject): SpreadPreview[] {
 export default function BookStatusPanel({
   initialProject,
   initialIsReady = false,
+  initialReferencesAreStale = false,
+  initialReferenceImageCount = 0,
+  isAdmin = false,
 }: {
   initialProject: BookProject;
   initialIsReady?: boolean;
+  initialReferencesAreStale?: boolean;
+  initialReferenceImageCount?: number;
+  isAdmin?: boolean;
 }) {
   const t = useTranslations("books");
   const router = useRouter();
@@ -148,6 +158,13 @@ export default function BookStatusPanel({
   const [retrying, setRetrying] = useState(false);
   const [repairingArt, setRepairingArt] = useState(false);
   const [regeneratingExports, setRegeneratingExports] = useState(false);
+  const [rebuildingReferences, setRebuildingReferences] = useState(false);
+  const [referencesAreStale, setReferencesAreStale] = useState(
+    initialReferencesAreStale
+  );
+  const [referenceImageCount, setReferenceImageCount] = useState(
+    initialReferenceImageCount
+  );
   const [regeneratingImage, setRegeneratingImage] = useState<string | null>(
     null
   );
@@ -291,6 +308,8 @@ export default function BookStatusPanel({
           latestProjectUpdatedAtRef.current = nextUpdatedAt;
         }
         setProject((current) => ({ ...current, ...next }));
+        setReferencesAreStale(Boolean(next.referencesAreStale));
+        setReferenceImageCount(next.referenceImageCount ?? 0);
         if (next.spreadPreviews) {
           setSpreadPreviews(
             [...next.spreadPreviews].sort((a, b) => a.sequence - b.sequence)
@@ -492,6 +511,24 @@ export default function BookStatusPanel({
     setRepairingArt(false);
   }
 
+  async function handleRebuildWithLatestReferences() {
+    setRebuildingReferences(true);
+    const res = await fetch(`/api/books/${project.id}/build`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "full" }),
+    });
+    if (res.ok) {
+      const next = (await res.json()) as BookProject;
+      setProject(next);
+      setReferencesAreStale(false);
+      setPollUntil(Date.now() + 20_000);
+      router.refresh();
+    }
+    setRebuildingReferences(false);
+  }
+
   const failedImageTargets = getFailedImageTargets(spreadPreviews);
   const hasLocallyResolvedImageFailure =
     hasResolvedImageFailure(project) ||
@@ -511,6 +548,11 @@ export default function BookStatusPanel({
         errorMessage: undefined,
       } as BookProject)
     : project;
+  const fullRebuildCreditCopy = isAdmin
+    ? "Admin rebuild: 0 credits."
+    : project.billing?.credits
+      ? `This starts a full illustrated rebuild and uses ${project.billing.credits} credits.`
+      : "This starts a full illustrated rebuild and uses the normal illustrated-book credit cost.";
   const progress = getBookProjectProgress(displayProject);
   const stageLabel = getBookProjectDisplayStageLabel(displayProject);
   const isActiveBuild =
@@ -1370,6 +1412,36 @@ export default function BookStatusPanel({
               : retrying
                 ? t("retryingButton")
                 : t("retryButton")}
+          </Button>
+        </div>
+      ) : null}
+
+      {referencesAreStale && !activeJobStatus ? (
+        <div className="mt-6 rounded-2xl border border-star-200 bg-star-50 p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
+          <div>
+            <p className="text-sm font-bold text-star-800">
+              Newer Character References Are Available
+            </p>
+            <p className="mt-1 text-sm text-star-900">
+              Rebuild the character setup and artwork with the latest child and
+              Family & Friends references
+              {referenceImageCount > 0
+                ? `, including ${referenceImageCount} illustrated reference ${
+                    referenceImageCount === 1 ? "image" : "images"
+                  }`
+                : ""}
+              . {fullRebuildCreditCopy}
+            </p>
+          </div>
+          <Button
+            variant="secondary"
+            onClick={handleRebuildWithLatestReferences}
+            disabled={rebuildingReferences}
+            className="mt-4 sm:mt-0"
+          >
+            {rebuildingReferences
+              ? "Rebuilding..."
+              : "Rebuild With Latest References"}
           </Button>
         </div>
       ) : null}

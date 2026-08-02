@@ -5,6 +5,7 @@ import type {
   BookProject,
   BookSpread,
   CharacterBible,
+  CharacterVisualReference,
 } from "@/types/printBook";
 import { BOOK_SPEC } from "@/lib/print-books/bookConfig";
 import { buildIllustrationDirection } from "@/lib/print-books/characterBible";
@@ -308,6 +309,7 @@ function createPlaceholderPageSvg(input: {
   story: Story;
   profile: ChildProfile;
   characterBible: CharacterBible;
+  visualReferences?: CharacterVisualReference[];
   spread: BookSpread;
   side: "left" | "right";
 }): string {
@@ -358,6 +360,139 @@ function createPlaceholderPageSvg(input: {
 // ---------------------------------------------------------------------------
 // OpenAI image generation
 // ---------------------------------------------------------------------------
+
+const MAX_VISUAL_REFERENCES_PER_IMAGE = 6;
+
+async function loadVisualReferenceBuffer(
+  reference: CharacterVisualReference
+): Promise<Buffer | null> {
+  try {
+    const response = await fetch(reference.imageUrl);
+    if (!response.ok) return null;
+    const source = Buffer.from(await response.arrayBuffer());
+    return sharp(source)
+      .rotate()
+      .resize(384, 384, {
+        fit: "cover",
+        position: "attention",
+      })
+      .png({ compressionLevel: 8 })
+      .toBuffer();
+  } catch (error) {
+    console.warn("Could not load character visual reference.", {
+      referenceId: reference.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
+async function buildVisualReferenceSheet(
+  references: CharacterVisualReference[] = []
+): Promise<{ image: Buffer; references: CharacterVisualReference[] } | null> {
+  const selected = references
+    .filter((reference) => reference.imageUrl)
+    .slice(0, MAX_VISUAL_REFERENCES_PER_IMAGE);
+  if (selected.length === 0) return null;
+
+  const loaded = await Promise.all(
+    selected.map(async (reference) => ({
+      reference,
+      image: await loadVisualReferenceBuffer(reference),
+    }))
+  );
+  const usable = loaded.filter(
+    (item): item is { reference: CharacterVisualReference; image: Buffer } =>
+      Boolean(item.image)
+  );
+  if (usable.length === 0) return null;
+
+  const cellSize = 384;
+  const columns = Math.min(3, usable.length);
+  const rows = Math.ceil(usable.length / columns);
+  const image = await sharp({
+    create: {
+      width: columns * cellSize,
+      height: rows * cellSize,
+      channels: 3,
+      background: "#fff8ea",
+    },
+  })
+    .composite(
+      usable.map((item, index) => ({
+        input: item.image,
+        left: (index % columns) * cellSize,
+        top: Math.floor(index / columns) * cellSize,
+      }))
+    )
+    .png({ compressionLevel: 8 })
+    .toBuffer();
+
+  return {
+    image,
+    references: usable.map((item) => item.reference),
+  };
+}
+
+function buildVisualReferencePrompt(
+  references: CharacterVisualReference[] = []
+): string {
+  if (references.length === 0) return "";
+  const referenceList = references
+    .map((reference, index) => {
+      const relationship = reference.relationship
+        ? `, ${reference.relationship}`
+        : "";
+      const appearance = reference.appearance
+        ? `: ${reference.appearance}`
+        : "";
+      return `${index + 1}. ${reference.name} (${reference.role}${relationship})${appearance}`;
+    })
+    .join(" ");
+
+  return [
+    `Attached visual reference sheet order: ${referenceList}`,
+    "Use the attached reference sheet only for character likeness and continuity; do not copy its crop, plain background, portrait pose, or sheet layout.",
+    "When a selected child, family member, friend, or pet appears, match the reference image more strongly than generic text assumptions. Preserve apparent age, face shape, hair/fur, glasses, body build, and familiar markings. Do not make grandparents generically older, thinner, heavier, or frailer than their reference.",
+    "Do not add written labels, captions, names, numbers, watermarks, or relationship words to the artwork.",
+  ].join(" ");
+}
+
+async function buildOpenAIImageEditBody(input: {
+  model: string;
+  prompt: string;
+  size: "1024x1024";
+  visualReferences: CharacterVisualReference[];
+}): Promise<FormData> {
+  const sheet = await buildVisualReferenceSheet(input.visualReferences);
+  if (!sheet) {
+    throw new AppError("book.reference_image_unavailable", {
+      message: "No usable reference images could be loaded.",
+    });
+  }
+
+  const imageArrayBuffer = sheet.image.buffer.slice(
+    sheet.image.byteOffset,
+    sheet.image.byteOffset + sheet.image.byteLength
+  ) as ArrayBuffer;
+  const formData = new FormData();
+  formData.append(
+    "image",
+    new File([imageArrayBuffer], "storycot-character-references.png", {
+      type: "image/png",
+    })
+  );
+  formData.append("model", input.model);
+  formData.append(
+    "prompt",
+    [buildVisualReferencePrompt(sheet.references), input.prompt]
+      .filter(Boolean)
+      .join(" ")
+  );
+  formData.append("size", input.size);
+  formData.append("quality", "medium");
+  return formData;
+}
 
 function getPreferredOpenAIImageModels(): string[] {
   const configured = process.env.OPENAI_IMAGE_MODEL?.trim();
@@ -458,6 +593,7 @@ function parseRetryAfterMs(bodyText: string, headers: Headers): number {
 async function generateOpenAIImage(input: {
   prompt: string;
   size: "1024x1024";
+  visualReferences?: CharacterVisualReference[];
 }): Promise<Buffer> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -474,21 +610,34 @@ async function generateOpenAIImage(input: {
     const MAX_RETRIES = 3;
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
-      const response = await fetch(
-        "https://api.openai.com/v1/images/generations",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
+      const useVisualReferences = Boolean(input.visualReferences?.length);
+      const body = useVisualReferences
+        ? await buildOpenAIImageEditBody({
+            model,
+            prompt: input.prompt,
+            size: input.size,
+            visualReferences: input.visualReferences ?? [],
+          })
+        : JSON.stringify({
             model,
             prompt: input.prompt,
             size: input.size,
             output_format: "png",
             quality: "medium",
-          }),
+          });
+      const response = await fetch(
+        useVisualReferences
+          ? "https://api.openai.com/v1/images/edits"
+          : "https://api.openai.com/v1/images/generations",
+        {
+          method: "POST",
+          headers: useVisualReferences
+            ? { Authorization: `Bearer ${apiKey}` }
+            : {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+              },
+          body,
         }
       );
 
@@ -547,16 +696,38 @@ async function generateOpenAIImage(input: {
 // Provider dispatch
 // ---------------------------------------------------------------------------
 
-async function generateBaseImage(prompt: string): Promise<Buffer> {
+async function generateBaseImage(input: {
+  prompt: string;
+  visualReferences?: CharacterVisualReference[];
+}): Promise<Buffer> {
+  if (input.visualReferences?.length) {
+    try {
+      return await generateOpenAIImage({
+        prompt: input.prompt,
+        size: BOOK_SPEC.coverIllustrationOpenAISize,
+        visualReferences: input.visualReferences,
+      });
+    } catch (error) {
+      if (!(error instanceof AppError)) throw error;
+      if (error.code !== "book.reference_image_unavailable") throw error;
+      console.warn(
+        "Reference images were unavailable; falling back to text-only generation."
+      );
+    }
+  }
+
   return generateOpenAIImage({
-    prompt,
+    prompt: input.prompt,
     size: BOOK_SPEC.coverIllustrationOpenAISize,
   });
 }
 
 // Generate and immediately upscale a single square image.
-async function generateAndUpscale(prompt: string): Promise<Buffer> {
-  const png = await generateBaseImage(prompt);
+async function generateAndUpscale(input: {
+  prompt: string;
+  visualReferences?: CharacterVisualReference[];
+}): Promise<Buffer> {
+  const png = await generateBaseImage(input);
   await assertUsableGeneratedImage(png);
   return upscaleImageBuffer(png);
 }
@@ -570,6 +741,7 @@ function buildPageIllustrationPrompt(input: {
   story: Story;
   profile: ChildProfile;
   characterBible: CharacterBible;
+  visualReferences?: CharacterVisualReference[];
   spread: BookSpread;
   side: "left" | "right";
   omitPageText?: boolean;
@@ -620,7 +792,7 @@ function buildPageIllustrationPrompt(input: {
         ]
       : []),
     // Variation is the critical instruction - stated explicitly.
-    "Illustrate this specific story moment. The depicted scene, character action, setting detail, and emotional tone must match the illustration direction above. This image must look meaningfully different from every other page in the book. Keep only the child's face shape, hair colour, skin tone, and core outfit exactly consistent. No text, lettering, or page numbers inside the art.",
+    "Illustrate this specific story moment. The depicted scene, character action, setting detail, and emotional tone must match the illustration direction above. This image must look meaningfully different from every other page in the book. Keep every selected/reference character's face shape, apparent age, hair or fur, skin tone, glasses, body build, and core outfit or markings consistent. No text, lettering, or page numbers inside the art.",
   ].join(" ");
 }
 
@@ -680,6 +852,7 @@ export async function generateCoverIllustration(input: {
   story: Story;
   profile: ChildProfile;
   characterBible: CharacterBible;
+  visualReferences?: CharacterVisualReference[];
 }): Promise<{
   coverImageUrl: string;
   coverWebImageUrl?: string;
@@ -693,11 +866,17 @@ export async function generateCoverIllustration(input: {
     try {
       let upscaled: Buffer;
       try {
-        upscaled = await generateAndUpscale(prompt);
+        upscaled = await generateAndUpscale({
+          prompt,
+          visualReferences: input.visualReferences,
+        });
       } catch (err) {
         if (!(err instanceof UnusableGeneratedImageError)) throw err;
         console.warn(`${err.message} - retrying cover generation once.`);
-        upscaled = await generateAndUpscale(prompt);
+        upscaled = await generateAndUpscale({
+          prompt,
+          visualReferences: input.visualReferences,
+        });
       }
 
       const [coverImageUrl, coverWebImageUrl] = await Promise.all([
@@ -740,7 +919,10 @@ export async function generateCoverIllustration(input: {
         omitSceneDetails: true,
       });
       try {
-        const retryUpscaled = await generateAndUpscale(fallbackPrompt);
+        const retryUpscaled = await generateAndUpscale({
+          prompt: fallbackPrompt,
+          visualReferences: input.visualReferences,
+        });
         const [coverImageUrl, coverWebImageUrl] = await Promise.all([
           storeBookAsset({
             pathname: `books/${input.project.id}/cover.png`,
@@ -798,6 +980,7 @@ export async function generateSpreadPageIllustration(input: {
   story: Story;
   profile: ChildProfile;
   characterBible: CharacterBible;
+  visualReferences?: CharacterVisualReference[];
   spread: BookSpread;
   side: "left" | "right";
   correctionNote?: string;
@@ -848,13 +1031,19 @@ export async function generateSpreadPageIllustration(input: {
   try {
     let upscaled: Buffer;
     try {
-      upscaled = await generateAndUpscale(prompt);
+      upscaled = await generateAndUpscale({
+        prompt,
+        visualReferences: input.visualReferences,
+      });
     } catch (err) {
       if (!(err instanceof UnusableGeneratedImageError)) throw err;
       console.warn(
         `${err.message} - retrying spread ${spread.sequence} ${side} page once.`
       );
-      upscaled = await generateAndUpscale(prompt);
+      upscaled = await generateAndUpscale({
+        prompt,
+        visualReferences: input.visualReferences,
+      });
     }
     const { url, webUrl } = await storeWithWeb(upscaled);
     return { url, webUrl, provider: "openai" };
@@ -871,7 +1060,10 @@ export async function generateSpreadPageIllustration(input: {
       omitPageText: true,
     });
     try {
-      const upscaled = await generateAndUpscale(fallbackPrompt);
+      const upscaled = await generateAndUpscale({
+        prompt: fallbackPrompt,
+        visualReferences: input.visualReferences,
+      });
       const { url, webUrl } = await storeWithWeb(upscaled);
       return { url, webUrl, provider: "openai" };
     } catch (fallbackErr) {
@@ -899,6 +1091,7 @@ export async function generateSpreadIllustration(input: {
   story: Story;
   profile: ChildProfile;
   characterBible: CharacterBible;
+  visualReferences?: CharacterVisualReference[];
   spread: BookSpread;
 }): Promise<{ spread: BookSpread; provider: "openai" | "placeholder" }> {
   const { spread } = input;

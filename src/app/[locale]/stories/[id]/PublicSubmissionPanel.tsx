@@ -1,21 +1,21 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import type { Story } from "@/types";
 import Icon from "@/components/ui/Icon";
 
 export default function PublicSubmissionPanel({
   story,
   canSubmitPublicly,
+  hasIllustratedBookProject,
 }: {
   story: Story;
   canSubmitPublicly: boolean;
+  hasIllustratedBookProject: boolean;
 }) {
   const router = useRouter();
-  const [authorName, setAuthorName] = useState(
-    story.publicAuthorName ?? story.profileName
-  );
+  const [authorName, setAuthorName] = useState(story.publicAuthorName ?? "");
   const [rights, setRights] = useState(false);
   const [privacy, setPrivacy] = useState(false);
   const [terms, setTerms] = useState(false);
@@ -30,6 +30,13 @@ export default function PublicSubmissionPanel({
 
   function submitForReview() {
     setError(null);
+    if (
+      !window.confirm(
+        `Submit this illustrated story to the public gallery as "${authorName.trim()}"?\n\nIf approved, other signed-in readers can read, vote, and report it. Monthly winners may earn bonus Storycot credits.`
+      )
+    ) {
+      return;
+    }
     startTransition(async () => {
       const res = await fetch(`/api/stories/${story.id}/public-submission`, {
         method: "POST",
@@ -72,8 +79,17 @@ export default function PublicSubmissionPanel({
             Public gallery
           </p>
           <h2 className="mt-1 font-display text-2xl font-bold text-night-800">
-            Submit this illustrated story
+            {canSubmitPublicly
+              ? "Share this in the public gallery"
+              : hasIllustratedBookProject
+                ? "Illustrations are almost ready"
+                : "Would you like this story illustrated?"}
           </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-night-500">
+            Public gallery stories are illustrated books that families can
+            discover, read, and vote for. Monthly favourites can earn bonus
+            Storycot credits.
+          </p>
         </div>
         <span className="rounded-full bg-night-50 px-3 py-1 text-xs font-bold text-night-500">
           {status === "pending_review"
@@ -116,13 +132,22 @@ export default function PublicSubmissionPanel({
           {!showSubmissionForm ? (
             <div className="rounded-xl border border-moon-100 bg-moon-50 p-4 text-sm leading-6 text-night-700">
               <p className="font-bold text-night-800">
-                Public sharing opens after illustration
+                {hasIllustratedBookProject
+                  ? "Public sharing opens when illustrations are ready"
+                  : "Turn this into an illustrated book first"}
               </p>
               <p className="mt-1">
-                The gallery and leaderboard are for illustrated Storycot books,
-                so readers see a cover and the story keeps its special value.
-                Create an illustrated book before submitting this story.
+                {hasIllustratedBookProject
+                  ? "Once the illustrated book and cover are ready, you can submit it for public review."
+                  : "The gallery and leaderboard are for illustrated Storycot books, so readers see a cover and the story keeps its special value. Use the illustrated book button near the top of this page when you are ready."}
               </p>
+              <Link
+                href="/public"
+                className="storycot-btn storycot-btn-secondary storycot-btn-compact mt-3"
+              >
+                <Icon name="book" />
+                View public gallery
+              </Link>
             </div>
           ) : (
             <>
@@ -141,9 +166,31 @@ export default function PublicSubmissionPanel({
                   value={authorName}
                   onChange={(event) => setAuthorName(event.target.value)}
                   maxLength={80}
+                  placeholder="e.g. your name, pen name, or family name"
                   className="mt-1 w-full rounded-xl border border-night-200 bg-white px-3 py-2 text-sm text-night-800 outline-none focus:border-star-400 focus:ring-2 focus:ring-star-100"
                 />
+                <span className="mt-1 block text-xs leading-5 text-night-400">
+                  This is the creator display name shown publicly. Do not use
+                  your child&apos;s full name unless you want it public.
+                </span>
               </label>
+
+              <div className="rounded-xl border border-star-100 bg-star-50 p-4 text-sm leading-6 text-night-700">
+                <p className="font-bold text-night-800">
+                  See what public means
+                </p>
+                <p className="mt-1">
+                  Approved stories appear in the public gallery and monthly
+                  leaderboard. Readers can vote, share, and report stories.
+                </p>
+                <Link
+                  href="/public"
+                  className="storycot-btn storycot-btn-secondary storycot-btn-compact mt-3"
+                >
+                  <Icon name="book" />
+                  Open gallery
+                </Link>
+              </div>
 
               <div className="space-y-2 text-sm text-night-600">
                 <label className="flex gap-2">

@@ -31,7 +31,7 @@
     "hero": "Cerita pengantar tidur dibuat khusus untuk mereka.",
     "heroSub": "Buat cerita pengantar tidur buatan AI yang dipersonalisasi dan dibintangi oleh anak Anda - dengan mainan, hewan, dan petualangan favoritnya dijalin ke dalam setiap halaman.",
     "ctaCreate": "Buat cerita pertama Anda ✨",
-    "ctaBrowse": "Telusuri cerita",
+    "ctaBrowse": "Jelajahi galeri",
     "featureTitle": "Sebuah cerita yang hanya milik mereka sendiri",
     "featureSub": "Setiap detail yang membuat anak Anda unik ada dalam setiap cerita.",
     "feature1Title": "Profil anak",
@@ -74,7 +74,9 @@
       "bedtime": "Waktu tidur"
     },
     "feature5Title": "Narasi suara",
-    "feature5Desc": "Ketuk putar dan cerita dibacakan sendiri - setiap kata menyala saat diucapkan. Sempurna untuk waktu tidur di perangkat apa pun."
+    "feature5Desc": "Ketuk putar dan cerita dibacakan sendiri - setiap kata menyala saat diucapkan. Sempurna untuk waktu tidur di perangkat apa pun.",
+    "feature6Title": "Galeri Publik",
+    "feature6Desc": "Baca cerita bergambar dari keluarga Storycot lain, pilih favorit bulanan, dan dapatkan kredit saat cerita Anda ditampilkan."
   },
   "dashboard": {
     "statProfiles": "Profil anak",

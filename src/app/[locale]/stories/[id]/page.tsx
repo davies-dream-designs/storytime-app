@@ -482,7 +482,9 @@ export default async function StoryPage({
           </div>
         ) : null}
 
-        {isReady ? <StoryEditPanel story={story} /> : null}
+        {isReady && story.publicReviewStatus === "rejected" ? (
+          <StoryEditPanel story={story} />
+        ) : null}
 
         {/* Purchases + downloads - when book is ready */}
         {isBookReady && existingBook ? (
@@ -596,6 +598,7 @@ export default async function StoryPage({
           <PublicSubmissionPanel
             story={story}
             canSubmitPublicly={hasShareableIllustratedBook}
+            hasIllustratedBookProject={Boolean(existingBook)}
           />
         ) : null}
       </main>

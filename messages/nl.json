@@ -31,7 +31,7 @@
     "hero": "Bedtijdverhalen die speciaal voor hen zijn gemaakt.",
     "heroSub": "Maak gepersonaliseerde, AI-gegenereerde bedtijdverhalen met je kind in de hoofdrol - met hun favoriete speelgoed, dieren en avonturen verweven in elke pagina.",
     "ctaCreate": "Maak je eerste verhaal ✨",
-    "ctaBrowse": "Verhalen bekijken",
+    "ctaBrowse": "Galerij bekijken",
     "featureTitle": "Een verhaal dat alleen van hen is",
     "featureSub": "Elk detail dat je kind uniek maakt, gaat in elk verhaal.",
     "feature1Title": "Kinderprofielen",
@@ -74,7 +74,9 @@
       "bedtime": "Slaaptijd!"
     },
     "feature5Title": "Stemvertelling",
-    "feature5Desc": "Tik op afspelen en het verhaal leest zichzelf voor - elk woord licht op als het uitgesproken wordt. Perfect voor het slapengaan op elk apparaat."
+    "feature5Desc": "Tik op afspelen en het verhaal leest zichzelf voor - elk woord licht op als het uitgesproken wordt. Perfect voor het slapengaan op elk apparaat.",
+    "feature6Title": "Openbare Galerij",
+    "feature6Desc": "Lees geïllustreerde verhalen van andere Storycot-families, stem op maandfavorieten en verdien credits wanneer je eigen verhaal wordt uitgelicht."
   },
   "dashboard": {
     "statProfiles": "Kinderprofielen",

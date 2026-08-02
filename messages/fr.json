@@ -31,7 +31,7 @@
     "hero": "Des histoires du soir faites rien que pour eux.",
     "heroSub": "Créez des histoires personnalisées générées par IA avec votre enfant comme héros - avec leurs jouets préférés, animaux et aventures à chaque page.",
     "ctaCreate": "Créer la première histoire ✨",
-    "ctaBrowse": "Parcourir les histoires",
+    "ctaBrowse": "Explorer la galerie",
     "featureTitle": "Une histoire rien que pour eux",
     "featureSub": "Chaque détail qui rend votre enfant unique entre dans chaque histoire.",
     "feature1Title": "Profils enfants",
@@ -74,7 +74,9 @@
       "bedtime": "Bonne nuit"
     },
     "feature5Title": "Narration vocale",
-    "feature5Desc": "Appuyez sur lecture et l'histoire se lit à voix haute - chaque mot s'illumine au fur et à mesure qu'il est prononcé. Parfait pour l'heure du coucher sur n'importe quel appareil."
+    "feature5Desc": "Appuyez sur lecture et l'histoire se lit à voix haute - chaque mot s'illumine au fur et à mesure qu'il est prononcé. Parfait pour l'heure du coucher sur n'importe quel appareil.",
+    "feature6Title": "Galerie Publique",
+    "feature6Desc": "Lisez des histoires illustrées d’autres familles Storycot, votez pour les favoris du mois et gagnez des crédits si votre histoire est mise en avant."
   },
   "dashboard": {
     "statProfiles": "Profils enfants",

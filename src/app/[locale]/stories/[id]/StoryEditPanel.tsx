@@ -73,14 +73,14 @@ export default function StoryEditPanel({ story }: { story: Story }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-star-600">
-            Story edits
+            Moderation fixes
           </p>
           <h2 className="mt-1 font-display text-2xl font-bold text-night-800">
-            Fix story text
+            Fix and resubmit this story
           </h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-night-500">
-            Use this for moderation fixes like removing private details or
-            character references.
+            This appears after a public-gallery review flags something to
+            change, such as private details or protected character references.
           </p>
         </div>
         <button

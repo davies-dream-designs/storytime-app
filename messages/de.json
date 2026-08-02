@@ -31,7 +31,7 @@
     "hero": "Gutenachtgeschichten, nur für sie gemacht.",
     "heroSub": "Erstelle personalisierte, KI-generierte Gutenachtgeschichten mit deinem Kind in der Hauptrolle – mit Lieblingstieren, Spielzeugen und Abenteuern auf jeder Seite.",
     "ctaCreate": "Erste Geschichte erstellen ✨",
-    "ctaBrowse": "Geschichten ansehen",
+    "ctaBrowse": "Galerie ansehen",
     "featureTitle": "Eine Geschichte, die ganz ihnen gehört",
     "featureSub": "Jedes Detail, das dein Kind besonders macht, fließt in jede Geschichte ein.",
     "feature1Title": "Kinderprofile",
@@ -74,7 +74,9 @@
       "growth": "Wachstum",
       "resolution": "Auflösung",
       "bedtime": "Schlafenszeit"
-    }
+    },
+    "feature6Title": "Öffentliche Galerie",
+    "feature6Desc": "Lies illustrierte Geschichten anderer Storycot-Familien, stimme für Monatsfavoriten ab und verdiene Guthaben, wenn deine Geschichte vorgestellt wird."
   },
   "dashboard": {
     "statProfiles": "Kinderprofile",

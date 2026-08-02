@@ -31,7 +31,7 @@
     "hero": "Sadece onlar için hazırlanmış uyku öncesi hikayeleri.",
     "heroSub": "Çocuğunuzun başrolde olduğu, en sevdiği oyuncakların, hayvanların ve maceraların her sayfaya işlendiği kişiselleştirilmiş, AI tarafından oluşturulmuş uyku zamanı hikayeleri oluşturun.",
     "ctaCreate": "İlk hikayenizi yaratın ✨",
-    "ctaBrowse": "Hikayelere göz atın",
+    "ctaBrowse": "Galeriyi keşfet",
     "featureTitle": "Yalnızca onlara ait olan bir hikaye",
     "featureSub": "Çocuğunuzu benzersiz kılan her ayrıntı her hikayede yer alıyor.",
     "feature1Title": "Çocuk profilleri",
@@ -74,7 +74,9 @@
       "bedtime": "Yatma zamanı"
     },
     "feature5Title": "Sesli anlatım",
-    "feature5Desc": "Oynat'a dokun ve hikaye kendini yüksek sesle okusun - her kelime söylenirken parlar. Her cihazda uyku vakti için mükemmel."
+    "feature5Desc": "Oynat'a dokun ve hikaye kendini yüksek sesle okusun - her kelime söylenirken parlar. Her cihazda uyku vakti için mükemmel.",
+    "feature6Title": "Herkese Açık Galeri",
+    "feature6Desc": "Diğer Storycot ailelerinin resimli hikâyelerini okuyun, aylık favorilere oy verin ve kendi hikâyeniz öne çıkarsa kredi kazanın."
   },
   "dashboard": {
     "statProfiles": "Çocuk profilleri",

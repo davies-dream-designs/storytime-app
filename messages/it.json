@@ -31,7 +31,7 @@
     "hero": "Storie della buonanotte create solo per loro.",
     "heroSub": "Crea storie della buonanotte personalizzate, generate dall'AI, con tuo figlio protagonista - con i suoi giochi, animali e avventure preferite in ogni pagina.",
     "ctaCreate": "Crea la tua prima storia ✨",
-    "ctaBrowse": "Sfoglia le storie",
+    "ctaBrowse": "Esplora la galleria",
     "featureTitle": "Una storia solo sua",
     "featureSub": "Ogni dettaglio che rende unico il tuo bambino entra in ogni storia.",
     "feature1Title": "Profili dei bambini",
@@ -74,7 +74,9 @@
       "bedtime": "Buonanotte"
     },
     "feature5Title": "Narrazione vocale",
-    "feature5Desc": "Tocca play e la storia si legge da sola ad alta voce - ogni parola si illumina mentre viene pronunciata. Perfetto per andare a letto su qualsiasi dispositivo."
+    "feature5Desc": "Tocca play e la storia si legge da sola ad alta voce - ogni parola si illumina mentre viene pronunciata. Perfetto per andare a letto su qualsiasi dispositivo.",
+    "feature6Title": "Galleria Pubblica",
+    "feature6Desc": "Leggi storie illustrate di altre famiglie Storycot, vota le preferite del mese e guadagna crediti quando la tua storia viene messa in evidenza."
   },
   "dashboard": {
     "statProfiles": "Profili bambini",

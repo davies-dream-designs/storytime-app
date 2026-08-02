@@ -24,6 +24,7 @@ export default async function Home() {
     { icon: 'image', title: t('feature3Title'), body: t('feature3Desc') },
     { icon: 'download', title: t('feature5Title'), body: t('feature5Desc') },
     { icon: 'book', title: t('feature4Title'), body: t('feature4Desc') },
+    { icon: 'share', title: t('feature6Title'), body: t('feature6Desc') },
   ] satisfies Array<{ icon: IconName; title: string; body: string }>
 
   const arcSteps = [
@@ -113,7 +114,7 @@ export default async function Home() {
               {t('ctaCreate')}
             </Link>
             <Link
-              href="/stories"
+              href="/public"
               className="rounded-full border border-white/20 px-8 py-4 text-lg font-bold text-white transition hover:bg-white/10"
             >
               {t('ctaBrowse')}

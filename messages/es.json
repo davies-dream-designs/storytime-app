@@ -31,7 +31,7 @@
     "hero": "Cuentos de buenas noches hechos para ellos.",
     "heroSub": "Crea cuentos personalizados con inteligencia artificial protagonizados por tu hijo, con sus juguetes favoritos, animales y aventuras en cada página.",
     "ctaCreate": "Crea tu primer cuento ✨",
-    "ctaBrowse": "Ver cuentos",
+    "ctaBrowse": "Explorar la galería",
     "featureTitle": "Un cuento solo para ellos",
     "featureSub": "Cada detalle que hace único a tu hijo va en cada cuento.",
     "feature1Title": "Perfiles de niños",
@@ -74,7 +74,9 @@
       "bedtime": "Buenas noches"
     },
     "feature5Title": "Narración de voz",
-    "feature5Desc": "Toca reproducir y el cuento se lee solo en voz alta - cada palabra se ilumina al pronunciarse. Perfecto para la hora de dormir en cualquier dispositivo."
+    "feature5Desc": "Toca reproducir y el cuento se lee solo en voz alta - cada palabra se ilumina al pronunciarse. Perfecto para la hora de dormir en cualquier dispositivo.",
+    "feature6Title": "Galería Pública",
+    "feature6Desc": "Lee cuentos ilustrados de otras familias de Storycot, vota por los favoritos del mes y gana créditos si tu historia aparece destacada."
   },
   "dashboard": {
     "statProfiles": "Perfiles de niños",

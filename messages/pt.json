@@ -31,7 +31,7 @@
     "hero": "Histórias de ninar feitas só para eles.",
     "heroSub": "Crie histórias de ninar personalizadas, geradas por IA, estrelando seu filho - com brinquedos, animais e aventuras favoritas em cada página.",
     "ctaCreate": "Criar sua primeira história ✨",
-    "ctaBrowse": "Ver histórias",
+    "ctaBrowse": "Explorar a galeria",
     "featureTitle": "Uma história que é só deles",
     "featureSub": "Cada detalhe que torna seu filho único entra em cada história.",
     "feature1Title": "Perfis infantis",
@@ -74,7 +74,9 @@
       "bedtime": "Hora de dormir"
     },
     "feature5Title": "Narração de voz",
-    "feature5Desc": "Toque em reproduzir e a história se lê em voz alta - cada palavra se ilumina ao ser pronunciada. Perfeito para a hora de dormir em qualquer dispositivo."
+    "feature5Desc": "Toque em reproduzir e a história se lê em voz alta - cada palavra se ilumina ao ser pronunciada. Perfeito para a hora de dormir em qualquer dispositivo.",
+    "feature6Title": "Galeria Pública",
+    "feature6Desc": "Leia histórias ilustradas de outras famílias Storycot, vote nas favoritas do mês e ganhe créditos quando a sua história for destacada."
   },
   "dashboard": {
     "statProfiles": "Perfis infantis",

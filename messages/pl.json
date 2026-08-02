@@ -31,7 +31,7 @@
     "hero": "Opowieści na dobranoc stworzone specjalnie dla nich.",
     "heroSub": "Twórz spersonalizowane, generowane przez AI historie na dobranoc z udziałem Twojego dziecka - z jego ulubionymi zabawkami, zwierzętami i przygodami wplecionymi w każdą stronę.",
     "ctaCreate": "Stwórz swoją pierwszą historię ✨",
-    "ctaBrowse": "Przeglądaj historie",
+    "ctaBrowse": "Zobacz galerię",
     "featureTitle": "Historia, która należy wyłącznie do nich",
     "featureSub": "Każdy szczegół, który czyni Twoje dziecko wyjątkowym, ma znaczenie w każdej historii.",
     "feature1Title": "Profile dzieci",
@@ -74,7 +74,9 @@
       "bedtime": "Pora snu"
     },
     "feature5Title": "Narracja głosowa",
-    "feature5Desc": "Naciśnij odtwarzanie, a historia przeczyta się sama na głos - każde słowo podświetla się podczas wymowy. Idealne na dobranoc na każdym urządzeniu."
+    "feature5Desc": "Naciśnij odtwarzanie, a historia przeczyta się sama na głos - każde słowo podświetla się podczas wymowy. Idealne na dobranoc na każdym urządzeniu.",
+    "feature6Title": "Galeria Publiczna",
+    "feature6Desc": "Czytaj ilustrowane historie innych rodzin Storycot, głosuj na miesięcznych faworytów i zdobywaj kredyty, gdy Twoja historia zostanie wyróżniona."
   },
   "dashboard": {
     "statProfiles": "Profile dzieci",

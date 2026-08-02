@@ -225,7 +225,7 @@ export default function NewProfilePage() {
             <Button variant="secondary" onClick={() => router.back()}>
               {t("cancelButton")}
             </Button>
-            <Button type="submit" disabled={saving} fullWidth>
+            <Button type="submit" disabled={saving || !ipConfirmed} fullWidth>
               {saving ? "…" : t("createButton")}
             </Button>
           </div>

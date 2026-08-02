@@ -11,6 +11,7 @@ import {
   fallbackBirthYear,
   LessonsField,
   parseDateOfBirth,
+  ProfileIpConfirmation,
   TagsField,
 } from "@/components/profiles/ProfileFormControls";
 import type { ChildProfile } from "@/types";
@@ -57,6 +58,7 @@ export default function EditProfileForm({
     profile.favouritePlaces
   );
   const [lessons, setLessons] = useState(profile.lessons);
+  const [ipConfirmed, setIpConfirmed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -69,6 +71,12 @@ export default function EditProfileForm({
     }
     if (!dobYear) {
       setError("Birth year is required");
+      return;
+    }
+    if (!ipConfirmed) {
+      setError(
+        "Please confirm the profile does not include branded characters or protected IP."
+      );
       return;
     }
 
@@ -106,6 +114,7 @@ export default function EditProfileForm({
           favouriteAnimals,
           favouritePlaces,
           lessons,
+          ipConfirmationAccepted: ipConfirmed,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
@@ -201,13 +210,18 @@ export default function EditProfileForm({
             onChange={setLessons}
           />
 
+          <ProfileIpConfirmation
+            checked={ipConfirmed}
+            onChange={setIpConfirmed}
+          />
+
           {error && <p className={formStyles.error}>{error}</p>}
 
           <div className="flex gap-3">
             <Button variant="secondary" onClick={() => router.back()}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving} fullWidth>
+            <Button type="submit" disabled={saving || !ipConfirmed} fullWidth>
               {saving ? (
                 "Saving…"
               ) : (

@@ -246,7 +246,7 @@ export default function EditProfileForm({
             <Button variant="secondary" onClick={() => router.back()}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving} fullWidth>
+            <Button type="submit" disabled={saving || !ipConfirmed} fullWidth>
               {saving ? (
                 "Saving…"
               ) : (

@@ -86,6 +86,8 @@ Child profile:
 - Age: ${getAge(profile)}
 ${buildGenderPromptLine(profile)}
 - Visual appearance: ${buildChildAppearanceSummary(profile.appearance) || "No structured appearance details provided."}
+- Generated reference summary: ${profile.appearanceSummary || "No generated reference summary provided."}
+- Generated reference image: ${profile.avatarImageUrl ? "available for profile consistency" : "not available"}
 - Keep consistent: ${buildChildAppearanceDoNotChange(profile.appearance).join(", ") || "none"}
 - Favourite toys: ${(profile.favouriteCharacters ?? []).join(", ") || "none"}
 - Favourite activities: ${(profile.favouriteActivities ?? []).join(", ") || "none"}

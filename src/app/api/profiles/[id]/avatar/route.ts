@@ -1,7 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { createStoryPersonAvatar } from "@/lib/storyPeopleAvatars";
+import { createChildProfileAvatar } from "@/lib/storyPeopleAvatars";
+import type { ChildAppearance } from "@/types/profileAppearance";
+
+function mergeConsistencyNote(
+  appearance: ChildAppearance | undefined,
+  consistencyNote?: string
+): ChildAppearance | undefined {
+  if (!consistencyNote) return appearance;
+  const current = appearance ?? {
+    hairStyles: [],
+    featureEmphasis: [],
+    distinguishingFeatures: [],
+    expressionVibes: [],
+  };
+  if (current.consistencyNote?.trim()) return current;
+  return {
+    ...current,
+    consistencyNote: consistencyNote.slice(0, 140),
+  };
+}
 
 export async function POST(
   req: NextRequest,
@@ -12,8 +31,8 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const person = await db.storyPeople.getById(id);
-  if (!person || person.userId !== userId) {
+  const profile = await db.profiles.getById(id);
+  if (!profile || profile.userId !== userId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -27,11 +46,14 @@ export async function POST(
   }
 
   try {
-    const avatar = await createStoryPersonAvatar({ person, file: photo });
-    const updated = await db.storyPeople.update(id, {
+    const avatar = await createChildProfileAvatar({ profile, file: photo });
+    const updated = await db.profiles.update(id, {
       avatarImageUrl: avatar.avatarImageUrl,
-      appearance: avatar.appearance,
       appearanceSummary: avatar.appearanceSummary,
+      appearance: mergeConsistencyNote(
+        profile.appearance,
+        avatar.consistencyNote
+      ),
     });
     return NextResponse.json(updated);
   } catch (err) {
@@ -40,7 +62,7 @@ export async function POST(
         error:
           err instanceof Error
             ? err.message
-            : "Could not create the illustrated reference.",
+            : "Could not create the child reference.",
       },
       { status: 502 }
     );

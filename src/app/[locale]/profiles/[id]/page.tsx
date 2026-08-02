@@ -12,6 +12,7 @@ import {
   getAppearanceOptionLabel,
 } from "@/types";
 import DeleteProfileButton from "./DeleteProfileButton";
+import ChildProfileReference from "./ChildProfileReference";
 
 export default async function ProfilePage({
   params,
@@ -81,9 +82,19 @@ export default async function ProfilePage({
       >
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-star-300 to-moon-300 font-display text-3xl font-bold text-night-800">
-              {profile.name[0].toUpperCase()}
-            </div>
+            {profile.avatarImageUrl ? (
+              <div
+                className="h-16 w-16 rounded-full bg-cover bg-center"
+                style={{
+                  backgroundImage: `url("${profile.avatarImageUrl}")`,
+                }}
+                aria-hidden="true"
+              />
+            ) : (
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-star-300 to-moon-300 font-display text-3xl font-bold text-night-800">
+                {profile.name[0].toUpperCase()}
+              </div>
+            )}
             <div>
               <h1 className="font-display text-4xl font-bold text-night-800">
                 {profile.name}
@@ -109,6 +120,8 @@ export default async function ProfilePage({
 
         <div className="grid gap-8 lg:grid-cols-3">
           <div className="lg:col-span-1 space-y-5">
+            <ChildProfileReference initialProfile={profile} />
+
             <div className="rounded-2xl border border-night-100 bg-white p-5">
               <h2 className="mb-4 font-display text-lg font-bold text-night-700">
                 {t("detailsTitle")}

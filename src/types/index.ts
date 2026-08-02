@@ -23,6 +23,8 @@ export interface ChildProfile {
   dateOfBirth?: string; // YYYY-MM-DD
   gender?: ChildGender;
   appearance?: ChildAppearance;
+  avatarImageUrl?: string;
+  appearanceSummary?: string;
   favouriteCharacters: string[];
   favouriteActivities: string[];
   favouriteAnimals: string[];

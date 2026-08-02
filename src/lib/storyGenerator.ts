@@ -275,6 +275,7 @@ ${recentTitles.map((t) => `- ${t}`).join("\n")}`
 
 Child: ${profile.name}, age ${getAge(profile)}
 ${buildGenderPromptLine(profile)}
+- Appearance reference: ${profile.appearanceSummary || buildChildAppearanceSummary(profile.appearance) || "No structured appearance details provided."}
 - Theme/lesson: ${theme || "a gentle adventure"}
 ${familySection}${characterSection}${premiseSection}${notesSection}${avoidSection}
 
@@ -625,6 +626,7 @@ Child profile:
 - Name: ${profile.name}, age ${getAge(profile)}
 ${buildGenderPromptLine(profile)}
 - Appearance: ${buildChildAppearanceSummary(profile.appearance) || "No structured appearance details provided."}
+- Generated reference summary: ${profile.appearanceSummary || "No generated reference summary provided."}
 - Favourite toys: ${(profile.favouriteCharacters ?? []).join(", ") || "none"}
 - Favourite activities: ${(profile.favouriteActivities ?? []).join(", ") || "none"}
 - Favourite animals: ${(profile.favouriteAnimals ?? []).join(", ") || "none"}

@@ -1,5 +1,7 @@
 import sharp from "sharp";
-import type { StoryPerson } from "@/types";
+import Anthropic from "@anthropic-ai/sdk";
+import type { ChildProfile, StoryPerson } from "@/types";
+import { buildChildAppearanceSummary } from "@/types";
 import { storeBookAsset } from "@/lib/print-books/storage";
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
@@ -8,6 +10,13 @@ const ALLOWED_CONTENT_TYPES = new Set([
   "image/png",
   "image/webp",
 ]);
+
+const anthropic = new Anthropic();
+
+type PhotoAnalysis = {
+  appearance: string;
+  appearanceSummary: string;
+};
 
 export function validateStoryPersonPhoto(file: File): string | null {
   if (!ALLOWED_CONTENT_TYPES.has(file.type)) {
@@ -35,6 +44,29 @@ function buildAvatarPrompt(person: StoryPerson): string {
     "Use the uploaded photo only as private visual reference for broad visible features, posture, colouring, and expression.",
     "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
     "Make it suitable as a reusable character reference for Storycot hardcover interiors and child profile illustrations: square crop, head-and-shoulders or full pet pose, clear visible features, stable outfit/markings, no scene-specific props unless requested.",
+    "Do not make a photorealistic portrait, caricature, sticker, logo, toy packaging image, or social-media avatar.",
+    "No text, watermark, logos, franchise styling, celebrity styling, or exact copy of clothing logos.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function buildChildAvatarPrompt(
+  profile: ChildProfile,
+  analysis: PhotoAnalysis
+): string {
+  return [
+    "Create a square Storycot-style illustrated child profile reference.",
+    `Child name: ${profile.name}.`,
+    `Age: ${profile.age}.`,
+    profile.gender ? `Gender/pronoun setting: ${profile.gender}.` : "",
+    `Structured appearance: ${buildChildAppearanceSummary(profile.appearance) || "Not provided."}`,
+    analysis.appearance
+      ? `Photo-derived visible notes: ${analysis.appearance}.`
+      : "",
+    "Use the uploaded photo only as private visual reference for broad visible features, posture, colouring, and expression.",
+    "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
+    "Make it suitable as a reusable child reference for Storycot hardcover interiors: square crop, child-safe clothing, clear visible features, stable outfit guidance, no scene-specific props unless already in the profile.",
     "Do not make a photorealistic portrait, caricature, sticker, logo, toy packaging image, or social-media avatar.",
     "No text, watermark, logos, franchise styling, celebrity styling, or exact copy of clothing logos.",
   ]
@@ -101,6 +133,79 @@ async function generateEditedImage(input: {
   return Buffer.from(base64, "base64");
 }
 
+function parseAnalysis(raw: string): PhotoAnalysis {
+  const cleaned = raw
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+  try {
+    return JSON.parse(cleaned) as PhotoAnalysis;
+  } catch {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (!match) {
+      return { appearance: "", appearanceSummary: "" };
+    }
+    try {
+      return JSON.parse(match[0]) as PhotoAnalysis;
+    } catch {
+      return { appearance: "", appearanceSummary: "" };
+    }
+  }
+}
+
+async function analyzePhoto(input: {
+  image: Buffer;
+  subject: string;
+}): Promise<PhotoAnalysis> {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return { appearance: "", appearanceSummary: "" };
+  }
+
+  try {
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 700,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: "image/png",
+                data: input.image.toString("base64"),
+              },
+            },
+            {
+              type: "text",
+              text: `Describe only visible, non-sensitive appearance details that help keep this ${input.subject} consistent in original Storycot bedtime illustrations. Do not identify the person, infer ethnicity, health, personality, age beyond broad child/adult if obvious, or any sensitive trait. Do not mention the photo or camera. Return only JSON:
+{
+  "appearance": "one concise sentence of visible features, hair/fur/markings/clothing/accessories/expression",
+  "appearanceSummary": "short reusable illustration reference summary"
+}`,
+            },
+          ],
+        },
+      ],
+    });
+
+    const content = message.content[0];
+    if (content?.type !== "text")
+      return { appearance: "", appearanceSummary: "" };
+    const parsed = parseAnalysis(content.text);
+    return {
+      appearance: (parsed.appearance ?? "").trim().slice(0, 400),
+      appearanceSummary: (parsed.appearanceSummary ?? "").trim().slice(0, 400),
+    };
+  } catch (err) {
+    console.warn("Photo analysis failed; continuing without auto notes.", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { appearance: "", appearanceSummary: "" };
+  }
+}
+
 export function buildStoryPersonAppearanceSummary(person: StoryPerson): string {
   return [
     person.appearance.trim(),
@@ -116,14 +221,29 @@ export function buildStoryPersonAppearanceSummary(person: StoryPerson): string {
 export async function createStoryPersonAvatar(input: {
   person: StoryPerson;
   file: File;
-}): Promise<{ avatarImageUrl: string; appearanceSummary: string }> {
+}): Promise<{
+  avatarImageUrl: string;
+  appearance: string;
+  appearanceSummary: string;
+}> {
   const validationError = validateStoryPersonPhoto(input.file);
   if (validationError) throw new Error(validationError);
 
   const normalizedPhoto = await normalizeUploadForOpenAI(input.file);
+  const analysis = await analyzePhoto({
+    image: normalizedPhoto,
+    subject: input.person.relationship === "pet" ? "pet" : "person",
+  });
   const generated = await generateEditedImage({
     image: normalizedPhoto,
-    prompt: buildAvatarPrompt(input.person),
+    prompt: [
+      buildAvatarPrompt(input.person),
+      analysis.appearance
+        ? `Additional visible reference details from photo: ${analysis.appearance}.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" "),
   });
   const webImage = await sharp(generated)
     .resize(768, 768, { fit: "cover" })
@@ -131,13 +251,59 @@ export async function createStoryPersonAvatar(input: {
     .toBuffer();
 
   const avatarImageUrl = await storeBookAsset({
-    pathname: `story-people/${input.person.userId}/${input.person.id}/avatar.jpg`,
+    pathname: `story-people/${input.person.userId}/${input.person.id}/avatar-${Date.now()}.jpg`,
+    body: webImage,
+    contentType: "image/jpeg",
+  });
+
+  const appearance = input.person.appearance.trim() || analysis.appearance;
+
+  return {
+    avatarImageUrl,
+    appearance,
+    appearanceSummary:
+      analysis.appearanceSummary ||
+      buildStoryPersonAppearanceSummary({ ...input.person, appearance }),
+  };
+}
+
+export async function createChildProfileAvatar(input: {
+  profile: ChildProfile;
+  file: File;
+}): Promise<{
+  avatarImageUrl: string;
+  appearanceSummary: string;
+  consistencyNote?: string;
+}> {
+  const validationError = validateStoryPersonPhoto(input.file);
+  if (validationError) throw new Error(validationError);
+
+  const normalizedPhoto = await normalizeUploadForOpenAI(input.file);
+  const analysis = await analyzePhoto({
+    image: normalizedPhoto,
+    subject: "child",
+  });
+  const generated = await generateEditedImage({
+    image: normalizedPhoto,
+    prompt: buildChildAvatarPrompt(input.profile, analysis),
+  });
+  const webImage = await sharp(generated)
+    .resize(768, 768, { fit: "cover" })
+    .jpeg({ quality: 88, mozjpeg: true })
+    .toBuffer();
+
+  const avatarImageUrl = await storeBookAsset({
+    pathname: `profiles/${input.profile.userId}/${input.profile.id}/avatar-${Date.now()}.jpg`,
     body: webImage,
     contentType: "image/jpeg",
   });
 
   return {
     avatarImageUrl,
-    appearanceSummary: buildStoryPersonAppearanceSummary(input.person),
+    appearanceSummary:
+      analysis.appearanceSummary ||
+      buildChildAppearanceSummary(input.profile.appearance) ||
+      "",
+    consistencyNote: analysis.appearance || undefined,
   };
 }

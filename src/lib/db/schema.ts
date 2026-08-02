@@ -45,6 +45,8 @@ export const profiles = pgTable(
       .notNull()
       .default("not_specified"),
     appearance: jsonb("appearance").$type<ChildAppearance>(),
+    avatarImageUrl: text("avatar_image_url"),
+    appearanceSummary: text("appearance_summary"),
     favouriteCharacters: text("favourite_characters")
       .array()
       .notNull()

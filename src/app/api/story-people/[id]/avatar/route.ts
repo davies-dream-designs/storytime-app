@@ -5,6 +5,7 @@ import {
   chargeReferenceRedoCredit,
   refundReferenceRedoCredit,
 } from "@/lib/credits";
+import { FREE_REFERENCE_AVATAR_LIMIT } from "@/lib/pricing";
 import {
   createStoryPersonAvatar,
   redoStoryPersonAvatar,
@@ -80,7 +81,12 @@ export async function POST(
   let charged = false;
 
   try {
-    if (isRedo) {
+    const existingReferenceCount = isRedo
+      ? FREE_REFERENCE_AVATAR_LIMIT
+      : await db.storyPeople.countAvatarReferencesByUserId(userId);
+    const shouldCharge =
+      isRedo || existingReferenceCount >= FREE_REFERENCE_AVATAR_LIMIT;
+    if (shouldCharge) {
       const charge = await chargeReferenceRedoCredit(userId);
       charged = charge.charged;
     }
@@ -97,14 +103,15 @@ export async function POST(
     return NextResponse.json(updated);
   } catch (err) {
     if (charged) await refundReferenceRedoCredit(userId);
+    const message =
+      err instanceof Error
+        ? err.message
+        : "Could not create the illustrated reference.";
     return NextResponse.json(
       {
-        error:
-          err instanceof Error
-            ? err.message
-            : "Could not create the illustrated reference.",
+        error: message,
       },
-      { status: 502 }
+      { status: /insufficient credits/i.test(message) ? 402 : 502 }
     );
   }
 }

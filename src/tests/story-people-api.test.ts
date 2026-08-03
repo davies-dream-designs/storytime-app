@@ -22,11 +22,13 @@ const {
   mockDb: {
     profiles: {
       getByUserId: vi.fn(),
+      countAvatarReferencesByUserId: vi.fn(),
       getById: vi.fn(),
       update: vi.fn(),
     },
     storyPeople: {
       getByUserId: vi.fn(),
+      countAvatarReferencesByUserId: vi.fn(),
       getByProfileId: vi.fn(),
       getById: vi.fn(),
       create: vi.fn(),
@@ -76,12 +78,14 @@ describe("/api/story-people", () => {
     vi.clearAllMocks();
     mockAuth.mockResolvedValue({ userId: "user-1" });
     mockDb.profiles.getByUserId.mockResolvedValue(profiles);
+    mockDb.profiles.countAvatarReferencesByUserId.mockResolvedValue(0);
     mockDb.profiles.getById.mockResolvedValue(undefined);
     mockDb.profiles.update.mockResolvedValue(undefined);
     mockDb.storyPeople.create.mockResolvedValue(undefined);
     mockDb.storyPeople.getById.mockResolvedValue(undefined);
     mockDb.storyPeople.update.mockResolvedValue(undefined);
     mockDb.storyPeople.getByUserId.mockResolvedValue([]);
+    mockDb.storyPeople.countAvatarReferencesByUserId.mockResolvedValue(0);
     mockDb.storyPeople.getByProfileId.mockResolvedValue([]);
     mockChargeReferenceRedoCredit.mockResolvedValue({
       credits: 2,
@@ -258,6 +262,45 @@ describe("/api/story-people", () => {
     });
   });
 
+  it("charges one credit for a new story person reference after two free references", async () => {
+    const person: StoryPerson = {
+      id: "person-1",
+      userId: "user-1",
+      name: "Mum",
+      relationship: "mum",
+      description: "",
+      personality: "",
+      appearance: "",
+      availableToAllProfiles: true,
+      profileIds: [],
+      createdAt: "2026-07-15T00:00:00.000Z",
+      updatedAt: "2026-07-15T00:00:00.000Z",
+    };
+    mockDb.storyPeople.getById.mockResolvedValue(person);
+    mockDb.storyPeople.countAvatarReferencesByUserId.mockResolvedValue(2);
+    mockDb.storyPeople.update.mockResolvedValue({
+      ...person,
+      avatarImageUrl: "https://assets.example.com/avatar.jpg",
+      appearanceSummary: "Warm storybook reference.",
+    });
+
+    const { POST } = await import("@/app/api/story-people/[id]/avatar/route");
+    const form = new FormData();
+    form.append("photo", new File(["fake"], "mum.jpg", { type: "image/jpeg" }));
+    form.append("photoConsent", "yes");
+    const req = {
+      formData: async () => form,
+    } as NextRequest;
+
+    const res = await POST(req, {
+      params: Promise.resolve({ id: "person-1" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockChargeReferenceRedoCredit).toHaveBeenCalledWith("user-1");
+    expect(mockCreateStoryPersonAvatar).toHaveBeenCalled();
+  });
+
   it("redoes an existing story person reference without a new photo", async () => {
     const person: StoryPerson = {
       id: "person-1",
@@ -399,6 +442,44 @@ describe("/api/story-people", () => {
       file: expect.any(File),
       adjustment: "closer to the photo",
     });
+  });
+
+  it("charges one credit for a new child profile reference after two free child references", async () => {
+    const profile: ChildProfile = {
+      ...profiles[0],
+      appearance: {
+        hairStyles: [],
+        featureEmphasis: [],
+        distinguishingFeatures: [],
+        expressionVibes: [],
+      },
+    };
+    mockDb.profiles.getById.mockResolvedValue(profile);
+    mockDb.profiles.countAvatarReferencesByUserId.mockResolvedValue(2);
+    mockDb.profiles.update.mockResolvedValue({
+      ...profile,
+      avatarImageUrl: "https://assets.example.com/child-avatar.jpg",
+      appearanceSummary: "Warm child storybook reference.",
+    });
+
+    const { POST } = await import("@/app/api/profiles/[id]/avatar/route");
+    const form = new FormData();
+    form.append(
+      "photo",
+      new File(["fake"], "mila.jpg", { type: "image/jpeg" })
+    );
+    form.append("photoConsent", "yes");
+    const req = {
+      formData: async () => form,
+    } as NextRequest;
+
+    const res = await POST(req, {
+      params: Promise.resolve({ id: "profile-1" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockChargeReferenceRedoCredit).toHaveBeenCalledWith("user-1");
+    expect(mockCreateChildProfileAvatar).toHaveBeenCalled();
   });
 
   it("redoes an existing child reference without a new photo", async () => {

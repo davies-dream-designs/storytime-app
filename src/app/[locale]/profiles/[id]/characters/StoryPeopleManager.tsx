@@ -143,6 +143,24 @@ export default function StoryPeopleManager({
       .catch(() => {});
   }, []);
 
+  const referenceCount = people.filter((person) => person.avatarImageUrl).length;
+
+  function getAvatarCreateCost(person: StoryPerson): number {
+    if (creditInfo?.isAdmin) return 0;
+    return person.avatarImageUrl || referenceCount >= 2 ? 1 : 0;
+  }
+
+  function getAvatarCreateCostLabel(person: StoryPerson): string {
+    const cost = getAvatarCreateCost(person);
+    if (creditInfo?.isAdmin && cost === 0 && person.avatarImageUrl) {
+      return "0 Credits (Admin)";
+    }
+    if (creditInfo?.isAdmin && person.avatarImageUrl) {
+      return "0 Credits (Admin)";
+    }
+    return cost > 0 ? "1 Credit" : "Free";
+  }
+
   function toggleProfile(profileId: string) {
     setForm((current) => ({
       ...current,
@@ -253,17 +271,17 @@ export default function StoryPeopleManager({
       return;
     }
     const isRedo = Boolean(person.avatarImageUrl);
-    const cost = isRedo && !creditInfo?.isAdmin ? 1 : 0;
+    const cost = getAvatarCreateCost(person);
     if (cost > 0 && creditInfo && creditInfo.credits < cost) {
-      setError("You need 1 credit to redo this illustrated reference.");
+      setError("You need 1 credit to create this illustrated reference.");
       return;
     }
     const confirmMessage =
       cost > 0
-        ? `Redoing ${person.name}'s illustrated reference will use 1 credit. Continue?`
+        ? `Creating ${person.name}'s illustrated reference will use 1 credit. Continue?`
         : isRedo
           ? `Redoing ${person.name}'s illustrated reference is free for admins. Continue?`
-          : `Creating ${person.name}'s first illustrated reference is free. Continue?`;
+          : `Creating ${person.name}'s illustrated reference is free. Continue?`;
     if (!window.confirm(confirmMessage)) return;
     setError("");
     setGeneratingAvatarForId(person.id);
@@ -961,6 +979,16 @@ export default function StoryPeopleManager({
                             a Storycot-style reference. The source photo is used
                             once and is not stored.
                           </p>
+                          <p className="mt-2 text-xs font-semibold leading-5 text-night-500">
+                            Use a clear, well-lit photo with just this person or
+                            pet where possible. Busy backgrounds, other people,
+                            text, branded clothes, or toys can make the
+                            illustrated reference drift.
+                          </p>
+                          <p className="mt-2 text-xs font-bold uppercase tracking-wide text-night-400">
+                            First 2 Family & Friends references are free. Extra
+                            references or redos cost 1 credit each.
+                          </p>
 
                           {person.avatarImageUrl ? (
                             <div className="mt-3 rounded-xl border border-night-100 bg-white p-3">
@@ -1104,7 +1132,12 @@ export default function StoryPeopleManager({
                                         ? creditInfo?.isAdmin
                                           ? "Redo Cost: 0 Credits (Admin)"
                                           : "Redo Cost: 1 Credit"
-                                        : "First Reference: Free"}
+                                        : `Reference Cost: ${getAvatarCreateCostLabel(
+                                            person
+                                          )} (${Math.min(
+                                            referenceCount,
+                                            2
+                                          )}/2 Free Used)`}
                                     </p>
                                     <Button
                                       size="compact"

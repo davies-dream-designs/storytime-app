@@ -28,11 +28,13 @@ export default async function ProfilePage({
   const profile = await db.profiles.getById(id);
   if (!profile || profile.userId !== userId) notFound();
 
-  const [storiesRaw, characters, storyPeople] = await Promise.all([
-    db.stories.getByProfileId(id),
-    db.characters.getByProfileId(id),
-    db.storyPeople.getByProfileId(id, userId),
-  ]);
+  const [storiesRaw, characters, storyPeople, childReferenceCount] =
+    await Promise.all([
+      db.stories.getByProfileId(id),
+      db.characters.getByProfileId(id),
+      db.storyPeople.getByProfileId(id, userId),
+      db.profiles.countAvatarReferencesByUserId(userId),
+    ]);
   const stories = storiesRaw
     .filter((s) => s.userId === userId)
     .sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1));
@@ -110,7 +112,10 @@ export default async function ProfilePage({
 
         <div className="grid gap-8 lg:grid-cols-3">
           <div className="lg:col-span-1 space-y-5">
-            <ChildProfileReference initialProfile={profile} />
+            <ChildProfileReference
+              initialProfile={profile}
+              initialReferenceCount={childReferenceCount}
+            />
 
             <div className="rounded-2xl border border-night-100 bg-white p-5">
               <h2 className="mb-4 font-display text-lg font-bold text-night-700">

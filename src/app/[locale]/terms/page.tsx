@@ -77,6 +77,11 @@ export default function TermsPage() {
             band, story preset, and book shape.
           </p>
           <p>
+            The first 2 illustrated child references and first 2 illustrated
+            Family & Friends references are free. Additional references and
+            reference redos cost 1 credit each, except for admin test accounts.
+          </p>
+          <p>
             Credit packs are purchased through Stripe. Prices are in Australian
             dollars (AUD) and are inclusive of GST where applicable. Credits are
             non-refundable once used, except where stated below.
@@ -115,6 +120,13 @@ export default function TermsPage() {
             illegal, or infringes anyone&apos;s rights. Our AI has
             content-safety filters and we may block or remove content that
             violates these terms without notice.
+          </p>
+          <p>
+            If you upload photos for illustrated references, you confirm you
+            have permission to use those photos and any likenesses shown. Use
+            clear photos of the intended person or pet and avoid private
+            details, visible text, logos, franchise characters, or other
+            third-party material.
           </p>
           <p>
             Generated stories and images are produced by AI and may not be

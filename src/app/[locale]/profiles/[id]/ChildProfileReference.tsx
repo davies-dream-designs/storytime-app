@@ -22,10 +22,13 @@ function isChildProfile(
 
 export default function ChildProfileReference({
   initialProfile,
+  initialReferenceCount,
 }: {
   initialProfile: ChildProfile;
+  initialReferenceCount: number;
 }) {
   const [profile, setProfile] = useState(initialProfile);
+  const [referenceCount, setReferenceCount] = useState(initialReferenceCount);
   const [pendingPhoto, setPendingPhoto] = useState<PendingPhoto | null>(null);
   const [generating, setGenerating] = useState(false);
   const [redoNote, setRedoNote] = useState("");
@@ -44,6 +47,16 @@ export default function ChildProfileReference({
       })
       .catch(() => {});
   }, []);
+
+  const createReferenceCost =
+    profile.avatarImageUrl || referenceCount >= 2 ? 1 : 0;
+  const createCostLabel = creditInfo?.isAdmin
+    ? createReferenceCost > 0
+      ? "0 Credits (Admin)"
+      : "Free"
+    : createReferenceCost > 0
+      ? "1 Credit"
+      : "Free";
 
   function stagePhoto(file: File | undefined) {
     if (!file) return;
@@ -69,17 +82,17 @@ export default function ChildProfileReference({
       return;
     }
     const isRedo = Boolean(profile.avatarImageUrl);
-    const cost = isRedo && !creditInfo?.isAdmin ? 1 : 0;
+    const cost = creditInfo?.isAdmin ? 0 : createReferenceCost;
     if (cost > 0 && creditInfo && creditInfo.credits < cost) {
-      setError("You need 1 credit to redo this illustrated reference.");
+      setError("You need 1 credit to create this illustrated reference.");
       return;
     }
     const confirmMessage =
       cost > 0
-        ? "Redoing this illustrated reference will use 1 credit. Continue?"
+        ? "Creating this illustrated reference will use 1 credit. Continue?"
         : isRedo
           ? "Redoing this illustrated reference is free for admins. Continue?"
-          : "Creating the first illustrated reference is free. Continue?";
+          : "Creating this illustrated reference is free. Continue?";
     if (!window.confirm(confirmMessage)) return;
     setError("");
     setGenerating(true);
@@ -100,6 +113,7 @@ export default function ChildProfileReference({
         throw new Error(message ?? "Could not create the child reference");
       }
       setProfile(data);
+      if (!isRedo) setReferenceCount((current) => current + 1);
       window.dispatchEvent(new Event("storycot:credits-updated"));
       clearStagedPhoto();
     } catch (err) {
@@ -191,6 +205,15 @@ export default function ChildProfileReference({
             Upload or take a photo to create a Storycot-style reference for
             consistent storybook illustrations. The source photo is used once
             and is not stored.
+          </p>
+          <p className="mt-2 text-xs font-semibold leading-5 text-night-500">
+            Use a clear, well-lit photo with just this child where possible.
+            Busy backgrounds, other people, text, branded clothes, or toys can
+            make the illustrated reference drift.
+          </p>
+          <p className="mt-2 text-xs font-bold uppercase tracking-wide text-night-400">
+            First 2 child references are free. Extra references or redos cost 1
+            credit each.
           </p>
           {profile.appearanceSummary ? (
             <p className="mt-3 rounded-xl bg-night-50 px-3 py-2 text-sm leading-6 text-night-600">
@@ -317,7 +340,10 @@ export default function ChildProfileReference({
                         ? creditInfo?.isAdmin
                           ? "Redo Cost: 0 Credits (Admin)"
                           : "Redo Cost: 1 Credit"
-                        : "First Reference: Free"}
+                        : `Reference Cost: ${createCostLabel} (${Math.min(
+                            referenceCount,
+                            2
+                          )}/2 Free Used)`}
                     </p>
                     <Button
                       size="compact"

@@ -59,6 +59,14 @@ export default function PrivacyPage() {
             holder.
           </p>
           <p>
+            <strong>Reference photos:</strong> If you upload or take a photo to
+            create an illustrated child, family, friend, or pet reference, the
+            source photo is used to generate an illustration and visible
+            appearance notes. We do not store the source photo after that
+            generation request; we store the resulting illustrated reference and
+            notes in your account.
+          </p>
+          <p>
             <strong>Story and book content:</strong> The stories and illustrated
             books we generate for you, stored so you can access them later.
           </p>
@@ -142,7 +150,8 @@ export default function PrivacyPage() {
             </li>
             <li>
               <strong>OpenAI</strong> - AI illustration generation (story scene
-              descriptions are sent to generate images)
+              descriptions and any uploaded reference photo needed for that
+              generation request are sent to generate images)
             </li>
             <li>
               <strong>ElevenLabs</strong> - voice narration generation
@@ -183,6 +192,12 @@ export default function PrivacyPage() {
             Illustrated book files (PDFs, images) may be archived or deleted
             after a period of inactivity to manage storage. We will not delete
             files without reasonable notice.
+          </p>
+          <p>
+            Source photos used for illustrated references are processed
+            transiently and are not saved by Storycot. The generated illustrated
+            references and appearance notes remain in your account until you
+            replace or delete the relevant profile or person.
           </p>
         </Section>
 

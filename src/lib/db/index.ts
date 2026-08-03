@@ -504,6 +504,18 @@ export const db = {
         .where(eq(schema.profiles.userId, userId));
       return rows.map(rowToProfile);
     },
+    async countAvatarReferencesByUserId(userId: string): Promise<number> {
+      const rows = await getClient()
+        .select({ count: sql<number>`count(*)` })
+        .from(schema.profiles)
+        .where(
+          and(
+            eq(schema.profiles.userId, userId),
+            isNotNull(schema.profiles.avatarImageUrl)
+          )
+        );
+      return Number(rows[0]?.count ?? 0);
+    },
     async getById(id: string): Promise<ChildProfile | undefined> {
       const rows = await getClient()
         .select()
@@ -641,6 +653,18 @@ export const db = {
       return rows.map((row) =>
         rowToStoryPerson(row, profileIds.get(row.id) ?? [])
       );
+    },
+    async countAvatarReferencesByUserId(userId: string): Promise<number> {
+      const rows = await getClient()
+        .select({ count: sql<number>`count(*)` })
+        .from(schema.storyPeople)
+        .where(
+          and(
+            eq(schema.storyPeople.userId, userId),
+            isNotNull(schema.storyPeople.avatarImageUrl)
+          )
+        );
+      return Number(rows[0]?.count ?? 0);
     },
     async getByProfileId(
       profileId: string,

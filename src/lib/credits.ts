@@ -127,7 +127,7 @@ export async function chargeReferenceRedoCredit(
 
   if (currentCredits < REFERENCE_REDO_CREDIT_COST) {
     throw new Error(
-      `Insufficient credits. Redoing an illustrated reference costs ${REFERENCE_REDO_CREDIT_COST} credit.`
+      `Insufficient credits. Creating or redoing an illustrated reference costs ${REFERENCE_REDO_CREDIT_COST} credit.`
     );
   }
 

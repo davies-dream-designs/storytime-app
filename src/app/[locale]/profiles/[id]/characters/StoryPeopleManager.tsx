@@ -31,6 +31,8 @@ type PendingPhoto = {
   adjustment: string;
 };
 
+type CreationMode = "description" | "photo";
+
 const EMPTY_FORM: FormState = {
   name: "",
   relationship: "parent",
@@ -120,6 +122,11 @@ export default function StoryPeopleManager({
     profileIds: defaultProfileId ? [defaultProfileId] : [],
   });
   const [saving, setSaving] = useState(false);
+  const [newPersonMode, setNewPersonMode] =
+    useState<CreationMode>("description");
+  const [pendingNewPhoto, setPendingNewPhoto] = useState<PendingPhoto | null>(
+    null
+  );
   const [generatingAvatarForId, setGeneratingAvatarForId] = useState<
     string | null
   >(null);
@@ -161,6 +168,16 @@ export default function StoryPeopleManager({
     return cost > 0 ? "1 Credit" : "Free";
   }
 
+  const newPersonReferenceCost =
+    creditInfo?.isAdmin || referenceCount < 2 ? 0 : 1;
+  const newPersonReferenceCostLabel = creditInfo?.isAdmin
+    ? newPersonReferenceCost > 0
+      ? "0 Credits (Admin)"
+      : "Free"
+    : newPersonReferenceCost > 0
+      ? "1 Credit"
+      : "Free";
+
   function toggleProfile(profileId: string) {
     setForm((current) => ({
       ...current,
@@ -186,10 +203,31 @@ export default function StoryPeopleManager({
 
   async function submit() {
     setError("");
+    const isCreating = !form.id;
+    if (isCreating && newPersonMode === "photo") {
+      if (!pendingNewPhoto) {
+        setError("Upload or take a photo to start from a photo.");
+        return;
+      }
+      if (!pendingNewPhoto.consent) {
+        setError("Please confirm photo permission before creating a reference.");
+        return;
+      }
+      if (
+        newPersonReferenceCost > 0 &&
+        creditInfo &&
+        creditInfo.credits < newPersonReferenceCost
+      ) {
+        setError("You need 1 credit to create this illustrated reference.");
+        return;
+      }
+    }
     setSaving(true);
     try {
       const payload = {
         ...form,
+        appearance:
+          isCreating && newPersonMode === "photo" ? "" : form.appearance,
         profileIds: form.availableToAllProfiles ? [] : form.profileIds,
       };
       const res = await fetch(
@@ -207,19 +245,38 @@ export default function StoryPeopleManager({
           : data.error;
         throw new Error(message ?? "Could not save this story person");
       }
+      let savedPerson = data;
+      if (isCreating && newPersonMode === "photo" && pendingNewPhoto) {
+        setGeneratingAvatarForId(data.id);
+        try {
+          savedPerson = await uploadAvatarFromPhoto(data, pendingNewPhoto);
+          window.dispatchEvent(new Event("storycot:credits-updated"));
+        } catch (avatarErr) {
+          setError(
+            avatarErr instanceof Error
+              ? `Saved ${data.name}, but the photo reference failed: ${avatarErr.message}`
+              : `Saved ${data.name}, but the photo reference failed.`
+          );
+        }
+      }
       setPeople((current) =>
         form.id
-          ? current.map((person) => (person.id === data.id ? data : person))
-          : [data, ...current]
+          ? current.map((person) =>
+              person.id === savedPerson.id ? savedPerson : person
+            )
+          : [savedPerson, ...current]
       );
       setForm({
         ...EMPTY_FORM,
         profileIds: defaultProfileId ? [defaultProfileId] : [],
       });
+      clearStagedNewPhoto();
+      setNewPersonMode("description");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setSaving(false);
+      setGeneratingAvatarForId(null);
     }
   }
 
@@ -263,6 +320,45 @@ export default function StoryPeopleManager({
     });
   }
 
+  function stageNewPhoto(file: File | undefined) {
+    if (!file) return;
+    setError("");
+    if (pendingNewPhoto) URL.revokeObjectURL(pendingNewPhoto.previewUrl);
+    setPendingNewPhoto({
+      file,
+      previewUrl: URL.createObjectURL(file),
+      consent: false,
+      adjustment: "",
+    });
+  }
+
+  function clearStagedNewPhoto() {
+    if (pendingNewPhoto) URL.revokeObjectURL(pendingNewPhoto.previewUrl);
+    setPendingNewPhoto(null);
+  }
+
+  async function uploadAvatarFromPhoto(
+    person: StoryPerson,
+    pending: PendingPhoto
+  ): Promise<StoryPerson> {
+    const formData = new FormData();
+    formData.append("photo", pending.file);
+    formData.append("photoConsent", "yes");
+    formData.append("adjustment", pending.adjustment);
+    const res = await fetch(`/api/story-people/${person.id}/avatar`, {
+      method: "POST",
+      body: formData,
+    });
+    const data = (await res.json()) as StoryPerson | { error?: string };
+    if (!res.ok || !isStoryPerson(data)) {
+      const message = isStoryPerson(data)
+        ? "Could not create the illustrated reference"
+        : data.error;
+      throw new Error(message ?? "Could not create the illustrated reference");
+    }
+    return data;
+  }
+
   async function generateAvatar(person: StoryPerson) {
     const pending = pendingPhotos[person.id];
     if (!pending) return;
@@ -286,23 +382,7 @@ export default function StoryPeopleManager({
     setError("");
     setGeneratingAvatarForId(person.id);
     try {
-      const formData = new FormData();
-      formData.append("photo", pending.file);
-      formData.append("photoConsent", "yes");
-      formData.append("adjustment", pending.adjustment);
-      const res = await fetch(`/api/story-people/${person.id}/avatar`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = (await res.json()) as StoryPerson | { error?: string };
-      if (!res.ok || !isStoryPerson(data)) {
-        const message = isStoryPerson(data)
-          ? "Could not create the illustrated reference"
-          : data.error;
-        throw new Error(
-          message ?? "Could not create the illustrated reference"
-        );
-      }
+      const data = await uploadAvatarFromPhoto(person, pending);
       setPeople((current) =>
         current.map((currentPerson) =>
           currentPerson.id === data.id ? data : currentPerson
@@ -408,6 +488,44 @@ export default function StoryPeopleManager({
           </div>
         ) : (
           <div className="mt-5 space-y-4">
+            <div className="rounded-xl border border-night-100 bg-night-50 p-3">
+              <p className="text-sm font-bold text-night-700">
+                How Would You Like To Start?
+              </p>
+              <div className="mt-3 grid gap-2">
+                {[
+                  {
+                    value: "description" as const,
+                    title: "Describe Them",
+                    body: "Write the visual and story details yourself.",
+                  },
+                  {
+                    value: "photo" as const,
+                    title: "Use A Photo",
+                    body: "Upload or take a clear photo and let Storycot fill the visual reference.",
+                  },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setNewPersonMode(option.value)}
+                    className={`rounded-xl border p-3 text-left transition ${
+                      newPersonMode === option.value
+                        ? "border-night-700 bg-night-700 text-moon-200"
+                        : "border-night-100 bg-white text-night-600 hover:bg-night-100"
+                    }`}
+                  >
+                    <span className="block text-sm font-bold">
+                      {option.title}
+                    </span>
+                    <span className="mt-1 block text-xs leading-5 opacity-80">
+                      {option.body}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div>
               <label className={formStyles.subLabel}>Display Name</label>
               <input
@@ -499,7 +617,145 @@ export default function StoryPeopleManager({
               />
             </div>
 
-            <div>
+            {newPersonMode === "photo" ? (
+              <div className="rounded-xl border border-night-100 bg-night-50 p-3">
+                <p className="text-sm font-bold text-night-700">
+                  Photo Reference
+                </p>
+                <p className="mt-1 text-xs leading-5 text-night-500">
+                  Use a clear, well-lit photo with just this person or pet where
+                  possible. Busy backgrounds, other people, text, branded
+                  clothes, or toys can make the illustrated reference drift.
+                </p>
+                <p className="mt-2 text-xs font-bold uppercase tracking-wide text-night-400">
+                  Reference Cost: {newPersonReferenceCostLabel} (
+                  {Math.min(referenceCount, 2)}/2 Free Used)
+                </p>
+                {pendingNewPhoto ? (
+                  <div className="mt-3 rounded-xl border border-star-200 bg-white p-3">
+                    <div className="grid gap-3 sm:grid-cols-[6rem_1fr]">
+                      <div
+                        className="aspect-square rounded-lg bg-cover bg-center"
+                        style={{
+                          backgroundImage: `url("${pendingNewPhoto.previewUrl}")`,
+                        }}
+                        aria-label="Selected source photo preview"
+                      />
+                      <div>
+                        <p className="text-sm font-bold text-night-700">
+                          Photo Preview
+                        </p>
+                        <label className="mt-3 block text-xs font-bold uppercase tracking-wide text-night-400">
+                          Optional Adjustment
+                        </label>
+                        <textarea
+                          value={pendingNewPhoto.adjustment}
+                          onChange={(event) =>
+                            setPendingNewPhoto((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    adjustment: event.target.value.slice(
+                                      0,
+                                      240
+                                    ),
+                                  }
+                                : current
+                            )
+                          }
+                          rows={2}
+                          placeholder="Example: keep the glasses, softer smile, no text in the image."
+                          className={formStyles.textarea}
+                          disabled={saving}
+                        />
+                        <label className="mt-3 flex items-start gap-2 text-xs font-semibold leading-5 text-night-600">
+                          <input
+                            type="checkbox"
+                            checked={pendingNewPhoto.consent}
+                            onChange={(event) =>
+                              setPendingNewPhoto((current) =>
+                                current
+                                  ? {
+                                      ...current,
+                                      consent: event.target.checked,
+                                    }
+                                  : current
+                              )
+                            }
+                            className="mt-1 h-4 w-4 rounded border-night-300"
+                            disabled={saving}
+                          />
+                          I have permission to use this photo and understand it
+                          will be used once to create an illustrated Storycot
+                          reference.
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <label
+                    className={buttonClassName({
+                      variant: "secondary",
+                      size: "compact",
+                      className: saving
+                        ? "pointer-events-none opacity-60"
+                        : "cursor-pointer",
+                    })}
+                  >
+                    <Icon name="image" />
+                    Upload Photo
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="sr-only"
+                      disabled={saving}
+                      onChange={(event) =>
+                        stageNewPhoto(event.target.files?.[0])
+                      }
+                    />
+                  </label>
+                  <label
+                    className={buttonClassName({
+                      variant: "secondary",
+                      size: "compact",
+                      className: saving
+                        ? "pointer-events-none opacity-60"
+                        : "cursor-pointer",
+                    })}
+                  >
+                    <Icon name="image" />
+                    Take Photo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="sr-only"
+                      disabled={saving}
+                      onChange={(event) =>
+                        stageNewPhoto(event.target.files?.[0])
+                      }
+                    />
+                  </label>
+                  {pendingNewPhoto ? (
+                    <button
+                      type="button"
+                      onClick={clearStagedNewPhoto}
+                      className={buttonClassName({
+                        variant: "secondary",
+                        size: "compact",
+                      })}
+                      disabled={saving}
+                    >
+                      Remove Photo
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
+            {newPersonMode === "description" ? (
+              <div>
               <label className={formStyles.subLabel}>Appearance</label>
               <textarea
                 value={form.appearance}
@@ -514,6 +770,7 @@ export default function StoryPeopleManager({
                 className={formStyles.textarea}
               />
             </div>
+            ) : null}
 
             <div>
               <div className="flex items-center justify-between gap-3">
@@ -593,8 +850,22 @@ export default function StoryPeopleManager({
             {error ? <p className={formStyles.error}>{error}</p> : null}
 
             <div className="flex flex-wrap gap-3">
-              <Button onClick={submit} disabled={saving || !form.name.trim()}>
-                {saving ? "Saving..." : form.id ? "Save Changes" : "Add Person"}
+              <Button
+                onClick={submit}
+                disabled={
+                  saving ||
+                  !form.name.trim() ||
+                  (newPersonMode === "photo" &&
+                    (!pendingNewPhoto || !pendingNewPhoto.consent))
+                }
+              >
+                {saving
+                  ? newPersonMode === "photo"
+                    ? "Creating Reference..."
+                    : "Saving..."
+                  : newPersonMode === "photo"
+                    ? "Add From Photo"
+                    : "Add Person"}
               </Button>
               {form.id ? (
                 <button

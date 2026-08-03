@@ -240,6 +240,55 @@ describe("generateSuggestions", () => {
       "Don't suggest stories similar to these recent ones: The Moon Pond"
     );
   });
+
+  it("includes selected family and friends in the story idea prompt", async () => {
+    const storyPeople: StoryPerson[] = [
+      {
+        id: "person-1",
+        userId: "user-1",
+        name: "Glenpa",
+        relationship: "grandparent",
+        description: "Bailey's playful grandparent who loves beach walks.",
+        personality: "warm, silly, encouraging",
+        appearance: "grey-brown hair and dark-framed glasses",
+        appearanceSummary: "Warm grandparent with glasses.",
+        pronouns: "he/him",
+        availableToAllProfiles: true,
+        profileIds: [],
+        createdAt: "2026-08-03T00:00:00.000Z",
+        updatedAt: "2026-08-03T00:00:00.000Z",
+      },
+    ];
+    mockMessagesCreate.mockResolvedValueOnce({
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify([
+            {
+              title: "Glenpa's Shell Song",
+              premise: "Bailey and Glenpa listen for gentle shell songs.",
+              theme: "listening",
+            },
+          ]),
+        },
+      ],
+    });
+
+    await generateSuggestions(createProfile(), [], "en", {
+      selectedTheme: "listening",
+      storyPeople,
+    });
+
+    const prompt = mockMessagesCreate.mock.calls[0]?.[0].messages[0].content;
+    expect(prompt).toContain(
+      "Selected family, friends, pets, or other child profiles"
+    );
+    expect(prompt).toContain("Glenpa (grandparent, he/him)");
+    expect(prompt).toContain(
+      "make at least one idea naturally include one or more of them by name"
+    );
+    expect(prompt).toContain("Do not invent named parents");
+  });
 });
 
 describe("story post-check", () => {

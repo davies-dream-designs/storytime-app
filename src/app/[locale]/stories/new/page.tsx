@@ -278,6 +278,7 @@ function GenerateForm() {
           locale,
           fresh,
           theme: selectedTheme,
+          storyPersonIds: selectedStoryPersonIds,
         }),
       });
       const data = await res.json();
@@ -452,6 +453,8 @@ function GenerateForm() {
   );
 
   function toggleStoryPerson(id: string) {
+    setSuggestions([]);
+    setSelectedSuggestion(null);
     setSelectedStoryPersonIds((current) =>
       current.includes(id)
         ? current.filter((currentId) => currentId !== id)

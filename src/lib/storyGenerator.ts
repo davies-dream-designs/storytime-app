@@ -600,6 +600,7 @@ export async function generateSuggestions(
   options: {
     selectedTheme?: string;
     previousSuggestions?: StorySuggestion[];
+    storyPeople?: StoryPerson[];
   } = {}
 ): Promise<StorySuggestion[]> {
   const language = LOCALE_LANGUAGE[locale ?? "en"] ?? "English";
@@ -619,6 +620,22 @@ export async function generateSuggestions(
           )
           .join("\n")}`
       : "";
+  const originalStoryPeople = (options.storyPeople ?? []).filter((person) => {
+    const policy = assessStoryIdeaIp({
+      premise: `${person.name} ${person.relationship} ${person.description}`,
+      notes: `${person.personality} ${person.appearance} ${person.appearanceSummary ?? ""}`,
+    });
+    return policy.riskLevel === "clear";
+  });
+  const familySection =
+    originalStoryPeople.length > 0
+      ? `\n\nSelected family, friends, pets, or other child profiles to include when they fit naturally:\n${originalStoryPeople
+          .map(
+            (person) =>
+              `- ${person.name} (${person.relationship}${person.pronouns ? `, ${person.pronouns}` : ""}): ${person.description || "No description provided."} Personality: ${person.personality || "No personality notes provided."}`
+          )
+          .join("\n")}`
+      : "";
 
   const prompt = `You are a creative children's story idea generator.
 
@@ -633,6 +650,7 @@ ${buildGenderPromptLine(profile)}
 - Favourite places: ${(profile.favouritePlaces ?? []).join(", ") || "none"}
 - Themes they like: ${(profile.lessons ?? []).join(", ") || "adventure, kindness"}
 Selected theme for this batch: ${selectedTheme}
+${familySection}
 ${avoidSection}
 ${previousIdeasSection}
 
@@ -642,6 +660,7 @@ Each should:
 - Use DIFFERENT elements from their profile (don't repeat the same toys/places across all 3)
 - Avoid repeating any profile element, setting, problem, or ending from the already-shown ideas
 - Have a fresh, specific premise - not generic ("goes on an adventure")
+- If selected family/friends/pets/other child profiles are listed, make at least one idea naturally include one or more of them by name. Do not invent named parents, grandparents, siblings, friends, or pets that are not listed.
 - Be warm and cosy, suitable for bedtime
 - Feel genuinely different from each other in setting, tone, and focus
 

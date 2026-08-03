@@ -253,7 +253,9 @@ export default function Nav() {
         <div className="sm:hidden border-t border-night-100 bg-parchment/95 backdrop-blur px-4 py-3 flex flex-col gap-1">
           {isSignedIn ? (
             <>
-              {mobileLinks.slice(0, 3).map(renderMobileLink)}
+              {mobileLinks
+                .filter((item) => item.href !== "/account")
+                .map(renderMobileLink)}
               <Link
                 href="/account"
                 aria-current={isActive("/account") ? "page" : undefined}

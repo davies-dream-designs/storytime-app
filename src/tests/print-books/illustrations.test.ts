@@ -336,7 +336,7 @@ describe("generateCoverIllustration", () => {
           relationship: "grandparent",
           imageUrl: "https://assets.example.com/glenpa.jpg",
           appearance:
-            "warm smile, dark-framed glasses, grey-brown shoulder-length hair, sturdy build",
+            "warm smile, dark-framed glasses, grey-brown shoulder-length hair, very large body build",
         },
       ],
       spread,
@@ -355,6 +355,11 @@ describe("generateCoverIllustration", () => {
     const body = editCall?.[1]?.body as FormData;
     expect(body.get("prompt")).toContain(
       "Attached visual reference sheet order"
+    );
+    expect(body.get("prompt")).toContain("Latest profile/reference overrides");
+    expect(body.get("prompt")).toContain("very large body build");
+    expect(body.get("prompt")).toContain(
+      "If this conflicts with the older character bible"
     );
     expect(body.get("prompt")).toContain("Glenpa");
     expect(body.get("image")).toBeInstanceOf(File);

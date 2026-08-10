@@ -758,6 +758,17 @@ function buildPageIllustrationPrompt(input: {
     correctionNote,
   } = input;
   const pageText = side === "left" ? spread.leftPageText : spread.rightPageText;
+  const latestReferenceContext = (input.visualReferences ?? [])
+    .map((reference) => {
+      const relationship = reference.relationship
+        ? `, ${reference.relationship}`
+        : "";
+      const appearance = reference.appearance?.trim()
+        ? ` Latest appearance: ${reference.appearance.trim()}`
+        : "";
+      return `- ${reference.name} (${reference.role}${relationship}).${appearance}`;
+    })
+    .join(" ");
 
   const compositionVariants = [
     "wide establishing shot showing the full environment",
@@ -781,6 +792,9 @@ function buildPageIllustrationPrompt(input: {
     `Composition: ${compositionHint}.`,
     // Character consistency follows as a constraint block.
     buildIllustrationDirection(characterBible),
+    latestReferenceContext
+      ? `Latest profile/reference overrides: ${latestReferenceContext} If this conflicts with the older character bible, follow these latest profile/reference details and attached reference images. Body build, face shape, apparent age, glasses, hair/fur, skin tone, and familiar markings from latest references are hard continuity requirements.`
+      : "",
     // Metadata.
     `Book title: ${story.title}.`,
     `Main child: ${profile.name}.`,

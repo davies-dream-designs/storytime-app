@@ -4,6 +4,7 @@ import {
   getStoryPersonAppearanceContext,
   getStoryPersonRelationshipLabel,
 } from "@/types";
+import { getBodyBuildIllustrationCue } from "@/types/bodyBuild";
 import type {
   BookProject,
   CharacterVisualReference,
@@ -48,13 +49,20 @@ export async function loadBuildContext(project: BookProject) {
   }
   for (const person of storyPeople) {
     if (!person.avatarImageUrl) continue;
+    const bodyBuildCue = getBodyBuildIllustrationCue(person.bodyBuild);
+    const appearance = [
+      getStoryPersonAppearanceContext(person),
+      bodyBuildCue ? `Illustration body-build cue: ${bodyBuildCue}.` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
     visualReferences.push({
       id: `person:${person.id}`,
       name: person.name,
       role: "family_friend_pet",
       relationship: getStoryPersonRelationshipLabel(person),
       imageUrl: person.avatarImageUrl,
-      appearance: getStoryPersonAppearanceContext(person) || undefined,
+      appearance: appearance || undefined,
     });
   }
 

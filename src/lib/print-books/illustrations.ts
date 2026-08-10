@@ -453,7 +453,9 @@ function buildVisualReferencePrompt(
   return [
     `Attached visual reference sheet order: ${referenceList}`,
     "Use the attached reference sheet only for character likeness and continuity; do not copy its crop, plain background, portrait pose, or sheet layout.",
-    "When a selected child, family member, friend, or pet appears, match the reference image more strongly than generic text assumptions. Preserve apparent age, face shape, hair/fur, glasses, body build, and familiar markings. Do not make grandparents generically older, thinner, heavier, or frailer than their reference.",
+    "When a selected child, family member, friend, or pet appears, match the reference image more strongly than generic text assumptions for face, hair/fur, glasses, skin tone, and familiar markings.",
+    "Body build is controlled by the latest profile/reference text. If that latest body-build text conflicts with the attached image or an older generated image, change the figure silhouette and proportions to match the latest body-build text while keeping the face recognisable.",
+    "Do not make grandparents generically older, thinner, heavier, or frailer than their latest profile/reference details.",
     "Do not add written labels, captions, names, numbers, watermarks, or relationship words to the artwork.",
   ].join(" ");
 }
@@ -793,7 +795,7 @@ function buildPageIllustrationPrompt(input: {
     // Character consistency follows as a constraint block.
     buildIllustrationDirection(characterBible),
     latestReferenceContext
-      ? `Latest profile/reference overrides: ${latestReferenceContext} If this conflicts with the older character bible, follow these latest profile/reference details and attached reference images. Body build, face shape, apparent age, glasses, hair/fur, skin tone, and familiar markings from latest references are hard continuity requirements.`
+      ? `Latest profile/reference overrides: ${latestReferenceContext} If this conflicts with the older character bible, old generated artwork, or attached reference image, follow these latest profile/reference details. Body build is a hard override: visibly adjust silhouette, torso width, face fullness, and overall proportions to match the latest body-build cue while preserving identity. Face shape, apparent age, glasses, hair/fur, skin tone, and familiar markings from latest references are hard continuity requirements.`
       : "",
     // Metadata.
     `Book title: ${story.title}.`,
@@ -802,11 +804,11 @@ function buildPageIllustrationPrompt(input: {
     `Spread sequence: ${spread.sequence}, ${side} page.`,
     ...(correctionNote
       ? [
-          `User correction for this redo: ${correctionNote}. Apply this correction while preserving the character bible, story moment, and art style.`,
+          `User correction for this redo: ${correctionNote}. Apply this correction while preserving the story moment and art style. If the correction mentions body size, build, weight, skinny, thin, large, very large, plus-size, broad, or proportions, it is allowed and expected to visibly change the character's body silhouette instead of preserving the old generated body shape.`,
         ]
       : []),
     // Variation is the critical instruction - stated explicitly.
-    "Illustrate this specific story moment. The depicted scene, character action, setting detail, and emotional tone must match the illustration direction above. This image must look meaningfully different from every other page in the book. Keep every selected/reference character's face shape, apparent age, hair or fur, skin tone, glasses, body build, and core outfit or markings consistent. No text, lettering, or page numbers inside the art.",
+    "Illustrate this specific story moment. The depicted scene, character action, setting detail, and emotional tone must match the illustration direction above. This image must look meaningfully different from every other page in the book. Keep every selected/reference character's face shape, apparent age, hair or fur, skin tone, glasses, latest body build, and core outfit or markings consistent with the latest overrides, not stale generated artwork. No text, lettering, or page numbers inside the art.",
   ].join(" ");
 }
 

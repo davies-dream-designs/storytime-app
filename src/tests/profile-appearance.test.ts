@@ -4,6 +4,7 @@ import {
   buildChildAppearanceSummary,
   sanitizeChildAppearance,
 } from "@/types";
+import { getBodyBuildIllustrationCue } from "@/types/bodyBuild";
 
 describe("child appearance custom details", () => {
   it("uses custom labels for selected other values in summaries", () => {
@@ -69,5 +70,14 @@ describe("child appearance custom details", () => {
     expect(buildChildAppearanceSummary(appearance)).not.toContain("purple");
     expect(buildChildAppearanceSummary(appearance)).not.toContain("mohawk");
     expect(buildChildAppearanceSummary(appearance)).not.toContain("gold");
+  });
+
+  it("uses distinct illustration cues for large and very large builds", () => {
+    expect(getBodyBuildIllustrationCue("large")).toContain("fuller frame");
+    expect(getBodyBuildIllustrationCue("large")).not.toContain("plus-size");
+    expect(getBodyBuildIllustrationCue("very_large")).toContain("plus-size");
+    expect(getBodyBuildIllustrationCue("very_large")).toContain(
+      "visibly larger proportions than a large build"
+    );
   });
 });

@@ -359,6 +359,12 @@ describe("generateCoverIllustration", () => {
     expect(body.get("prompt")).toContain("Latest profile/reference overrides");
     expect(body.get("prompt")).toContain("very large body build");
     expect(body.get("prompt")).toContain(
+      "Body build is controlled by the latest profile/reference text"
+    );
+    expect(body.get("prompt")).toContain(
+      "visibly adjust silhouette, torso width, face fullness, and overall proportions"
+    );
+    expect(body.get("prompt")).toContain(
       "If this conflicts with the older character bible"
     );
     expect(body.get("prompt")).toContain("Glenpa");

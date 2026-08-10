@@ -32,3 +32,21 @@ export function getBodyBuildLabel(value?: BodyBuild): string {
       return "Prefer Not To Say";
   }
 }
+
+export function getBodyBuildIllustrationCue(value?: BodyBuild): string {
+  switch (value) {
+    case "slim":
+      return "slim, narrow-framed body build";
+    case "average":
+      return "average, medium body build";
+    case "broad":
+      return "broad-shouldered, solid body build";
+    case "large":
+      return "large body build with a fuller frame, wider torso, and rounded facial softness";
+    case "very_large":
+      return "very large plus-size body build with a clearly fuller round frame, broad torso, rounder face, and visibly larger proportions than a large build";
+    case "not_specified":
+    default:
+      return "";
+  }
+}

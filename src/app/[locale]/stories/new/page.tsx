@@ -182,8 +182,6 @@ function GenerateForm() {
   >([]);
   const [loadingStoryPeople, setLoadingStoryPeople] = useState(false);
   const [builderIdea, setBuilderIdea] = useState("");
-  const [builderPlace, setBuilderPlace] = useState("");
-  const [builderMoment, setBuilderMoment] = useState("");
   const [notes, setNotes] = useState("");
   const [storyPreset, setStoryPreset] =
     useState<StoryPreset>("moonlit-adventures");
@@ -321,8 +319,6 @@ function GenerateForm() {
     setSelectedSuggestion(null);
     setSelectedStoryPersonIds([]);
     setBuilderIdea("");
-    setBuilderPlace("");
-    setBuilderMoment("");
     const profile = profiles.find((p) => p.id === pid);
     if (profile) {
       setSelectedTheme(profile.lessons[0] ?? "calm bedtime");
@@ -333,14 +329,7 @@ function GenerateForm() {
   }
 
   function buildBuilderPremise() {
-    const parts = [
-      builderIdea.trim(),
-      builderPlace.trim() ? `Setting: ${builderPlace.trim()}.` : "",
-      builderMoment.trim()
-        ? `Bedtime feeling or lesson: ${builderMoment.trim()}.`
-        : "",
-    ].filter(Boolean);
-    return parts.join(" ");
+    return builderIdea.trim();
   }
 
   async function handleGenerate() {
@@ -732,14 +721,20 @@ function GenerateForm() {
             <div className="rounded-2xl border border-night-100 bg-white/70 p-4">
               <div>
                 <p className="font-display font-bold text-night-800">
-                  Write Your Own Story Idea
+                  Write A Story Idea
                 </p>
                 <p className="mt-1 text-sm leading-6 text-night-500">
-                  Required if you do not choose a generated idea.{" "}
-                  {selectedCastLabel
-                    ? `This story will use: ${selectedCastLabel}.`
-                    : ""}
+                  Use this if you already know the plot. Otherwise, get ideas
+                  using the selected cast and theme.
                 </p>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold uppercase tracking-wide">
+                  <span className="rounded-full bg-moon-100 px-3 py-1 text-night-600">
+                    Cast: {selectedCastLabel || selectedProfile?.name}
+                  </span>
+                  <span className="rounded-full bg-star-100 px-3 py-1 text-night-700">
+                    Theme: {selectedTheme}
+                  </span>
+                </div>
               </div>
               <div className="mt-3 space-y-3">
                 <div>
@@ -757,36 +752,6 @@ function GenerateForm() {
                     className={formStyles.textarea}
                   />
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className={formStyles.subLabel}>
-                      Setting Or Place
-                    </label>
-                    <input
-                      value={builderPlace}
-                      onChange={(event) => {
-                        setBuilderPlace(event.target.value);
-                        setSelectedSuggestion(null);
-                      }}
-                      placeholder={t("builderPlacePlaceholder")}
-                      className={formStyles.field}
-                    />
-                  </div>
-                  <div>
-                    <label className={formStyles.subLabel}>
-                      Bedtime Feeling Or Lesson
-                    </label>
-                    <input
-                      value={builderMoment}
-                      onChange={(event) => {
-                        setBuilderMoment(event.target.value);
-                        setSelectedSuggestion(null);
-                      }}
-                      placeholder={t("builderMomentPlaceholder")}
-                      className={formStyles.field}
-                    />
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -794,7 +759,7 @@ function GenerateForm() {
               <div className="space-y-2">
                 <p className="text-xs text-night-400">
                   {selectedCastLabel
-                    ? `Generated ideas will use ${selectedCastLabel} and the selected theme.`
+                    ? `Ideas will be based on ${selectedCastLabel} and "${selectedTheme}".`
                     : t("getIdeasHint")}
                 </p>
                 <button
@@ -803,7 +768,7 @@ function GenerateForm() {
                   className="w-full rounded-xl border-2 border-dashed border-night-300 py-3 text-sm font-bold text-night-600 transition hover:border-star-400 hover:text-star-600"
                 >
                   {selectedCastLabel
-                    ? `Get Story Ideas With ${selectedCastLabel}`
+                    ? `Get 3 Ideas For This Cast`
                     : t("getIdeas", { name: selectedProfile?.name ?? "" })}
                 </button>
               </div>

@@ -311,7 +311,7 @@
     "notesLabel": "Extra details (optional)",
     "notesPlaceholder": "e.g. Include {name}'s trip to the beach this week…",
     "errorNoProfile": "Please select a child profile",
-    "errorNoIdea": "Choose an idea or fill in the story builder",
+    "errorNoIdea": "Choose a generated idea or write a story idea",
     "generateButton2": "Generate Story",
     "creditNotice": "Generating this bedtime story uses 1 credit.",
     "creditConfirm": "Generating this bedtime story will use 1 credit. Continue?",

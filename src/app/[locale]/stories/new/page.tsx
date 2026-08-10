@@ -181,7 +181,7 @@ function GenerateForm() {
     string[]
   >([]);
   const [loadingStoryPeople, setLoadingStoryPeople] = useState(false);
-  const [builderCompanion, setBuilderCompanion] = useState("");
+  const [builderIdea, setBuilderIdea] = useState("");
   const [builderPlace, setBuilderPlace] = useState("");
   const [builderMoment, setBuilderMoment] = useState("");
   const [notes, setNotes] = useState("");
@@ -320,7 +320,7 @@ function GenerateForm() {
     setSuggestions([]);
     setSelectedSuggestion(null);
     setSelectedStoryPersonIds([]);
-    setBuilderCompanion("");
+    setBuilderIdea("");
     setBuilderPlace("");
     setBuilderMoment("");
     const profile = profiles.find((p) => p.id === pid);
@@ -334,15 +334,13 @@ function GenerateForm() {
 
   function buildBuilderPremise() {
     const parts = [
-      builderCompanion.trim()
-        ? `${selectedProfile?.name ?? "The child"} shares the story with ${builderCompanion.trim()}`
-        : "",
-      builderPlace.trim() ? `in ${builderPlace.trim()}` : "",
+      builderIdea.trim(),
+      builderPlace.trim() ? `Setting: ${builderPlace.trim()}.` : "",
       builderMoment.trim()
-        ? `and the story gently explores ${builderMoment.trim()}`
+        ? `Bedtime feeling or lesson: ${builderMoment.trim()}.`
         : "",
     ].filter(Boolean);
-    return parts.length > 0 ? `${parts.join(" ")}.` : "";
+    return parts.join(" ");
   }
 
   async function handleGenerate() {
@@ -353,7 +351,7 @@ function GenerateForm() {
       setError(t("errorNoProfile"));
       return;
     }
-    if (!selectedSuggestion && !premise) {
+    if (!selectedSuggestion && !builderIdea.trim()) {
       setError(t("errorNoIdea"));
       return;
     }
@@ -464,8 +462,7 @@ function GenerateForm() {
   }
 
   const showIdeas = suggestions.length > 0 || loadingSuggestions;
-  const readyToGenerate =
-    profileId && (selectedSuggestion || buildBuilderPremise());
+  const readyToGenerate = profileId && (selectedSuggestion || builderIdea.trim());
   const outOfCredits =
     creditInfo !== null && !creditInfo.isAdmin && creditInfo.credits < 1;
   const canGetMoreIdeas =
@@ -477,6 +474,11 @@ function GenerateForm() {
   const selectedStoryPeople = castPeople.filter((person) =>
     selectedStoryPersonIds.includes(person.id)
   );
+  const selectedCastNames = [
+    selectedProfile?.name,
+    ...selectedStoryPeople.map((person) => person.name),
+  ].filter(Boolean);
+  const selectedCastLabel = selectedCastNames.join(", ");
 
   function toggleStoryPerson(id: string) {
     setSelectedStoryPersonIds((current) =>
@@ -691,6 +693,11 @@ function GenerateForm() {
                                 ? "Child profile"
                                 : getStoryPersonRelationshipLabel(person)}
                             </span>
+                            {selected ? (
+                              <span className="mt-1 inline-block rounded-full bg-star-100 px-2 py-0.5 text-[11px] font-bold text-star-700">
+                                Selected
+                              </span>
+                            ) : null}
                           </span>
                         </button>
                       );
@@ -723,64 +730,81 @@ function GenerateForm() {
             </div>
 
             <div className="rounded-2xl border border-night-100 bg-white/70 p-4">
-              <p className="font-display font-bold text-night-800">
-                {t("builderTitle")}
-              </p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <div>
+                <p className="font-display font-bold text-night-800">
+                  Write Your Own Story Idea
+                </p>
+                <p className="mt-1 text-sm leading-6 text-night-500">
+                  Required if you do not choose a generated idea.{" "}
+                  {selectedCastLabel
+                    ? `This story will use: ${selectedCastLabel}.`
+                    : ""}
+                </p>
+              </div>
+              <div className="mt-3 space-y-3">
                 <div>
-                  <label className={formStyles.subLabel}>
-                    {t("builderCompanionLabel")}
-                  </label>
-                  <input
-                    value={builderCompanion}
+                  <label className={formStyles.subLabel}>Story Idea</label>
+                  <textarea
+                    value={builderIdea}
                     onChange={(event) => {
-                      setBuilderCompanion(event.target.value);
+                      setBuilderIdea(event.target.value);
                       setSelectedSuggestion(null);
                     }}
-                    placeholder={t("builderCompanionPlaceholder")}
-                    className={formStyles.field}
+                    rows={3}
+                    placeholder={t("storyIdeaPlaceholder", {
+                      name: selectedProfile?.name ?? "Bailey",
+                    })}
+                    className={formStyles.textarea}
                   />
                 </div>
-                <div>
-                  <label className={formStyles.subLabel}>
-                    {t("builderPlaceLabel")}
-                  </label>
-                  <input
-                    value={builderPlace}
-                    onChange={(event) => {
-                      setBuilderPlace(event.target.value);
-                      setSelectedSuggestion(null);
-                    }}
-                    placeholder={t("builderPlacePlaceholder")}
-                    className={formStyles.field}
-                  />
-                </div>
-                <div>
-                  <label className={formStyles.subLabel}>
-                    {t("builderMomentLabel")}
-                  </label>
-                  <input
-                    value={builderMoment}
-                    onChange={(event) => {
-                      setBuilderMoment(event.target.value);
-                      setSelectedSuggestion(null);
-                    }}
-                    placeholder={t("builderMomentPlaceholder")}
-                    className={formStyles.field}
-                  />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className={formStyles.subLabel}>
+                      Setting Or Place
+                    </label>
+                    <input
+                      value={builderPlace}
+                      onChange={(event) => {
+                        setBuilderPlace(event.target.value);
+                        setSelectedSuggestion(null);
+                      }}
+                      placeholder={t("builderPlacePlaceholder")}
+                      className={formStyles.field}
+                    />
+                  </div>
+                  <div>
+                    <label className={formStyles.subLabel}>
+                      Bedtime Feeling Or Lesson
+                    </label>
+                    <input
+                      value={builderMoment}
+                      onChange={(event) => {
+                        setBuilderMoment(event.target.value);
+                        setSelectedSuggestion(null);
+                      }}
+                      placeholder={t("builderMomentPlaceholder")}
+                      className={formStyles.field}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
             {!showIdeas && (
               <div className="space-y-2">
-                <p className="text-xs text-night-400">{t("getIdeasHint")}</p>
+                <p className="text-xs text-night-400">
+                  {selectedCastLabel
+                    ? `Generated ideas will use ${selectedCastLabel} and the selected theme.`
+                    : t("getIdeasHint")}
+                </p>
                 <button
                   type="button"
                   onClick={() => fetchSuggestions(profileId)}
                   className="w-full rounded-xl border-2 border-dashed border-night-300 py-3 text-sm font-bold text-night-600 transition hover:border-star-400 hover:text-star-600"
                 >
-                  {t("getIdeas", { name: selectedProfile?.name ?? "" })}
+                  {selectedCastLabel
+                    ? `Get Story Ideas With ${selectedCastLabel}`
+                    : t("getIdeas", { name: selectedProfile?.name ?? "" })}
                 </button>
               </div>
             )}
@@ -792,6 +816,11 @@ function GenerateForm() {
         <div>
           <p className="mb-3 text-sm font-bold uppercase tracking-wide text-night-400">
             {t("stepChoose")}
+          </p>
+          <p className="mb-3 text-sm leading-6 text-night-500">
+            These ideas use {selectedCastLabel || selectedProfile?.name} and the{" "}
+            <span className="font-bold text-night-700">{selectedTheme}</span>{" "}
+            theme.
           </p>
           {loadingSuggestions && suggestions.length === 0 ? (
             <div className="space-y-3">

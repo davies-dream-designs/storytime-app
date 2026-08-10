@@ -1,7 +1,11 @@
 import sharp from "sharp";
 import Anthropic from "@anthropic-ai/sdk";
 import type { ChildProfile, StoryPerson } from "@/types";
-import { buildChildAppearanceSummary, getAgeInMonths } from "@/types";
+import {
+  buildChildAppearanceSummary,
+  getAgeInMonths,
+  getStoryPersonRelationshipLabel,
+} from "@/types";
 import { deleteBookAssetUrls, storeBookAsset } from "@/lib/print-books/storage";
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
@@ -64,6 +68,7 @@ export function buildStoryPersonAvatarPrompt(
   return [
     NO_VISIBLE_TEXT_IN_REFERENCE,
     `Create a square Storycot-style illustrated character reference of this ${subject}.`,
+    `Relationship context: ${getStoryPersonRelationshipLabel(person)}.`,
     "Use relationship, name, and pronoun data only as private context outside the image; never draw words, labels, or name tags.",
     person.description
       ? `Role notes for behaviour/context only: ${person.description}.`
@@ -263,7 +268,9 @@ export function buildStoryPersonAppearanceSummary(person: StoryPerson): string {
     person.personality.trim()
       ? `Personality: ${person.personality.trim()}.`
       : "",
-    person.relationship ? `Relationship: ${person.relationship}.` : "",
+    person.relationship
+      ? `Relationship: ${getStoryPersonRelationshipLabel(person)}.`
+      : "",
   ]
     .filter(Boolean)
     .join(" ");

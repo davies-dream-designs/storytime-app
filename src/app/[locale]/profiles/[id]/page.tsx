@@ -10,6 +10,7 @@ import {
   buildChildAppearanceDoNotChange,
   buildChildAppearanceSummary,
   getAppearanceOptionLabel,
+  getStoryPersonRelationshipLabel,
 } from "@/types";
 import DeleteProfileButton from "./DeleteProfileButton";
 import ChildProfileReference from "./ChildProfileReference";
@@ -209,7 +210,7 @@ export default async function ProfilePage({
                         </p>
                       </div>
                       <p className="mt-0.5 text-xs capitalize text-night-500">
-                        {person.relationship.replace("_", " ")}
+                        {getStoryPersonRelationshipLabel(person)}
                       </p>
                     </div>
                   ))}

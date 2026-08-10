@@ -3,6 +3,7 @@ import type { Character, ChildProfile, Story, StoryPerson } from "@/types";
 import {
   buildChildAppearanceDoNotChange,
   buildChildAppearanceSummary,
+  getStoryPersonRelationshipLabel,
 } from "@/types";
 import type { CharacterBible } from "@/types/printBook";
 import { getAge } from "@/types";
@@ -33,7 +34,7 @@ function buildStoryPeopleList(people: StoryPerson[]): string {
   return people
     .map(
       (person) =>
-        `- ${person.name} (${person.relationship}${person.pronouns ? `, ${person.pronouns}` : ""}): ${
+        `- ${person.name} (${getStoryPersonRelationshipLabel(person)}${person.pronouns ? `, ${person.pronouns}` : ""}): ${
           person.description || "No description provided."
         } Personality: ${person.personality || "No personality notes provided."} Appearance: ${
           person.appearanceSummary ||

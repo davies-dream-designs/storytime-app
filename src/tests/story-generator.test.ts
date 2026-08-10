@@ -143,7 +143,7 @@ describe("buildStoryPrompt", () => {
     });
 
     expect(prompt).toContain("Selected family, friends, pets");
-    expect(prompt).toContain("Nanna Jo (grandparent, she/her)");
+    expect(prompt).toContain("Nanna Jo (Grandparent, she/her)");
     expect(prompt).toContain("Does not invent named parents");
   });
 
@@ -283,7 +283,7 @@ describe("generateSuggestions", () => {
     expect(prompt).toContain(
       "Selected family, friends, pets, or other child profiles"
     );
-    expect(prompt).toContain("Glenpa (grandparent, he/him)");
+    expect(prompt).toContain("Glenpa (Grandparent, he/him)");
     expect(prompt).toContain(
       "make at least one idea naturally include one or more of them by name"
     );

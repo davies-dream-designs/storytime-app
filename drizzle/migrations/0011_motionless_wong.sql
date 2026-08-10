@@ -1,0 +1,1 @@
+ALTER TABLE "story_people" ADD COLUMN "custom_relationship" text;

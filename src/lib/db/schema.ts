@@ -117,6 +117,7 @@ export const storyPeople = pgTable(
       .$type<StoryPersonRelationship>()
       .notNull()
       .default("other"),
+    customRelationship: text("custom_relationship"),
     description: text("description").notNull().default(""),
     personality: text("personality").notNull().default(""),
     appearance: text("appearance").notNull().default(""),

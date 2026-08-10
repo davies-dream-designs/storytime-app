@@ -1,5 +1,8 @@
 import { db } from "@/lib/db";
-import { buildChildAppearanceSummary } from "@/types";
+import {
+  buildChildAppearanceSummary,
+  getStoryPersonRelationshipLabel,
+} from "@/types";
 import type {
   BookProject,
   CharacterVisualReference,
@@ -48,7 +51,7 @@ export async function loadBuildContext(project: BookProject) {
       id: `person:${person.id}`,
       name: person.name,
       role: "family_friend_pet",
-      relationship: person.relationship,
+      relationship: getStoryPersonRelationshipLabel(person),
       imageUrl: person.avatarImageUrl,
       appearance: person.appearanceSummary || person.appearance || undefined,
     });

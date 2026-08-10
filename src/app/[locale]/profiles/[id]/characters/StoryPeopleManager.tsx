@@ -10,12 +10,16 @@ import type {
   StoryPerson,
   StoryPersonRelationship,
 } from "@/types";
-import { STORY_PERSON_RELATIONSHIPS } from "@/types";
+import {
+  getStoryPersonRelationshipLabel,
+  STORY_PERSON_RELATIONSHIPS,
+} from "@/types";
 
 type FormState = {
   id?: string;
   name: string;
   relationship: StoryPersonRelationship;
+  customRelationship: string;
   pronouns: string;
   description: string;
   personality: string;
@@ -36,6 +40,7 @@ type CreationMode = "description" | "photo";
 const EMPTY_FORM: FormState = {
   name: "",
   relationship: "parent",
+  customRelationship: "",
   pronouns: "",
   description: "",
   personality: "",
@@ -69,10 +74,7 @@ const STORY_ROLE_OPTIONS = [
 ] as const;
 
 function relationshipLabel(value: StoryPersonRelationship): string {
-  return value
-    .split("_")
-    .map((part) => part[0].toUpperCase() + part.slice(1))
-    .join(" ");
+  return getStoryPersonRelationshipLabel({ relationship: value });
 }
 
 function formFromPerson(person: StoryPerson): FormState {
@@ -80,6 +82,7 @@ function formFromPerson(person: StoryPerson): FormState {
     id: person.id,
     name: person.name,
     relationship: person.relationship,
+    customRelationship: person.customRelationship ?? "",
     pronouns: person.pronouns ?? "",
     description: person.description,
     personality: person.personality,
@@ -204,6 +207,10 @@ export default function StoryPeopleManager({
   async function submit() {
     setError("");
     const isCreating = !form.id;
+    if (form.relationship === "other" && !form.customRelationship.trim()) {
+      setError("Type the relationship when choosing Other.");
+      return;
+    }
     if (isCreating && newPersonMode === "photo") {
       if (!pendingNewPhoto) {
         setError("Upload or take a photo to start from a photo.");
@@ -551,6 +558,10 @@ export default function StoryPeopleManager({
                       ...current,
                       relationship: event.target
                         .value as StoryPersonRelationship,
+                      customRelationship:
+                        event.target.value === "other"
+                          ? current.customRelationship
+                          : "",
                     }))
                   }
                   className={formStyles.field}
@@ -562,6 +573,24 @@ export default function StoryPeopleManager({
                   ))}
                 </select>
               </div>
+              {form.relationship === "other" ? (
+                <div>
+                  <label className={formStyles.subLabel}>
+                    Custom Relationship
+                  </label>
+                  <input
+                    value={form.customRelationship}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        customRelationship: event.target.value,
+                      }))
+                    }
+                    placeholder="Auntie's partner, godmother, family friend"
+                    className={formStyles.field}
+                  />
+                </div>
+              ) : null}
               <div>
                 <label className={formStyles.subLabel}>Pronouns</label>
                 <input
@@ -923,7 +952,7 @@ export default function StoryPeopleManager({
                             {person.name}
                           </h3>
                           <p className="text-sm capitalize text-night-400">
-                            {relationshipLabel(person.relationship)}
+                            {getStoryPersonRelationshipLabel(person)}
                             {person.pronouns ? ` · ${person.pronouns}` : ""}
                           </p>
                         </div>
@@ -981,6 +1010,10 @@ export default function StoryPeopleManager({
                                   ...current,
                                   relationship: event.target
                                     .value as StoryPersonRelationship,
+                                  customRelationship:
+                                    event.target.value === "other"
+                                      ? current.customRelationship
+                                      : "",
                                 }))
                               }
                               className={formStyles.field}
@@ -997,6 +1030,24 @@ export default function StoryPeopleManager({
                               )}
                             </select>
                           </div>
+                          {form.relationship === "other" ? (
+                            <div>
+                              <label className={formStyles.subLabel}>
+                                Custom Relationship
+                              </label>
+                              <input
+                                value={form.customRelationship}
+                                onChange={(event) =>
+                                  setForm((current) => ({
+                                    ...current,
+                                    customRelationship: event.target.value,
+                                  }))
+                                }
+                                placeholder="Auntie's partner, godmother, family friend"
+                                className={formStyles.field}
+                              />
+                            </div>
+                          ) : null}
                           <div>
                             <label className={formStyles.subLabel}>
                               Pronouns

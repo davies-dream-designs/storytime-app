@@ -7,7 +7,11 @@ import type {
   StorySuggestion,
   StoryPreset,
 } from "@/types";
-import { getAge, buildChildAppearanceSummary } from "@/types";
+import {
+  getAge,
+  buildChildAppearanceSummary,
+  getStoryPersonRelationshipLabel,
+} from "@/types";
 import {
   assessStoryIdeaIp,
   buildIpSafeGenerationInstruction,
@@ -240,7 +244,7 @@ export function buildStoryPrompt(input: GenerateStoryInput): string {
   });
   const originalStoryPeople = storyPeople.filter((person) => {
     const policy = assessStoryIdeaIp({
-      premise: `${person.name} ${person.relationship} ${person.description}`,
+      premise: `${person.name} ${getStoryPersonRelationshipLabel(person)} ${person.description}`,
       notes: `${person.personality} ${person.appearance} ${person.appearanceSummary ?? ""}`,
     });
     return policy.riskLevel === "clear";
@@ -249,7 +253,7 @@ export function buildStoryPrompt(input: GenerateStoryInput): string {
   const familySection =
     originalStoryPeople.length > 0
       ? `\n\nSelected family, friends, pets, or story people to include when they fit naturally:
-${originalStoryPeople.map((person) => `- ${person.name} (${person.relationship}${person.pronouns ? `, ${person.pronouns}` : ""}): ${person.description || "No description provided."} Personality: ${person.personality || "No personality notes provided."} Appearance: ${person.appearanceSummary || person.appearance || "No appearance notes provided."}`).join("\n")}`
+${originalStoryPeople.map((person) => `- ${person.name} (${getStoryPersonRelationshipLabel(person)}${person.pronouns ? `, ${person.pronouns}` : ""}): ${person.description || "No description provided."} Personality: ${person.personality || "No personality notes provided."} Appearance: ${person.appearanceSummary || person.appearance || "No appearance notes provided."}`).join("\n")}`
       : "";
   const characterSection =
     originalCharacters.length > 0
@@ -622,7 +626,7 @@ export async function generateSuggestions(
       : "";
   const originalStoryPeople = (options.storyPeople ?? []).filter((person) => {
     const policy = assessStoryIdeaIp({
-      premise: `${person.name} ${person.relationship} ${person.description}`,
+      premise: `${person.name} ${getStoryPersonRelationshipLabel(person)} ${person.description}`,
       notes: `${person.personality} ${person.appearance} ${person.appearanceSummary ?? ""}`,
     });
     return policy.riskLevel === "clear";
@@ -632,7 +636,7 @@ export async function generateSuggestions(
       ? `\n\nSelected family, friends, pets, or other child profiles to include when they fit naturally:\n${originalStoryPeople
           .map(
             (person) =>
-              `- ${person.name} (${person.relationship}${person.pronouns ? `, ${person.pronouns}` : ""}): ${person.description || "No description provided."} Personality: ${person.personality || "No personality notes provided."}`
+              `- ${person.name} (${getStoryPersonRelationshipLabel(person)}${person.pronouns ? `, ${person.pronouns}` : ""}): ${person.description || "No description provided."} Personality: ${person.personality || "No personality notes provided."}`
           )
           .join("\n")}`
       : "";

@@ -198,6 +198,7 @@ export function assessProfileIp(input: ProfileIpInput): StoryIpPolicy {
     ...(input.storyPeople ?? []).flatMap((person) => [
       person.name,
       person.relationship,
+      person.customRelationship,
       person.description,
       person.personality,
       person.appearance,

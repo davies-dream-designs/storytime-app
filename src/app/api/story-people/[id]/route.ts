@@ -68,6 +68,14 @@ export async function PUT(
       body.relationship === undefined
         ? existing.relationship
         : sanitizeStoryPersonRelationship(body.relationship),
+    customRelationship:
+      body.relationship === undefined && body.customRelationship === undefined
+        ? existing.customRelationship
+        : sanitizeStoryPersonRelationship(
+              body.relationship ?? existing.relationship
+            ) === "other"
+          ? sanitizeText(body.customRelationship, 80) || undefined
+          : undefined,
     description:
       body.description === undefined
         ? existing.description

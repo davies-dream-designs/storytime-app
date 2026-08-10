@@ -199,8 +199,16 @@ export const STORY_PERSON_RELATIONSHIPS = [
   "dad",
   "parent",
   "grandparent",
+  "great_grandparent",
+  "auntie",
+  "uncle",
+  "cousin",
   "sibling",
   "friend",
+  "carer",
+  "babysitter",
+  "neighbour",
+  "teacher",
   "pet",
   "other",
 ] as const;
@@ -213,6 +221,7 @@ export interface StoryPerson {
   userId: string;
   name: string;
   relationship: StoryPersonRelationship;
+  customRelationship?: string;
   description: string;
   personality: string;
   appearance: string;
@@ -231,6 +240,17 @@ export function sanitizeStoryPersonRelationship(
   return STORY_PERSON_RELATIONSHIPS.includes(value as StoryPersonRelationship)
     ? (value as StoryPersonRelationship)
     : "other";
+}
+
+export function getStoryPersonRelationshipLabel(
+  person: Pick<StoryPerson, "relationship" | "customRelationship">
+): string {
+  const custom = person.customRelationship?.trim();
+  if (person.relationship === "other" && custom) return custom;
+  return person.relationship
+    .split("_")
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 export const LESSON_OPTIONS = [

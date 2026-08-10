@@ -141,6 +141,76 @@ describe("/api/story-people", () => {
     );
   });
 
+  it("stores custom relationship labels for other relationships", async () => {
+    const { POST } = await import("@/app/api/story-people/route");
+    const req = new NextRequest("http://localhost/api/story-people", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Ava",
+        relationship: "other",
+        customRelationship: "Godmother",
+        availableToAllProfiles: true,
+      }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as StoryPerson;
+    expect(body.relationship).toBe("other");
+    expect(body.customRelationship).toBe("Godmother");
+    expect(mockDb.storyPeople.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        relationship: "other",
+        customRelationship: "Godmother",
+      })
+    );
+  });
+
+  it("clears custom relationship labels when changing away from other", async () => {
+    const person: StoryPerson = {
+      id: "person-1",
+      userId: "user-1",
+      name: "Ava",
+      relationship: "other",
+      customRelationship: "Godmother",
+      description: "",
+      personality: "",
+      appearance: "",
+      availableToAllProfiles: true,
+      profileIds: [],
+      createdAt: "2026-07-15T00:00:00.000Z",
+      updatedAt: "2026-07-15T00:00:00.000Z",
+    };
+    mockDb.storyPeople.getById.mockResolvedValue(person);
+    mockDb.storyPeople.update.mockResolvedValue({
+      ...person,
+      relationship: "auntie",
+      customRelationship: undefined,
+    });
+
+    const { PUT } = await import("@/app/api/story-people/[id]/route");
+    const req = new NextRequest("http://localhost/api/story-people/person-1", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        relationship: "auntie",
+      }),
+    });
+
+    const res = await PUT(req, {
+      params: Promise.resolve({ id: "person-1" }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockDb.storyPeople.update).toHaveBeenCalledWith(
+      "person-1",
+      expect.objectContaining({
+        relationship: "auntie",
+        customRelationship: undefined,
+      })
+    );
+  });
+
   it("rejects a child-limited person without a valid owned profile", async () => {
     const { POST } = await import("@/app/api/story-people/route");
     const req = new NextRequest("http://localhost/api/story-people", {

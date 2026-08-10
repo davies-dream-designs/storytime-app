@@ -68,6 +68,10 @@ export async function POST(req: NextRequest) {
     userId,
     name,
     relationship: sanitizeStoryPersonRelationship(body.relationship),
+    customRelationship:
+      sanitizeStoryPersonRelationship(body.relationship) === "other"
+        ? sanitizeText(body.customRelationship, 80) || undefined
+        : undefined,
     description: sanitizeText(body.description),
     personality: sanitizeText(body.personality),
     appearance: sanitizeText(body.appearance),

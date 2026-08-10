@@ -21,6 +21,7 @@ import {
   LESSON_OPTIONS,
   buildChildAppearanceSummary,
   formatAge,
+  getStoryPersonRelationshipLabel,
   getDefaultPreset,
   getAge,
   getAgeInMonths,
@@ -618,7 +619,7 @@ function GenerateForm() {
                           <span className="block text-xs capitalize text-night-400">
                             {isChildProfile
                               ? "Child profile"
-                              : person.relationship.replace("_", " ")}
+                              : getStoryPersonRelationshipLabel(person)}
                           </span>
                         </span>
                       </button>

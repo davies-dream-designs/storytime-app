@@ -1,10 +1,12 @@
 import { db } from "@/lib/db";
 import {
   buildChildAppearanceSummary,
-  getStoryPersonAppearanceContext,
   getStoryPersonRelationshipLabel,
 } from "@/types";
-import { getBodyBuildIllustrationCue } from "@/types/bodyBuild";
+import {
+  getBodyBuildIllustrationCue,
+  getBodyBuildLabel,
+} from "@/types/bodyBuild";
 import type {
   BookProject,
   CharacterVisualReference,
@@ -36,23 +38,39 @@ export async function loadBuildContext(project: BookProject) {
 
   const visualReferences: CharacterVisualReference[] = [];
   if (profile.avatarImageUrl) {
+    const structuredAppearance = buildChildAppearanceSummary(profile.appearance);
+    const appearance = [
+      structuredAppearance
+        ? `Latest child profile appearance: ${structuredAppearance}.`
+        : "",
+      profile.appearanceSummary
+        ? `Previous generated child reference summary, use only when it does not conflict with the latest profile appearance: ${profile.appearanceSummary}.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
     visualReferences.push({
       id: `profile:${profile.id}`,
       name: profile.name,
       role: "main_child",
       imageUrl: profile.avatarImageUrl,
-      appearance:
-        profile.appearanceSummary ||
-        buildChildAppearanceSummary(profile.appearance) ||
-        undefined,
+      appearance: appearance || undefined,
     });
   }
   for (const person of storyPeople) {
     if (!person.avatarImageUrl) continue;
     const bodyBuildCue = getBodyBuildIllustrationCue(person.bodyBuild);
     const appearance = [
-      getStoryPersonAppearanceContext(person),
+      person.appearance.trim()
+        ? `Latest edited appearance: ${person.appearance.trim()}.`
+        : "",
+      person.bodyBuild && person.bodyBuild !== "not_specified"
+        ? `Latest body build: ${getBodyBuildLabel(person.bodyBuild)}.`
+        : "",
       bodyBuildCue ? `Illustration body-build cue: ${bodyBuildCue}.` : "",
+      person.appearanceSummary?.trim()
+        ? `Previous generated reference summary, use only when it does not conflict with latest edited appearance/body build: ${person.appearanceSummary.trim()}`
+        : "",
     ]
       .filter(Boolean)
       .join(" ");

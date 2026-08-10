@@ -336,7 +336,7 @@ describe("generateCoverIllustration", () => {
           relationship: "grandparent",
           imageUrl: "https://assets.example.com/glenpa.jpg",
           appearance:
-            "warm smile, dark-framed glasses, grey-brown shoulder-length hair, very large body build",
+            "Latest edited appearance: warm smile, dark-framed glasses, grey hair tied in a neat man bun. Previous generated reference summary, use only when it does not conflict with latest edited appearance/body build: grey-brown shoulder-length wavy hair. Illustration body-build cue: very large plus-size body build with a clearly fuller round frame.",
         },
       ],
       spread,
@@ -357,7 +357,12 @@ describe("generateCoverIllustration", () => {
       "Attached visual reference sheet order"
     );
     expect(body.get("prompt")).toContain("Latest profile/reference overrides");
-    expect(body.get("prompt")).toContain("very large body build");
+    expect(body.get("prompt")).toContain("grey hair tied in a neat man bun");
+    expect(body.get("prompt")).toContain("grey-brown shoulder-length wavy hair");
+    expect(body.get("prompt")).toContain("very large plus-size body build");
+    expect(body.get("prompt")).toContain(
+      "Latest edited profile/reference text controls changeable visual traits"
+    );
     expect(body.get("prompt")).toContain(
       "Body build is controlled by the latest profile/reference text"
     );
@@ -366,6 +371,9 @@ describe("generateCoverIllustration", () => {
     );
     expect(body.get("prompt")).toContain(
       "If this conflicts with the older character bible"
+    );
+    expect(body.get("prompt")).toContain(
+      "previous generated reference summary"
     );
     expect(body.get("prompt")).toContain("Glenpa");
     expect(body.get("image")).toBeInstanceOf(File);

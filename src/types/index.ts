@@ -257,10 +257,12 @@ export function getStoryPersonRelationshipLabel(
 
 export function getStoryPersonAppearanceContext(person: StoryPerson): string {
   const parts = [
-    person.appearanceSummary?.trim(),
     person.appearance.trim(),
     person.bodyBuild && person.bodyBuild !== "not_specified"
       ? `Body build: ${getBodyBuildLabel(person.bodyBuild)}.`
+      : "",
+    person.appearanceSummary?.trim()
+      ? `Previous generated reference summary, use only when it does not conflict with the latest appearance/body build: ${person.appearanceSummary.trim()}`
       : "",
   ].filter(Boolean);
   return Array.from(new Set(parts)).join(" ");

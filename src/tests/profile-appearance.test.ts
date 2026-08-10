@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildChildAppearanceDoNotChange,
   buildChildAppearanceSummary,
+  getStoryPersonAppearanceContext,
   sanitizeChildAppearance,
 } from "@/types";
 import { getBodyBuildIllustrationCue } from "@/types/bodyBuild";
@@ -78,6 +79,31 @@ describe("child appearance custom details", () => {
     expect(getBodyBuildIllustrationCue("very_large")).toContain("plus-size");
     expect(getBodyBuildIllustrationCue("very_large")).toContain(
       "visibly larger proportions than a large build"
+    );
+  });
+
+  it("prioritizes latest edited story-person appearance over generated summaries", () => {
+    const context = getStoryPersonAppearanceContext({
+      id: "person-1",
+      userId: "user-1",
+      name: "Glenpa",
+      relationship: "grandparent",
+      bodyBuild: "very_large",
+      description: "",
+      personality: "",
+      appearance: "grey hair tied in a neat man bun",
+      appearanceSummary: "shoulder-length wavy grey hair",
+      availableToAllProfiles: true,
+      profileIds: [],
+      createdAt: "2026-08-10T00:00:00.000Z",
+      updatedAt: "2026-08-10T00:00:00.000Z",
+    });
+
+    expect(context.indexOf("grey hair tied in a neat man bun")).toBeLessThan(
+      context.indexOf("shoulder-length wavy grey hair")
+    );
+    expect(context).toContain(
+      "Previous generated reference summary, use only when it does not conflict"
     );
   });
 });

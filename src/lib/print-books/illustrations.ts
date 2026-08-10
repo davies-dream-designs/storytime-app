@@ -453,7 +453,8 @@ function buildVisualReferencePrompt(
   return [
     `Attached visual reference sheet order: ${referenceList}`,
     "Use the attached reference sheet only for character likeness and continuity; do not copy its crop, plain background, portrait pose, or sheet layout.",
-    "When a selected child, family member, friend, or pet appears, match the reference image more strongly than generic text assumptions for face, hair/fur, glasses, skin tone, and familiar markings.",
+    "When a selected child, family member, friend, or pet appears, match the reference image for identity only: recognisable face, skin tone, and familiar markings.",
+    "Latest edited profile/reference text controls changeable visual traits including hair length, hairstyle, facial hair, glasses, outfit, body build, and apparent age. If latest text conflicts with the attached image or older generated image, change the artwork to match the latest text while keeping the person recognisable.",
     "Body build is controlled by the latest profile/reference text. If that latest body-build text conflicts with the attached image or an older generated image, change the figure silhouette and proportions to match the latest body-build text while keeping the face recognisable.",
     "Do not make grandparents generically older, thinner, heavier, or frailer than their latest profile/reference details.",
     "Do not add written labels, captions, names, numbers, watermarks, or relationship words to the artwork.",
@@ -795,7 +796,7 @@ function buildPageIllustrationPrompt(input: {
     // Character consistency follows as a constraint block.
     buildIllustrationDirection(characterBible),
     latestReferenceContext
-      ? `Latest profile/reference overrides: ${latestReferenceContext} If this conflicts with the older character bible, old generated artwork, or attached reference image, follow these latest profile/reference details. Body build is a hard override: visibly adjust silhouette, torso width, face fullness, and overall proportions to match the latest body-build cue while preserving identity. Face shape, apparent age, glasses, hair/fur, skin tone, and familiar markings from latest references are hard continuity requirements.`
+      ? `Latest profile/reference overrides: ${latestReferenceContext} If this conflicts with the older character bible, old generated artwork, attached reference image, or previous generated reference summary, follow these latest edited profile/reference details. Latest edited appearance is the highest priority for changeable traits: hairstyle, hair length, facial hair, glasses, outfit, body build, and apparent age. Body build is a hard override: visibly adjust silhouette, torso width, face fullness, and overall proportions to match the latest body-build cue while preserving identity. Keep skin tone and core facial identity recognisable.`
       : "",
     // Metadata.
     `Book title: ${story.title}.`,
@@ -804,7 +805,7 @@ function buildPageIllustrationPrompt(input: {
     `Spread sequence: ${spread.sequence}, ${side} page.`,
     ...(correctionNote
       ? [
-          `User correction for this redo: ${correctionNote}. Apply this correction while preserving the story moment and art style. If the correction mentions body size, build, weight, skinny, thin, large, very large, plus-size, broad, or proportions, it is allowed and expected to visibly change the character's body silhouette instead of preserving the old generated body shape.`,
+          `User correction for this redo: ${correctionNote}. Apply this correction while preserving the story moment and art style. If the correction mentions hair, hairstyle, bun, ponytail, beard, glasses, outfit, body size, build, weight, skinny, thin, large, very large, plus-size, broad, age, or proportions, it is allowed and expected to visibly change that trait instead of preserving the old generated version.`,
         ]
       : []),
     // Variation is the critical instruction - stated explicitly.

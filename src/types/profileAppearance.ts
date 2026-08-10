@@ -112,6 +112,7 @@ export const EXPRESSION_VIBE_OPTIONS = [
 ] as const
 
 export const APPEARANCE_NOTE_MAX_LENGTH = 140
+export const APPEARANCE_CUSTOM_DETAIL_MAX_LENGTH = 80
 export const APPEARANCE_FEATURE_LIMIT = 3
 export const APPEARANCE_EXPRESSION_LIMIT = 2
 export const APPEARANCE_NOTE_EXAMPLES = [
@@ -137,14 +138,20 @@ export interface ChildAppearance {
   skinTone?: SkinToneOption
   undertone?: UndertoneOption
   hairColor?: HairColorOption
+  customHairColor?: string
   hairTexture?: HairTextureOption
   hairLength?: HairLengthOption
   hairStyles: HairStyleOption[]
+  customHairStyle?: string
   eyeColor?: EyeColorOption
+  customEyeColor?: string
   featureEmphasis: FeatureEmphasisOption[]
+  customFeatureEmphasis?: string
   distinguishingFeatures: DistinguishingFeatureOption[]
+  customDistinguishingFeature?: string
   clothingVibe?: ClothingVibeOption
   favoriteClothingItem?: FavoriteClothingItemOption
+  customFavoriteClothingItem?: string
   expressionVibes: ExpressionVibeOption[]
   consistencyNote?: string
 }
@@ -174,22 +181,38 @@ function normalizeList<T extends readonly string[]>(value: unknown, options: T, 
   return typeof max === 'number' ? unique.slice(0, max) : unique
 }
 
+function normalizeCustomDetail(value: unknown) {
+  return typeof value === 'string' ? value.trim().slice(0, APPEARANCE_CUSTOM_DETAIL_MAX_LENGTH) : undefined
+}
+
 export function sanitizeChildAppearance(input: unknown): ChildAppearance {
   const source = (input && typeof input === 'object' ? input : {}) as Partial<ChildAppearance>
   const note = typeof source.consistencyNote === 'string' ? source.consistencyNote.trim().slice(0, APPEARANCE_NOTE_MAX_LENGTH) : undefined
+  const hairColor = normalizeValue(source.hairColor, HAIR_COLOR_OPTIONS)
+  const hairStyles = normalizeList(source.hairStyles, HAIR_STYLE_OPTIONS)
+  const eyeColor = normalizeValue(source.eyeColor, EYE_COLOR_OPTIONS)
+  const featureEmphasis = normalizeList(source.featureEmphasis, FEATURE_EMPHASIS_OPTIONS, APPEARANCE_FEATURE_LIMIT)
+  const distinguishingFeatures = normalizeList(source.distinguishingFeatures, DISTINGUISHING_FEATURE_OPTIONS, APPEARANCE_FEATURE_LIMIT)
+  const favoriteClothingItem = normalizeValue(source.favoriteClothingItem, FAVORITE_CLOTHING_ITEM_OPTIONS)
 
   return {
     skinTone: normalizeValue(source.skinTone, SKIN_TONE_OPTIONS),
     undertone: normalizeValue(source.undertone, UNDERTONE_OPTIONS),
-    hairColor: normalizeValue(source.hairColor, HAIR_COLOR_OPTIONS),
+    hairColor,
+    customHairColor: hairColor === 'other' ? normalizeCustomDetail(source.customHairColor) || undefined : undefined,
     hairTexture: normalizeValue(source.hairTexture, HAIR_TEXTURE_OPTIONS),
     hairLength: normalizeValue(source.hairLength, HAIR_LENGTH_OPTIONS),
-    hairStyles: normalizeList(source.hairStyles, HAIR_STYLE_OPTIONS),
-    eyeColor: normalizeValue(source.eyeColor, EYE_COLOR_OPTIONS),
-    featureEmphasis: normalizeList(source.featureEmphasis, FEATURE_EMPHASIS_OPTIONS, APPEARANCE_FEATURE_LIMIT),
-    distinguishingFeatures: normalizeList(source.distinguishingFeatures, DISTINGUISHING_FEATURE_OPTIONS, APPEARANCE_FEATURE_LIMIT),
+    hairStyles,
+    customHairStyle: hairStyles.includes('other') ? normalizeCustomDetail(source.customHairStyle) || undefined : undefined,
+    eyeColor,
+    customEyeColor: eyeColor === 'other' ? normalizeCustomDetail(source.customEyeColor) || undefined : undefined,
+    featureEmphasis,
+    customFeatureEmphasis: featureEmphasis.includes('other') ? normalizeCustomDetail(source.customFeatureEmphasis) || undefined : undefined,
+    distinguishingFeatures,
+    customDistinguishingFeature: distinguishingFeatures.includes('other') ? normalizeCustomDetail(source.customDistinguishingFeature) || undefined : undefined,
     clothingVibe: normalizeValue(source.clothingVibe, CLOTHING_VIBE_OPTIONS),
-    favoriteClothingItem: normalizeValue(source.favoriteClothingItem, FAVORITE_CLOTHING_ITEM_OPTIONS),
+    favoriteClothingItem,
+    customFavoriteClothingItem: favoriteClothingItem === 'other' ? normalizeCustomDetail(source.customFavoriteClothingItem) || undefined : undefined,
     expressionVibes: normalizeList(source.expressionVibes, EXPRESSION_VIBE_OPTIONS, APPEARANCE_EXPRESSION_LIMIT),
     consistencyNote: note || undefined,
   }
@@ -304,6 +327,16 @@ function joinLabeled(values: string[]) {
   return values.map((value) => getAppearanceOptionLabel(value)).join(', ')
 }
 
+function labeledOther(value: string | undefined, custom: string | undefined) {
+  return value === 'other' && custom ? custom : getAppearanceOptionLabel(value)
+}
+
+function joinLabeledWithOther(values: string[], custom: string | undefined) {
+  return values
+    .map((value) => (value === 'other' && custom ? custom : getAppearanceOptionLabel(value)))
+    .join(', ')
+}
+
 export function buildChildAppearanceSummary(appearance?: ChildAppearance) {
   if (!appearance) return ''
 
@@ -316,17 +349,17 @@ export function buildChildAppearanceSummary(appearance?: ChildAppearance) {
     parts.push(
       [appearance.hairColor, appearance.hairTexture, appearance.hairLength]
         .filter(Boolean)
-        .map((value) => getAppearanceOptionLabel(value))
+        .map((value) => labeledOther(value, appearance.customHairColor))
         .join(' ')
         .trim() + ' hair'
     )
   }
-  if (appearance.hairStyles.length > 0) parts.push(`usually styled in ${joinLabeled(appearance.hairStyles)}`)
-  if (appearance.eyeColor) parts.push(`${getAppearanceOptionLabel(appearance.eyeColor)} eyes`)
-  if (appearance.featureEmphasis.length > 0) parts.push(`features include ${joinLabeled(appearance.featureEmphasis)}`)
-  if (appearance.distinguishingFeatures.length > 0) parts.push(`distinguishing details: ${joinLabeled(appearance.distinguishingFeatures)}`)
+  if (appearance.hairStyles.length > 0) parts.push(`usually styled in ${joinLabeledWithOther(appearance.hairStyles, appearance.customHairStyle)}`)
+  if (appearance.eyeColor) parts.push(`${labeledOther(appearance.eyeColor, appearance.customEyeColor)} eyes`)
+  if (appearance.featureEmphasis.length > 0) parts.push(`features include ${joinLabeledWithOther(appearance.featureEmphasis, appearance.customFeatureEmphasis)}`)
+  if (appearance.distinguishingFeatures.length > 0) parts.push(`distinguishing details: ${joinLabeledWithOther(appearance.distinguishingFeatures, appearance.customDistinguishingFeature)}`)
   if (appearance.clothingVibe) parts.push(`usually dressed in a ${getAppearanceOptionLabel(appearance.clothingVibe)} style`)
-  if (appearance.favoriteClothingItem) parts.push(`often shown with ${getAppearanceOptionLabel(appearance.favoriteClothingItem)}`)
+  if (appearance.favoriteClothingItem) parts.push(`often shown with ${labeledOther(appearance.favoriteClothingItem, appearance.customFavoriteClothingItem)}`)
   if (appearance.expressionVibes.length > 0) parts.push(`expression tends to feel ${joinLabeled(appearance.expressionVibes)}`)
   if (appearance.consistencyNote) parts.push(appearance.consistencyNote)
   return parts.join('; ')
@@ -338,11 +371,11 @@ export function buildChildAppearanceDoNotChange(appearance?: ChildAppearance) {
   const traits = [
     appearance.skinTone ? `${getAppearanceOptionLabel(appearance.skinTone)} skin tone` : '',
     appearance.hairColor || appearance.hairTexture
-      ? `${[appearance.hairColor, appearance.hairTexture].filter(Boolean).map((value) => getAppearanceOptionLabel(value)).join(' ')} hair`
+      ? `${[appearance.hairColor, appearance.hairTexture].filter(Boolean).map((value) => labeledOther(value, appearance.customHairColor)).join(' ')} hair`
       : '',
-    appearance.eyeColor ? `${getAppearanceOptionLabel(appearance.eyeColor)} eyes` : '',
-    ...appearance.distinguishingFeatures.map((value) => getAppearanceOptionLabel(value)),
-    ...appearance.featureEmphasis.slice(0, 2).map((value) => getAppearanceOptionLabel(value)),
+    appearance.eyeColor ? `${labeledOther(appearance.eyeColor, appearance.customEyeColor)} eyes` : '',
+    ...appearance.distinguishingFeatures.map((value) => value === 'other' && appearance.customDistinguishingFeature ? appearance.customDistinguishingFeature : getAppearanceOptionLabel(value)),
+    ...appearance.featureEmphasis.slice(0, 2).map((value) => value === 'other' && appearance.customFeatureEmphasis ? appearance.customFeatureEmphasis : getAppearanceOptionLabel(value)),
   ].filter(Boolean)
 
   return Array.from(new Set(traits)).slice(0, 6)

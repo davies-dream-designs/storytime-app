@@ -52,6 +52,13 @@ export async function POST(
   }
 
   const note = typeof body.note === "string" ? body.note.trim() : "";
+  if (reason === "other" && !note) {
+    return NextResponse.json(
+      { error: "Please tell us what needs review." },
+      { status: 400 }
+    );
+  }
+
   const created = await db.publicStoryReports.create({
     storyId: id,
     userId,

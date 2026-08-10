@@ -7,6 +7,7 @@ import {
   APPEARANCE_CUSTOM_DETAIL_MAX_LENGTH,
   APPEARANCE_NOTE_EXAMPLES,
   APPEARANCE_NOTE_MAX_LENGTH,
+  BODY_BUILD_OPTIONS,
   CLOTHING_VIBE_OPTIONS,
   createEmptyChildAppearance,
   DISTINGUISHING_FEATURE_OPTIONS,
@@ -15,12 +16,14 @@ import {
   FAVORITE_CLOTHING_ITEM_OPTIONS,
   FEATURE_EMPHASIS_OPTIONS,
   getAppearanceOptionLabel,
+  getBodyBuildLabel,
   HAIR_COLOR_OPTIONS,
   HAIR_LENGTH_OPTIONS,
   HAIR_STYLE_OPTIONS,
   HAIR_TEXTURE_OPTIONS,
   SKIN_TONE_OPTIONS,
   type ChildAppearance,
+  type BodyBuild,
   type ClothingVibeOption,
   type DistinguishingFeatureOption,
   type ExpressionVibeOption,
@@ -297,6 +300,24 @@ export default function AppearanceFields({
           options={UNDERTONE_OPTIONS}
           onChange={(undertone) => patch({ undertone })}
         />
+        <div>
+          <label className="mb-1.5 block text-sm font-bold text-night-700">
+            Body Build
+          </label>
+          <select
+            value={state.bodyBuild ?? "not_specified"}
+            onChange={(event) =>
+              patch({ bodyBuild: event.target.value as BodyBuild })
+            }
+            className="w-full rounded-xl border border-night-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-star-400 focus:ring-2 focus:ring-star-200"
+          >
+            {BODY_BUILD_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {getBodyBuildLabel(option)}
+              </option>
+            ))}
+          </select>
+        </div>
         <SwatchField
           label={t("appearanceHairColorLabel")}
           value={state.hairColor}

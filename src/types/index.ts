@@ -1,4 +1,5 @@
 import type { ChildAppearance } from "./profileAppearance";
+import { getBodyBuildLabel, type BodyBuild } from "./bodyBuild";
 
 export const CHILD_GENDERS = [
   "girl",
@@ -222,6 +223,7 @@ export interface StoryPerson {
   name: string;
   relationship: StoryPersonRelationship;
   customRelationship?: string;
+  bodyBuild?: BodyBuild;
   description: string;
   personality: string;
   appearance: string;
@@ -253,6 +255,17 @@ export function getStoryPersonRelationshipLabel(
     .join(" ");
 }
 
+export function getStoryPersonAppearanceContext(person: StoryPerson): string {
+  const parts = [
+    person.appearanceSummary?.trim(),
+    person.appearance.trim(),
+    person.bodyBuild && person.bodyBuild !== "not_specified"
+      ? `Body build: ${getBodyBuildLabel(person.bodyBuild)}.`
+      : "",
+  ].filter(Boolean);
+  return Array.from(new Set(parts)).join(" ");
+}
+
 export const LESSON_OPTIONS = [
   "kindness",
   "bravery",
@@ -276,4 +289,5 @@ export const LESSON_OPTIONS = [
 
 export type Lesson = (typeof LESSON_OPTIONS)[number];
 
+export * from "./bodyBuild";
 export * from "./profileAppearance";

@@ -123,6 +123,7 @@ describe("/api/story-people", () => {
       body: JSON.stringify({
         name: "Nanna",
         relationship: "grandparent",
+        bodyBuild: "large",
         profileIds: ["profile-1", "other-user-profile"],
         availableToAllProfiles: false,
       }),
@@ -132,11 +133,56 @@ describe("/api/story-people", () => {
     expect(res.status).toBe(201);
     const body = (await res.json()) as StoryPerson;
     expect(body.relationship).toBe("grandparent");
+    expect(body.bodyBuild).toBe("large");
     expect(body.profileIds).toEqual(["profile-1"]);
     expect(mockDb.storyPeople.create).toHaveBeenCalledWith(
       expect.objectContaining({
         name: "Nanna",
+        bodyBuild: "large",
         profileIds: ["profile-1"],
+      })
+    );
+  });
+
+  it("preserves and updates body build labels on story people", async () => {
+    const person: StoryPerson = {
+      id: "person-1",
+      userId: "user-1",
+      name: "Grandad",
+      relationship: "grandparent",
+      bodyBuild: "large",
+      description: "",
+      personality: "",
+      appearance: "",
+      availableToAllProfiles: true,
+      profileIds: [],
+      createdAt: "2026-07-15T00:00:00.000Z",
+      updatedAt: "2026-07-15T00:00:00.000Z",
+    };
+    mockDb.storyPeople.getById.mockResolvedValue(person);
+    mockDb.storyPeople.update.mockResolvedValue({
+      ...person,
+      bodyBuild: "very_large",
+    });
+
+    const { PUT } = await import("@/app/api/story-people/[id]/route");
+    const req = new NextRequest("http://localhost/api/story-people/person-1", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        bodyBuild: "very_large",
+      }),
+    });
+
+    const res = await PUT(req, {
+      params: Promise.resolve({ id: "person-1" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockDb.storyPeople.update).toHaveBeenCalledWith(
+      "person-1",
+      expect.objectContaining({
+        bodyBuild: "very_large",
       })
     );
   });

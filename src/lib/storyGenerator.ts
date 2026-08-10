@@ -10,6 +10,7 @@ import type {
 import {
   getAge,
   buildChildAppearanceSummary,
+  getStoryPersonAppearanceContext,
   getStoryPersonRelationshipLabel,
 } from "@/types";
 import {
@@ -245,7 +246,7 @@ export function buildStoryPrompt(input: GenerateStoryInput): string {
   const originalStoryPeople = storyPeople.filter((person) => {
     const policy = assessStoryIdeaIp({
       premise: `${person.name} ${getStoryPersonRelationshipLabel(person)} ${person.description}`,
-      notes: `${person.personality} ${person.appearance} ${person.appearanceSummary ?? ""}`,
+      notes: `${person.personality} ${getStoryPersonAppearanceContext(person)}`,
     });
     return policy.riskLevel === "clear";
   });
@@ -253,7 +254,7 @@ export function buildStoryPrompt(input: GenerateStoryInput): string {
   const familySection =
     originalStoryPeople.length > 0
       ? `\n\nSelected family, friends, pets, or story people to include when they fit naturally:
-${originalStoryPeople.map((person) => `- ${person.name} (${getStoryPersonRelationshipLabel(person)}${person.pronouns ? `, ${person.pronouns}` : ""}): ${person.description || "No description provided."} Personality: ${person.personality || "No personality notes provided."} Appearance: ${person.appearanceSummary || person.appearance || "No appearance notes provided."}`).join("\n")}`
+${originalStoryPeople.map((person) => `- ${person.name} (${getStoryPersonRelationshipLabel(person)}${person.pronouns ? `, ${person.pronouns}` : ""}): ${person.description || "No description provided."} Personality: ${person.personality || "No personality notes provided."} Appearance: ${getStoryPersonAppearanceContext(person) || "No appearance notes provided."}`).join("\n")}`
       : "";
   const characterSection =
     originalCharacters.length > 0
@@ -627,7 +628,7 @@ export async function generateSuggestions(
   const originalStoryPeople = (options.storyPeople ?? []).filter((person) => {
     const policy = assessStoryIdeaIp({
       premise: `${person.name} ${getStoryPersonRelationshipLabel(person)} ${person.description}`,
-      notes: `${person.personality} ${person.appearance} ${person.appearanceSummary ?? ""}`,
+      notes: `${person.personality} ${getStoryPersonAppearanceContext(person)}`,
     });
     return policy.riskLevel === "clear";
   });

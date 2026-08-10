@@ -1,3 +1,5 @@
+import { getBodyBuildLabel, sanitizeBodyBuild, type BodyBuild } from "./bodyBuild";
+
 export const SKIN_TONE_OPTIONS = [
   'very_fair',
   'fair',
@@ -137,6 +139,7 @@ export type ExpressionVibeOption = (typeof EXPRESSION_VIBE_OPTIONS)[number]
 export interface ChildAppearance {
   skinTone?: SkinToneOption
   undertone?: UndertoneOption
+  bodyBuild?: BodyBuild
   hairColor?: HairColorOption
   customHairColor?: string
   hairTexture?: HairTextureOption
@@ -198,6 +201,7 @@ export function sanitizeChildAppearance(input: unknown): ChildAppearance {
   return {
     skinTone: normalizeValue(source.skinTone, SKIN_TONE_OPTIONS),
     undertone: normalizeValue(source.undertone, UNDERTONE_OPTIONS),
+    bodyBuild: sanitizeBodyBuild(source.bodyBuild),
     hairColor,
     customHairColor: hairColor === 'other' ? normalizeCustomDetail(source.customHairColor) || undefined : undefined,
     hairTexture: normalizeValue(source.hairTexture, HAIR_TEXTURE_OPTIONS),
@@ -345,6 +349,9 @@ export function buildChildAppearanceSummary(appearance?: ChildAppearance) {
     const undertone = appearance.undertone && appearance.undertone !== 'not_sure' ? ` ${getAppearanceOptionLabel(appearance.undertone)}` : ''
     parts.push(`${getAppearanceOptionLabel(appearance.skinTone)}${undertone} skin`)
   }
+  if (appearance.bodyBuild && appearance.bodyBuild !== 'not_specified') {
+    parts.push(`${getBodyBuildLabel(appearance.bodyBuild).toLowerCase()} body build`)
+  }
   if (appearance.hairColor || appearance.hairTexture || appearance.hairLength) {
     parts.push(
       [appearance.hairColor, appearance.hairTexture, appearance.hairLength]
@@ -370,6 +377,7 @@ export function buildChildAppearanceDoNotChange(appearance?: ChildAppearance) {
 
   const traits = [
     appearance.skinTone ? `${getAppearanceOptionLabel(appearance.skinTone)} skin tone` : '',
+    appearance.bodyBuild && appearance.bodyBuild !== 'not_specified' ? `${getBodyBuildLabel(appearance.bodyBuild).toLowerCase()} body build` : '',
     appearance.hairColor || appearance.hairTexture
       ? `${[appearance.hairColor, appearance.hairTexture].filter(Boolean).map((value) => labeledOther(value, appearance.customHairColor)).join(' ')} hair`
       : '',

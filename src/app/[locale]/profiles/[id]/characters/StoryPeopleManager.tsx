@@ -7,10 +7,13 @@ import { buttonClassName } from "@/components/ui/buttonStyles";
 import { formStyles } from "@/components/ui/formStyles";
 import type {
   ChildProfile,
+  BodyBuild,
   StoryPerson,
   StoryPersonRelationship,
 } from "@/types";
 import {
+  BODY_BUILD_OPTIONS,
+  getBodyBuildLabel,
   getStoryPersonRelationshipLabel,
   STORY_PERSON_RELATIONSHIPS,
 } from "@/types";
@@ -20,6 +23,7 @@ type FormState = {
   name: string;
   relationship: StoryPersonRelationship;
   customRelationship: string;
+  bodyBuild: BodyBuild;
   pronouns: string;
   description: string;
   personality: string;
@@ -41,6 +45,7 @@ const EMPTY_FORM: FormState = {
   name: "",
   relationship: "parent",
   customRelationship: "",
+  bodyBuild: "not_specified",
   pronouns: "",
   description: "",
   personality: "",
@@ -83,6 +88,7 @@ function formFromPerson(person: StoryPerson): FormState {
     name: person.name,
     relationship: person.relationship,
     customRelationship: person.customRelationship ?? "",
+    bodyBuild: person.bodyBuild ?? "not_specified",
     pronouns: person.pronouns ?? "",
     description: person.description,
     personality: person.personality,
@@ -605,6 +611,25 @@ export default function StoryPeopleManager({
                   className={formStyles.field}
                 />
               </div>
+              <div>
+                <label className={formStyles.subLabel}>Body Build</label>
+                <select
+                  value={form.bodyBuild}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      bodyBuild: event.target.value as BodyBuild,
+                    }))
+                  }
+                  className={formStyles.field}
+                >
+                  {BODY_BUILD_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {getBodyBuildLabel(option)}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div>
@@ -954,6 +979,10 @@ export default function StoryPeopleManager({
                           <p className="text-sm capitalize text-night-400">
                             {getStoryPersonRelationshipLabel(person)}
                             {person.pronouns ? ` · ${person.pronouns}` : ""}
+                            {person.bodyBuild &&
+                            person.bodyBuild !== "not_specified"
+                              ? ` · ${getBodyBuildLabel(person.bodyBuild)} build`
+                              : ""}
                           </p>
                         </div>
                       </div>
@@ -1063,6 +1092,27 @@ export default function StoryPeopleManager({
                               placeholder="she/her, he/him, they/them"
                               className={formStyles.field}
                             />
+                          </div>
+                          <div>
+                            <label className={formStyles.subLabel}>
+                              Body Build
+                            </label>
+                            <select
+                              value={form.bodyBuild}
+                              onChange={(event) =>
+                                setForm((current) => ({
+                                  ...current,
+                                  bodyBuild: event.target.value as BodyBuild,
+                                }))
+                              }
+                              className={formStyles.field}
+                            >
+                              {BODY_BUILD_OPTIONS.map((option) => (
+                                <option key={option} value={option}>
+                                  {getBodyBuildLabel(option)}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                           <div>
                             <div className="flex items-center justify-between gap-3">

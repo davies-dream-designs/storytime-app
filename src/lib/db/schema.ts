@@ -10,6 +10,7 @@ import {
 import type { ChildAppearance } from "@/types/profileAppearance";
 import type {
   ChildGender,
+  BodyBuild,
   PublicReviewStatus,
   StoryPage,
   StoryIpPolicy,
@@ -118,6 +119,7 @@ export const storyPeople = pgTable(
       .notNull()
       .default("other"),
     customRelationship: text("custom_relationship"),
+    bodyBuild: text("body_build").$type<BodyBuild>(),
     description: text("description").notNull().default(""),
     personality: text("personality").notNull().default(""),
     appearance: text("appearance").notNull().default(""),

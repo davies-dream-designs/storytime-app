@@ -4,6 +4,7 @@ import type { ChildProfile, StoryPerson } from "@/types";
 import {
   buildChildAppearanceSummary,
   getAgeInMonths,
+  getBodyBuildLabel,
   getStoryPersonRelationshipLabel,
 } from "@/types";
 import { deleteBookAssetUrls, storeBookAsset } from "@/lib/print-books/storage";
@@ -74,6 +75,9 @@ export function buildStoryPersonAvatarPrompt(
       ? `Role notes for behaviour/context only: ${person.description}.`
       : "",
     person.personality ? `Personality: ${person.personality}.` : "",
+    person.bodyBuild && person.bodyBuild !== "not_specified"
+      ? `Body build context: ${getBodyBuildLabel(person.bodyBuild)}. Preserve this as a respectful broad body-shape cue without exaggerating it.`
+      : "",
     formatAdjustmentInstruction(adjustment),
     "Use the uploaded photo only as private visual reference for broad visible body, face, hair or fur, posture, colouring, and expression.",
     "Treat the uploaded photo as the visual source of truth. Do not exaggerate body shape, age, expression, or proportions from written profile notes.",
@@ -81,6 +85,7 @@ export function buildStoryPersonAvatarPrompt(
     "For people, use a head-and-shoulders portrait with a plain unbranded jumper or top in a gentle Storycot palette. If the photo shows character-print clothing, replace it with simple solid-colour clothing with no graphics or lettering.",
     "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
     "Make it suitable as a reusable character reference for Storycot hardcover interiors and child profile illustrations: square crop, head-and-shoulders person portrait or full pet pose, clear visible features, stable unbranded outfit or pet markings, no scene-specific props unless requested.",
+    "Show only the named subject. If the supplied image contains any extra adult, child, baby, pet, toy, or background object, remove it unless the correction explicitly asks to keep it.",
     "Do not make a photorealistic portrait, caricature, sticker, logo, toy packaging image, or social-media avatar.",
     "No text, captions, name labels, age labels, watermark, logos, franchise styling, celebrity styling, recognisable character prints, or exact copy of clothing designs.",
     NO_VISIBLE_TEXT_IN_REFERENCE,
@@ -102,6 +107,9 @@ export function buildChildProfileAvatarPrompt(
     analysis.appearance
       ? `Photo-derived visible notes: ${analysis.appearance}. These details are visual guidance only and must not be rendered as visible writing.`
       : "",
+    profile.appearance?.bodyBuild && profile.appearance.bodyBuild !== "not_specified"
+      ? `Body build context: ${getBodyBuildLabel(profile.appearance.bodyBuild)}. Preserve this as a respectful broad body-shape cue without exaggerating it.`
+      : "",
     formatAdjustmentInstruction(adjustment),
     "Use the uploaded photo only as private visual reference for broad visible face, hair, colouring, and expression.",
     "Treat the uploaded photo as the visual source of truth. Do not exaggerate body shape, age, expression, or proportions from written profile notes.",
@@ -109,6 +117,7 @@ export function buildChildProfileAvatarPrompt(
     "Use a portrait crop from upper chest to top of head, centred on the child's face. Do not create a full-body standing or seated character sheet, full outfit pose, poster, profile page, or scene.",
     "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
     "Make it suitable as a reusable child reference for Storycot hardcover interiors: square crop, head-and-shoulders portrait only, plain unbranded child-safe top in a gentle Storycot palette, clear visible features, stable outfit guidance, no scene-specific props unless already in the profile.",
+    "Show only the child. If the supplied image contains any extra adult, child, baby, pet, toy, or background object, remove it unless the correction explicitly asks to keep it.",
     "Do not make a photorealistic portrait, caricature, sticker, logo, toy packaging image, or social-media avatar.",
     "No text, captions, name labels, age labels, watermark, logos, franchise styling, celebrity styling, recognisable character prints, or exact copy of clothing designs.",
     NO_VISIBLE_TEXT_IN_REFERENCE,
@@ -265,6 +274,9 @@ async function analyzePhoto(input: {
 export function buildStoryPersonAppearanceSummary(person: StoryPerson): string {
   return [
     person.appearance.trim(),
+    person.bodyBuild && person.bodyBuild !== "not_specified"
+      ? `Body build: ${getBodyBuildLabel(person.bodyBuild)}.`
+      : "",
     person.personality.trim()
       ? `Personality: ${person.personality.trim()}.`
       : "",
@@ -295,6 +307,18 @@ function buildAdjustedSummary(summary: string, adjustment?: string): string {
     .filter(Boolean)
     .join(" ")
     .slice(0, 600);
+}
+
+function isTextOnlyAdjustment(adjustment?: string): boolean {
+  return /\b(text|word|words|label|labels|caption|captions|name|names|pronoun|pronouns|letter|letters|number|numbers|age|mumma|mama|mum|mummy|dad|daddy|he\/|she\/|they\/)\b/i.test(
+    adjustment ?? ""
+  );
+}
+
+function buildAdjustedAppearance(appearance: string, adjustment?: string): string {
+  const clean = appearance.trim();
+  if (!adjustment?.trim() || isTextOnlyAdjustment(adjustment)) return clean;
+  return buildAdjustedSummary(clean, adjustment);
 }
 
 export async function createStoryPersonAvatar(input: {
@@ -391,14 +415,14 @@ export async function redoStoryPersonAvatar(input: {
   });
 
   await deletePreviousReference(input.person.avatarImageUrl);
-  const appearance = input.person.appearance.trim();
+  const appearance = buildAdjustedAppearance(input.person.appearance, adjustment);
 
   return {
     avatarImageUrl,
     appearance,
     appearanceSummary: buildAdjustedSummary(
       input.person.appearanceSummary ||
-        buildStoryPersonAppearanceSummary(input.person),
+        buildStoryPersonAppearanceSummary({ ...input.person, appearance }),
       adjustment
     ),
   };
@@ -507,6 +531,6 @@ export async function redoChildProfileAvatar(input: {
         "",
       adjustment
     ),
-    consistencyNote: adjustment,
+    consistencyNote: isTextOnlyAdjustment(adjustment) ? undefined : adjustment,
   };
 }

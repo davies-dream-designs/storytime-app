@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import {
   buildChildAppearanceSummary,
+  getStoryPersonAppearanceContext,
   getStoryPersonRelationshipLabel,
 } from "@/types";
 import type {
@@ -53,7 +54,7 @@ export async function loadBuildContext(project: BookProject) {
       role: "family_friend_pet",
       relationship: getStoryPersonRelationshipLabel(person),
       imageUrl: person.avatarImageUrl,
-      appearance: person.appearanceSummary || person.appearance || undefined,
+      appearance: getStoryPersonAppearanceContext(person) || undefined,
     });
   }
 
@@ -69,6 +70,7 @@ export async function loadBuildContext(project: BookProject) {
       normalizeSnapshotPart(person.avatarImageUrl),
       normalizeSnapshotPart(person.appearanceSummary),
       normalizeSnapshotPart(person.appearance),
+      normalizeSnapshotPart(person.bodyBuild),
       normalizeSnapshotPart(person.updatedAt),
     ]),
   ].join("|");

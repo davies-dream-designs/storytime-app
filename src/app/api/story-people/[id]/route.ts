@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import type { StoryPerson } from "@/types";
-import { sanitizeStoryPersonRelationship } from "@/types";
+import { sanitizeBodyBuild, sanitizeStoryPersonRelationship } from "@/types";
 
 function sanitizeText(value: unknown, maxLength = 400): string {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
@@ -76,6 +76,10 @@ export async function PUT(
             ) === "other"
           ? sanitizeText(body.customRelationship, 80) || undefined
           : undefined,
+    bodyBuild:
+      body.bodyBuild === undefined
+        ? existing.bodyBuild
+        : sanitizeBodyBuild(body.bodyBuild),
     description:
       body.description === undefined
         ? existing.description

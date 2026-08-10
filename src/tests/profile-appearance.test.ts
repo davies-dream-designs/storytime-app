@@ -9,6 +9,7 @@ describe("child appearance custom details", () => {
   it("uses custom labels for selected other values in summaries", () => {
     const appearance = sanitizeChildAppearance({
       hairColor: "other",
+      bodyBuild: "large",
       customHairColor: "strawberry blonde",
       hairTexture: "wavy",
       hairStyles: ["other"],
@@ -23,6 +24,9 @@ describe("child appearance custom details", () => {
       customFavoriteClothingItem: "yellow gumboots",
     });
 
+    expect(buildChildAppearanceSummary(appearance)).toContain(
+      "large body build"
+    );
     expect(buildChildAppearanceSummary(appearance)).toContain(
       "strawberry blonde wavy hair"
     );
@@ -40,6 +44,9 @@ describe("child appearance custom details", () => {
     );
     expect(buildChildAppearanceSummary(appearance)).toContain(
       "often shown with yellow gumboots"
+    );
+    expect(buildChildAppearanceDoNotChange(appearance)).toContain(
+      "large body build"
     );
     expect(buildChildAppearanceDoNotChange(appearance)).toContain(
       "small eyebrow scar"

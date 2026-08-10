@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Link, useRouter } from "@/i18n/navigation";
 import type { Story } from "@/types";
 import Icon from "@/components/ui/Icon";
+import { useConfirmDialog } from "@/components/ui/useConfirmDialog";
 
 export default function PublicSubmissionPanel({
   story,
@@ -21,6 +22,7 @@ export default function PublicSubmissionPanel({
   const [terms, setTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { confirm, ConfirmDialog } = useConfirmDialog();
 
   const status = story.publicReviewStatus ?? "not_submitted";
   const isApproved = story.visibility === "public" && status === "approved";
@@ -28,15 +30,15 @@ export default function PublicSubmissionPanel({
   const showSubmissionForm =
     canSubmitPublicly && status !== "pending_review" && !isApproved;
 
-  function submitForReview() {
+  async function submitForReview() {
     setError(null);
-    if (
-      !window.confirm(
-        `Submit this illustrated story to the public gallery as "${authorName.trim()}"?\n\nIf approved, other signed-in readers can read, vote, and report it. Monthly winners may earn bonus Storycot credits.`
-      )
-    ) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: "Submit For Review",
+      message: `Submit this illustrated story to the public gallery as "${authorName.trim()}"?\n\nIf approved, other signed-in readers can read, vote, and report it. Monthly winners may earn bonus Storycot credits.`,
+      confirmLabel: "Submit For Review",
+    });
+    if (!confirmed) return;
+
     startTransition(async () => {
       const res = await fetch(`/api/stories/${story.id}/public-submission`, {
         method: "POST",
@@ -248,6 +250,7 @@ export default function PublicSubmissionPanel({
           )}
         </div>
       )}
+      <ConfirmDialog />
     </section>
   );
 }

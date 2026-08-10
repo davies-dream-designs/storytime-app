@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useConfirmDialog } from "@/components/ui/useConfirmDialog";
 
 type Status = "idle" | "loading" | "done" | "error";
 
@@ -17,9 +18,17 @@ function MigrationButton({
 }) {
   const [status, setStatus] = useState<Status>("idle");
   const [result, setResult] = useState<string | null>(null);
+  const { confirm: confirmDialog, ConfirmDialog } = useConfirmDialog();
 
   async function run() {
-    if (confirm && !window.confirm(confirm)) return;
+    if (confirm) {
+      const confirmed = await confirmDialog({
+        title: label,
+        message: confirm,
+        confirmLabel: "Run",
+      });
+      if (!confirmed) return;
+    }
 
     setStatus("loading");
     setResult(null);
@@ -62,6 +71,7 @@ function MigrationButton({
           {result}
         </pre>
       )}
+      <ConfirmDialog />
     </div>
   );
 }

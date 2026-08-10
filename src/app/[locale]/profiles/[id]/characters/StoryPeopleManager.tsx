@@ -5,6 +5,7 @@ import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 import { formStyles } from "@/components/ui/formStyles";
+import { useConfirmDialog } from "@/components/ui/useConfirmDialog";
 import type {
   ChildProfile,
   BodyBuild,
@@ -149,6 +150,7 @@ export default function StoryPeopleManager({
     credits: number;
     isAdmin: boolean;
   } | null>(null);
+  const { confirm, ConfirmDialog } = useConfirmDialog();
 
   useEffect(() => {
     fetch("/api/user/credits")
@@ -294,7 +296,13 @@ export default function StoryPeopleManager({
   }
 
   async function remove(person: StoryPerson) {
-    if (!window.confirm(`Remove ${person.name} from Family & Friends?`)) return;
+    const confirmed = await confirm({
+      title: "Remove Family & Friends Profile",
+      message: `Remove ${person.name} from Family & Friends?`,
+      confirmLabel: "Remove",
+      variant: "danger",
+    });
+    if (!confirmed) return;
     const res = await fetch(`/api/story-people/${person.id}`, {
       method: "DELETE",
     });
@@ -391,7 +399,12 @@ export default function StoryPeopleManager({
         : isRedo
           ? `Redoing ${person.name}'s illustrated reference is free for admins. Continue?`
           : `Creating ${person.name}'s illustrated reference is free. Continue?`;
-    if (!window.confirm(confirmMessage)) return;
+    const confirmed = await confirm({
+      title: isRedo ? "Redo Illustrated Reference" : "Create Illustrated Reference",
+      message: confirmMessage,
+      confirmLabel: isRedo ? "Redo Reference" : "Create Reference",
+    });
+    if (!confirmed) return;
     setError("");
     setGeneratingAvatarForId(person.id);
     try {
@@ -422,15 +435,15 @@ export default function StoryPeopleManager({
       setError("You need 1 credit to redo this illustrated reference.");
       return;
     }
-    if (
-      !window.confirm(
+    const confirmed = await confirm({
+      title: "Redo Illustrated Reference",
+      message:
         cost > 0
           ? `Redoing ${person.name}'s illustrated reference will use 1 credit. Continue?`
-          : `Redoing ${person.name}'s illustrated reference is free for admins. Continue?`
-      )
-    ) {
-      return;
-    }
+          : `Redoing ${person.name}'s illustrated reference is free for admins. Continue?`,
+      confirmLabel: "Redo Reference",
+    });
+    if (!confirmed) return;
     setError("");
     setGeneratingAvatarForId(person.id);
     try {
@@ -1617,6 +1630,7 @@ export default function StoryPeopleManager({
           </div>
         )}
       </section>
+      <ConfirmDialog />
     </div>
   );
 }

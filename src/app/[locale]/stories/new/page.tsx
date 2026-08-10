@@ -10,6 +10,7 @@ import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 import { choiceCardClassName, formStyles } from "@/components/ui/formStyles";
+import { useConfirmDialog } from "@/components/ui/useConfirmDialog";
 import type {
   ChildProfile,
   StoryPerson,
@@ -193,6 +194,7 @@ function GenerateForm() {
     credits: number;
     isAdmin: boolean;
   } | null>(null);
+  const { confirm, ConfirmDialog } = useConfirmDialog();
 
   useEffect(() => {
     fetch("/api/profiles")
@@ -348,7 +350,12 @@ function GenerateForm() {
       setError(t("noCreditsBody"));
       return;
     }
-    if (!window.confirm(t("creditConfirm"))) return;
+    const confirmed = await confirm({
+      title: "Generate Story",
+      message: t("creditConfirm"),
+      confirmLabel: t("generateButton2"),
+    });
+    if (!confirmed) return;
 
     setGenerating(true);
     try {
@@ -482,7 +489,8 @@ function GenerateForm() {
   }
 
   return (
-    <div className="space-y-8">
+    <>
+      <div className="space-y-8">
       <div>
         <p className="mb-3 text-sm font-bold uppercase tracking-wide text-night-400">
           {t("stepWho")}
@@ -938,7 +946,9 @@ function GenerateForm() {
           )}
         </>
       )}
-    </div>
+      </div>
+      <ConfirmDialog />
+    </>
   );
 }
 

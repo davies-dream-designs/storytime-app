@@ -657,9 +657,9 @@ export default function BookStatusPanel({
                   type="button"
                   aria-label="Close book tools"
                   onClick={() => setReadyToolsOpen(false)}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-night-50 text-lg font-bold text-night-500 transition hover:bg-night-100"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-night-100 bg-white text-2xl font-bold leading-none text-night-800 shadow-sm transition hover:bg-night-50"
                 >
-                  X
+                  ×
                 </button>
               </div>
 
@@ -865,27 +865,35 @@ export default function BookStatusPanel({
 
         {expandedImage ? (
           <div
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-night-900/75 p-4"
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-night-900/75 p-2 sm:p-4"
             role="dialog"
             aria-modal="true"
             aria-labelledby="expanded-image-dialog-title"
             onClick={() => setExpandedImage(null)}
           >
             <div
-              className="max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-3xl bg-white shadow-2xl"
+              className="relative flex max-h-[92dvh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:rounded-3xl"
               onClick={(event) => event.stopPropagation()}
             >
+              <button
+                type="button"
+                aria-label="Close artwork preview"
+                onClick={() => setExpandedImage(null)}
+                className="absolute right-2 top-2 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-night-100 bg-white/95 text-2xl font-bold leading-none text-night-800 shadow-lg ring-1 ring-white/70 transition hover:bg-night-50"
+              >
+                ×
+              </button>
               {expandedImage.url ? (
-                <div className="relative bg-night-100">
+                <div className="relative min-h-0 bg-night-100">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={expandedImage.url}
                     alt={expandedImage.displayLabel ?? "Selected illustration"}
-                    className="max-h-[76vh] w-full object-contain"
+                    className="max-h-[calc(92dvh-96px)] w-full object-contain"
                   />
                 </div>
               ) : null}
-              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+              <div className="shrink-0 flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4">
                 <p
                   id="expanded-image-dialog-title"
                   className="text-sm font-bold text-night-700"
@@ -1491,22 +1499,30 @@ export default function BookStatusPanel({
 
       {expandedImage ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-night-900/75 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-night-900/75 p-2 sm:p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="expanded-image-dialog-title"
           onClick={() => setExpandedImage(null)}
         >
           <div
-            className="max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-3xl bg-white shadow-2xl"
+            className="relative flex max-h-[92dvh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:rounded-3xl"
             onClick={(event) => event.stopPropagation()}
           >
+            <button
+              type="button"
+              aria-label="Close artwork preview"
+              onClick={() => setExpandedImage(null)}
+              className="absolute right-2 top-2 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-night-100 bg-white/95 text-2xl font-bold leading-none text-night-800 shadow-lg ring-1 ring-white/70 transition hover:bg-night-50"
+            >
+              ×
+            </button>
             {expandedImage.url ? (
-              <div className="relative bg-night-100">
+              <div className="relative min-h-0 bg-night-100">
                 <img
                   src={expandedImage.url}
                   alt={expandedImage.displayLabel ?? "Selected illustration"}
-                  className="max-h-[76vh] w-full object-contain"
+                  className="max-h-[calc(92dvh-112px)] w-full object-contain"
                 />
                 {artworkPreviews.length > 1 ? (
                   <>
@@ -1530,7 +1546,7 @@ export default function BookStatusPanel({
                 ) : null}
               </div>
             ) : null}
-            <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+            <div className="shrink-0 flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4">
               <p
                 id="expanded-image-dialog-title"
                 className="text-sm font-bold text-night-700"

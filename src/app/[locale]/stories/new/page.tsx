@@ -58,6 +58,8 @@ const FALLBACK_THEME_OPTIONS = [
 ] as const;
 
 const CHILD_CAST_ID_PREFIX = "child:";
+const MAX_SUPPORTING_CAST = 3;
+const MAX_VISIBLE_SUGGESTIONS = 9;
 
 function buildChildCastId(profileId: string): string {
   return `${CHILD_CAST_ID_PREFIX}${profileId}`;
@@ -255,7 +257,9 @@ function GenerateForm() {
               .filter((profile) => profile.id !== profileId)
               .map((profile) => buildChildCastId(profile.id)),
           ]);
-          return current.filter((id) => allowedIds.has(id));
+          return current
+            .filter((id) => allowedIds.has(id))
+            .slice(0, MAX_SUPPORTING_CAST);
         });
       })
       .catch(() => {
@@ -269,7 +273,7 @@ function GenerateForm() {
     if (!pid) return;
     setLoadingSuggestions(true);
     if (!fresh) setSuggestions([]);
-    setSelectedSuggestion(null);
+    if (!fresh) setSelectedSuggestion(null);
     try {
       const res = await fetch("/api/stories/suggest", {
         method: "POST",
@@ -283,7 +287,26 @@ function GenerateForm() {
         }),
       });
       const data = await res.json();
-      if (res.ok) setSuggestions(data);
+      if (res.ok) {
+        const nextSuggestions = Array.isArray(data)
+          ? (data as StorySuggestion[])
+          : [];
+        setSuggestions((current) => {
+          if (!fresh) return nextSuggestions.slice(0, MAX_VISIBLE_SUGGESTIONS);
+          const seen = new Set(
+            current.map((suggestion) =>
+              `${suggestion.title.trim()}|${suggestion.premise.trim()}`
+            )
+          );
+          const uniqueNew = nextSuggestions.filter((suggestion) => {
+            const key = `${suggestion.title.trim()}|${suggestion.premise.trim()}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+          return [...current, ...uniqueNew].slice(0, MAX_VISIBLE_SUGGESTIONS);
+        });
+      }
     } catch {
       /* ignore */
     } finally {
@@ -444,7 +467,8 @@ function GenerateForm() {
     profileId && (selectedSuggestion || buildBuilderPremise());
   const outOfCredits =
     creditInfo !== null && !creditInfo.isAdmin && creditInfo.credits < 1;
-  const canGetMoreIdeas = suggestions.length > 0 && suggestions.length < 9;
+  const canGetMoreIdeas =
+    suggestions.length > 0 && suggestions.length < MAX_VISIBLE_SUGGESTIONS;
   const childCastPeople = profiles
     .filter((profile) => profile.id !== profileId)
     .map(childProfileToCastPerson);
@@ -454,13 +478,15 @@ function GenerateForm() {
   );
 
   function toggleStoryPerson(id: string) {
-    setSuggestions([]);
-    setSelectedSuggestion(null);
     setSelectedStoryPersonIds((current) =>
       current.includes(id)
         ? current.filter((currentId) => currentId !== id)
-        : [...current, id]
+        : current.length >= MAX_SUPPORTING_CAST
+          ? current
+          : [...current, id]
     );
+    setSuggestions([]);
+    setSelectedSuggestion(null);
   }
 
   return (
@@ -561,9 +587,8 @@ function GenerateForm() {
                     Who&rsquo;s In This Story?
                   </p>
                   <p className="mt-1 text-sm leading-6 text-night-500">
-                    {selectedProfile?.name} is always the star. Add another
-                    child profile, family member, friend, or pet when they
-                    should appear.
+                    {selectedProfile?.name} is always included. Choose up to{" "}
+                    {MAX_SUPPORTING_CAST} extra people, pets, or children.
                   </p>
                 </div>
                 <Link
@@ -579,53 +604,98 @@ function GenerateForm() {
                 </Link>
               </div>
 
+              {selectedProfile ? (
+                <div className="mt-4 rounded-xl border-2 border-night-700 bg-night-700 p-3 text-moon-100">
+                  <div className="flex items-center gap-3">
+                    {selectedProfile.avatarImageUrl ? (
+                      <span
+                        className="h-11 w-11 shrink-0 rounded-full bg-cover bg-center ring-2 ring-moon-200"
+                        style={{
+                          backgroundImage: `url("${selectedProfile.avatarImageUrl}")`,
+                        }}
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-moon-200 font-display font-bold text-night-800">
+                        {selectedProfile.name[0]?.toUpperCase()}
+                      </span>
+                    )}
+                    <span className="min-w-0">
+                      <span className="block text-xs font-bold uppercase tracking-wide text-moon-300">
+                        Main Child
+                      </span>
+                      <span className="block truncate font-display text-lg font-bold">
+                        {selectedProfile.name}
+                      </span>
+                      <span className="block text-xs font-semibold text-moon-300">
+                        Always included
+                      </span>
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+
               {loadingStoryPeople ? (
                 <p className="mt-3 text-sm text-night-400">
                   Loading family and friends...
                 </p>
               ) : castPeople.length > 0 ? (
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {castPeople.map((person) => {
-                    const selected = selectedStoryPersonIds.includes(person.id);
-                    const isChildProfile =
-                      person.id.startsWith(CHILD_CAST_ID_PREFIX);
-                    return (
-                      <button
-                        key={person.id}
-                        type="button"
-                        onClick={() => toggleStoryPerson(person.id)}
-                        className={choiceCardClassName(
-                          selected,
-                          "flex min-h-20 items-center gap-3 rounded-xl p-3 text-left"
-                        )}
-                      >
-                        {person.avatarImageUrl ? (
-                          <span
-                            className="h-10 w-10 shrink-0 rounded-full bg-cover bg-center"
-                            style={{
-                              backgroundImage: `url("${person.avatarImageUrl}")`,
-                            }}
-                            aria-hidden="true"
-                          />
-                        ) : (
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-moon-100 font-display font-bold text-night-700">
-                            {person.name[0]?.toUpperCase()}
+                <>
+                  <div className="mt-4 flex items-center justify-between gap-3 text-xs font-bold uppercase tracking-wide text-night-400">
+                    <span>Supporting Cast</span>
+                    <span>
+                      {selectedStoryPersonIds.length}/{MAX_SUPPORTING_CAST}
+                    </span>
+                  </div>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {castPeople.map((person) => {
+                      const selected = selectedStoryPersonIds.includes(
+                        person.id
+                      );
+                      const disabled =
+                        !selected &&
+                        selectedStoryPersonIds.length >= MAX_SUPPORTING_CAST;
+                      const isChildProfile =
+                        person.id.startsWith(CHILD_CAST_ID_PREFIX);
+                      return (
+                        <button
+                          key={person.id}
+                          type="button"
+                          onClick={() => toggleStoryPerson(person.id)}
+                          disabled={disabled}
+                          className={`${choiceCardClassName(
+                            selected,
+                            "flex min-h-20 items-center gap-3 rounded-xl p-3 text-left"
+                          )} disabled:cursor-not-allowed disabled:opacity-45`}
+                        >
+                          {person.avatarImageUrl ? (
+                            <span
+                              className="h-10 w-10 shrink-0 rounded-full bg-cover bg-center"
+                              style={{
+                                backgroundImage: `url("${person.avatarImageUrl}")`,
+                              }}
+                              aria-hidden="true"
+                            />
+                          ) : (
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-moon-100 font-display font-bold text-night-700">
+                              {person.name[0]?.toUpperCase()}
+                            </span>
+                          )}
+                          <span className="min-w-0">
+                            <span className="block truncate font-bold text-night-800">
+                              {person.name}
+                            </span>
+                            <span className="block text-xs capitalize text-night-400">
+                              {isChildProfile
+                                ? "Child profile"
+                                : getStoryPersonRelationshipLabel(person)}
+                            </span>
                           </span>
-                        )}
-                        <span className="min-w-0">
-                          <span className="block truncate font-bold text-night-800">
-                            {person.name}
-                          </span>
-                          <span className="block text-xs capitalize text-night-400">
-                            {isChildProfile
-                              ? "Child profile"
-                              : getStoryPersonRelationshipLabel(person)}
-                          </span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
               ) : (
                 <div className="mt-4 rounded-xl border border-dashed border-night-200 bg-white px-4 py-3">
                   <p className="text-sm font-bold text-night-700">
@@ -640,8 +710,13 @@ function GenerateForm() {
 
               {selectedStoryPeople.length > 0 ? (
                 <p className="mt-3 text-xs font-semibold text-night-400">
-                  Selected:{" "}
+                  Extra cast selected:{" "}
                   {selectedStoryPeople.map((person) => person.name).join(", ")}
+                </p>
+              ) : castPeople.length > 0 ? (
+                <p className="mt-3 text-xs font-semibold text-night-400">
+                  No extra cast selected. The story will focus on{" "}
+                  {selectedProfile?.name}.
                 </p>
               ) : null}
             </div>
@@ -717,7 +792,7 @@ function GenerateForm() {
           <p className="mb-3 text-sm font-bold uppercase tracking-wide text-night-400">
             {t("stepChoose")}
           </p>
-          {loadingSuggestions ? (
+          {loadingSuggestions && suggestions.length === 0 ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
                 <div
@@ -758,11 +833,18 @@ function GenerateForm() {
                 </button>
               ))}
 
+              {loadingSuggestions ? (
+                <div className="rounded-2xl border border-dashed border-night-200 bg-white/70 p-4 text-center text-sm font-bold text-night-400">
+                  Finding more different ideas...
+                </div>
+              ) : null}
+
               <p className="text-xs text-night-400">{t("suggestionsNote")}</p>
               {canGetMoreIdeas ? (
                 <button
                   type="button"
                   onClick={() => fetchSuggestions(profileId, true)}
+                  disabled={loadingSuggestions}
                   className="w-full rounded-xl border border-night-200 bg-white py-3 text-sm font-bold text-night-600 transition hover:bg-night-50"
                 >
                   {t("getMoreIdeas")}

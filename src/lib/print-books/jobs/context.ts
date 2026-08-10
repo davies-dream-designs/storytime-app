@@ -7,6 +7,12 @@ import {
   getBodyBuildIllustrationCue,
   getBodyBuildLabel,
 } from "@/types/bodyBuild";
+import {
+  getStoryPersonAgeGroupIllustrationCue,
+  getStoryPersonAgeGroupLabel,
+  getStoryPersonHeightIllustrationCue,
+  getStoryPersonHeightLabel,
+} from "@/types/storyPersonTraits";
 import type {
   BookProject,
   CharacterVisualReference,
@@ -60,16 +66,26 @@ export async function loadBuildContext(project: BookProject) {
   for (const person of storyPeople) {
     if (!person.avatarImageUrl) continue;
     const bodyBuildCue = getBodyBuildIllustrationCue(person.bodyBuild);
+    const ageGroupCue = getStoryPersonAgeGroupIllustrationCue(person.ageGroup);
+    const heightCue = getStoryPersonHeightIllustrationCue(person.height);
     const appearance = [
       person.appearance.trim()
         ? `Latest edited appearance: ${person.appearance.trim()}.`
         : "",
+      person.ageGroup && person.ageGroup !== "not_specified"
+        ? `Latest age group: ${getStoryPersonAgeGroupLabel(person.ageGroup)}.`
+        : "",
+      ageGroupCue ? `Illustration age cue: ${ageGroupCue}.` : "",
+      person.height && person.height !== "not_specified"
+        ? `Latest height: ${getStoryPersonHeightLabel(person.height)}.`
+        : "",
+      heightCue ? `Illustration height cue: ${heightCue}.` : "",
       person.bodyBuild && person.bodyBuild !== "not_specified"
         ? `Latest body build: ${getBodyBuildLabel(person.bodyBuild)}.`
         : "",
       bodyBuildCue ? `Illustration body-build cue: ${bodyBuildCue}.` : "",
       person.appearanceSummary?.trim()
-        ? `Previous generated reference summary, use only when it does not conflict with latest edited appearance/body build: ${person.appearanceSummary.trim()}`
+        ? `Previous generated reference summary, use only when it does not conflict with latest edited appearance, age, height, or body build: ${person.appearanceSummary.trim()}`
         : "",
     ]
       .filter(Boolean)
@@ -96,6 +112,8 @@ export async function loadBuildContext(project: BookProject) {
       normalizeSnapshotPart(person.avatarImageUrl),
       normalizeSnapshotPart(person.appearanceSummary),
       normalizeSnapshotPart(person.appearance),
+      normalizeSnapshotPart(person.ageGroup),
+      normalizeSnapshotPart(person.height),
       normalizeSnapshotPart(person.bodyBuild),
       normalizeSnapshotPart(person.updatedAt),
     ]),

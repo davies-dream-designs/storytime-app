@@ -5,6 +5,8 @@ import {
   buildChildAppearanceSummary,
   getAgeInMonths,
   getBodyBuildLabel,
+  getStoryPersonAgeGroupLabel,
+  getStoryPersonHeightLabel,
   getStoryPersonRelationshipLabel,
 } from "@/types";
 import { deleteBookAssetUrls, storeBookAsset } from "@/lib/print-books/storage";
@@ -75,6 +77,12 @@ export function buildStoryPersonAvatarPrompt(
       ? `Role notes for behaviour/context only: ${person.description}.`
       : "",
     person.personality ? `Personality: ${person.personality}.` : "",
+    person.ageGroup && person.ageGroup !== "not_specified"
+      ? `Age group context: ${getStoryPersonAgeGroupLabel(person.ageGroup)}. Preserve this broad life stage without making the person look older or younger than requested.`
+      : "",
+    person.height && person.height !== "not_specified"
+      ? `Height context: ${getStoryPersonHeightLabel(person.height)}. Preserve this as a relative height cue for reusable story scenes.`
+      : "",
     person.bodyBuild && person.bodyBuild !== "not_specified"
       ? `Body build context: ${getBodyBuildLabel(person.bodyBuild)}. Preserve this as a respectful broad body-shape cue without exaggerating it.`
       : "",
@@ -274,6 +282,12 @@ async function analyzePhoto(input: {
 export function buildStoryPersonAppearanceSummary(person: StoryPerson): string {
   return [
     person.appearance.trim(),
+    person.ageGroup && person.ageGroup !== "not_specified"
+      ? `Age group: ${getStoryPersonAgeGroupLabel(person.ageGroup)}.`
+      : "",
+    person.height && person.height !== "not_specified"
+      ? `Height: ${getStoryPersonHeightLabel(person.height)}.`
+      : "",
     person.bodyBuild && person.bodyBuild !== "not_specified"
       ? `Body build: ${getBodyBuildLabel(person.bodyBuild)}.`
       : "",

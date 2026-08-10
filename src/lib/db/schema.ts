@@ -15,6 +15,8 @@ import type {
   StoryPage,
   StoryIpPolicy,
   StoryPreset,
+  StoryPersonAgeGroup,
+  StoryPersonHeight,
   StoryPersonRelationship,
   StoryVisibility,
 } from "@/types";
@@ -120,6 +122,8 @@ export const storyPeople = pgTable(
       .default("other"),
     customRelationship: text("custom_relationship"),
     bodyBuild: text("body_build").$type<BodyBuild>(),
+    ageGroup: text("age_group").$type<StoryPersonAgeGroup>(),
+    height: text("height").$type<StoryPersonHeight>(),
     description: text("description").notNull().default(""),
     personality: text("personality").notNull().default(""),
     appearance: text("appearance").notNull().default(""),

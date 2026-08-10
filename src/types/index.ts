@@ -1,5 +1,11 @@
 import type { ChildAppearance } from "./profileAppearance";
 import { getBodyBuildLabel, type BodyBuild } from "./bodyBuild";
+import {
+  getStoryPersonAgeGroupLabel,
+  getStoryPersonHeightLabel,
+  type StoryPersonAgeGroup,
+  type StoryPersonHeight,
+} from "./storyPersonTraits";
 
 export const CHILD_GENDERS = [
   "girl",
@@ -224,6 +230,8 @@ export interface StoryPerson {
   relationship: StoryPersonRelationship;
   customRelationship?: string;
   bodyBuild?: BodyBuild;
+  ageGroup?: StoryPersonAgeGroup;
+  height?: StoryPersonHeight;
   description: string;
   personality: string;
   appearance: string;
@@ -258,11 +266,17 @@ export function getStoryPersonRelationshipLabel(
 export function getStoryPersonAppearanceContext(person: StoryPerson): string {
   const parts = [
     person.appearance.trim(),
+    person.ageGroup && person.ageGroup !== "not_specified"
+      ? `Age group: ${getStoryPersonAgeGroupLabel(person.ageGroup)}.`
+      : "",
+    person.height && person.height !== "not_specified"
+      ? `Height: ${getStoryPersonHeightLabel(person.height)}.`
+      : "",
     person.bodyBuild && person.bodyBuild !== "not_specified"
       ? `Body build: ${getBodyBuildLabel(person.bodyBuild)}.`
       : "",
     person.appearanceSummary?.trim()
-      ? `Previous generated reference summary, use only when it does not conflict with the latest appearance/body build: ${person.appearanceSummary.trim()}`
+      ? `Previous generated reference summary, use only when it does not conflict with the latest appearance, age, height, or body build: ${person.appearanceSummary.trim()}`
       : "",
   ].filter(Boolean);
   return Array.from(new Set(parts)).join(" ");
@@ -293,3 +307,4 @@ export type Lesson = (typeof LESSON_OPTIONS)[number];
 
 export * from "./bodyBuild";
 export * from "./profileAppearance";
+export * from "./storyPersonTraits";

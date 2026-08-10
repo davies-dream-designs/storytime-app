@@ -13,6 +13,8 @@ describe("story people avatar prompts", () => {
       name: "Mumma",
       relationship: "parent",
       bodyBuild: "large",
+      ageGroup: "adult",
+      height: "tall",
       description: "Kind bedtime helper",
       personality: "gentle and funny",
       appearance: "Warm smile and short brown hair.",
@@ -29,6 +31,8 @@ describe("story people avatar prompts", () => {
     );
 
     expect(prompt).not.toMatch(/Mumma|he\/her|Display name|Pronouns:/i);
+    expect(prompt).toContain("Age group context: Adult.");
+    expect(prompt).toContain("Height context: Tall.");
     expect(prompt).toContain("Body build context: Large.");
     expect(prompt).toContain("remove all visible writing");
     expect(prompt).toContain("Do not include any written words");

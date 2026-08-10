@@ -89,6 +89,8 @@ describe("child appearance custom details", () => {
       name: "Glenpa",
       relationship: "grandparent",
       bodyBuild: "very_large",
+      ageGroup: "older_adult",
+      height: "tall",
       description: "",
       personality: "",
       appearance: "grey hair tied in a neat man bun",
@@ -102,6 +104,9 @@ describe("child appearance custom details", () => {
     expect(context.indexOf("grey hair tied in a neat man bun")).toBeLessThan(
       context.indexOf("shoulder-length wavy grey hair")
     );
+    expect(context).toContain("Age group: Older Adult.");
+    expect(context).toContain("Height: Tall.");
+    expect(context).toContain("Body build: Very Large.");
     expect(context).toContain(
       "Previous generated reference summary, use only when it does not conflict"
     );

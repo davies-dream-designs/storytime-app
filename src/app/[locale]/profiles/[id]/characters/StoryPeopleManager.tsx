@@ -10,12 +10,18 @@ import type {
   ChildProfile,
   BodyBuild,
   StoryPerson,
+  StoryPersonAgeGroup,
+  StoryPersonHeight,
   StoryPersonRelationship,
 } from "@/types";
 import {
   BODY_BUILD_OPTIONS,
   getBodyBuildLabel,
+  getStoryPersonAgeGroupLabel,
+  getStoryPersonHeightLabel,
   getStoryPersonRelationshipLabel,
+  STORY_PERSON_AGE_GROUP_OPTIONS,
+  STORY_PERSON_HEIGHT_OPTIONS,
   STORY_PERSON_RELATIONSHIPS,
 } from "@/types";
 
@@ -25,6 +31,8 @@ type FormState = {
   relationship: StoryPersonRelationship;
   customRelationship: string;
   bodyBuild: BodyBuild;
+  ageGroup: StoryPersonAgeGroup;
+  height: StoryPersonHeight;
   pronouns: string;
   description: string;
   personality: string;
@@ -47,6 +55,8 @@ const EMPTY_FORM: FormState = {
   relationship: "parent",
   customRelationship: "",
   bodyBuild: "not_specified",
+  ageGroup: "not_specified",
+  height: "not_specified",
   pronouns: "",
   description: "",
   personality: "",
@@ -90,6 +100,8 @@ function formFromPerson(person: StoryPerson): FormState {
     relationship: person.relationship,
     customRelationship: person.customRelationship ?? "",
     bodyBuild: person.bodyBuild ?? "not_specified",
+    ageGroup: person.ageGroup ?? "not_specified",
+    height: person.height ?? "not_specified",
     pronouns: person.pronouns ?? "",
     description: person.description,
     personality: person.personality,
@@ -625,6 +637,44 @@ export default function StoryPeopleManager({
                 />
               </div>
               <div>
+                <label className={formStyles.subLabel}>Age Group</label>
+                <select
+                  value={form.ageGroup}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      ageGroup: event.target.value as StoryPersonAgeGroup,
+                    }))
+                  }
+                  className={formStyles.field}
+                >
+                  {STORY_PERSON_AGE_GROUP_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {getStoryPersonAgeGroupLabel(option)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={formStyles.subLabel}>Height</label>
+                <select
+                  value={form.height}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      height: event.target.value as StoryPersonHeight,
+                    }))
+                  }
+                  className={formStyles.field}
+                >
+                  {STORY_PERSON_HEIGHT_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {getStoryPersonHeightLabel(option)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
                 <label className={formStyles.subLabel}>Body Build</label>
                 <select
                   value={form.bodyBuild}
@@ -992,6 +1042,13 @@ export default function StoryPeopleManager({
                           <p className="text-sm capitalize text-night-400">
                             {getStoryPersonRelationshipLabel(person)}
                             {person.pronouns ? ` · ${person.pronouns}` : ""}
+                            {person.ageGroup &&
+                            person.ageGroup !== "not_specified"
+                              ? ` · ${getStoryPersonAgeGroupLabel(person.ageGroup)}`
+                              : ""}
+                            {person.height && person.height !== "not_specified"
+                              ? ` · ${getStoryPersonHeightLabel(person.height)}`
+                              : ""}
                             {person.bodyBuild &&
                             person.bodyBuild !== "not_specified"
                               ? ` · ${getBodyBuildLabel(person.bodyBuild)} build`
@@ -1105,6 +1162,50 @@ export default function StoryPeopleManager({
                               placeholder="she/her, he/him, they/them"
                               className={formStyles.field}
                             />
+                          </div>
+                          <div>
+                            <label className={formStyles.subLabel}>
+                              Age Group
+                            </label>
+                            <select
+                              value={form.ageGroup}
+                              onChange={(event) =>
+                                setForm((current) => ({
+                                  ...current,
+                                  ageGroup: event.target
+                                    .value as StoryPersonAgeGroup,
+                                }))
+                              }
+                              className={formStyles.field}
+                            >
+                              {STORY_PERSON_AGE_GROUP_OPTIONS.map((option) => (
+                                <option key={option} value={option}>
+                                  {getStoryPersonAgeGroupLabel(option)}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className={formStyles.subLabel}>
+                              Height
+                            </label>
+                            <select
+                              value={form.height}
+                              onChange={(event) =>
+                                setForm((current) => ({
+                                  ...current,
+                                  height: event.target
+                                    .value as StoryPersonHeight,
+                                }))
+                              }
+                              className={formStyles.field}
+                            >
+                              {STORY_PERSON_HEIGHT_OPTIONS.map((option) => (
+                                <option key={option} value={option}>
+                                  {getStoryPersonHeightLabel(option)}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                           <div>
                             <label className={formStyles.subLabel}>

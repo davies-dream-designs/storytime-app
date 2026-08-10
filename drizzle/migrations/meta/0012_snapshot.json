@@ -1,6 +1,6 @@
 {
-  "id": "d869cde1-b8c2-45a9-afdc-82d810b9dbc3",
-  "prevId": "53e5fd47-6dd5-42c1-b6ec-f84ccffb04cc",
+  "id": "ad98fd2c-13ff-477a-a609-c80b8fd204df",
+  "prevId": "d869cde1-b8c2-45a9-afdc-82d810b9dbc3",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1883,6 +1883,18 @@
         },
         "body_build": {
           "name": "body_build",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "age_group": {
+          "name": "age_group",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "height": {
+          "name": "height",
           "type": "text",
           "primaryKey": false,
           "notNull": false

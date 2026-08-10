@@ -124,6 +124,8 @@ describe("/api/story-people", () => {
         name: "Nanna",
         relationship: "grandparent",
         bodyBuild: "large",
+        ageGroup: "older_adult",
+        height: "short",
         profileIds: ["profile-1", "other-user-profile"],
         availableToAllProfiles: false,
       }),
@@ -134,23 +136,29 @@ describe("/api/story-people", () => {
     const body = (await res.json()) as StoryPerson;
     expect(body.relationship).toBe("grandparent");
     expect(body.bodyBuild).toBe("large");
+    expect(body.ageGroup).toBe("older_adult");
+    expect(body.height).toBe("short");
     expect(body.profileIds).toEqual(["profile-1"]);
     expect(mockDb.storyPeople.create).toHaveBeenCalledWith(
       expect.objectContaining({
         name: "Nanna",
         bodyBuild: "large",
+        ageGroup: "older_adult",
+        height: "short",
         profileIds: ["profile-1"],
       })
     );
   });
 
-  it("preserves and updates body build labels on story people", async () => {
+  it("preserves and updates physical context labels on story people", async () => {
     const person: StoryPerson = {
       id: "person-1",
       userId: "user-1",
       name: "Grandad",
       relationship: "grandparent",
       bodyBuild: "large",
+      ageGroup: "adult",
+      height: "average",
       description: "",
       personality: "",
       appearance: "",
@@ -163,6 +171,8 @@ describe("/api/story-people", () => {
     mockDb.storyPeople.update.mockResolvedValue({
       ...person,
       bodyBuild: "very_large",
+      ageGroup: "older_adult",
+      height: "tall",
     });
 
     const { PUT } = await import("@/app/api/story-people/[id]/route");
@@ -171,6 +181,8 @@ describe("/api/story-people", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         bodyBuild: "very_large",
+        ageGroup: "older_adult",
+        height: "tall",
       }),
     });
 
@@ -183,6 +195,8 @@ describe("/api/story-people", () => {
       "person-1",
       expect.objectContaining({
         bodyBuild: "very_large",
+        ageGroup: "older_adult",
+        height: "tall",
       })
     );
   });

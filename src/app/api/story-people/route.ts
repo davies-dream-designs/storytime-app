@@ -3,7 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import type { StoryPerson } from "@/types";
-import { sanitizeBodyBuild, sanitizeStoryPersonRelationship } from "@/types";
+import {
+  sanitizeBodyBuild,
+  sanitizeStoryPersonAgeGroup,
+  sanitizeStoryPersonHeight,
+  sanitizeStoryPersonRelationship,
+} from "@/types";
 
 function sanitizeText(value: unknown, maxLength = 400): string {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
@@ -73,6 +78,8 @@ export async function POST(req: NextRequest) {
         ? sanitizeText(body.customRelationship, 80) || undefined
         : undefined,
     bodyBuild: sanitizeBodyBuild(body.bodyBuild),
+    ageGroup: sanitizeStoryPersonAgeGroup(body.ageGroup),
+    height: sanitizeStoryPersonHeight(body.height),
     description: sanitizeText(body.description),
     personality: sanitizeText(body.personality),
     appearance: sanitizeText(body.appearance),

@@ -84,7 +84,7 @@ function childProfileToStoryPerson(profile: ChildProfile): StoryPerson {
     ].join(", "),
     appearance,
     appearanceSummary: appearance,
-    avatarImageUrl: undefined,
+    avatarImageUrl: profile.avatarImageUrl,
     availableToAllProfiles: true,
     profileIds: [],
     createdAt: profile.createdAt,

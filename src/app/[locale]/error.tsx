@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { unstable_rethrow } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Nav from "@/components/Nav";
 import ErrorState from "@/components/ErrorState";
@@ -12,6 +13,8 @@ export default function LocaleError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  unstable_rethrow(error);
+
   const t = useTranslations("errors");
 
   useEffect(() => {

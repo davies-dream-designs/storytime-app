@@ -319,6 +319,7 @@ export default function BookReader({
     hasPurchased && spreads.some((s) => s.leftPageText || s.rightPageText);
   const showNarrationUpsell =
     !hasPurchased && spreads.some((s) => s.leftPageText || s.rightPageText);
+  const showFullscreenImagePanel = !isTextOnlyPage;
 
   return (
     <div className="select-none">
@@ -604,72 +605,80 @@ export default function BookReader({
             </div>
           ) : null}
 
-          {/* Image panel - portrait: full width square; landscape: full height square; desktop: full height square */}
-          <div
-            className={`relative min-h-0 flex-shrink-0${
-              isLandscape ? " h-full aspect-square" : " w-full aspect-square"
-            }${pageText ? " lg:h-screen lg:aspect-square lg:flex-none lg:shrink-0" : " lg:flex-1"}`}
-          >
-            {hasImage ? (
-              <Image
-                src={spread.imageUrl!}
-                alt={spread.title ?? t("pageOf", { page: index + 1, total })}
-                fill
-                sizes="(min-width: 1024px) 60vw, 100vw"
-                className="pointer-events-none object-contain select-none"
-                draggable={false}
-                priority
-                onContextMenu={(e) => e.preventDefault()}
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <p className="text-white/40 lg:text-night-400">
-                  {t("noIllustration")}
-                </p>
-              </div>
-            )}
+          {showFullscreenImagePanel ? (
+            /* Image panel - portrait: full width square; landscape: full height square; desktop: full height square */
+            <div
+              className={`relative min-h-0 flex-shrink-0${
+                isLandscape ? " h-full aspect-square" : " w-full aspect-square"
+              }${pageText ? " lg:h-screen lg:aspect-square lg:flex-none lg:shrink-0" : " lg:flex-1"}`}
+            >
+              {hasImage ? (
+                <Image
+                  src={spread.imageUrl!}
+                  alt={
+                    spread.title ?? t("pageOf", { page: index + 1, total })
+                  }
+                  fill
+                  sizes="(min-width: 1024px) 60vw, 100vw"
+                  className="pointer-events-none object-contain select-none"
+                  draggable={false}
+                  priority
+                  onContextMenu={(e) => e.preventDefault()}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center">
+                  <p className="text-white/40 lg:text-night-400">
+                    {t("illustrationComingSoon")}
+                  </p>
+                </div>
+              )}
 
-            {/* Invisible tap zones for prev/next */}
-            <button
-              onClick={prev}
-              disabled={index === 0}
-              className="absolute inset-y-0 left-0 w-1/3 opacity-0"
-              aria-hidden="true"
-              tabIndex={-1}
-            />
-            <button
-              onClick={next}
-              disabled={index === total - 1}
-              className="absolute inset-y-0 right-0 w-1/3 opacity-0"
-              aria-hidden="true"
-              tabIndex={-1}
-            />
-
-            {/* Arrow hints - visible on portrait + desktop, hidden on landscape mobile */}
-            {index > 0 ? (
+              {/* Invisible tap zones for prev/next */}
               <button
                 onClick={prev}
-                className={`absolute left-3 top-1/2 -translate-y-1/2 h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 ${isLandscape ? "hidden lg:flex" : "flex"}`}
-                aria-label={t("previousPage")}
-              >
-                ‹
-              </button>
-            ) : null}
-            {index < total - 1 ? (
+                disabled={index === 0}
+                className="absolute inset-y-0 left-0 w-1/3 opacity-0"
+                aria-hidden="true"
+                tabIndex={-1}
+              />
               <button
                 onClick={next}
-                className={`absolute right-3 top-1/2 -translate-y-1/2 h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 ${isLandscape ? "hidden lg:flex" : "flex"}`}
-                aria-label={t("nextPage")}
-              >
-                ›
-              </button>
-            ) : null}
-          </div>
+                disabled={index === total - 1}
+                className="absolute inset-y-0 right-0 w-1/3 opacity-0"
+                aria-hidden="true"
+                tabIndex={-1}
+              />
+
+              {/* Arrow hints - visible on portrait + desktop, hidden on landscape mobile */}
+              {index > 0 ? (
+                <button
+                  onClick={prev}
+                  className={`absolute left-3 top-1/2 -translate-y-1/2 h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 ${isLandscape ? "hidden lg:flex" : "flex"}`}
+                  aria-label={t("previousPage")}
+                >
+                  ‹
+                </button>
+              ) : null}
+              {index < total - 1 ? (
+                <button
+                  onClick={next}
+                  className={`absolute right-3 top-1/2 -translate-y-1/2 h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 ${isLandscape ? "hidden lg:flex" : "flex"}`}
+                  aria-label={t("nextPage")}
+                >
+                  ›
+                </button>
+              ) : null}
+            </div>
+          ) : null}
 
           {/* Text + nav panel - portrait: flex-1 below image; landscape + desktop: right panel */}
           {pageText ? (
             <div
-              className={`flex flex-1 flex-col overflow-hidden bg-black lg:bg-white lg:border-l lg:border-night-100${isLandscape ? " border-l border-white/10" : ""}`}
+              className={`flex flex-1 flex-col overflow-hidden bg-black lg:bg-white${
+                showFullscreenImagePanel
+                  ? ` lg:border-l lg:border-night-100${isLandscape ? " border-l border-white/10" : ""}`
+                  : ""
+              }`}
             >
               {/* Controls row - landscape mobile + desktop */}
               {isLandscape ? (
@@ -782,8 +791,18 @@ export default function BookReader({
               </div>
 
               {/* Story text - vertically centred, fills available space */}
-              <div className="flex flex-1 items-center overflow-y-auto px-5 py-5 lg:px-8 lg:py-8">
-                <p className="font-display text-lg font-medium leading-relaxed text-white/95 lg:text-2xl lg:text-night-800">
+              <div
+                className={`flex flex-1 items-center overflow-y-auto px-5 py-5 lg:px-8 lg:py-8 ${
+                  showFullscreenImagePanel ? "" : "justify-center"
+                }`}
+              >
+                <p
+                  className={`font-display font-medium leading-relaxed text-white/95 lg:text-night-800 ${
+                    showFullscreenImagePanel
+                      ? "text-lg lg:text-2xl"
+                      : "max-w-3xl text-2xl lg:text-4xl"
+                  }`}
+                >
                   {words.length > 0
                     ? words.map((w, i) => (
                         <span

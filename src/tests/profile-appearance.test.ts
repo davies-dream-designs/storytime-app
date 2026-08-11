@@ -74,9 +74,16 @@ describe("child appearance custom details", () => {
   });
 
   it("uses distinct illustration cues for large and very large builds", () => {
-    expect(getBodyBuildIllustrationCue("large")).toContain("fuller frame");
+    expect(getBodyBuildIllustrationCue("large")).toContain(
+      "gently fuller-than-average frame"
+    );
+    expect(getBodyBuildIllustrationCue("large")).toContain(
+      "without exaggerated proportions"
+    );
     expect(getBodyBuildIllustrationCue("large")).not.toContain("plus-size");
+    expect(getBodyBuildIllustrationCue("large")).not.toContain("broad torso");
     expect(getBodyBuildIllustrationCue("very_large")).toContain("plus-size");
+    expect(getBodyBuildIllustrationCue("very_large")).toContain("broad torso");
     expect(getBodyBuildIllustrationCue("very_large")).toContain(
       "visibly larger proportions than a large build"
     );

@@ -29,15 +29,17 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.next();
   }
 
-  if (req.nextUrl.pathname.startsWith("/__clerk/")) {
-    return NextResponse.next();
+  const intlResponse = handleI18n(req);
+
+  // Return locale redirects immediately - don't auth-check paths being redirected
+  // (e.g. /sign-in → /en/sign-in must not hit auth.protect first)
+  if (intlResponse && intlResponse.status >= 300 && intlResponse.status < 400) {
+    return intlResponse;
   }
 
   if (!isPublicRoute(req)) {
     await auth.protect();
   }
-
-  const intlResponse = handleI18n(req);
 
   return intlResponse ?? NextResponse.next();
 });
@@ -46,6 +48,5 @@ export const config = {
   matcher: [
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
     "/(api|trpc)(.*)",
-    "/__clerk/(.*)",
   ],
 };

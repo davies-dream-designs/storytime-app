@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
@@ -15,12 +16,14 @@ import { getStoryThemeName } from "@/lib/storyTheme";
 
 export default async function Dashboard() {
   const { userId } = await auth();
+  if (!userId) redirect("/sign-in");
+
   const [t, tHome, profiles, storiesRaw, storyPeople] = await Promise.all([
     getTranslations("dashboard"),
     getTranslations("home"),
-    db.profiles.getByUserId(userId!),
-    db.stories.getByUserId(userId!),
-    db.storyPeople.getByUserId(userId!),
+    db.profiles.getByUserId(userId),
+    db.stories.getByUserId(userId),
+    db.storyPeople.getByUserId(userId),
   ]);
   const themeNames = tHome.raw("themes") as Record<string, string>;
   const stories = storiesRaw.sort((a, b) =>

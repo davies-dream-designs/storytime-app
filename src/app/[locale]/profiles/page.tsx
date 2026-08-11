@@ -1,5 +1,4 @@
 import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Nav from "@/components/Nav";
@@ -11,13 +10,11 @@ export const metadata = { title: "Children - Storycot" };
 
 export default async function ProfilesPage() {
   const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
-
   const [t, tCommon, profiles, stories] = await Promise.all([
     getTranslations("profiles"),
     getTranslations("common"),
-    db.profiles.getByUserId(userId),
-    db.stories.getByUserId(userId),
+    db.profiles.getByUserId(userId!),
+    db.stories.getByUserId(userId!),
   ]);
   const now = new Date();
   const storyCounts = stories.reduce<Record<string, number>>(

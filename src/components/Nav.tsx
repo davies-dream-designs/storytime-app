@@ -10,7 +10,7 @@ import Icon, { type IconName } from "@/components/ui/Icon";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 
 export default function Nav() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isSignedIn } = useAuth();
   const [open, setOpen] = useState(false);
   const [creditInfo, setCreditInfo] = useState<{
     credits: number;
@@ -27,9 +27,9 @@ export default function Nav() {
   }, []);
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
+    if (!isSignedIn) return;
     refreshCredits();
-  }, [isLoaded, isSignedIn, refreshCredits]);
+  }, [isSignedIn, refreshCredits]);
 
   useEffect(() => {
     window.addEventListener("storycot:credits-updated", refreshCredits);
@@ -38,8 +38,7 @@ export default function Nav() {
   }, [refreshCredits]);
   const pathname = usePathname();
   const t = useTranslations("nav");
-  const isAuthed = isLoaded && isSignedIn;
-  const logoHref = isAuthed ? "/dashboard" : "/";
+  const logoHref = isSignedIn ? "/dashboard" : "/";
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
     if (href === "/stories" && pathname.startsWith("/stories/new"))
@@ -135,17 +134,7 @@ export default function Nav() {
 
         {/* Desktop nav */}
         <div className="hidden sm:flex items-center gap-1">
-          {!isLoaded ? (
-            <>
-              {publicLinks.map(renderDesktopLink)}
-              <LanguageSwitcher />
-              <span
-                role="status"
-                aria-label="Loading account"
-                className="h-9 w-9 rounded-full border-2 border-lavender-200 border-t-night-700 motion-safe:animate-spin"
-              />
-            </>
-          ) : isAuthed ? (
+          {isSignedIn ? (
             <>
               {desktopAuthedLinks.map(renderDesktopLink)}
               <Link
@@ -197,13 +186,7 @@ export default function Nav() {
         {/* Mobile: avatar + hamburger */}
         <div className="flex sm:hidden items-center gap-3">
           <LanguageSwitcher />
-          {!isLoaded ? (
-            <span
-              role="status"
-              aria-label="Loading account"
-              className="h-8 w-8 rounded-full border-2 border-lavender-200 border-t-night-700 motion-safe:animate-spin"
-            />
-          ) : isAuthed ? (
+          {isSignedIn ? (
             <>
               {creditInfo && !creditInfo.isAdmin ? (
                 <Link
@@ -268,7 +251,7 @@ export default function Nav() {
       {/* Mobile drawer */}
       {open && (
         <div className="sm:hidden border-t border-night-100 bg-parchment/95 backdrop-blur px-4 py-3 flex flex-col gap-1">
-          {isAuthed ? (
+          {isSignedIn ? (
             <>
               {mobileLinks
                 .filter((item) => item.href !== "/account")

@@ -6,7 +6,6 @@ import { getMessages } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { getClerkLocalization } from "@/i18n/clerk";
 import { isLocale } from "@/i18n/locales";
-import AuthReadyBoundary from "@/components/AuthReadyBoundary";
 import { GlobalPendingProvider } from "@/components/GlobalPending";
 import { storycotTheme } from "@/lib/theme";
 import { Analytics } from "@vercel/analytics/next";
@@ -97,9 +96,7 @@ export default async function LocaleLayout({
             >
               Skip to main content
             </a>
-            <AuthReadyBoundary>
-              <GlobalPendingProvider>{children}</GlobalPendingProvider>
-            </AuthReadyBoundary>
+            <GlobalPendingProvider>{children}</GlobalPendingProvider>
             <Analytics />
             <SpeedInsights />
           </body>

@@ -10,6 +10,8 @@ export default async function PrintPage({
   params: Promise<{ id: string }>;
 }) {
   const { userId } = await auth();
+  if (!userId) notFound();
+
   const { id } = await params;
   const story = await db.stories.getById(id);
   if (!story || story.userId !== userId) notFound();

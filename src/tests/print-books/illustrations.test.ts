@@ -370,6 +370,12 @@ describe("generateCoverIllustration", () => {
       "visibly adjust silhouette, torso width, face fullness, and overall proportions"
     );
     expect(body.get("prompt")).toContain(
+      "Large means moderately fuller-than-average, not very large or oversized"
+    );
+    expect(body.get("prompt")).toContain(
+      "Only use a very large plus-size silhouette when the latest profile/reference text explicitly says Very Large"
+    );
+    expect(body.get("prompt")).toContain(
       "If this conflicts with the older character bible"
     );
     expect(body.get("prompt")).toContain(

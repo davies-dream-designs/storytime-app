@@ -456,6 +456,8 @@ function buildVisualReferencePrompt(
     "When a selected child, family member, friend, or pet appears, match the reference image for identity only: recognisable face, skin tone, and familiar markings.",
     "Latest edited profile/reference text controls changeable visual traits including hair length, hairstyle, facial hair, glasses, outfit, body build, and apparent age. If latest text conflicts with the attached image or older generated image, change the artwork to match the latest text while keeping the person recognisable.",
     "Body build is controlled by the latest profile/reference text. If that latest body-build text conflicts with the attached image or an older generated image, change the figure silhouette and proportions to match the latest body-build text while keeping the face recognisable.",
+    "If latest body build is Large, draw a moderately fuller-than-average person, not a very large or oversized person. If an attached reference image shows a much larger body than the latest Large cue, reduce the body size in the new artwork and preserve identity through face, hair, glasses, skin tone, and expression.",
+    "Only use a very large plus-size silhouette when the latest profile/reference text explicitly says Very Large.",
     "Do not make grandparents generically older, thinner, heavier, or frailer than their latest profile/reference details.",
     "Do not add written labels, captions, names, numbers, watermarks, or relationship words to the artwork.",
   ].join(" ");
@@ -796,7 +798,7 @@ function buildPageIllustrationPrompt(input: {
     // Character consistency follows as a constraint block.
     buildIllustrationDirection(characterBible),
     latestReferenceContext
-      ? `Latest profile/reference overrides: ${latestReferenceContext} If this conflicts with the older character bible, old generated artwork, attached reference image, or previous generated reference summary, follow these latest edited profile/reference details. Latest edited appearance is the highest priority for changeable traits: hairstyle, hair length, facial hair, glasses, outfit, body build, and apparent age. Body build is a hard override: visibly adjust silhouette, torso width, face fullness, and overall proportions to match the latest body-build cue while preserving identity. Keep skin tone and core facial identity recognisable.`
+      ? `Latest profile/reference overrides: ${latestReferenceContext} If this conflicts with the older character bible, old generated artwork, attached reference image, or previous generated reference summary, follow these latest edited profile/reference details. Latest edited appearance is the highest priority for changeable traits: hairstyle, hair length, facial hair, glasses, outfit, body build, and apparent age. Body build is a hard override: visibly adjust silhouette, torso width, face fullness, and overall proportions to match the latest body-build cue while preserving identity. Large means moderately fuller-than-average, not very large or oversized; only draw a very large plus-size silhouette when the latest cue explicitly says Very Large. Keep skin tone and core facial identity recognisable.`
       : "",
     // Metadata.
     `Book title: ${story.title}.`,

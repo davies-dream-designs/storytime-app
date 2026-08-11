@@ -42,7 +42,7 @@ export function getBodyBuildIllustrationCue(value?: BodyBuild): string {
     case "broad":
       return "broad-shouldered, solid body build";
     case "large":
-      return "large body build with a solid, gently fuller-than-average frame and natural facial softness, without exaggerated proportions";
+      return "large body build with a solid, moderately fuller-than-average frame and natural facial softness; not very large, not oversized, and not exaggerated";
     case "very_large":
       return "very large plus-size body build with a clearly fuller round frame, broad torso, rounder face, and visibly larger proportions than a large build";
     case "not_specified":

@@ -821,23 +821,41 @@ export default function BookReader({
               </div>
 
               {/* Nav dots */}
-              <div className="flex shrink-0 flex-nowrap items-center gap-1.5 overflow-x-auto border-t border-white/10 px-4 py-3 lg:border-night-100 lg:px-6 lg:py-4 [&::-webkit-scrollbar]:hidden">
-                {spreads.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      setNarrating(false);
-                      stopAudio();
-                      setIndex(i);
-                    }}
-                    aria-label={t("goToPage", { page: i + 1 })}
-                    className={`shrink-0 rounded-full transition-all ${
-                      i === index
-                        ? "h-1.5 w-5 bg-white lg:h-2 lg:w-6 lg:bg-night-700"
-                        : "h-1.5 w-1.5 bg-white/30 hover:bg-white/50 lg:h-2 lg:w-2 lg:bg-night-200 lg:hover:bg-night-400"
-                    }`}
-                  />
-                ))}
+              <div className="flex shrink-0 items-center gap-3 border-t border-white/10 px-4 py-3 lg:border-night-100 lg:px-6 lg:py-4">
+                <button
+                  onClick={prev}
+                  disabled={index === 0}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-2xl leading-none text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30 lg:border lg:border-night-200 lg:bg-white lg:text-night-700 lg:hover:bg-night-50"
+                  aria-label={t("previousPage")}
+                >
+                  ‹
+                </button>
+                <div className="flex min-w-0 flex-1 flex-nowrap items-center justify-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                  {spreads.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        setNarrating(false);
+                        stopAudio();
+                        setIndex(i);
+                      }}
+                      aria-label={t("goToPage", { page: i + 1 })}
+                      className={`shrink-0 rounded-full transition-all ${
+                        i === index
+                          ? "h-1.5 w-5 bg-white lg:h-2 lg:w-6 lg:bg-night-700"
+                          : "h-1.5 w-1.5 bg-white/30 hover:bg-white/50 lg:h-2 lg:w-2 lg:bg-night-200 lg:hover:bg-night-400"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <button
+                  onClick={next}
+                  disabled={index === total - 1}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-2xl leading-none text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30 lg:border lg:border-night-200 lg:bg-white lg:text-night-700 lg:hover:bg-night-50"
+                  aria-label={t("nextPage")}
+                >
+                  ›
+                </button>
               </div>
             </div>
           ) : /* No text (cover page) - portrait nav dots below image */

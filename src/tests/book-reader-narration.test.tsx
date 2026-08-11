@@ -204,7 +204,7 @@ describe("BookReader narration", () => {
     render(<BookReader project={projectWithMixedSpreads()} />);
 
     fireEvent.click(screen.getByLabelText("viewFullScreen"));
-    fireEvent.click(screen.getByLabelText("nextPage"));
+    fireEvent.click(screen.getAllByLabelText("nextPage")[0]!);
 
     expect(
       screen.getAllByText("This is a longer reading beat without its own art.")
@@ -212,5 +212,7 @@ describe("BookReader narration", () => {
     ).toBeGreaterThan(0);
     expect(screen.queryByText("noIllustration")).not.toBeInTheDocument();
     expect(screen.queryByText("illustrationComingSoon")).not.toBeInTheDocument();
+    expect(screen.getAllByLabelText("previousPage").length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText("nextPage").length).toBeGreaterThan(0);
   });
 });

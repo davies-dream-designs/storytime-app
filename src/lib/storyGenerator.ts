@@ -7,16 +7,15 @@ import type {
   StorySuggestion,
   StoryPreset,
 } from "@/types";
-import {
-  getAge,
-  buildChildAppearanceSummary,
-  getStoryPersonAppearanceContext,
-  getStoryPersonRelationshipLabel,
-} from "@/types";
+import { getAge, getStoryPersonRelationshipLabel } from "@/types";
 import {
   assessStoryIdeaIp,
   buildIpSafeGenerationInstruction,
 } from "@/lib/ipGuardrails";
+import {
+  buildChildCanonicalAppearanceContext,
+  buildStoryPersonCanonicalAppearanceContext,
+} from "@/lib/characterReferenceContext";
 
 const client = new Anthropic();
 
@@ -246,7 +245,7 @@ export function buildStoryPrompt(input: GenerateStoryInput): string {
   const originalStoryPeople = storyPeople.filter((person) => {
     const policy = assessStoryIdeaIp({
       premise: `${person.name} ${getStoryPersonRelationshipLabel(person)} ${person.description}`,
-      notes: `${person.personality} ${getStoryPersonAppearanceContext(person)}`,
+      notes: `${person.personality} ${buildStoryPersonCanonicalAppearanceContext(person)}`,
     });
     return policy.riskLevel === "clear";
   });
@@ -254,7 +253,7 @@ export function buildStoryPrompt(input: GenerateStoryInput): string {
   const familySection =
     originalStoryPeople.length > 0
       ? `\n\nSelected family, friends, pets, or story people to include when they fit naturally:
-${originalStoryPeople.map((person) => `- ${person.name} (${getStoryPersonRelationshipLabel(person)}${person.pronouns ? `, ${person.pronouns}` : ""}): ${person.description || "No description provided."} Personality: ${person.personality || "No personality notes provided."} Appearance: ${getStoryPersonAppearanceContext(person) || "No appearance notes provided."}`).join("\n")}`
+${originalStoryPeople.map((person) => `- ${person.name} (${getStoryPersonRelationshipLabel(person)}${person.pronouns ? `, ${person.pronouns}` : ""}): ${person.description || "No description provided."} Personality: ${person.personality || "No personality notes provided."} Appearance: ${buildStoryPersonCanonicalAppearanceContext(person) || "No appearance notes provided."}`).join("\n")}`
       : "";
   const characterSection =
     originalCharacters.length > 0
@@ -280,7 +279,7 @@ ${recentTitles.map((t) => `- ${t}`).join("\n")}`
 
 Child: ${profile.name}, age ${getAge(profile)}
 ${buildGenderPromptLine(profile)}
-- Appearance reference: ${profile.appearanceSummary || buildChildAppearanceSummary(profile.appearance) || "No structured appearance details provided."}
+- Appearance reference: ${buildChildCanonicalAppearanceContext(profile) || "No structured appearance details provided."}
 - Theme/lesson: ${theme || "a gentle adventure"}
 ${familySection}${characterSection}${premiseSection}${notesSection}${avoidSection}
 
@@ -628,7 +627,7 @@ export async function generateSuggestions(
   const originalStoryPeople = (options.storyPeople ?? []).filter((person) => {
     const policy = assessStoryIdeaIp({
       premise: `${person.name} ${getStoryPersonRelationshipLabel(person)} ${person.description}`,
-      notes: `${person.personality} ${getStoryPersonAppearanceContext(person)}`,
+      notes: `${person.personality} ${buildStoryPersonCanonicalAppearanceContext(person)}`,
     });
     return policy.riskLevel === "clear";
   });
@@ -647,8 +646,7 @@ export async function generateSuggestions(
 Child profile:
 - Name: ${profile.name}, age ${getAge(profile)}
 ${buildGenderPromptLine(profile)}
-- Appearance: ${buildChildAppearanceSummary(profile.appearance) || "No structured appearance details provided."}
-- Generated reference summary: ${profile.appearanceSummary || "No generated reference summary provided."}
+- Appearance: ${buildChildCanonicalAppearanceContext(profile) || "No structured appearance details provided."}
 - Favourite toys: ${(profile.favouriteCharacters ?? []).join(", ") || "none"}
 - Favourite activities: ${(profile.favouriteActivities ?? []).join(", ") || "none"}
 - Favourite animals: ${(profile.favouriteAnimals ?? []).join(", ") || "none"}

@@ -342,11 +342,16 @@ describe("/api/story-people", () => {
       adjustment: "",
     });
     expect(mockChargeReferenceRedoCredit).not.toHaveBeenCalled();
-    expect(mockDb.storyPeople.update).toHaveBeenCalledWith("person-1", {
-      avatarImageUrl: "https://assets.example.com/avatar.jpg",
-      appearance: "Dark curls and a warm smile.",
-      appearanceSummary: "Warm storybook reference.",
-    });
+    expect(mockDb.storyPeople.update).toHaveBeenCalledWith(
+      "person-1",
+      expect.objectContaining({
+        avatarImageUrl: "https://assets.example.com/avatar.jpg",
+        appearance: "Dark curls and a warm smile.",
+        appearanceSummary: "Warm storybook reference.",
+        avatarTraitHash: expect.any(String),
+        avatarGeneratedAt: expect.any(String),
+      })
+    );
   });
 
   it("charges one credit when redoing an existing story person reference", async () => {
@@ -518,17 +523,22 @@ describe("/api/story-people", () => {
       adjustment: "",
     });
     expect(mockChargeReferenceRedoCredit).not.toHaveBeenCalled();
-    expect(mockDb.profiles.update).toHaveBeenCalledWith("profile-1", {
-      avatarImageUrl: "https://assets.example.com/child-avatar.jpg",
-      appearanceSummary: "Warm child storybook reference.",
-      appearance: {
-        hairStyles: [],
-        featureEmphasis: [],
-        distinguishingFeatures: [],
-        expressionVibes: [],
-        consistencyNote: "Soft curls and a bright smile.",
-      },
-    });
+    expect(mockDb.profiles.update).toHaveBeenCalledWith(
+      "profile-1",
+      expect.objectContaining({
+        avatarImageUrl: "https://assets.example.com/child-avatar.jpg",
+        appearanceSummary: "Warm child storybook reference.",
+        appearance: {
+          hairStyles: [],
+          featureEmphasis: [],
+          distinguishingFeatures: [],
+          expressionVibes: [],
+          consistencyNote: "Soft curls and a bright smile.",
+        },
+        avatarTraitHash: expect.any(String),
+        avatarGeneratedAt: expect.any(String),
+      })
+    );
   });
 
   it("charges one credit when redoing an existing child profile reference", async () => {

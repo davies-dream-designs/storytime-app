@@ -86,9 +86,16 @@ export function buildStoryPersonAvatarPrompt(
     person.bodyBuild && person.bodyBuild !== "not_specified"
       ? `Body build context: ${getBodyBuildLabel(person.bodyBuild)}. Preserve this as a respectful broad body-shape cue without exaggerating it.`
       : "",
+    person.bodyBuild === "large"
+      ? "Large means moderately fuller-than-average, not very large or oversized."
+      : "",
+    person.bodyBuild === "very_large"
+      ? "Very Large means clearly plus-size and fuller than Large."
+      : "",
     formatAdjustmentInstruction(adjustment),
-    "Use the uploaded photo only as private visual reference for broad visible body, face, hair or fur, posture, colouring, and expression.",
-    "Treat the uploaded photo as the visual source of truth. Do not exaggerate body shape, age, expression, or proportions from written profile notes.",
+    "Use the supplied image only as private visual reference for broad visible body, face, hair or fur, posture, colouring, and expression.",
+    "Treat the supplied image as visual source of truth for identity, but latest written age, height, hairstyle, facial hair, glasses, outfit, and body build override stale generated details when they conflict.",
+    "Do not exaggerate body shape, age, expression, or proportions from either the image or written profile notes.",
     "Do not copy any clothing graphics, logos, printed text, costumes, branded characters, franchise characters, toy characters, mascot art, or recognisable protected designs visible in the photo.",
     "For people, use a head-and-shoulders portrait with a plain unbranded jumper or top in a gentle Storycot palette. If the photo shows character-print clothing, replace it with simple solid-colour clothing with no graphics or lettering.",
     "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
@@ -115,12 +122,20 @@ export function buildChildProfileAvatarPrompt(
     analysis.appearance
       ? `Photo-derived visible notes: ${analysis.appearance}. These details are visual guidance only and must not be rendered as visible writing.`
       : "",
-    profile.appearance?.bodyBuild && profile.appearance.bodyBuild !== "not_specified"
+    profile.appearance?.bodyBuild &&
+    profile.appearance.bodyBuild !== "not_specified"
       ? `Body build context: ${getBodyBuildLabel(profile.appearance.bodyBuild)}. Preserve this as a respectful broad body-shape cue without exaggerating it.`
       : "",
+    profile.appearance?.bodyBuild === "large"
+      ? "Large means moderately fuller-than-average, not very large or oversized."
+      : "",
+    profile.appearance?.bodyBuild === "very_large"
+      ? "Very Large means clearly plus-size and fuller than Large."
+      : "",
     formatAdjustmentInstruction(adjustment),
-    "Use the uploaded photo only as private visual reference for broad visible face, hair, colouring, and expression.",
-    "Treat the uploaded photo as the visual source of truth. Do not exaggerate body shape, age, expression, or proportions from written profile notes.",
+    "Use the supplied image only as private visual reference for broad visible face, hair, colouring, and expression.",
+    "Treat the supplied image as visual source of truth for identity, but latest written profile appearance and body build override stale generated details when they conflict.",
+    "Do not exaggerate body shape, age, expression, or proportions from either the image or written profile notes.",
     "Do not copy any clothing graphics, logos, printed text, costumes, branded characters, franchise characters, toy characters, mascot art, or recognisable protected designs visible in the photo.",
     "Use a portrait crop from upper chest to top of head, centred on the child's face. Do not create a full-body standing or seated character sheet, full outfit pose, poster, profile page, or scene.",
     "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
@@ -329,7 +344,10 @@ function isTextOnlyAdjustment(adjustment?: string): boolean {
   );
 }
 
-function buildAdjustedAppearance(appearance: string, adjustment?: string): string {
+function buildAdjustedAppearance(
+  appearance: string,
+  adjustment?: string
+): string {
   const clean = appearance.trim();
   if (!adjustment?.trim() || isTextOnlyAdjustment(adjustment)) return clean;
   return buildAdjustedSummary(clean, adjustment);
@@ -376,7 +394,7 @@ export async function createStoryPersonAvatar(input: {
 
   await deletePreviousReference(input.person.avatarImageUrl);
 
-  const appearance = analysis.appearance || input.person.appearance.trim();
+  const appearance = input.person.appearance.trim() || analysis.appearance;
 
   return {
     avatarImageUrl,
@@ -414,7 +432,7 @@ export async function redoStoryPersonAvatar(input: {
     image: normalizedImage,
     prompt: [
       buildStoryPersonAvatarPrompt(input.person, adjustment),
-      "Keep the same reusable Storycot reference composition and overall likeness from the supplied generated illustration. Change only the requested detail.",
+      "Preserve the same reusable Storycot reference style and core facial identity from the supplied generated illustration. Apply the current profile traits and the requested correction, even when that means changing body build, age, hairstyle, facial hair, glasses, outfit, or proportions from the old generated image.",
     ].join(" "),
   });
   const webImage = await sharp(generated)
@@ -429,7 +447,10 @@ export async function redoStoryPersonAvatar(input: {
   });
 
   await deletePreviousReference(input.person.avatarImageUrl);
-  const appearance = buildAdjustedAppearance(input.person.appearance, adjustment);
+  const appearance = buildAdjustedAppearance(
+    input.person.appearance,
+    adjustment
+  );
 
   return {
     avatarImageUrl,
@@ -521,7 +542,7 @@ export async function redoChildProfileAvatar(input: {
         { appearance: "", appearanceSummary: "" },
         adjustment
       ),
-      "Keep the same reusable Storycot reference composition and overall likeness from the supplied generated illustration. Change only the requested detail.",
+      "Preserve the same reusable Storycot reference style and core facial identity from the supplied generated illustration. Apply the current child profile traits and the requested correction, even when that means changing body build, age, hairstyle, outfit, or proportions from the old generated image.",
     ].join(" "),
   });
   const webImage = await sharp(generated)

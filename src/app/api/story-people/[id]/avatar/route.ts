@@ -10,6 +10,7 @@ import {
   createStoryPersonAvatar,
   redoStoryPersonAvatar,
 } from "@/lib/storyPeopleAvatars";
+import { getStoryPersonReferenceTraitHash } from "@/lib/characterReferenceContext";
 
 export async function POST(
   req: NextRequest,
@@ -38,10 +39,18 @@ export async function POST(
         person,
         adjustment: payload.adjustment ?? "",
       });
+      const nextPerson = {
+        ...person,
+        avatarImageUrl: avatar.avatarImageUrl,
+        appearance: avatar.appearance,
+        appearanceSummary: avatar.appearanceSummary,
+      };
       const updated = await db.storyPeople.update(id, {
         avatarImageUrl: avatar.avatarImageUrl,
         appearance: avatar.appearance,
         appearanceSummary: avatar.appearanceSummary,
+        avatarTraitHash: getStoryPersonReferenceTraitHash(nextPerson),
+        avatarGeneratedAt: new Date().toISOString(),
       });
       return NextResponse.json(updated);
     } catch (err) {
@@ -95,10 +104,18 @@ export async function POST(
       file: photo,
       adjustment,
     });
+    const nextPerson = {
+      ...person,
+      avatarImageUrl: avatar.avatarImageUrl,
+      appearance: avatar.appearance,
+      appearanceSummary: avatar.appearanceSummary,
+    };
     const updated = await db.storyPeople.update(id, {
       avatarImageUrl: avatar.avatarImageUrl,
       appearance: avatar.appearance,
       appearanceSummary: avatar.appearanceSummary,
+      avatarTraitHash: getStoryPersonReferenceTraitHash(nextPerson),
+      avatarGeneratedAt: new Date().toISOString(),
     });
     return NextResponse.json(updated);
   } catch (err) {

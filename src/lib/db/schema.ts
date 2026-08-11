@@ -50,6 +50,8 @@ export const profiles = pgTable(
     appearance: jsonb("appearance").$type<ChildAppearance>(),
     avatarImageUrl: text("avatar_image_url"),
     appearanceSummary: text("appearance_summary"),
+    avatarTraitHash: text("avatar_trait_hash"),
+    avatarGeneratedAt: text("avatar_generated_at"),
     favouriteCharacters: text("favourite_characters")
       .array()
       .notNull()
@@ -130,6 +132,8 @@ export const storyPeople = pgTable(
     pronouns: text("pronouns"),
     avatarImageUrl: text("avatar_image_url"),
     appearanceSummary: text("appearance_summary"),
+    avatarTraitHash: text("avatar_trait_hash"),
+    avatarGeneratedAt: text("avatar_generated_at"),
     availableToAllProfiles: boolean("available_to_all_profiles")
       .notNull()
       .default(false),

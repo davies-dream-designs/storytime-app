@@ -6,6 +6,7 @@ import Icon from "@/components/ui/Icon";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 import { formStyles } from "@/components/ui/formStyles";
 import { useConfirmDialog } from "@/components/ui/useConfirmDialog";
+import { isChildProfileReferenceStale } from "@/lib/characterReferenceContext";
 import type { ChildProfile } from "@/types";
 
 type PendingPhoto = {
@@ -59,6 +60,7 @@ export default function ChildProfileReference({
     : createReferenceCost > 0
       ? "1 Credit"
       : "Free";
+  const referenceIsStale = isChildProfileReferenceStale(profile);
 
   function stagePhoto(file: File | undefined) {
     if (!file) return;
@@ -226,6 +228,13 @@ export default function ChildProfileReference({
             <p className="mt-3 rounded-xl bg-night-50 px-3 py-2 text-sm leading-6 text-night-600">
               {profile.appearanceSummary}
             </p>
+          ) : null}
+          {referenceIsStale ? (
+            <div className="mt-3 rounded-xl border border-star-200 bg-star-50 px-3 py-2 text-sm font-semibold leading-6 text-night-700">
+              This illustrated reference may be out of date because the child
+              profile has changed. Redo the reference before building new art
+              for the best match.
+            </div>
           ) : null}
 
           {profile.avatarImageUrl ? (

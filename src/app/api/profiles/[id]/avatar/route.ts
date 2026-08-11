@@ -10,6 +10,7 @@ import {
   createChildProfileAvatar,
   redoChildProfileAvatar,
 } from "@/lib/storyPeopleAvatars";
+import { getChildProfileReferenceTraitHash } from "@/lib/characterReferenceContext";
 import type { ChildAppearance } from "@/types/profileAppearance";
 
 function mergeConsistencyNote(
@@ -56,13 +57,22 @@ export async function POST(
         profile,
         adjustment: payload.adjustment ?? "",
       });
+      const appearance = mergeConsistencyNote(
+        profile.appearance,
+        avatar.consistencyNote
+      );
+      const nextProfile = {
+        ...profile,
+        avatarImageUrl: avatar.avatarImageUrl,
+        appearanceSummary: avatar.appearanceSummary,
+        appearance,
+      };
       const updated = await db.profiles.update(id, {
         avatarImageUrl: avatar.avatarImageUrl,
         appearanceSummary: avatar.appearanceSummary,
-        appearance: mergeConsistencyNote(
-          profile.appearance,
-          avatar.consistencyNote
-        ),
+        appearance,
+        avatarTraitHash: getChildProfileReferenceTraitHash(nextProfile),
+        avatarGeneratedAt: new Date().toISOString(),
       });
       return NextResponse.json(updated);
     } catch (err) {
@@ -116,13 +126,22 @@ export async function POST(
       file: photo,
       adjustment,
     });
+    const appearance = mergeConsistencyNote(
+      profile.appearance,
+      avatar.consistencyNote
+    );
+    const nextProfile = {
+      ...profile,
+      avatarImageUrl: avatar.avatarImageUrl,
+      appearanceSummary: avatar.appearanceSummary,
+      appearance,
+    };
     const updated = await db.profiles.update(id, {
       avatarImageUrl: avatar.avatarImageUrl,
       appearanceSummary: avatar.appearanceSummary,
-      appearance: mergeConsistencyNote(
-        profile.appearance,
-        avatar.consistencyNote
-      ),
+      appearance,
+      avatarTraitHash: getChildProfileReferenceTraitHash(nextProfile),
+      avatarGeneratedAt: new Date().toISOString(),
     });
     return NextResponse.json(updated);
   } catch (err) {

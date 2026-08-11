@@ -6,6 +6,7 @@ import Icon from "@/components/ui/Icon";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 import { formStyles } from "@/components/ui/formStyles";
 import { useConfirmDialog } from "@/components/ui/useConfirmDialog";
+import { isStoryPersonReferenceStale } from "@/lib/characterReferenceContext";
 import type {
   ChildProfile,
   BodyBuild,
@@ -173,7 +174,9 @@ export default function StoryPeopleManager({
       .catch(() => {});
   }, []);
 
-  const referenceCount = people.filter((person) => person.avatarImageUrl).length;
+  const referenceCount = people.filter(
+    (person) => person.avatarImageUrl
+  ).length;
 
   function getAvatarCreateCost(person: StoryPerson): number {
     if (creditInfo?.isAdmin) return 0;
@@ -237,7 +240,9 @@ export default function StoryPeopleManager({
         return;
       }
       if (!pendingNewPhoto.consent) {
-        setError("Please confirm photo permission before creating a reference.");
+        setError(
+          "Please confirm photo permission before creating a reference."
+        );
         return;
       }
       if (
@@ -412,7 +417,9 @@ export default function StoryPeopleManager({
           ? `Redoing ${person.name}'s illustrated reference is free for admins. Continue?`
           : `Creating ${person.name}'s illustrated reference is free. Continue?`;
     const confirmed = await confirm({
-      title: isRedo ? "Redo Illustrated Reference" : "Create Illustrated Reference",
+      title: isRedo
+        ? "Redo Illustrated Reference"
+        : "Create Illustrated Reference",
       message: confirmMessage,
       confirmLabel: isRedo ? "Redo Reference" : "Create Reference",
     });
@@ -873,20 +880,20 @@ export default function StoryPeopleManager({
 
             {newPersonMode === "description" ? (
               <div>
-              <label className={formStyles.subLabel}>Appearance</label>
-              <textarea
-                value={form.appearance}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    appearance: event.target.value,
-                  }))
-                }
-                rows={3}
-                placeholder="Short visual notes for storybook illustrations."
-                className={formStyles.textarea}
-              />
-            </div>
+                <label className={formStyles.subLabel}>Appearance</label>
+                <textarea
+                  value={form.appearance}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      appearance: event.target.value,
+                    }))
+                  }
+                  rows={3}
+                  placeholder="Short visual notes for storybook illustrations."
+                  className={formStyles.textarea}
+                />
+              </div>
             ) : null}
 
             <div>
@@ -1017,6 +1024,7 @@ export default function StoryPeopleManager({
                 const pendingPhoto = pendingPhotos[person.id];
                 const busy = generatingAvatarForId === person.id;
                 const editing = form.id === person.id;
+                const referenceIsStale = isStoryPersonReferenceStale(person);
 
                 return (
                   <>
@@ -1079,6 +1087,13 @@ export default function StoryPeopleManager({
                         </button>
                       </div>
                     </div>
+                    {referenceIsStale ? (
+                      <div className="mt-3 rounded-xl border border-star-200 bg-star-50 px-3 py-2 text-sm font-semibold leading-6 text-night-700">
+                        This illustrated reference may be out of date because
+                        the profile details changed. Redo the reference before
+                        building new story art for the best match.
+                      </div>
+                    ) : null}
 
                     {editing ? (
                       <div className="mt-4 rounded-xl border border-star-200 bg-star-50 p-4">

@@ -3,11 +3,11 @@ import type { Character, ChildProfile, Story, StoryPerson } from "@/types";
 import {
   buildChildAppearanceDoNotChange,
   buildChildAppearanceSummary,
-  getStoryPersonAppearanceContext,
   getStoryPersonRelationshipLabel,
 } from "@/types";
 import type { CharacterBible } from "@/types/printBook";
 import { getAge } from "@/types";
+import { buildStoryPersonCanonicalAppearanceContext } from "@/lib/characterReferenceContext";
 
 let client: Anthropic | undefined;
 
@@ -38,7 +38,7 @@ function buildStoryPeopleList(people: StoryPerson[]): string {
         `- ${person.name} (${getStoryPersonRelationshipLabel(person)}${person.pronouns ? `, ${person.pronouns}` : ""}): ${
           person.description || "No description provided."
         } Personality: ${person.personality || "No personality notes provided."} Appearance: ${
-          getStoryPersonAppearanceContext(person) ||
+          buildStoryPersonCanonicalAppearanceContext(person) ||
           "No appearance notes provided."
         } Generated reference image: ${person.avatarImageUrl ? "available for visual consistency" : "not available"}`
     )

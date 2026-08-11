@@ -32,6 +32,8 @@ export interface ChildProfile {
   appearance?: ChildAppearance;
   avatarImageUrl?: string;
   appearanceSummary?: string;
+  avatarTraitHash?: string;
+  avatarGeneratedAt?: string;
   favouriteCharacters: string[];
   favouriteActivities: string[];
   favouriteAnimals: string[];
@@ -238,6 +240,8 @@ export interface StoryPerson {
   pronouns?: string;
   avatarImageUrl?: string;
   appearanceSummary?: string;
+  avatarTraitHash?: string;
+  avatarGeneratedAt?: string;
   availableToAllProfiles: boolean;
   profileIds: string[];
   createdAt: string;

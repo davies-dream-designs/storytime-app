@@ -446,7 +446,10 @@ function buildVisualReferencePrompt(
       const appearance = reference.appearance
         ? `: ${reference.appearance}`
         : "";
-      return `${index + 1}. ${reference.name} (${reference.role}${relationship})${appearance}`;
+      const staleNote = reference.isStale
+        ? " [reference image may be stale: use face identity only; latest text controls body, age, hair, outfit, and other changeable traits]"
+        : "";
+      return `${index + 1}. ${reference.name} (${reference.role}${relationship})${staleNote}${appearance}`;
     })
     .join(" ");
 
@@ -454,6 +457,7 @@ function buildVisualReferencePrompt(
     `Attached visual reference sheet order: ${referenceList}`,
     "Use the attached reference sheet only for character likeness and continuity; do not copy its crop, plain background, portrait pose, or sheet layout.",
     "When a selected child, family member, friend, or pet appears, match the reference image for identity only: recognisable face, skin tone, and familiar markings.",
+    "If a reference is marked stale, do not preserve body size, hairstyle, outfit, apparent age, pose, or clothing from that image; preserve only core facial identity and follow the latest text.",
     "Latest edited profile/reference text controls changeable visual traits including hair length, hairstyle, facial hair, glasses, outfit, body build, and apparent age. If latest text conflicts with the attached image or older generated image, change the artwork to match the latest text while keeping the person recognisable.",
     "Body build is controlled by the latest profile/reference text. If that latest body-build text conflicts with the attached image or an older generated image, change the figure silhouette and proportions to match the latest body-build text while keeping the face recognisable.",
     "If latest body build is Large, draw a moderately fuller-than-average person, not a very large or oversized person. If an attached reference image shows a much larger body than the latest Large cue, reduce the body size in the new artwork and preserve identity through face, hair, glasses, skin tone, and expression.",
@@ -771,7 +775,10 @@ function buildPageIllustrationPrompt(input: {
       const appearance = reference.appearance?.trim()
         ? ` Latest appearance: ${reference.appearance.trim()}`
         : "";
-      return `- ${reference.name} (${reference.role}${relationship}).${appearance}`;
+      const staleNote = reference.isStale
+        ? " Reference image may be stale; use it for face identity only."
+        : "";
+      return `- ${reference.name} (${reference.role}${relationship}).${staleNote}${appearance}`;
     })
     .join(" ");
 

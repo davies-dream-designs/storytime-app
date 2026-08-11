@@ -66,8 +66,9 @@ export async function getSelectedStoryPeople(input: {
 
 function childProfileToStoryPerson(profile: ChildProfile): StoryPerson {
   const appearance =
+    buildChildAppearanceSummary(profile.appearance) ||
     profile.appearanceSummary ||
-    buildChildAppearanceSummary(profile.appearance);
+    "";
   return {
     id: buildChildCastId(profile.id),
     userId: profile.userId,
@@ -84,6 +85,8 @@ function childProfileToStoryPerson(profile: ChildProfile): StoryPerson {
     ].join(", "),
     appearance,
     appearanceSummary: appearance,
+    avatarTraitHash: profile.avatarTraitHash,
+    avatarGeneratedAt: profile.avatarGeneratedAt,
     avatarImageUrl: profile.avatarImageUrl,
     availableToAllProfiles: true,
     profileIds: [],

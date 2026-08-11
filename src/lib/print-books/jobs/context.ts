@@ -4,19 +4,12 @@ import {
   getStoryPersonRelationshipLabel,
 } from "@/types";
 import {
-  getBodyBuildIllustrationCue,
-  getBodyBuildLabel,
-} from "@/types/bodyBuild";
-import {
-  getStoryPersonAgeGroupIllustrationCue,
-  getStoryPersonAgeGroupLabel,
-  getStoryPersonHeightIllustrationCue,
-  getStoryPersonHeightLabel,
-} from "@/types/storyPersonTraits";
-import type {
-  BookProject,
-  CharacterVisualReference,
-} from "@/types/printBook";
+  buildChildCanonicalAppearanceContext,
+  buildStoryPersonCanonicalAppearanceContext,
+  isChildProfileReferenceStale,
+  isStoryPersonReferenceStale,
+} from "@/lib/characterReferenceContext";
+import type { BookProject, CharacterVisualReference } from "@/types/printBook";
 
 function normalizeSnapshotPart(value: string | undefined): string {
   return (value ?? "").trim().replace(/\s+/g, " ");
@@ -44,52 +37,19 @@ export async function loadBuildContext(project: BookProject) {
 
   const visualReferences: CharacterVisualReference[] = [];
   if (profile.avatarImageUrl) {
-    const structuredAppearance = buildChildAppearanceSummary(profile.appearance);
-    const appearance = [
-      structuredAppearance
-        ? `Latest child profile appearance: ${structuredAppearance}.`
-        : "",
-      profile.appearanceSummary
-        ? `Previous generated child reference summary, use only when it does not conflict with the latest profile appearance: ${profile.appearanceSummary}.`
-        : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
+    const appearance = buildChildCanonicalAppearanceContext(profile);
     visualReferences.push({
       id: `profile:${profile.id}`,
       name: profile.name,
       role: "main_child",
       imageUrl: profile.avatarImageUrl,
       appearance: appearance || undefined,
+      isStale: isChildProfileReferenceStale(profile),
     });
   }
   for (const person of storyPeople) {
     if (!person.avatarImageUrl) continue;
-    const bodyBuildCue = getBodyBuildIllustrationCue(person.bodyBuild);
-    const ageGroupCue = getStoryPersonAgeGroupIllustrationCue(person.ageGroup);
-    const heightCue = getStoryPersonHeightIllustrationCue(person.height);
-    const appearance = [
-      person.appearance.trim()
-        ? `Latest edited appearance: ${person.appearance.trim()}.`
-        : "",
-      person.ageGroup && person.ageGroup !== "not_specified"
-        ? `Latest age group: ${getStoryPersonAgeGroupLabel(person.ageGroup)}.`
-        : "",
-      ageGroupCue ? `Illustration age cue: ${ageGroupCue}.` : "",
-      person.height && person.height !== "not_specified"
-        ? `Latest height: ${getStoryPersonHeightLabel(person.height)}.`
-        : "",
-      heightCue ? `Illustration height cue: ${heightCue}.` : "",
-      person.bodyBuild && person.bodyBuild !== "not_specified"
-        ? `Latest body build: ${getBodyBuildLabel(person.bodyBuild)}.`
-        : "",
-      bodyBuildCue ? `Illustration body-build cue: ${bodyBuildCue}.` : "",
-      person.appearanceSummary?.trim()
-        ? `Previous generated reference summary, use only when it does not conflict with latest edited appearance, age, height, or body build: ${person.appearanceSummary.trim()}`
-        : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
+    const appearance = buildStoryPersonCanonicalAppearanceContext(person);
     visualReferences.push({
       id: `person:${person.id}`,
       name: person.name,
@@ -97,6 +57,7 @@ export async function loadBuildContext(project: BookProject) {
       relationship: getStoryPersonRelationshipLabel(person),
       imageUrl: person.avatarImageUrl,
       appearance: appearance || undefined,
+      isStale: isStoryPersonReferenceStale(person),
     });
   }
 
@@ -105,12 +66,14 @@ export async function loadBuildContext(project: BookProject) {
     profile.id,
     normalizeSnapshotPart(profile.avatarImageUrl),
     normalizeSnapshotPart(profile.appearanceSummary),
+    normalizeSnapshotPart(profile.avatarTraitHash),
     normalizeSnapshotPart(buildChildAppearanceSummary(profile.appearance)),
     ...storyPeople.flatMap((person) => [
       "person",
       person.id,
       normalizeSnapshotPart(person.avatarImageUrl),
       normalizeSnapshotPart(person.appearanceSummary),
+      normalizeSnapshotPart(person.avatarTraitHash),
       normalizeSnapshotPart(person.appearance),
       normalizeSnapshotPart(person.ageGroup),
       normalizeSnapshotPart(person.height),

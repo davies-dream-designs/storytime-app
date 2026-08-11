@@ -103,6 +103,7 @@ export interface CharacterVisualReference {
   relationship?: string;
   imageUrl: string;
   appearance?: string;
+  isStale?: boolean;
 }
 
 export interface BookSpread {

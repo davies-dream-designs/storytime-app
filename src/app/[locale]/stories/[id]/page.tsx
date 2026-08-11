@@ -57,8 +57,6 @@ export default async function StoryPage({
   searchParams?: Promise<StoryPageSearchParams>;
 }) {
   const { userId } = await auth();
-  if (!userId) notFound();
-
   const { id, locale } = await params;
   const query = await (searchParams ??
     Promise.resolve({} as StoryPageSearchParams));
@@ -73,7 +71,9 @@ export default async function StoryPage({
     await Promise.all([
       db.profiles.getById(story.profileId),
       db.bookProjects.getByStoryId(id),
-      getUserCredits(userId),
+      userId
+        ? getUserCredits(userId)
+        : Promise.resolve({ credits: 0, isAdmin: false }),
     ]);
 
   // Prefer an active/ready book. Otherwise surface a book that failed during

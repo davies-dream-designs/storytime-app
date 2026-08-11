@@ -21,8 +21,6 @@ export default async function ProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const { userId } = await auth();
-  if (!userId) notFound();
-
   const [t, tCommon] = await Promise.all([
     getTranslations("profiles"),
     getTranslations("common"),

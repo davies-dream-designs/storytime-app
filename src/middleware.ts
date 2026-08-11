@@ -38,7 +38,18 @@ export default clerkMiddleware(async (auth, req) => {
   }
 
   if (!isPublicRoute(req)) {
-    await auth.protect();
+    const { userId } = await auth();
+
+    if (!userId) {
+      const localeMatch = req.nextUrl.pathname.match(
+        new RegExp(`^/(${localePattern})(?:/|$)`)
+      );
+      const localePrefix = localeMatch?.[1] ?? routing.defaultLocale;
+      const signInUrl = new URL(`/${localePrefix}/sign-in`, req.url);
+      signInUrl.searchParams.set("redirect_url", req.nextUrl.href);
+
+      return NextResponse.redirect(signInUrl);
+    }
   }
 
   return intlResponse ?? NextResponse.next();

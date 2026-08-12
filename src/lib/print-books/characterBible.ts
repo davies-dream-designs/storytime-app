@@ -3,11 +3,15 @@ import type { Character, ChildProfile, Story, StoryPerson } from "@/types";
 import {
   buildChildAppearanceDoNotChange,
   buildChildAppearanceSummary,
+  formatAge,
   getStoryPersonRelationshipLabel,
 } from "@/types";
 import type { CharacterBible } from "@/types/printBook";
 import { getAge } from "@/types";
-import { buildStoryPersonCanonicalAppearanceContext } from "@/lib/characterReferenceContext";
+import {
+  buildChildCanonicalAppearanceContext,
+  buildStoryPersonCanonicalAppearanceContext,
+} from "@/lib/characterReferenceContext";
 
 let client: Anthropic | undefined;
 
@@ -160,6 +164,36 @@ function normalizeList(values: unknown): string[] {
     .filter(Boolean);
 }
 
+function normalizeLockedCharacterRules(
+  values: CharacterBible["lockedCharacterRules"]
+): NonNullable<CharacterBible["lockedCharacterRules"]> {
+  if (!Array.isArray(values)) return [];
+  return values
+    .map((value) => {
+      const role: "main_child" | "family_friend_pet" =
+        value.role === "family_friend_pet" ? "family_friend_pet" : "main_child";
+      return {
+        id: typeof value.id === "string" ? value.id.trim() : "",
+        name: typeof value.name === "string" ? value.name.trim() : "",
+        role,
+        relationship:
+          typeof value.relationship === "string" && value.relationship.trim()
+            ? value.relationship.trim()
+            : undefined,
+        identityRules:
+          typeof value.identityRules === "string"
+            ? value.identityRules.trim()
+            : "",
+        outfitRules:
+          typeof value.outfitRules === "string"
+            ? value.outfitRules.trim()
+            : "",
+        continuityRules: normalizeList(value.continuityRules),
+      };
+    })
+    .filter((value) => value.id && value.name && value.identityRules);
+}
+
 function normalizeCharacterBible(bible: CharacterBible): CharacterBible {
   return {
     childAppearance:
@@ -180,6 +214,104 @@ function normalizeCharacterBible(bible: CharacterBible): CharacterBible {
       bible.lightingTone?.trim() ||
       "Soft evening light with calm, cozy contrast.",
     doNotChange: normalizeList(bible.doNotChange),
+    lockedCharacterRules: normalizeLockedCharacterRules(
+      bible.lockedCharacterRules
+    ),
+  };
+}
+
+function stableIndex(seed: string, size: number): number {
+  let hash = 5381;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 33) ^ seed.charCodeAt(index);
+  }
+  return Math.abs(hash >>> 0) % size;
+}
+
+function pickStable(seed: string, values: string[]): string {
+  return values[stableIndex(seed, values.length)] ?? values[0]!;
+}
+
+const childFallbackOutfits = [
+  "soft blue pajama top, warm cream pajama pants, white socks, and simple navy slippers",
+  "warm sage pajama top, pale grey pajama pants, white socks, and simple brown slippers",
+  "cozy yellow cardigan, soft blue pajamas, white socks, and simple canvas shoes",
+  "plain teal top, soft grey joggers, white socks, and simple navy shoes",
+];
+
+const adultFallbackOutfits = [
+  "plain oatmeal knit top, soft blue trousers, and simple brown shoes",
+  "plain sage jumper, dark comfortable trousers, and simple tan shoes",
+  "plain cream t-shirt, soft charcoal trousers, and simple brown shoes",
+  "plain blue cardigan, warm neutral trousers, and simple dark shoes",
+];
+
+const petFallbackLooks = [
+  "natural markings only, with no clothing or accessories unless explicitly specified",
+  "stable natural coat or fur markings, with no outfit unless explicitly specified",
+];
+
+function buildLockedCharacterRules(input: {
+  profile: ChildProfile;
+  storyPeople: StoryPerson[];
+}): NonNullable<CharacterBible["lockedCharacterRules"]> {
+  const childAppearance =
+    buildChildCanonicalAppearanceContext(input.profile) ||
+    `Infer a gentle age-appropriate child look for ${input.profile.name} once and keep it consistent for the whole book.`;
+  const childOutfit = pickStable(
+    `child:${input.profile.id}:${input.profile.name}`,
+    childFallbackOutfits
+  );
+
+  const rules: NonNullable<CharacterBible["lockedCharacterRules"]> = [
+    {
+      id: `profile:${input.profile.id}`,
+      name: input.profile.name,
+      role: "main_child",
+      identityRules: `${input.profile.name} is the main child, ${formatAge(input.profile)} old. ${childAppearance}`,
+      outfitRules: `Locked outfit and footwear for this book unless the latest child profile explicitly says otherwise: ${childOutfit}. Keep shoes, socks, clothing colors, and hairstyle consistent across every cover, page, and redo.`,
+      continuityRules: [
+        "Use the same face shape, eye color, hair color, hairstyle, skin tone, body build, outfit, and footwear on every page.",
+        "If a trait is missing from the profile, infer it once from this locked rule and do not redesign it later.",
+      ],
+    },
+  ];
+
+  for (const person of input.storyPeople) {
+    const relationship = getStoryPersonRelationshipLabel(person);
+    const isPet = person.relationship === "pet";
+    const appearance =
+      buildStoryPersonCanonicalAppearanceContext(person) ||
+      `Infer a respectful, original look for ${person.name} once and keep it consistent for the whole book.`;
+    const outfit = isPet
+      ? pickStable(`pet:${person.id}:${person.name}`, petFallbackLooks)
+      : pickStable(`person:${person.id}:${person.name}`, adultFallbackOutfits);
+
+    rules.push({
+      id: `person:${person.id}`,
+      name: person.name,
+      role: "family_friend_pet",
+      relationship,
+      identityRules: `${person.name} is ${relationship}. ${appearance}`,
+      outfitRules: `Locked outfit, markings, and footwear for this book unless the latest edited profile explicitly says otherwise: ${outfit}. Keep these details consistent across every cover, page, and redo.`,
+      continuityRules: [
+        "Use the same face shape, apparent age, height, body build, hair or fur, glasses, skin tone or markings, outfit, and footwear on every page.",
+        "If a trait is missing from the profile, infer it once from this locked rule and do not redesign it later.",
+        "Do not make this person a generic relationship stereotype; preserve the specific profile and reference details.",
+      ],
+    });
+  }
+
+  return rules;
+}
+
+export function enrichCharacterBibleWithLockedRules(
+  bible: CharacterBible,
+  input: { profile: ChildProfile; storyPeople: StoryPerson[] }
+): CharacterBible {
+  return {
+    ...bible,
+    lockedCharacterRules: buildLockedCharacterRules(input),
   };
 }
 
@@ -194,8 +326,26 @@ export function buildIllustrationDirection(bible: CharacterBible): string {
     bible.doNotChange.length > 0
       ? bible.doNotChange.join("; ")
       : "keep the child recognisable";
+  const lockedRules = normalizeLockedCharacterRules(bible.lockedCharacterRules);
+  const lockedContinuity =
+    lockedRules.length > 0
+      ? [
+          "LOCKED CHARACTER CONTINUITY: use these per-character rules as the source of truth for every cover, interior page, and redo.",
+          ...lockedRules.map((character) => {
+            const relationship = character.relationship
+              ? `, ${character.relationship}`
+              : "";
+            const constraints = character.continuityRules.length
+              ? ` Continuity constraints: ${character.continuityRules.join("; ")}.`
+              : "";
+            return `${character.name} (${character.role}${relationship}): ${character.identityRules} ${character.outfitRules}.${constraints}`;
+          }),
+          "For any unspecified visual detail, follow the inferred locked rule above and repeat it consistently; do not invent new shoes, clothing, hair, face, body build, or age details on later pages.",
+        ].join(" ")
+      : "";
 
   return [
+    lockedContinuity,
     `Child appearance: ${bible.childAppearance}`,
     `Outfit rules: ${bible.outfitRules}`,
     `Recurring props: ${recurringProps}`,
@@ -230,7 +380,13 @@ export async function generateCharacterBible(input: {
     if (content.type !== "text")
       throw new Error("Unexpected response type from AI");
 
-    return normalizeCharacterBible(parseCharacterBible(content.text.trim()));
+    return enrichCharacterBibleWithLockedRules(
+      normalizeCharacterBible(parseCharacterBible(content.text.trim())),
+      {
+        profile: input.profile,
+        storyPeople: input.storyPeople ?? [],
+      }
+    );
   };
 
   try {

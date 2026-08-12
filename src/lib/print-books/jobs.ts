@@ -2,7 +2,10 @@ import { after } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "@/lib/db";
 import { deriveBeatsFromStory } from "@/lib/print-books/beats";
-import { generateCharacterBible } from "@/lib/print-books/characterBible";
+import {
+  enrichCharacterBibleWithLockedRules,
+  generateCharacterBible,
+} from "@/lib/print-books/characterBible";
 import { composePrintBookSpreads } from "@/lib/print-books/composer";
 import {
   applySpreadIllustration,
@@ -148,13 +151,21 @@ async function advanceArtBuild(project: BookProject, context: BuildContext) {
     );
   }
 
+  const characterBible = enrichCharacterBibleWithLockedRules(
+    project.characterBible,
+    {
+      profile: context.profile,
+      storyPeople: context.storyPeople,
+    }
+  );
+
   if (project.status === "illustrating") {
     return regenerateProjectArt({
       id: project.id,
       project,
       story: context.story,
       profile: context.profile,
-      characterBible: project.characterBible,
+      characterBible,
       visualReferences: context.visualReferences,
       referenceSnapshotKey: context.referenceSnapshotKey,
       buildMode: "art",
@@ -234,13 +245,20 @@ export async function regenerateBookSpreadPageImage(input: {
   }
 
   const context = await loadBuildContext(project);
+  const characterBible = enrichCharacterBibleWithLockedRules(
+    project.characterBible,
+    {
+      profile: context.profile,
+      storyPeople: context.storyPeople,
+    }
+  );
   let generated: Awaited<ReturnType<typeof generateSpreadPageIllustration>>;
   try {
     generated = await generateSpreadPageIllustration({
       project,
       story: context.story,
       profile: context.profile,
-      characterBible: project.characterBible,
+      characterBible,
       visualReferences: context.visualReferences,
       spread,
       side: input.side,
@@ -274,6 +292,7 @@ export async function regenerateBookSpreadPageImage(input: {
         : {};
     await db.bookProjects.update(project.id, {
       ...failedImagePatch,
+      characterBible,
       spreads: applySpreadIllustration(project.spreads, failedSpread),
     });
     await logEvent({
@@ -315,6 +334,7 @@ export async function regenerateBookSpreadPageImage(input: {
     currentStageLabel: "Refreshing exports with the regenerated image...",
     errorCode: undefined,
     errorMessage: undefined,
+    characterBible,
     spreads: nextSpreads,
     assets: {
       ...project.assets,

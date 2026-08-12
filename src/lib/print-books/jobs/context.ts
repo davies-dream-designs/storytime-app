@@ -9,6 +9,7 @@ import {
   isChildProfileReferenceStale,
   isStoryPersonReferenceStale,
 } from "@/lib/characterReferenceContext";
+import { getSelectedStoryPeople } from "@/lib/storyPeopleSelection";
 import type { BookProject, CharacterVisualReference } from "@/types/printBook";
 
 function normalizeSnapshotPart(value: string | undefined): string {
@@ -30,10 +31,11 @@ export async function loadBuildContext(project: BookProject) {
     throw new Error("Profile not found");
   }
 
-  const storyPeople = await db.storyPeople.getByIds(
-    story.storyPersonIds ?? [],
-    project.userId
-  );
+  const storyPeople = await getSelectedStoryPeople({
+    userId: project.userId,
+    profileId: project.profileId,
+    storyPersonIds: story.storyPersonIds ?? [],
+  });
 
   const visualReferences: CharacterVisualReference[] = [];
   if (profile.avatarImageUrl) {

@@ -172,6 +172,45 @@ describe("generateCoverIllustration", () => {
     expect(prompt).toContain("Cover scene:");
   });
 
+  it("includes locked character rules in illustration prompts", async () => {
+    const { buildCoverIllustrationPrompt } =
+      await import("@/lib/print-books/illustrations");
+    const project = createProject();
+    const bible: CharacterBible = {
+      ...createCharacterBible(),
+      lockedCharacterRules: [
+        {
+          id: "person:glenpa",
+          name: "Glenpa",
+          role: "family_friend_pet",
+          relationship: "Grandparent",
+          identityRules:
+            "Glenpa has dark-framed glasses, a grey man bun, and a large body build.",
+          outfitRules:
+            "Locked outfit and footwear: plain cream t-shirt, blue trousers, and simple brown shoes.",
+          continuityRules: [
+            "Use the same face shape, man bun, glasses, body build, outfit, and shoes on every page.",
+          ],
+        },
+      ],
+    };
+
+    const prompt = buildCoverIllustrationPrompt({
+      project,
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: bible,
+      coverSpread: project.spreads[0],
+    });
+
+    expect(prompt).toContain("LOCKED CHARACTER CONTINUITY");
+    expect(prompt).toContain("plain cream t-shirt");
+    expect(prompt).toContain("simple brown shoes");
+    expect(prompt).toContain(
+      "For any unspecified visual detail, follow the inferred locked rule"
+    );
+  });
+
   it("omits raw story prose from sequential page image prompts", async () => {
     process.env.OPENAI_API_KEY = "test-key";
 

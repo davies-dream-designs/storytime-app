@@ -94,6 +94,17 @@ export interface CharacterBible {
   renderStyle: string;
   lightingTone: string;
   doNotChange: string[];
+  lockedCharacterRules?: LockedCharacterRule[];
+}
+
+export interface LockedCharacterRule {
+  id: string;
+  name: string;
+  role: "main_child" | "family_friend_pet";
+  relationship?: string;
+  identityRules: string;
+  outfitRules: string;
+  continuityRules: string[];
 }
 
 export interface CharacterVisualReference {

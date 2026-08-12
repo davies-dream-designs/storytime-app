@@ -211,7 +211,7 @@ describe("generateCoverIllustration", () => {
     );
   });
 
-  it("omits raw story prose from sequential page image prompts", async () => {
+  it("uses sanitized story moment constraints in sequential page image prompts", async () => {
     process.env.OPENAI_API_KEY = "test-key";
 
     vi.doMock("@/lib/print-books/storage", () => ({
@@ -285,8 +285,92 @@ describe("generateCoverIllustration", () => {
     );
     const requestBody = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body);
     expect(requestBody.prompt).toContain("A gentle pond scene");
+    expect(requestBody.prompt).toContain("Story moment constraints");
     expect(requestBody.prompt).not.toContain("bare little toes");
     expect(requestBody.prompt).not.toContain("Page moment:");
+
+    vi.unstubAllGlobals();
+    vi.doUnmock("sharp");
+    vi.doUnmock("@/lib/print-books/storage");
+  });
+
+  it("tells page art to preserve prop positions from the story moment", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    vi.doMock("@/lib/print-books/storage", () => ({
+      storeBookAsset: mockStoreBookAsset,
+      isBookAssetStorageConfigured: () => true,
+    }));
+
+    vi.doMock("sharp", () => {
+      const instance = {
+        resize: vi.fn().mockReturnThis(),
+        removeAlpha: vi.fn().mockReturnThis(),
+        raw: vi.fn().mockReturnThis(),
+        png: vi.fn().mockReturnThis(),
+        jpeg: vi.fn().mockReturnThis(),
+        toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
+          options?.resolveWithObject
+            ? Promise.resolve({
+                data: Buffer.from([128, 128, 128, 180, 180, 180]),
+                info: { channels: 3 },
+              })
+            : Promise.resolve(Buffer.from("upscaled-png"))
+        ),
+      };
+      const sharpFn = vi.fn(() => instance);
+      const sharpMock = Object.assign(sharpFn, {
+        kernel: { lanczos3: "lanczos3" },
+      });
+      return { default: sharpMock };
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [{ b64_json: Buffer.from("image").toString("base64") }],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mockStoreBookAsset.mockResolvedValue("https://example.com/page.png");
+
+    vi.resetModules();
+    const { generateSpreadPageIllustration } =
+      await import("@/lib/print-books/illustrations");
+
+    const project = createProject();
+    const spread = {
+      ...project.spreads[0]!,
+      id: "book-1:spread:3",
+      sequence: 3,
+      pageStart: 5,
+      pageEnd: 6,
+      title: "Tree",
+      leftPageText:
+        "Bailey looked up. Teddy was stuck high in the apple tree, waving from a leafy branch.",
+      rightPageText: "",
+      sceneBrief: "Bailey notices Teddy stuck high in the apple tree.",
+      illustrationPrompt:
+        "Bailey stands under an apple tree while Teddy is stuck safely on a leafy branch above.",
+    };
+
+    await generateSpreadPageIllustration({
+      project,
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+      spread,
+      side: "left",
+    });
+
+    const requestBody = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body);
+    expect(requestBody.prompt).toContain("Teddy was stuck high in the apple tree");
+    expect(requestBody.prompt).toContain(
+      "do not place it in a character's hands"
+    );
+    expect(requestBody.prompt).toContain(
+      "Scene fidelity is higher priority than a convenient character pose"
+    );
 
     vi.unstubAllGlobals();
     vi.doUnmock("sharp");

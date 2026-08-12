@@ -745,6 +745,18 @@ async function generateAndUpscale(input: {
 // Prompt builders
 // ---------------------------------------------------------------------------
 
+function sanitizePageMomentForImagePrompt(value: string): string {
+  return value
+    .replace(/\s+/g, " ")
+    .replace(/\b(bare\s+(?:little\s+)?toes?|bare\s+feet|feet|toes?)\b/gi, "shoes")
+    .replace(/\b(warm\s+mud|muddy\s+skin|mud\s+on\s+(?:their|his|her)\s+body)\b/gi, "soft ground")
+    .replace(/\b(naked|nude|undressed|underwear|nappy|diaper)\b/gi, "fully clothed")
+    .replace(/\b(bath|bathing|toilet|potty)\b/gi, "bedtime room")
+    .replace(/\b(injured|injury|blood|weapon|knife|gun|drowning|restraint|restrained)\b/gi, "safe")
+    .slice(0, 420)
+    .trim();
+}
+
 function buildPageIllustrationPrompt(input: {
   project: BookProject;
   story: Story;
@@ -763,10 +775,13 @@ function buildPageIllustrationPrompt(input: {
     characterBible,
     spread,
     side,
-    omitPageText = true,
+    omitPageText = false,
     correctionNote,
   } = input;
   const pageText = side === "left" ? spread.leftPageText : spread.rightPageText;
+  const pageMoment = omitPageText
+    ? ""
+    : sanitizePageMomentForImagePrompt(pageText);
   const latestReferenceContext = (input.visualReferences ?? [])
     .map((reference) => {
       const relationship = reference.relationship
@@ -800,7 +815,11 @@ function buildPageIllustrationPrompt(input: {
   return [
     `Illustration direction: ${spread.illustrationPrompt}.`,
     `Scene brief: ${spread.sceneBrief}.`,
-    ...(omitPageText ? [] : pageText ? [`Page moment: ${pageText}.`] : []),
+    ...(pageMoment
+      ? [
+          `Story moment constraints, image-safe summary: ${pageMoment}. Preserve object positions, character actions, and cause/effect exactly. If a toy, pet, or prop is described as stuck, lost, above, below, in a tree, on a shelf, or across the room, do not place it in a character's hands unless this exact moment says it has been retrieved.`,
+        ]
+      : []),
     `Composition: ${compositionHint}.`,
     // Character consistency follows as a constraint block.
     buildIllustrationDirection(characterBible),
@@ -818,7 +837,7 @@ function buildPageIllustrationPrompt(input: {
         ]
       : []),
     // Variation is the critical instruction - stated explicitly.
-    "Illustrate this specific story moment. The depicted scene, character action, setting detail, and emotional tone must match the illustration direction above. This image must look meaningfully different from every other page in the book. Keep every selected/reference character's face shape, apparent age, hair or fur, skin tone, glasses, latest body build, and core outfit or markings consistent with the latest overrides, not stale generated artwork. No text, lettering, or page numbers inside the art.",
+    "Illustrate this specific story moment. Scene fidelity is higher priority than a convenient character pose: the depicted object locations, character actions, setting detail, and emotional tone must match the story moment constraints, scene brief, and illustration direction above. This image must look meaningfully different from every other page in the book. Keep every selected/reference character's face shape, apparent age, hair or fur, skin tone, glasses, latest body build, and core outfit or markings consistent with the latest overrides, not stale generated artwork. No text, lettering, or page numbers inside the art.",
   ].join(" ");
 }
 

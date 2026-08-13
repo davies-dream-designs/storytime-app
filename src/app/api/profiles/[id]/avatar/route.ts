@@ -7,6 +7,7 @@ import {
 } from "@/lib/credits";
 import { FREE_REFERENCE_AVATAR_LIMIT } from "@/lib/pricing";
 import {
+  createChildProfileAvatarFromDescription,
   createChildProfileAvatar,
   redoChildProfileAvatar,
 } from "@/lib/storyPeopleAvatars";
@@ -48,15 +49,31 @@ export async function POST(
   if (contentType.includes("application/json")) {
     const payload = (await req.json().catch(() => ({}))) as {
       adjustment?: string;
+      source?: "description";
     };
     let charged = false;
     try {
-      const charge = await chargeReferenceRedoCredit(userId);
-      charged = charge.charged;
-      const avatar = await redoChildProfileAvatar({
-        profile,
-        adjustment: payload.adjustment ?? "",
-      });
+      const isDescriptionCreate =
+        payload.source === "description" && !profile.avatarImageUrl;
+      const existingReferenceCount = isDescriptionCreate
+        ? await db.profiles.countAvatarReferencesByUserId(userId)
+        : FREE_REFERENCE_AVATAR_LIMIT;
+      const shouldCharge =
+        !isDescriptionCreate ||
+        existingReferenceCount >= FREE_REFERENCE_AVATAR_LIMIT;
+      if (shouldCharge) {
+        const charge = await chargeReferenceRedoCredit(userId);
+        charged = charge.charged;
+      }
+      const avatar = isDescriptionCreate
+        ? await createChildProfileAvatarFromDescription({
+            profile,
+            adjustment: payload.adjustment ?? "",
+          })
+        : await redoChildProfileAvatar({
+            profile,
+            adjustment: payload.adjustment ?? "",
+          });
       const appearance = mergeConsistencyNote(
         profile.appearance,
         avatar.consistencyNote

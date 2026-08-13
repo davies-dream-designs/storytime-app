@@ -109,6 +109,55 @@ export function buildStoryPersonAvatarPrompt(
     .join(" ");
 }
 
+export function buildStoryPersonDescriptionAvatarPrompt(
+  person: StoryPerson,
+  adjustment?: string
+): string {
+  return [
+    NO_VISIBLE_TEXT_IN_REFERENCE,
+    `Create a square Storycot-style illustrated character reference of a ${person.relationship === "pet" ? "beloved family pet" : "family member or friend"}.`,
+    `Relationship context: ${getStoryPersonRelationshipLabel(person)}.`,
+    "Use profile details only as private generation context; never draw words, labels, names, relationship labels, or name tags.",
+    person.appearance.trim()
+      ? `Current appearance description: ${person.appearance.trim()}.`
+      : "",
+    person.description.trim()
+      ? `Role notes for behaviour/context only: ${person.description.trim()}.`
+      : "",
+    person.personality.trim()
+      ? `Personality: ${person.personality.trim()}.`
+      : "",
+    person.ageGroup && person.ageGroup !== "not_specified"
+      ? `Age group context: ${getStoryPersonAgeGroupLabel(person.ageGroup)}. Preserve this broad life stage without making the person look older or younger than requested.`
+      : "",
+    person.height && person.height !== "not_specified"
+      ? `Height context: ${getStoryPersonHeightLabel(person.height)}. Preserve this as a relative height cue for reusable story scenes.`
+      : "",
+    person.bodyBuild && person.bodyBuild !== "not_specified"
+      ? `Body build context: ${getBodyBuildLabel(person.bodyBuild)}. Preserve this as a respectful broad body-shape cue without exaggerating it.`
+      : "",
+    person.bodyBuild === "large"
+      ? "Large means moderately fuller-than-average, not very large or oversized."
+      : "",
+    person.bodyBuild === "very_large"
+      ? "Very Large means clearly plus-size and fuller than Large."
+      : "",
+    formatAdjustmentInstruction(adjustment),
+    "Because no source photo is supplied, infer any missing non-sensitive visual details once from the written profile and make a stable reusable reference.",
+    "Do not exaggerate body shape, age, expression, or proportions from written profile notes.",
+    "Do not include branded clothing, recognisable protected character designs, toy characters, mascot art, logos, or clothing graphics.",
+    "For people, use a head-and-shoulders portrait with a plain unbranded jumper or top in a gentle Storycot palette.",
+    "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
+    "Make it suitable as a reusable character reference for Storycot hardcover interiors and child profile illustrations: square crop, head-and-shoulders person portrait or full pet pose, clear visible features, stable unbranded outfit or pet markings, no scene-specific props unless requested.",
+    "Show only one subject. Do not add extra adults, children, babies, pets, toys, props, or background objects unless the written profile explicitly describes them as part of the subject.",
+    "Do not make a photorealistic portrait, caricature, sticker, logo, toy packaging image, or social-media avatar.",
+    "No text, captions, name labels, age labels, watermark, logos, franchise styling, celebrity styling, recognisable character prints, or exact copy of clothing designs.",
+    NO_VISIBLE_TEXT_IN_REFERENCE,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 export function buildChildProfileAvatarPrompt(
   profile: ChildProfile,
   analysis: PhotoAnalysis,
@@ -149,6 +198,46 @@ export function buildChildProfileAvatarPrompt(
     .join(" ");
 }
 
+export function buildChildProfileDescriptionAvatarPrompt(
+  profile: ChildProfile,
+  adjustment?: string
+): string {
+  const appearance = buildChildAppearanceSummary(profile.appearance);
+  return [
+    NO_VISIBLE_TEXT_IN_REFERENCE,
+    "Create a square Storycot-style illustrated child profile reference from the written child profile.",
+    "Use child profile metadata only as private generation context; never draw the child's name, age, gender, pronouns, labels, or captions.",
+    `Use ${getChildDrawingStage(profile)} only for visual scale and proportions.`,
+    appearance ? `Current profile appearance: ${appearance}.` : "",
+    profile.appearanceSummary
+      ? `Previous visible reference summary, use only if it does not conflict with current profile appearance: ${profile.appearanceSummary}.`
+      : "",
+    profile.appearance?.bodyBuild &&
+    profile.appearance.bodyBuild !== "not_specified"
+      ? `Body build context: ${getBodyBuildLabel(profile.appearance.bodyBuild)}. Preserve this as a respectful broad body-shape cue without exaggerating it.`
+      : "",
+    profile.appearance?.bodyBuild === "large"
+      ? "Large means moderately fuller-than-average, not very large or oversized."
+      : "",
+    profile.appearance?.bodyBuild === "very_large"
+      ? "Very Large means clearly plus-size and fuller than Large."
+      : "",
+    formatAdjustmentInstruction(adjustment),
+    "Because no source photo is supplied, infer any missing non-sensitive visual details once from the written profile and make a stable reusable reference.",
+    "Do not exaggerate body shape, age, expression, or proportions from written profile notes.",
+    "Do not include branded clothing, recognisable protected character designs, toy characters, mascot art, logos, or clothing graphics.",
+    "Use a portrait crop from upper chest to top of head, centred on the child's face. Do not create a full-body standing or seated character sheet, full outfit pose, poster, profile page, or scene.",
+    "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
+    "Make it suitable as a reusable child reference for Storycot hardcover interiors: square crop, head-and-shoulders portrait only, plain unbranded child-safe top in a gentle Storycot palette, clear visible features, stable outfit guidance, no scene-specific props unless already in the profile.",
+    "Show only the child. Do not add extra adults, children, babies, pets, toys, props, or background objects unless the written profile explicitly describes them as part of the child.",
+    "Do not make a photorealistic portrait, caricature, sticker, logo, toy packaging image, or social-media avatar.",
+    "No text, captions, name labels, age labels, watermark, logos, franchise styling, celebrity styling, recognisable character prints, or exact copy of clothing designs.",
+    NO_VISIBLE_TEXT_IN_REFERENCE,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 async function normalizeUploadForOpenAI(file: File): Promise<Buffer> {
   const input = Buffer.from(await file.arrayBuffer());
   return sharp(input)
@@ -159,6 +248,40 @@ async function normalizeUploadForOpenAI(file: File): Promise<Buffer> {
     })
     .png({ compressionLevel: 8 })
     .toBuffer();
+}
+
+async function generateImageFromText(prompt: string): Promise<Buffer> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
+
+  const response = await fetch("https://api.openai.com/v1/images/generations", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: process.env.OPENAI_AVATAR_IMAGE_MODEL ?? "gpt-image-1",
+      prompt,
+      size: "1024x1024",
+      output_format: "png",
+      quality: "medium",
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(
+      `OpenAI avatar generation failed: ${response.status} ${body}`
+    );
+  }
+
+  const payload = (await response.json()) as {
+    data?: Array<{ b64_json?: string }>;
+  };
+  const base64 = payload.data?.[0]?.b64_json;
+  if (!base64) throw new Error("OpenAI avatar generation returned no image");
+  return Buffer.from(base64, "base64");
 }
 
 async function generateEditedImage(input: {
@@ -407,6 +530,43 @@ export async function createStoryPersonAvatar(input: {
   };
 }
 
+export async function createStoryPersonAvatarFromDescription(input: {
+  person: StoryPerson;
+  adjustment?: string;
+}): Promise<{
+  avatarImageUrl: string;
+  appearance: string;
+  appearanceSummary: string;
+}> {
+  const appearance = input.person.appearance.trim();
+  const generated = await generateImageFromText(
+    buildStoryPersonDescriptionAvatarPrompt(input.person, input.adjustment)
+  );
+  const webImage = await sharp(generated)
+    .resize(768, 768, { fit: "cover" })
+    .jpeg({ quality: 88, mozjpeg: true })
+    .toBuffer();
+
+  const avatarImageUrl = await storeBookAsset({
+    pathname: `story-people/${input.person.userId}/${input.person.id}/avatar-${Date.now()}.jpg`,
+    body: webImage,
+    contentType: "image/jpeg",
+  });
+
+  await deletePreviousReference(input.person.avatarImageUrl);
+  const nextAppearance =
+    appearance || buildStoryPersonAppearanceSummary(input.person);
+
+  return {
+    avatarImageUrl,
+    appearance: nextAppearance,
+    appearanceSummary: buildAdjustedSummary(
+      nextAppearance || "Storycot-style illustrated reference from profile details.",
+      input.adjustment
+    ),
+  };
+}
+
 export async function redoStoryPersonAvatar(input: {
   person: StoryPerson;
   adjustment: string;
@@ -510,6 +670,45 @@ export async function createChildProfileAvatar(input: {
       input.adjustment
     ),
     consistencyNote: analysis.appearance || undefined,
+  };
+}
+
+export async function createChildProfileAvatarFromDescription(input: {
+  profile: ChildProfile;
+  adjustment?: string;
+}): Promise<{
+  avatarImageUrl: string;
+  appearanceSummary: string;
+  consistencyNote?: string;
+}> {
+  const appearance = buildChildAppearanceSummary(input.profile.appearance);
+  const generated = await generateImageFromText(
+    buildChildProfileDescriptionAvatarPrompt(input.profile, input.adjustment)
+  );
+  const webImage = await sharp(generated)
+    .resize(768, 768, { fit: "cover" })
+    .jpeg({ quality: 88, mozjpeg: true })
+    .toBuffer();
+
+  const avatarImageUrl = await storeBookAsset({
+    pathname: `profiles/${input.profile.userId}/${input.profile.id}/avatar-${Date.now()}.jpg`,
+    body: webImage,
+    contentType: "image/jpeg",
+  });
+
+  await deletePreviousReference(input.profile.avatarImageUrl);
+
+  return {
+    avatarImageUrl,
+    appearanceSummary: buildAdjustedSummary(
+      appearance ||
+        input.profile.appearanceSummary ||
+        "Storycot-style illustrated child reference from profile details.",
+      input.adjustment
+    ),
+    consistencyNote: isTextOnlyAdjustment(input.adjustment)
+      ? undefined
+      : input.adjustment?.trim().slice(0, 140) || undefined,
   };
 }
 

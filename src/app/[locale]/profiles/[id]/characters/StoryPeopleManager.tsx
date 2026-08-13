@@ -495,6 +495,52 @@ export default function StoryPeopleManager({
     }
   }
 
+  async function createAvatarFromDescription(person: StoryPerson) {
+    if (person.avatarImageUrl) return;
+    const cost = getAvatarCreateCost(person);
+    if (cost > 0 && creditInfo && creditInfo.credits < cost) {
+      setError("You need 1 credit to create this illustrated reference.");
+      return;
+    }
+    const confirmed = await confirm({
+      title: "Create Illustrated Reference",
+      message:
+        cost > 0
+          ? `Creating ${person.name}'s illustrated reference from their description will use 1 credit. Continue?`
+          : `Creating ${person.name}'s illustrated reference from their description is free. Continue?`,
+      confirmLabel: "Create Reference",
+    });
+    if (!confirmed) return;
+    setError("");
+    setGeneratingAvatarForId(person.id);
+    try {
+      const res = await fetch(`/api/story-people/${person.id}/avatar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: "description" }),
+      });
+      const data = (await res.json()) as StoryPerson | { error?: string };
+      if (!res.ok || !isStoryPerson(data)) {
+        throw new Error(
+          isStoryPerson(data)
+            ? "Could not create the illustrated reference"
+            : data.error || "Could not create the illustrated reference"
+        );
+      }
+      setPeople((current) =>
+        current.map((currentPerson) =>
+          currentPerson.id === data.id ? data : currentPerson
+        )
+      );
+      if (form.id === data.id) setForm(formFromPerson(data));
+      window.dispatchEvent(new Event("storycot:credits-updated"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setGeneratingAvatarForId(null);
+    }
+  }
+
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr]">
       <section className="rounded-2xl border border-night-100 bg-white p-5">
@@ -1671,6 +1717,19 @@ export default function StoryPeopleManager({
                           ) : null}
 
                           <div className="mt-3 flex flex-wrap gap-2">
+                            {!person.avatarImageUrl ? (
+                              <Button
+                                size="compact"
+                                onClick={() =>
+                                  void createAvatarFromDescription(person)
+                                }
+                                disabled={busy}
+                              >
+                                {busy
+                                  ? "Creating..."
+                                  : "Create From Description"}
+                              </Button>
+                            ) : null}
                             <label
                               className={buttonClassName({
                                 variant: "secondary",

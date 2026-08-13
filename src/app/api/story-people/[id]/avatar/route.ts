@@ -8,6 +8,7 @@ import {
 import { FREE_REFERENCE_AVATAR_LIMIT } from "@/lib/pricing";
 import {
   createStoryPersonAvatar,
+  createStoryPersonAvatarFromDescription,
   redoStoryPersonAvatar,
 } from "@/lib/storyPeopleAvatars";
 import { getStoryPersonReferenceTraitHash } from "@/lib/characterReferenceContext";
@@ -30,15 +31,31 @@ export async function POST(
   if (contentType.includes("application/json")) {
     const payload = (await req.json().catch(() => ({}))) as {
       adjustment?: string;
+      source?: "description";
     };
     let charged = false;
     try {
-      const charge = await chargeReferenceRedoCredit(userId);
-      charged = charge.charged;
-      const avatar = await redoStoryPersonAvatar({
-        person,
-        adjustment: payload.adjustment ?? "",
-      });
+      const isDescriptionCreate =
+        payload.source === "description" && !person.avatarImageUrl;
+      const existingReferenceCount = isDescriptionCreate
+        ? await db.storyPeople.countAvatarReferencesByUserId(userId)
+        : FREE_REFERENCE_AVATAR_LIMIT;
+      const shouldCharge =
+        !isDescriptionCreate ||
+        existingReferenceCount >= FREE_REFERENCE_AVATAR_LIMIT;
+      if (shouldCharge) {
+        const charge = await chargeReferenceRedoCredit(userId);
+        charged = charge.charged;
+      }
+      const avatar = isDescriptionCreate
+        ? await createStoryPersonAvatarFromDescription({
+            person,
+            adjustment: payload.adjustment ?? "",
+          })
+        : await redoStoryPersonAvatar({
+            person,
+            adjustment: payload.adjustment ?? "",
+          });
       const nextPerson = {
         ...person,
         avatarImageUrl: avatar.avatarImageUrl,

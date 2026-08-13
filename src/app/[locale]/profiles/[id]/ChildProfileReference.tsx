@@ -179,6 +179,48 @@ export default function ChildProfileReference({
     }
   }
 
+  async function createReferenceFromDescription() {
+    if (profile.avatarImageUrl) return;
+    const cost = creditInfo?.isAdmin ? 0 : createReferenceCost;
+    if (cost > 0 && creditInfo && creditInfo.credits < cost) {
+      setError("You need 1 credit to create this illustrated reference.");
+      return;
+    }
+    const confirmed = await confirm({
+      title: "Create Child Reference",
+      message:
+        cost > 0
+          ? "Creating this illustrated reference from the child profile will use 1 credit. Continue?"
+          : "Creating this illustrated reference from the child profile is free. Continue?",
+      confirmLabel: "Create Reference",
+    });
+    if (!confirmed) return;
+    setError("");
+    setGenerating(true);
+    try {
+      const res = await fetch(`/api/profiles/${profile.id}/avatar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: "description" }),
+      });
+      const data = (await res.json()) as ChildProfile | { error?: string };
+      if (!res.ok || !isChildProfile(data)) {
+        throw new Error(
+          isChildProfile(data)
+            ? "Could not create the child reference"
+            : data.error || "Could not create the child reference"
+        );
+      }
+      setProfile(data);
+      setReferenceCount((current) => current + 1);
+      window.dispatchEvent(new Event("storycot:credits-updated"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   return (
     <section className="rounded-2xl border border-night-100 bg-white p-5">
       <div className="grid gap-4 md:grid-cols-[9rem_1fr]">
@@ -386,6 +428,15 @@ export default function ChildProfileReference({
           ) : null}
 
           <div className="mt-4 flex flex-wrap gap-2">
+            {!profile.avatarImageUrl ? (
+              <Button
+                size="compact"
+                onClick={() => void createReferenceFromDescription()}
+                disabled={generating}
+              >
+                {generating ? "Creating..." : "Create From Profile"}
+              </Button>
+            ) : null}
             <label
               className={buttonClassName({
                 variant: "secondary",

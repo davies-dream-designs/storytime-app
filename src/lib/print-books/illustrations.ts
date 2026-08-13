@@ -817,7 +817,7 @@ function buildPageIllustrationPrompt(input: {
     `Scene brief: ${spread.sceneBrief}.`,
     ...(pageMoment
       ? [
-          `Story moment constraints, image-safe summary: ${pageMoment}. Preserve object positions, character actions, and cause/effect exactly. If a toy, pet, or prop is described as stuck, lost, above, below, in a tree, on a shelf, or across the room, do not place it in a character's hands unless this exact moment says it has been retrieved.`,
+          `Story moment constraints, image-safe summary: ${pageMoment}. Preserve scene state exactly: which characters are present, what each character is doing, what each object or pet is doing, who is holding or not holding each object, where every important object/person/pet is located, and what has or has not happened yet. Do not move objects, pets, toys, books, gifts, food, clothing, or story props into a character's hands, onto the floor, into the background, or out of the scene unless this exact moment says so.`,
         ]
       : []),
     `Composition: ${compositionHint}.`,
@@ -837,7 +837,7 @@ function buildPageIllustrationPrompt(input: {
         ]
       : []),
     // Variation is the critical instruction - stated explicitly.
-    "Illustrate this specific story moment. Scene fidelity is higher priority than a convenient character pose: the depicted object locations, character actions, setting detail, and emotional tone must match the story moment constraints, scene brief, and illustration direction above. This image must look meaningfully different from every other page in the book. Keep every selected/reference character's face shape, apparent age, hair or fur, skin tone, glasses, latest body build, and core outfit or markings consistent with the latest overrides, not stale generated artwork. No text, lettering, or page numbers inside the art.",
+    "Illustrate this specific story moment. Scene fidelity is higher priority than a convenient character pose: the depicted object locations, who is holding what, character actions, setting detail, sequence of events, and emotional tone must match the story moment constraints, scene brief, and illustration direction above. This image must look meaningfully different from every other page in the book. Keep every selected/reference character's face shape, apparent age, hair or fur, skin tone, glasses, latest body build, and core outfit or markings consistent with the latest overrides, not stale generated artwork. No text, lettering, or page numbers inside the art.",
   ].join(" ");
 }
 

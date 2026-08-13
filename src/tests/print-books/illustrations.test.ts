@@ -294,7 +294,7 @@ describe("generateCoverIllustration", () => {
     vi.doUnmock("@/lib/print-books/storage");
   });
 
-  it("tells page art to preserve prop positions from the story moment", async () => {
+  it("tells page art to preserve general object and character scene state", async () => {
     process.env.OPENAI_API_KEY = "test-key";
 
     vi.doMock("@/lib/print-books/storage", () => ({
@@ -345,13 +345,14 @@ describe("generateCoverIllustration", () => {
       sequence: 3,
       pageStart: 5,
       pageEnd: 6,
-      title: "Tree",
+      title: "Kitchen",
       leftPageText:
-        "Bailey looked up. Teddy was stuck high in the apple tree, waving from a leafy branch.",
+        "Bailey watched from the doorway. The red book was still on the kitchen table, Piggy was under the chair, and Mum held the little yellow cup.",
       rightPageText: "",
-      sceneBrief: "Bailey notices Teddy stuck high in the apple tree.",
+      sceneBrief:
+        "Bailey watches a quiet kitchen moment from the doorway while the objects stay where they are.",
       illustrationPrompt:
-        "Bailey stands under an apple tree while Teddy is stuck safely on a leafy branch above.",
+        "Bailey stands in the doorway of a cosy kitchen, with the red book on the table, Piggy under the chair, and Mum holding a little yellow cup.",
     };
 
     await generateSpreadPageIllustration({
@@ -364,9 +365,13 @@ describe("generateCoverIllustration", () => {
     });
 
     const requestBody = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body);
-    expect(requestBody.prompt).toContain("Teddy was stuck high in the apple tree");
+    expect(requestBody.prompt).toContain("Preserve scene state exactly");
+    expect(requestBody.prompt).toContain("who is holding or not holding each object");
+    expect(requestBody.prompt).toContain("red book was still on the kitchen table");
+    expect(requestBody.prompt).toContain("Piggy was under the chair");
+    expect(requestBody.prompt).toContain("Mum held the little yellow cup");
     expect(requestBody.prompt).toContain(
-      "do not place it in a character's hands"
+      "Do not move objects, pets, toys, books, gifts, food, clothing, or story props"
     );
     expect(requestBody.prompt).toContain(
       "Scene fidelity is higher priority than a convenient character pose"

@@ -286,6 +286,10 @@ describe("generateCoverIllustration", () => {
     const requestBody = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body);
     expect(requestBody.prompt).toContain("A gentle pond scene");
     expect(requestBody.prompt).toContain("Story moment constraints");
+    expect(requestBody.prompt).toContain("Bailey stood at the edge of the water");
+    expect(requestBody.prompt).toContain(
+      "The little fish peeked out from under a lily pad"
+    );
     expect(requestBody.prompt).not.toContain("bare little toes");
     expect(requestBody.prompt).not.toContain("Page moment:");
 

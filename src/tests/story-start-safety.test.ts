@@ -1,12 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
+const CHILD_CAST_ID = "child:profile-2";
+
 const { mockAuth, mockClerkClient, mockDb } = vi.hoisted(() => ({
   mockAuth: vi.fn(async () => ({ userId: "user-1" })),
   mockClerkClient: vi.fn(),
   mockDb: {
     profiles: {
       getById: vi.fn(),
+      getByUserId: vi.fn(),
+    },
+    storyPeople: {
+      getByIds: vi.fn(),
     },
     characters: {
       getByProfileId: vi.fn(),
@@ -50,6 +56,34 @@ describe("POST /api/stories/start safety", () => {
       lessons: [],
       createdAt: "2026-07-15T00:00:00.000Z",
     });
+    mockDb.profiles.getByUserId.mockResolvedValue([
+      {
+        id: "profile-1",
+        userId: "user-1",
+        name: "Bailey",
+        age: 4,
+        favouriteCharacters: [],
+        favouriteActivities: [],
+        favouriteAnimals: [],
+        favouritePlaces: [],
+        lessons: [],
+        createdAt: "2026-07-15T00:00:00.000Z",
+      },
+      {
+        id: "profile-2",
+        userId: "user-1",
+        name: "Mila",
+        age: 6,
+        avatarImageUrl: "https://assets.example.com/mila-avatar.jpg",
+        favouriteCharacters: [],
+        favouriteActivities: ["painting"],
+        favouriteAnimals: [],
+        favouritePlaces: [],
+        lessons: ["kindness"],
+        createdAt: "2026-07-15T00:00:00.000Z",
+      },
+    ]);
+    mockDb.storyPeople.getByIds.mockResolvedValue([]);
     mockDb.characters.getByProfileId.mockResolvedValue([]);
     process.env.ANTHROPIC_API_KEY = "test-key";
   });
@@ -136,5 +170,40 @@ describe("POST /api/stories/start safety", () => {
       error: expect.stringContaining("child profile"),
     });
     expect(mockDb.stories.create).not.toHaveBeenCalled();
+  });
+
+  it("persists the selected cast ids on the story record", async () => {
+    mockDb.storyPeople.getByIds.mockResolvedValue([
+      {
+        id: "person-1",
+        userId: "user-1",
+        name: "Nanna Jo",
+        relationship: "grandparent",
+        description: "A calm bedtime storyteller.",
+        personality: "Warm and patient",
+        appearance: "Silver hair and purple glasses.",
+        availableToAllProfiles: true,
+        profileIds: [],
+        createdAt: "2026-07-15T00:00:00.000Z",
+        updatedAt: "2026-07-15T00:00:00.000Z",
+      },
+    ]);
+
+    const { POST } = await import("@/app/api/stories/start/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/stories/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profileId: "profile-1",
+          premise: "A gentle story with Bailey, Mila, and Nanna Jo.",
+          storyPersonIds: [CHILD_CAST_ID, "person-1"],
+        }),
+      })
+    );
+
+    expect(res.status).toBe(201);
+    const storedStory = mockDb.stories.create.mock.calls.at(-1)?.[0];
+    expect(storedStory.storyPersonIds).toEqual(["person-1", CHILD_CAST_ID]);
   });
 });

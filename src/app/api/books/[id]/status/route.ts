@@ -6,6 +6,7 @@ import {
   isBookBuildJobStale,
 } from "@/lib/print-books/jobs";
 import { loadBuildContext } from "@/lib/print-books/jobs/context";
+import { getSpreadPreviews } from "@/lib/print-books/review";
 import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
 import type { BookBuildJob, BookProject } from "@/types/printBook";
 
@@ -111,28 +112,7 @@ export async function GET(
     errorMessage: project.errorMessage,
     referencesAreStale,
     referenceImageCount: context?.visualReferences.length ?? 0,
-    spreadPreviews: project.spreads
-      .filter(
-        (s) =>
-          s.layoutType === "text_art" ||
-          s.layoutType === "hero" ||
-          s.layoutType === "quiet"
-      )
-      .map((s) => ({
-        id: s.id,
-        sequence: s.sequence,
-        title: s.title,
-        layoutType: s.layoutType,
-        thumbnailUrl:
-          s.thumbnailUrl ?? s.leftPageWebImageUrl ?? s.imageUrl ?? undefined,
-        webImageUrl: s.leftPageWebImageUrl ?? s.thumbnailUrl ?? undefined,
-        leftPageImageUrl: s.leftPageImageUrl ?? s.imageUrl ?? undefined,
-        rightPageImageUrl: undefined,
-        leftPageImageError: s.leftPageImageError,
-        rightPageImageError: undefined,
-        leftPageQa: s.leftPageQa,
-        rightPageQa: s.rightPageQa,
-      })),
+    spreadPreviews: getSpreadPreviews(project),
     assets: {
       lastBuildMode: project.assets.lastBuildMode,
       activeJobId: project.assets.activeJobId,

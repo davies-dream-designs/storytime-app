@@ -521,6 +521,141 @@ describe("generateCoverIllustration", () => {
     vi.doUnmock("@/lib/print-books/storage");
   });
 
+  it("keeps image-edit prompts under OpenAI's max prompt length", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    vi.doMock("@/lib/print-books/storage", () => ({
+      storeBookAsset: mockStoreBookAsset,
+      isBookAssetStorageConfigured: () => true,
+    }));
+
+    vi.doMock("sharp", () => {
+      const instance = {
+        resize: vi.fn().mockReturnThis(),
+        composite: vi.fn().mockReturnThis(),
+        removeAlpha: vi.fn().mockReturnThis(),
+        raw: vi.fn().mockReturnThis(),
+        png: vi.fn().mockReturnThis(),
+        jpeg: vi.fn().mockReturnThis(),
+        rotate: vi.fn().mockReturnThis(),
+        toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
+          options?.resolveWithObject
+            ? Promise.resolve({
+                data: Buffer.from([128, 128, 128, 180, 180, 180]),
+                info: { channels: 3 },
+              })
+            : Promise.resolve(Buffer.from("upscaled-png"))
+        ),
+      };
+      const sharpFn = vi.fn(() => instance);
+      const sharpMock = Object.assign(sharpFn, {
+        kernel: { lanczos3: "lanczos3" },
+      });
+      return { default: sharpMock };
+    });
+
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      void init;
+      if (String(url).startsWith("https://assets.example.com/")) {
+        return {
+          ok: true,
+          arrayBuffer: async () => Buffer.from("reference").buffer,
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          data: [{ b64_json: Buffer.from("image").toString("base64") }],
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mockStoreBookAsset.mockResolvedValue("https://example.com/page.png");
+
+    vi.resetModules();
+    const { generateSpreadPageIllustration } =
+      await import("@/lib/print-books/illustrations");
+
+    const hugeText = "very detailed continuity note about Bailey and Piggy ".repeat(
+      320
+    );
+    const bible: CharacterBible = {
+      ...createCharacterBible(),
+      childAppearance: `${createCharacterBible().childAppearance} ${hugeText}`,
+      outfitRules: `${createCharacterBible().outfitRules} ${hugeText}`,
+      doNotChange: [hugeText, hugeText],
+      lockedCharacterRules: [
+        {
+          id: "locked:glenpa",
+          name: "Glenpa",
+          role: "family_friend_pet",
+          relationship: "grandparent",
+          identityRules: hugeText,
+          outfitRules: hugeText,
+          continuityRules: [hugeText, hugeText],
+        },
+      ],
+    };
+    const project = createProject();
+    const spread = {
+      ...project.spreads[0]!,
+      id: "book-1:spread:2",
+      sequence: 2,
+      pageStart: 3,
+      pageEnd: 4,
+      title: "Puddles",
+      leftPageText:
+        "Mila and Glenpa took Piggy everywhere with Bailey. Bailey, Glenpa, and Piggy splashed past big puddles and little puddles while Mumma and Dad watched.",
+      rightPageText: "Piggy stayed close beside Mila and Glenpa on the wobbly path.",
+      sceneBrief: hugeText,
+      illustrationPrompt: hugeText,
+    };
+
+    await generateSpreadPageIllustration({
+      project,
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: bible,
+      visualReferences: [
+        {
+          id: "profile:profile-1",
+          name: "Mila",
+          role: "main_child",
+          imageUrl: "https://assets.example.com/mila.jpg",
+          appearance: hugeText,
+        },
+        {
+          id: "person:glenpa",
+          name: "Glenpa",
+          role: "family_friend_pet",
+          relationship: "grandparent",
+          imageUrl: "https://assets.example.com/glenpa.jpg",
+          appearance: hugeText,
+          isStale: true,
+        },
+      ],
+      referenceSnapshotKey: "profile|profile-1|snapshot",
+      spread,
+      side: "left",
+      correctionNote: hugeText,
+    });
+
+    const editCall = fetchMock.mock.calls.find((call) =>
+      String(call[0]).includes("/images/edits")
+    );
+    const body = editCall?.[1]?.body as FormData;
+    const prompt = String(body.get("prompt") ?? "");
+    expect(prompt.length).toBeLessThanOrEqual(32000);
+    expect(prompt).toContain("Selected cast for this spread: Mila, Glenpa");
+    expect(prompt).toContain("Story moment");
+    expect(prompt).toContain("No text");
+
+    vi.unstubAllGlobals();
+    vi.doUnmock("sharp");
+    vi.doUnmock("@/lib/print-books/storage");
+  });
+
+
   it("filters visual references down to the spread's relevant cast", async () => {
     process.env.OPENAI_API_KEY = "test-key";
 
@@ -644,6 +779,151 @@ describe("generateCoverIllustration", () => {
     vi.doUnmock("sharp");
     vi.doUnmock("@/lib/print-books/storage");
   });
+
+  it("keeps the recent companion selected on pronoun-only spreads", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    vi.doMock("@/lib/print-books/storage", () => ({
+      storeBookAsset: mockStoreBookAsset,
+      isBookAssetStorageConfigured: () => true,
+    }));
+
+    vi.doMock("sharp", () => {
+      const instance = {
+        resize: vi.fn().mockReturnThis(),
+        composite: vi.fn().mockReturnThis(),
+        removeAlpha: vi.fn().mockReturnThis(),
+        raw: vi.fn().mockReturnThis(),
+        png: vi.fn().mockReturnThis(),
+        jpeg: vi.fn().mockReturnThis(),
+        rotate: vi.fn().mockReturnThis(),
+        toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
+          options?.resolveWithObject
+            ? Promise.resolve({
+                data: Buffer.from([128, 128, 128, 180, 180, 180]),
+                info: { channels: 3 },
+              })
+            : Promise.resolve(Buffer.from("upscaled-png"))
+        ),
+      };
+      const sharpFn = vi.fn(() => instance);
+      const sharpMock = Object.assign(sharpFn, {
+        kernel: { lanczos3: "lanczos3" },
+      });
+      return { default: sharpMock };
+    });
+
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      void init;
+      if (String(url).startsWith("https://assets.example.com/")) {
+        return {
+          ok: true,
+          arrayBuffer: async () => Buffer.from("reference").buffer,
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          data: [{ b64_json: Buffer.from("image").toString("base64") }],
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mockStoreBookAsset.mockResolvedValue("https://example.com/page.png");
+
+    vi.resetModules();
+    const { generateSpreadPageIllustration } =
+      await import("@/lib/print-books/illustrations");
+
+    const baseProject = createProject();
+    const project: BookProject = {
+      ...baseProject,
+      spreads: [
+        baseProject.spreads[0]!,
+        {
+          id: "book-1:spread:2",
+          bookProjectId: "book-1",
+          sequence: 2,
+          pageStart: 3,
+          pageEnd: 4,
+          layoutType: "text_art",
+          title: "Lantern Bench",
+          leftPageText: "Mila sat beside Glenpa on the lantern bench.",
+          rightPageText: "They shared a quiet smile.",
+          sceneBrief: "Mila and Glenpa rest together by the lantern bench.",
+          illustrationPrompt: "Mila and Glenpa on a lantern bench.",
+          leftPageQa: {
+            provider: "openai",
+            generatedAt: "2026-08-17T00:00:00.000Z",
+            characterReferenceIds: ["profile:profile-1", "person:glenpa"],
+            characterReferenceNames: ["Mila", "Glenpa"],
+            continuityReferenceIds: [],
+            continuityReferenceLabels: [],
+          },
+        },
+      ],
+    };
+    const spread = {
+      ...project.spreads[1]!,
+      id: "book-1:spread:3",
+      sequence: 3,
+      pageStart: 5,
+      pageEnd: 6,
+      leftPageText: "Together they watched the lanterns sway overhead.",
+      rightPageText: "Their footsteps stayed slow and calm.",
+      sceneBrief: "A gentle lantern-bench moment continues with the same pair.",
+      illustrationPrompt: "A calm lantern scene with the same companion beside Mila.",
+    };
+
+    await generateSpreadPageIllustration({
+      project,
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+      visualReferences: [
+        {
+          id: "profile:profile-1",
+          name: "Mila",
+          role: "main_child",
+          imageUrl: "https://assets.example.com/mila.jpg",
+          appearance: "Curly dark hair and bright brown eyes.",
+        },
+        {
+          id: "person:glenpa",
+          name: "Glenpa",
+          role: "family_friend_pet",
+          relationship: "grandparent",
+          imageUrl: "https://assets.example.com/glenpa.jpg",
+          appearance: "Warm smile, dark-framed glasses, grey hair in a neat bun.",
+        },
+        {
+          id: "person:poppy",
+          name: "Poppy",
+          role: "family_friend_pet",
+          relationship: "friend",
+          imageUrl: "https://assets.example.com/poppy.jpg",
+          appearance: "Red overalls and two braids.",
+        },
+      ],
+      spread,
+      side: "left",
+    });
+
+    const editCall = fetchMock.mock.calls.find((call) =>
+      String(call[0]).includes("/images/edits")
+    );
+    const body = editCall?.[1]?.body as FormData;
+    expect(body.get("prompt")).toContain(
+      "Selected cast for this spread: Mila, Glenpa"
+    );
+    expect(body.get("prompt")).not.toContain("Poppy");
+
+    vi.unstubAllGlobals();
+    vi.doUnmock("sharp");
+    vi.doUnmock("@/lib/print-books/storage");
+  });
+
+
 
   it("uses approved cover and prior spread art as continuity references and records QA metadata", async () => {
     process.env.OPENAI_API_KEY = "test-key";
@@ -774,10 +1054,10 @@ describe("generateCoverIllustration", () => {
     );
     const body = editCall?.[1]?.body as FormData;
     expect(body.get("prompt")).toContain(
-      "Approved continuity art references available: Approved cover art, Approved spread 2"
+      "Approved continuity art references available: Approved spread 2, Approved cover art"
     );
     expect(body.get("prompt")).toContain(
-      "Attached approved continuity art sheet order: 1. Approved cover art 2. Approved spread 2"
+      "Attached approved continuity art sheet order: 1. Approved spread 2 2. Approved cover art"
     );
     expect(
       fetchMock.mock.calls.some(
@@ -794,7 +1074,7 @@ describe("generateCoverIllustration", () => {
       referenceSnapshotKey: "profile|profile-1|snapshot",
       characterReferenceIds: ["profile:profile-1", "person:glenpa"],
       characterReferenceNames: ["Mila", "Glenpa"],
-      continuityReferenceLabels: ["Approved cover art", "Approved spread 2"],
+      continuityReferenceLabels: ["Approved spread 2", "Approved cover art"],
     });
 
     vi.unstubAllGlobals();
@@ -802,6 +1082,191 @@ describe("generateCoverIllustration", () => {
     vi.doUnmock("@/lib/print-books/storage");
   });
 
+  it("prefers prior continuity art with matching cast and scene cues", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    vi.doMock("@/lib/print-books/storage", () => ({
+      storeBookAsset: mockStoreBookAsset,
+      isBookAssetStorageConfigured: () => true,
+    }));
+
+    vi.doMock("sharp", () => {
+      const instance = {
+        resize: vi.fn().mockReturnThis(),
+        composite: vi.fn().mockReturnThis(),
+        removeAlpha: vi.fn().mockReturnThis(),
+        raw: vi.fn().mockReturnThis(),
+        png: vi.fn().mockReturnThis(),
+        jpeg: vi.fn().mockReturnThis(),
+        rotate: vi.fn().mockReturnThis(),
+        toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
+          options?.resolveWithObject
+            ? Promise.resolve({
+                data: Buffer.from([128, 128, 128, 180, 180, 180]),
+                info: { channels: 3 },
+              })
+            : Promise.resolve(Buffer.from("upscaled-png"))
+        ),
+      };
+      const sharpFn = vi.fn(() => instance);
+      const sharpMock = Object.assign(sharpFn, {
+        kernel: { lanczos3: "lanczos3" },
+      });
+      return { default: sharpMock };
+    });
+
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      void init;
+      if (String(url).startsWith("https://assets.example.com/")) {
+        return {
+          ok: true,
+          arrayBuffer: async () => Buffer.from("reference").buffer,
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          data: [{ b64_json: Buffer.from("image").toString("base64") }],
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mockStoreBookAsset.mockResolvedValue("https://example.com/page.png");
+
+    vi.resetModules();
+    const { generateSpreadIllustration } =
+      await import("@/lib/print-books/illustrations");
+
+    const baseProject = createProject();
+    const project: BookProject = {
+      ...baseProject,
+      assets: {
+        ...baseProject.assets,
+        coverImageUrl: "https://assets.example.com/cover.png",
+      },
+      spreads: [
+        {
+          ...baseProject.spreads[0]!,
+          imageUrl: "https://assets.example.com/cover.png",
+        },
+        {
+          id: "book-1:spread:2",
+          bookProjectId: "book-1",
+          sequence: 2,
+          pageStart: 3,
+          pageEnd: 4,
+          layoutType: "text_art",
+          title: "Garden Path",
+          leftPageText: "Mila and Glenpa followed the garden lantern path.",
+          rightPageText: "",
+          sceneBrief: "Mila and Glenpa share a garden lantern walk.",
+          illustrationPrompt: "Mila and Glenpa with the silver lantern in the garden.",
+          leftPageImageUrl: "https://assets.example.com/spread-2.png",
+          leftPageQa: {
+            provider: "openai",
+            generatedAt: "2026-08-17T00:00:00.000Z",
+            characterReferenceIds: ["profile:profile-1", "person:glenpa"],
+            characterReferenceNames: ["Mila", "Glenpa"],
+            continuityReferenceIds: [],
+            continuityReferenceLabels: [],
+          },
+        },
+        {
+          id: "book-1:spread:3",
+          bookProjectId: "book-1",
+          sequence: 3,
+          pageStart: 5,
+          pageEnd: 6,
+          layoutType: "text_art",
+          title: "Snowy Hill",
+          leftPageText: "Poppy raced down a snowy hill.",
+          rightPageText: "",
+          sceneBrief: "Poppy enjoys a snowy mountain afternoon.",
+          illustrationPrompt: "Poppy in the snow.",
+          leftPageImageUrl: "https://assets.example.com/spread-3.png",
+          leftPageQa: {
+            provider: "openai",
+            generatedAt: "2026-08-17T00:00:00.000Z",
+            characterReferenceIds: ["person:poppy"],
+            characterReferenceNames: ["Poppy"],
+            continuityReferenceIds: [],
+            continuityReferenceLabels: [],
+          },
+        },
+      ],
+    };
+    const spread = {
+      id: "book-1:spread:5",
+      bookProjectId: "book-1",
+      sequence: 5,
+      pageStart: 9,
+      pageEnd: 10,
+      layoutType: "hero" as const,
+      title: "Lantern Walk",
+      leftPageText: "Mila and Glenpa walked beneath the lantern glow.",
+      rightPageText: "The silver lantern swung softly beside them.",
+      sceneBrief: "Mila and Glenpa return to the moonlit garden path.",
+      illustrationPrompt: "Mila and Glenpa walking together under lantern light.",
+    };
+
+    const result = await generateSpreadIllustration({
+      project,
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+      visualReferences: [
+        {
+          id: "profile:profile-1",
+          name: "Mila",
+          role: "main_child",
+          imageUrl: "https://assets.example.com/mila.jpg",
+          appearance: "Curly dark hair and bright brown eyes.",
+        },
+        {
+          id: "person:glenpa",
+          name: "Glenpa",
+          role: "family_friend_pet",
+          relationship: "grandparent",
+          imageUrl: "https://assets.example.com/glenpa.jpg",
+          appearance: "Warm smile, dark-framed glasses, grey hair in a neat bun.",
+          isStale: true,
+        },
+        {
+          id: "person:poppy",
+          name: "Poppy",
+          role: "family_friend_pet",
+          relationship: "friend",
+          imageUrl: "https://assets.example.com/poppy.jpg",
+          appearance: "Red overalls and two braids.",
+        },
+      ],
+      referenceSnapshotKey: "profile|profile-1|snapshot",
+      spread,
+    });
+
+    expect(
+      fetchMock.mock.calls.some(
+        (call) => String(call[0]) === "https://assets.example.com/cover.png"
+      )
+    ).toBe(true);
+    expect(
+      fetchMock.mock.calls.some(
+        (call) => String(call[0]) === "https://assets.example.com/spread-2.png"
+      )
+    ).toBe(true);
+    expect(
+      fetchMock.mock.calls.some(
+        (call) => String(call[0]) === "https://assets.example.com/spread-3.png"
+      )
+    ).toBe(false);
+    expect(result.spread.leftPageQa?.staleCharacterReferenceNames).toEqual([
+      "Glenpa",
+    ]);
+
+    vi.unstubAllGlobals();
+    vi.doUnmock("sharp");
+    vi.doUnmock("@/lib/print-books/storage");
+  });
 
   it("falls back to a safe branded cover when cover moderation blocks generation", async () => {
     process.env.OPENAI_API_KEY = "test-key";

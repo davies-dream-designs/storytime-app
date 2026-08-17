@@ -133,6 +133,7 @@ export interface IllustrationGenerationMetadata {
   characterReferenceNames: string[];
   continuityReferenceIds: string[];
   continuityReferenceLabels: string[];
+  staleCharacterReferenceNames?: string[];
   correctionNote?: string;
   pageTextOmitted?: boolean;
 }

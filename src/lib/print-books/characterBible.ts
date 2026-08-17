@@ -49,15 +49,22 @@ function buildStoryPeopleList(people: StoryPerson[]): string {
     .join("\n");
 }
 
+function clampPromptPreview(value: string, maxLength: number): string {
+  return value.length <= maxLength
+    ? value
+    : `${value.slice(0, maxLength - 3).trimEnd()}...`;
+}
+
 function summarizeStoryVisuals(story: Story): string {
   return story.pages
-    .slice(0, 8)
-    .map(
-      (page) =>
-        `- Page ${page.pageNumber}: text="${page.text.trim()}" visual="${
-          (page.illustrationPrompt ?? "").trim() || "None provided"
-        }"`
-    )
+    .map((page) => {
+      const text = clampPromptPreview(page.text.trim(), 160);
+      const visual = clampPromptPreview(
+        (page.illustrationPrompt ?? "").trim() || "None provided",
+        160
+      );
+      return `- Page ${page.pageNumber}: text="${text}" visual="${visual}"`;
+    })
     .join("\n");
 }
 

@@ -757,6 +757,19 @@ function sanitizePageMomentForImagePrompt(value: string): string {
     .trim();
 }
 
+function getIllustratedSpreadMomentText(
+  spread: BookSpread,
+  side: "left" | "right"
+): string {
+  if (side === "right") return spread.rightPageText;
+
+  return [spread.leftPageText, spread.rightPageText]
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
+
 function buildPageIllustrationPrompt(input: {
   project: BookProject;
   story: Story;
@@ -778,7 +791,7 @@ function buildPageIllustrationPrompt(input: {
     omitPageText = false,
     correctionNote,
   } = input;
-  const pageText = side === "left" ? spread.leftPageText : spread.rightPageText;
+  const pageText = getIllustratedSpreadMomentText(spread, side);
   const pageMoment = omitPageText
     ? ""
     : sanitizePageMomentForImagePrompt(pageText);

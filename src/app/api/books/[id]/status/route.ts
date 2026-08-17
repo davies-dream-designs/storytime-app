@@ -130,6 +130,8 @@ export async function GET(
         rightPageImageUrl: undefined,
         leftPageImageError: s.leftPageImageError,
         rightPageImageError: undefined,
+        leftPageQa: s.leftPageQa,
+        rightPageQa: s.rightPageQa,
       })),
     assets: {
       lastBuildMode: project.assets.lastBuildMode,

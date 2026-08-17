@@ -117,6 +117,26 @@ export interface CharacterVisualReference {
   isStale?: boolean;
 }
 
+export interface ContinuityVisualReference {
+  id: string;
+  label: string;
+  imageUrl: string;
+  source: "cover" | "spread";
+  sequence?: number;
+}
+
+export interface IllustrationGenerationMetadata {
+  provider: "openai" | "placeholder";
+  generatedAt: string;
+  referenceSnapshotKey?: string;
+  characterReferenceIds: string[];
+  characterReferenceNames: string[];
+  continuityReferenceIds: string[];
+  continuityReferenceLabels: string[];
+  correctionNote?: string;
+  pageTextOmitted?: boolean;
+}
+
 export interface BookSpread {
   id: string;
   bookProjectId: string;
@@ -136,6 +156,8 @@ export interface BookSpread {
   leftPageImageError?: string;
   rightPageImageError?: string;
   thumbnailUrl?: string;
+  leftPageQa?: IllustrationGenerationMetadata;
+  rightPageQa?: IllustrationGenerationMetadata;
 }
 
 export interface BookAsset {

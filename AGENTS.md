@@ -114,3 +114,5 @@ Always end the turn with an explicit completion/status response to the user. Do 
 
 - Persisted `story.storyPersonIds` can contain both saved `storyPeople` IDs and synthetic child-cast IDs like `child:<profileId>`.
 - Any route or job that reloads selected cast from a stored story must use `getSelectedStoryPeople(...)`, not `db.storyPeople.getByIds(...)` directly, or sibling/child-profile cast members will disappear during stream regeneration and book builds.
+- For later print-book spreads, use approved cover art plus prior interior spread art only as optional continuity references; they should preserve recurring likeness/outfit/prop/location continuity, but must never override the current story moment or latest selected-cast appearance text.
+- Generated spread art now stores `leftPageQa`/`rightPageQa` metadata with the character reference IDs, continuity reference labels, snapshot key, and fallback flags so spread-review tooling can inspect what conditioning was used.

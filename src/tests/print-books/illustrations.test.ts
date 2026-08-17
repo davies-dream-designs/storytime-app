@@ -486,7 +486,7 @@ describe("generateCoverIllustration", () => {
     ).toBe(false);
     const body = editCall?.[1]?.body as FormData;
     expect(body.get("prompt")).toContain(
-      "Attached visual reference sheet order"
+      "Attached character reference sheet order"
     );
     expect(body.get("prompt")).toContain("Latest profile/reference overrides");
     expect(body.get("prompt")).toContain("grey hair tied in a neat man bun");
@@ -639,6 +639,163 @@ describe("generateCoverIllustration", () => {
         (call) => String(call[0]) === "https://assets.example.com/poppy.jpg"
       )
     ).toBe(false);
+
+    vi.unstubAllGlobals();
+    vi.doUnmock("sharp");
+    vi.doUnmock("@/lib/print-books/storage");
+  });
+
+  it("uses approved cover and prior spread art as continuity references and records QA metadata", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    vi.doMock("@/lib/print-books/storage", () => ({
+      storeBookAsset: mockStoreBookAsset,
+      isBookAssetStorageConfigured: () => true,
+    }));
+
+    vi.doMock("sharp", () => {
+      const instance = {
+        resize: vi.fn().mockReturnThis(),
+        composite: vi.fn().mockReturnThis(),
+        removeAlpha: vi.fn().mockReturnThis(),
+        raw: vi.fn().mockReturnThis(),
+        png: vi.fn().mockReturnThis(),
+        jpeg: vi.fn().mockReturnThis(),
+        rotate: vi.fn().mockReturnThis(),
+        toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
+          options?.resolveWithObject
+            ? Promise.resolve({
+                data: Buffer.from([128, 128, 128, 180, 180, 180]),
+                info: { channels: 3 },
+              })
+            : Promise.resolve(Buffer.from("upscaled-png"))
+        ),
+      };
+      const sharpFn = vi.fn(() => instance);
+      const sharpMock = Object.assign(sharpFn, {
+        kernel: { lanczos3: "lanczos3" },
+      });
+      return { default: sharpMock };
+    });
+
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      void init;
+      if (String(url).startsWith("https://assets.example.com/")) {
+        return {
+          ok: true,
+          arrayBuffer: async () => Buffer.from("reference").buffer,
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          data: [{ b64_json: Buffer.from("image").toString("base64") }],
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mockStoreBookAsset.mockResolvedValue("https://example.com/page.png");
+
+    vi.resetModules();
+    const { generateSpreadIllustration } =
+      await import("@/lib/print-books/illustrations");
+
+    const baseProject = createProject();
+    const project: BookProject = {
+      ...baseProject,
+      assets: {
+        ...baseProject.assets,
+        coverImageUrl: "https://assets.example.com/cover.png",
+      },
+      spreads: [
+        {
+          ...baseProject.spreads[0]!,
+          imageUrl: "https://assets.example.com/cover.png",
+        },
+        {
+          id: "book-1:spread:2",
+          bookProjectId: "book-1",
+          sequence: 2,
+          pageStart: 3,
+          pageEnd: 4,
+          layoutType: "text_art",
+          title: "Garden Path",
+          leftPageText: "Mila skipped along the garden path.",
+          rightPageText: "",
+          sceneBrief: "Mila carries her lantern through the garden path.",
+          illustrationPrompt: "Mila on the garden path with her lantern.",
+          leftPageImageUrl: "https://assets.example.com/spread-2.png",
+          thumbnailUrl: "https://assets.example.com/spread-2-thumb.jpg",
+        },
+      ],
+    };
+    const spread = {
+      id: "book-1:spread:4",
+      bookProjectId: "book-1",
+      sequence: 4,
+      pageStart: 7,
+      pageEnd: 8,
+      layoutType: "hero" as const,
+      title: "Lantern Walk",
+      leftPageText: "Mila and Glenpa walked under the lantern glow.",
+      rightPageText: "The silver lantern swung softly beside them.",
+      sceneBrief: "Mila and Glenpa share a lantern walk in the same moonlit garden.",
+      illustrationPrompt: "Mila and Glenpa walking together under lantern light.",
+    };
+
+    const result = await generateSpreadIllustration({
+      project,
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+      visualReferences: [
+        {
+          id: "profile:profile-1",
+          name: "Mila",
+          role: "main_child",
+          imageUrl: "https://assets.example.com/mila.jpg",
+          appearance: "Curly dark hair and bright brown eyes.",
+        },
+        {
+          id: "person:glenpa",
+          name: "Glenpa",
+          role: "family_friend_pet",
+          relationship: "grandparent",
+          imageUrl: "https://assets.example.com/glenpa.jpg",
+          appearance: "Warm smile, dark-framed glasses, grey hair in a neat bun.",
+        },
+      ],
+      referenceSnapshotKey: "profile|profile-1|snapshot",
+      spread,
+    });
+
+    const editCall = fetchMock.mock.calls.find((call) =>
+      String(call[0]).includes("/images/edits")
+    );
+    const body = editCall?.[1]?.body as FormData;
+    expect(body.get("prompt")).toContain(
+      "Approved continuity art references available: Approved cover art, Approved spread 2"
+    );
+    expect(body.get("prompt")).toContain(
+      "Attached approved continuity art sheet order: 1. Approved cover art 2. Approved spread 2"
+    );
+    expect(
+      fetchMock.mock.calls.some(
+        (call) => String(call[0]) === "https://assets.example.com/cover.png"
+      )
+    ).toBe(true);
+    expect(
+      fetchMock.mock.calls.some(
+        (call) => String(call[0]) === "https://assets.example.com/spread-2.png"
+      )
+    ).toBe(true);
+    expect(result.spread.leftPageQa).toMatchObject({
+      provider: "openai",
+      referenceSnapshotKey: "profile|profile-1|snapshot",
+      characterReferenceIds: ["profile:profile-1", "person:glenpa"],
+      characterReferenceNames: ["Mila", "Glenpa"],
+      continuityReferenceLabels: ["Approved cover art", "Approved spread 2"],
+    });
 
     vi.unstubAllGlobals();
     vi.doUnmock("sharp");

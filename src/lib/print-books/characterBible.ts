@@ -322,7 +322,19 @@ export function enrichCharacterBibleWithLockedRules(
   };
 }
 
-export function buildIllustrationDirection(bible: CharacterBible): string {
+function clampPromptValue(value: string, maxChars: number): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxChars) return normalized;
+  const trimmed = normalized.slice(0, Math.max(0, maxChars - 1));
+  const boundary = Math.max(trimmed.lastIndexOf(" "), trimmed.lastIndexOf(";"));
+  return `${(boundary > maxChars * 0.6 ? trimmed.slice(0, boundary) : trimmed).trim()}…`;
+}
+
+export function buildIllustrationDirection(
+  bible: CharacterBible,
+  options?: { compact?: boolean }
+): string {
+  const compact = options?.compact ?? false;
   const recurringProps =
     bible.recurringProps.length > 0 ? bible.recurringProps.join(", ") : "none";
   const companionCharacters =
@@ -337,30 +349,40 @@ export function buildIllustrationDirection(bible: CharacterBible): string {
   const lockedContinuity =
     lockedRules.length > 0
       ? [
-          "LOCKED CHARACTER CONTINUITY: use these per-character rules as the source of truth for every cover, interior page, and redo.",
+          compact
+            ? "LOCKED CHARACTER CONTINUITY: keep these identities, body builds, and signature outfits stable across every cover, page, and redo."
+            : "LOCKED CHARACTER CONTINUITY: use these per-character rules as the source of truth for every cover, interior page, and redo.",
           ...lockedRules.map((character) => {
             const relationship = character.relationship
               ? `, ${character.relationship}`
               : "";
+            if (compact) {
+              const compactConstraints = character.continuityRules.length
+                ? ` Keep consistent: ${clampPromptValue(character.continuityRules.join("; "), 140)}.`
+                : "";
+              return `${character.name} (${character.role}${relationship}): ${clampPromptValue(character.identityRules, 180)} Outfit/markings: ${clampPromptValue(character.outfitRules, 180)}.${compactConstraints}`;
+            }
             const constraints = character.continuityRules.length
               ? ` Continuity constraints: ${character.continuityRules.join("; ")}.`
               : "";
             return `${character.name} (${character.role}${relationship}): ${character.identityRules} ${character.outfitRules}.${constraints}`;
           }),
-          "For any unspecified visual detail, follow the inferred locked rule above and repeat it consistently; do not invent new shoes, clothing, hair, face, body build, or age details on later pages.",
+          compact
+            ? "Do not redesign locked faces, hair or fur, body build, age cues, clothing, or footwear later in the book."
+            : "For any unspecified visual detail, follow the inferred locked rule above and repeat it consistently; do not invent new shoes, clothing, hair, face, body build, or age details on later pages.",
         ].join(" ")
       : "";
 
   return [
     lockedContinuity,
-    `Child appearance: ${bible.childAppearance}`,
-    `Outfit rules: ${bible.outfitRules}`,
-    `Recurring props: ${recurringProps}`,
-    `Companion characters: ${companionCharacters}`,
-    `Palette: ${bible.palette}`,
-    `Render style: ${bible.renderStyle}`,
-    `Lighting tone: ${bible.lightingTone}`,
-    `Do not change: ${continuity}`,
+    `Child appearance: ${clampPromptValue(bible.childAppearance, compact ? 180 : 420)}`,
+    `Outfit rules: ${clampPromptValue(bible.outfitRules, compact ? 180 : 420)}`,
+    `Recurring props: ${clampPromptValue(recurringProps, compact ? 120 : 220)}`,
+    `Companion characters: ${clampPromptValue(companionCharacters, compact ? 120 : 220)}`,
+    `Palette: ${clampPromptValue(bible.palette, compact ? 100 : 180)}`,
+    `Render style: ${clampPromptValue(bible.renderStyle, compact ? 100 : 180)}`,
+    `Lighting tone: ${clampPromptValue(bible.lightingTone, compact ? 100 : 180)}`,
+    `Do not change: ${clampPromptValue(continuity, compact ? 180 : 320)}`,
     "For selected family/friends/pets, preserve their described/reference apparent age, face shape, hair, glasses, body build, and markings. Do not make grandparents generically elderly or alter body build from the reference.",
   ].join(" ");
 }

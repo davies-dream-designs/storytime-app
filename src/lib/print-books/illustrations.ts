@@ -193,6 +193,91 @@ function getCoverSpread(spreads: BookSpread[]): BookSpread | undefined {
   );
 }
 
+
+const OPENAI_IMAGE_PROMPT_MAX_CHARS = 32000;
+const OPENAI_IMAGE_REFERENCE_PROMPT_BUDGET = 3500;
+const OPENAI_IMAGE_CORE_PROMPT_BUDGET =
+  OPENAI_IMAGE_PROMPT_MAX_CHARS - OPENAI_IMAGE_REFERENCE_PROMPT_BUDGET - 500;
+
+type PromptSegment = {
+  variants: string[];
+};
+
+function normalizePromptText(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function clampPromptText(value: string, maxChars: number): string {
+  const normalized = normalizePromptText(value);
+  if (normalized.length <= maxChars) return normalized;
+  const trimmed = normalized.slice(0, Math.max(0, maxChars - 1));
+  const boundary = Math.max(trimmed.lastIndexOf(" "), trimmed.lastIndexOf(";"));
+  return `${(boundary > maxChars * 0.6 ? trimmed.slice(0, boundary) : trimmed).trim()}…`;
+}
+
+function fitPromptSegments(
+  segments: PromptSegment[],
+  maxChars: number
+): string {
+  const normalizedSegments = segments.map((segment) => ({
+    variants: segment.variants.map((variant) => normalizePromptText(variant)),
+  }));
+  const indices = normalizedSegments.map(() => 0);
+
+  const build = () =>
+    normalizedSegments
+      .map((segment, index) => segment.variants[indices[index]] ?? "")
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+  while (build().length > maxChars) {
+    let bestIndex = -1;
+    let bestSavings = 0;
+
+    for (let index = 0; index < normalizedSegments.length; index += 1) {
+      const segment = normalizedSegments[index]!;
+      const currentVariant = segment.variants[indices[index]] ?? "";
+      const nextVariant = segment.variants[indices[index] + 1];
+      if (nextVariant === undefined) continue;
+      const savings = currentVariant.length - nextVariant.length;
+      if (savings > bestSavings) {
+        bestSavings = savings;
+        bestIndex = index;
+      }
+    }
+
+    if (bestIndex === -1) break;
+    indices[bestIndex] += 1;
+  }
+
+  const fitted = build();
+  return fitted.length <= maxChars ? fitted : clampPromptText(fitted, maxChars);
+}
+
+function buildLatestReferenceContext(
+  references: CharacterVisualReference[] | undefined,
+  compact = false
+): string {
+  return (references ?? [])
+    .map((reference) => {
+      const relationship = reference.relationship
+        ? `, ${reference.relationship}`
+        : "";
+      const appearanceText = reference.appearance?.trim();
+      const appearance = appearanceText
+        ? ` Latest appearance: ${clampPromptText(appearanceText, compact ? 120 : 420)}`
+        : "";
+      const staleNote = reference.isStale
+        ? compact
+          ? " Stale image; preserve face identity only."
+          : " Reference image may be stale; use it for face identity only."
+        : "";
+      return `- ${reference.name} (${reference.role}${relationship}).${staleNote}${appearance}`;
+    })
+    .join(" ");
+}
+
 export function buildCoverIllustrationPrompt(input: {
   project: BookProject;
   story: Story;
@@ -204,31 +289,67 @@ export function buildCoverIllustrationPrompt(input: {
   const { story, profile, characterBible, coverSpread } = input;
 
   if (input.omitSceneDetails) {
-    // Simplified fallback used when the full prompt is moderation-blocked.
-    return [
-      `Book title: ${story.title}.`,
-      `A personalised bedtime story for ${profile.name}.`,
-      `Age band: ${input.project.ageBand}.`,
-      `Theme: ${story.theme || "gentle bedtime adventure"}.`,
-      "Create a square children's picture-book front cover with a warm, gentle bedtime illustration style.",
-      "Do not render any visible publisher logo or extra text into the art itself.",
-    ].join(" ");
+    return fitPromptSegments(
+      [
+        {
+          variants: [
+            `Book title: ${story.title}. A personalised bedtime story for ${profile.name}. Age band: ${input.project.ageBand}. Theme: ${story.theme || "gentle bedtime adventure"}.`,
+          ],
+        },
+        {
+          variants: [
+            "Create a square children's picture-book front cover with a warm, gentle bedtime illustration style.",
+          ],
+        },
+        {
+          variants: [
+            "Do not render any visible publisher logo or extra text into the art itself.",
+          ],
+        },
+      ],
+      OPENAI_IMAGE_CORE_PROMPT_BUDGET
+    );
   }
 
   const sceneDirection =
     coverSpread?.illustrationPrompt ??
-    `Front cover for "${story.title}" starring ${profile.name}.`;
+    `Front cover for \"${story.title}\" starring ${profile.name}.`;
 
-  return [
-    buildIllustrationDirection(characterBible),
-    `Book title: ${story.title}.`,
-    `Main child: ${profile.name}.`,
-    `Age band: ${input.project.ageBand}.`,
-    `Theme: ${story.theme || "gentle bedtime adventure"}.`,
-    `Cover scene: ${sceneDirection}`,
-    "Create a square children's picture-book front cover with space for title treatment and a warm bedtime-book feeling.",
-    "Do not render any visible publisher logo or extra text into the art itself.",
-  ].join(" ");
+  return fitPromptSegments(
+    [
+      {
+        variants: [
+          buildIllustrationDirection(characterBible),
+          buildIllustrationDirection(characterBible, { compact: true }),
+        ],
+      },
+      {
+        variants: [
+          `Book title: ${story.title}. Main child: ${profile.name}. Age band: ${input.project.ageBand}. Theme: ${story.theme || "gentle bedtime adventure"}.`,
+          `Book title: ${story.title}. Main child: ${profile.name}. Theme: ${story.theme || "gentle bedtime adventure"}.`,
+        ],
+      },
+      {
+        variants: [
+          `Cover scene: ${clampPromptText(sceneDirection, 700)}.`,
+          `Cover scene: ${clampPromptText(sceneDirection, 320)}.`,
+        ],
+      },
+      {
+        variants: [
+          "Create a square children's picture-book front cover with space for title treatment and a warm bedtime-book feeling.",
+          "Create a square bedtime picture-book front cover with a warm storybook feeling.",
+        ],
+      },
+      {
+        variants: [
+          "Do not render any visible publisher logo or extra text into the art itself.",
+          "No visible publisher logo or extra text inside the art.",
+        ],
+      },
+    ],
+    OPENAI_IMAGE_CORE_PROMPT_BUDGET
+  );
 }
 
 function createPlaceholderCoverSvg(input: {
@@ -469,10 +590,15 @@ async function buildIllustrationConditioningSheet(input: {
           image: Buffer;
         } => item.reference.kind === "character"
       )
-      .map((item) => {
-        const { kind: _kind, ...reference } = item.reference;
-        return reference;
-      }),
+      .map((item) => ({
+        id: item.reference.id,
+        name: item.reference.name,
+        role: item.reference.role,
+        relationship: item.reference.relationship,
+        imageUrl: item.reference.imageUrl,
+        appearance: item.reference.appearance,
+        isStale: item.reference.isStale,
+      })),
     continuityReferences: usable
       .filter(
         (
@@ -482,10 +608,13 @@ async function buildIllustrationConditioningSheet(input: {
           image: Buffer;
         } => item.reference.kind === "continuity"
       )
-      .map((item) => {
-        const { kind: _kind, ...reference } = item.reference;
-        return reference;
-      }),
+      .map((item) => ({
+        id: item.reference.id,
+        label: item.reference.label,
+        imageUrl: item.reference.imageUrl,
+        source: item.reference.source,
+        sequence: item.reference.sequence,
+      })),
   };
 }
 
@@ -498,8 +627,8 @@ function buildVisualReferencePrompt(input: {
       const relationship = reference.relationship
         ? `, ${reference.relationship}`
         : "";
-      const appearance = reference.appearance
-        ? `: ${reference.appearance}`
+      const appearance = reference.appearance?.trim()
+        ? `: ${clampPromptText(reference.appearance.trim(), 420)}`
         : "";
       const staleNote = reference.isStale
         ? " [reference image may be stale: use face identity only; latest text controls body, age, hair, outfit, and other changeable traits]"
@@ -511,44 +640,120 @@ function buildVisualReferencePrompt(input: {
     .map((reference, index) => `${index + 1}. ${reference.label}`)
     .join(" ");
 
-  return [
-    referenceList
-      ? `Attached character reference sheet order: ${referenceList}`
-      : "",
-    continuityList
-      ? `Attached approved continuity art sheet order: ${continuityList}`
-      : "",
-    referenceList || continuityList
-      ? "Use the attached reference sheet only for likeness and continuity; do not copy its crop, plain background, portrait pose, or sheet layout."
-      : "",
-    referenceList
-      ? "When a selected child, family member, friend, or pet appears, match the reference image for identity only: recognisable face, skin tone, and familiar markings."
-      : "",
-    referenceList
-      ? "If a reference is marked stale, do not preserve body size, hairstyle, outfit, apparent age, pose, or clothing from that image; preserve only core facial identity and follow the latest text."
-      : "",
-    referenceList
-      ? "Latest edited profile/reference text controls changeable visual traits including hair length, hairstyle, facial hair, glasses, outfit, body build, and apparent age. If latest text conflicts with the attached image or older generated image, change the artwork to match the latest text while keeping the person recognisable."
-      : "",
-    referenceList
-      ? "Body build is controlled by the latest profile/reference text. If that latest body-build text conflicts with the attached image or an older generated image, change the figure silhouette and proportions to match the latest body-build text while keeping the face recognisable."
-      : "",
-    referenceList
-      ? "If latest body build is Large, draw a moderately fuller-than-average person, not a very large or oversized person. If an attached reference image shows a much larger body than the latest Large cue, reduce the body size in the new artwork and preserve identity through face, hair, glasses, skin tone, and expression."
-      : "",
-    referenceList
-      ? "Only use a very large plus-size silhouette when the latest profile/reference text explicitly says Very Large."
-      : "",
-    referenceList
-      ? "Do not make grandparents generically older, thinner, heavier, or frailer than their latest profile/reference details."
-      : "",
-    continuityList
-      ? "Use approved continuity art only to preserve recurring outfit colours, key props, companion markings, and broad location continuity across spreads. Do not repeat the exact composition, angle, pose, or page layout from continuity art."
-      : "",
-    "Do not add written labels, captions, names, numbers, watermarks, or relationship words to the artwork.",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  return fitPromptSegments(
+    [
+      {
+        variants: [
+          referenceList ? `Attached character reference sheet order: ${referenceList}` : "",
+          referenceList
+            ? `Attached character reference sheet order: ${clampPromptText(referenceList, 900)}`
+            : "",
+        ],
+      },
+      {
+        variants: [
+          continuityList
+            ? `Attached approved continuity art sheet order: ${continuityList}`
+            : "",
+          continuityList
+            ? `Attached approved continuity art sheet order: ${clampPromptText(continuityList, 180)}`
+            : "",
+        ],
+      },
+      {
+        variants: [
+          referenceList || continuityList
+            ? "Use the attached reference sheet only for likeness and continuity; do not copy its crop, plain background, portrait pose, or sheet layout."
+            : "",
+          referenceList || continuityList
+            ? "Use the attached reference sheet only for likeness and continuity; do not copy its crop, pose, or layout."
+            : "",
+        ],
+      },
+      {
+        variants: [
+          referenceList
+            ? "When a selected child, family member, friend, or pet appears, match the reference image for identity only: recognisable face, skin tone, and familiar markings."
+            : "",
+          referenceList
+            ? "When a selected child, family member, friend, or pet appears, match the reference image for identity only."
+            : "",
+        ],
+      },
+      {
+        variants: [
+          referenceList
+            ? "If a reference is marked stale, do not preserve body size, hairstyle, outfit, apparent age, pose, or clothing from that image; preserve only core facial identity and follow the latest text."
+            : "",
+          referenceList
+            ? "If a reference is marked stale, preserve only core facial identity and follow the latest text."
+            : "",
+        ],
+      },
+      {
+        variants: [
+          referenceList
+            ? "Latest edited profile/reference text controls changeable visual traits including hair length, hairstyle, facial hair, glasses, outfit, body build, and apparent age. If latest text conflicts with the attached image or older generated image, change the artwork to match the latest text while keeping the person recognisable."
+            : "",
+          referenceList
+            ? "Latest edited profile/reference text controls hair, facial hair, glasses, outfit, body build, and apparent age; if it conflicts with the image, follow the latest text."
+            : "",
+        ],
+      },
+      {
+        variants: [
+          referenceList
+            ? "Body build is controlled by the latest profile/reference text. If that latest body-build text conflicts with the attached image or an older generated image, change the figure silhouette and proportions to match the latest body-build text while keeping the face recognisable."
+            : "",
+          referenceList
+            ? "Body build is controlled by the latest profile/reference text; if it conflicts with the image, change the silhouette to match the latest text while keeping the face recognisable."
+            : "",
+        ],
+      },
+      {
+        variants: [
+          referenceList
+            ? "If latest body build is Large, draw a moderately fuller-than-average person, not a very large or oversized person. If an attached reference image shows a much larger body than the latest Large cue, reduce the body size in the new artwork and preserve identity through face, hair, glasses, skin tone, and expression."
+            : "",
+          referenceList
+            ? "Large means moderately fuller-than-average, not oversized; if the image conflicts, preserve identity while matching the latest body-build text."
+            : "",
+        ],
+      },
+      {
+        variants: [
+          referenceList
+            ? "Only use a very large plus-size silhouette when the latest profile/reference text explicitly says Very Large."
+            : "",
+        ],
+      },
+      {
+        variants: [
+          referenceList
+            ? "Do not make grandparents generically older, thinner, heavier, or frailer than their latest profile/reference details."
+            : "",
+          referenceList ? "Do not make grandparents generic stereotypes." : "",
+        ],
+      },
+      {
+        variants: [
+          continuityList
+            ? "Use approved continuity art only to preserve recurring outfit colours, key props, companion markings, and broad location continuity across spreads. Do not repeat the exact composition, angle, pose, or page layout from continuity art."
+            : "",
+          continuityList
+            ? "Use approved continuity art only to preserve recurring outfits, props, companion markings, and broad location continuity."
+            : "",
+        ],
+      },
+      {
+        variants: [
+          "Do not add written labels, captions, names, numbers, watermarks, or relationship words to the artwork.",
+          "No labels, captions, names, numbers, watermarks, or relationship words in the art.",
+        ],
+      },
+    ],
+    OPENAI_IMAGE_REFERENCE_PROMPT_BUDGET
+  );
 }
 
 async function buildOpenAIImageEditBody(input: {
@@ -580,8 +785,7 @@ async function buildOpenAIImageEditBody(input: {
     })
   );
   formData.append("model", input.model);
-  formData.append(
-    "prompt",
+  const finalPrompt = clampPromptText(
     [
       buildVisualReferencePrompt({
         visualReferences: sheet.visualReferences,
@@ -590,8 +794,10 @@ async function buildOpenAIImageEditBody(input: {
       input.prompt,
     ]
       .filter(Boolean)
-      .join(" ")
+      .join(" "),
+    OPENAI_IMAGE_PROMPT_MAX_CHARS
   );
+  formData.append("prompt", finalPrompt);
   formData.append("size", input.size);
   formData.append("quality", "medium");
   return formData;
@@ -1232,20 +1438,11 @@ function buildPageIllustrationPrompt(input: {
   const pageMoment = omitPageText
     ? ""
     : sanitizePageMomentForImagePrompt(pageText);
-  const latestReferenceContext = (input.visualReferences ?? [])
-    .map((reference) => {
-      const relationship = reference.relationship
-        ? `, ${reference.relationship}`
-        : "";
-      const appearance = reference.appearance?.trim()
-        ? ` Latest appearance: ${reference.appearance.trim()}`
-        : "";
-      const staleNote = reference.isStale
-        ? " Reference image may be stale; use it for face identity only."
-        : "";
-      return `- ${reference.name} (${reference.role}${relationship}).${staleNote}${appearance}`;
-    })
-    .join(" ");
+  const latestReferenceContext = buildLatestReferenceContext(input.visualReferences);
+  const compactLatestReferenceContext = buildLatestReferenceContext(
+    input.visualReferences,
+    true
+  );
   const selectedReferenceNames = (input.visualReferences ?? [])
     .map((reference) => reference.name)
     .filter(Boolean)
@@ -1270,39 +1467,90 @@ function buildPageIllustrationPrompt(input: {
     compositionVariants.length;
   const compositionHint = compositionVariants[compositionIdx];
 
-  return [
-    `Illustration direction: ${spread.illustrationPrompt}.`,
-    `Scene brief: ${spread.sceneBrief}.`,
-    ...(pageMoment
-      ? [
-          `Story moment constraints, image-safe summary: ${pageMoment}. Preserve scene state exactly: which characters are present, what each character is doing, what each object or pet is doing, who is holding or not holding each object, where every important object/person/pet is located, and what has or has not happened yet. Do not move objects, pets, toys, books, gifts, food, clothing, or story props into a character's hands, onto the floor, into the background, or out of the scene unless this exact moment says so.`,
-        ]
-      : []),
-    `Composition: ${compositionHint}.`,
-    // Character consistency follows as a constraint block.
-    buildIllustrationDirection(characterBible),
-    selectedReferenceNames
-      ? `Selected cast for this spread: ${selectedReferenceNames}. Keep to this cast unless the story moment above clearly requires another named character.`
-      : "",
-    continuityReferenceLabels
-      ? `Approved continuity art references available: ${continuityReferenceLabels}. Use them only to preserve established likeness, outfits, recurring props, companion markings, and broad environment continuity when the same child, companion, or location reappears. Do not copy their exact composition, camera angle, pose, crop, or background layout. If these continuity images conflict with the latest selected cast references or current story moment, the latest selected cast references and current story moment win.`
-      : "",
-    latestReferenceContext
-      ? `Latest profile/reference overrides: ${latestReferenceContext} If this conflicts with the older character bible, old generated artwork, attached reference image, or previous generated reference summary, follow these latest edited profile/reference details. Latest edited appearance is the highest priority for changeable traits: hairstyle, hair length, facial hair, glasses, outfit, body build, and apparent age. Body build is a hard override: visibly adjust silhouette, torso width, face fullness, and overall proportions to match the latest body-build cue while preserving identity. Large means moderately fuller-than-average, not very large or oversized; only draw a very large plus-size silhouette when the latest cue explicitly says Very Large. Keep skin tone and core facial identity recognisable.`
-      : "",
-    // Metadata.
-    `Book title: ${story.title}.`,
-    `Main child: ${profile.name}.`,
-    `Age band: ${project.ageBand}.`,
-    `Spread sequence: ${spread.sequence}, ${side} page.`,
-    ...(correctionNote
-      ? [
-          `User correction for this redo: ${correctionNote}. Apply this correction while preserving the story moment and art style. If the correction mentions hair, hairstyle, bun, ponytail, beard, glasses, outfit, body size, build, weight, skinny, thin, large, very large, plus-size, broad, age, or proportions, it is allowed and expected to visibly change that trait instead of preserving the old generated version.`,
-        ]
-      : []),
-    // Variation is the critical instruction - stated explicitly.
-    "Illustrate this specific story moment. Scene fidelity is higher priority than a convenient character pose: the depicted object locations, who is holding what, character actions, setting detail, sequence of events, and emotional tone must match the story moment constraints, scene brief, and illustration direction above. This image must look meaningfully different from every other page in the book. Keep every selected/reference character's face shape, apparent age, hair or fur, skin tone, glasses, latest body build, and core outfit or markings consistent with the latest overrides, not stale generated artwork. No text, lettering, or page numbers inside the art.",
-  ].join(" ");
+  return fitPromptSegments(
+    [
+      {
+        variants: [
+          `Illustration direction: ${clampPromptText(spread.illustrationPrompt, 900)}.`,
+          `Illustration direction: ${clampPromptText(spread.illustrationPrompt, 420)}.`,
+        ],
+      },
+      {
+        variants: [
+          `Scene brief: ${clampPromptText(spread.sceneBrief, 700)}.`,
+          `Scene brief: ${clampPromptText(spread.sceneBrief, 320)}.`,
+          "",
+        ],
+      },
+      {
+        variants: pageMoment
+          ? [
+              `Story moment constraints, image-safe summary: ${pageMoment}. Preserve scene state exactly: which characters are present, what each character is doing, what each object or pet is doing, who is holding or not holding each object, where every important object/person/pet is located, and what has or has not happened yet. Do not move objects, pets, toys, books, gifts, food, clothing, or story props into a character's hands, onto the floor, into the background, or out of the scene unless this exact moment says so.`,
+              `Story moment constraints: ${pageMoment}. Keep character actions, props, locations, and event order exactly as described.`,
+              `Story moment: ${pageMoment}.`,
+            ]
+          : [""],
+      },
+      {
+        variants: [`Composition: ${compositionHint}.`, ""],
+      },
+      {
+        variants: [
+          buildIllustrationDirection(characterBible),
+          buildIllustrationDirection(characterBible, { compact: true }),
+        ],
+      },
+      {
+        variants: selectedReferenceNames
+          ? [
+              `Selected cast for this spread: ${selectedReferenceNames}. Keep to this cast unless the story moment above clearly requires another named character.`,
+              `Selected cast for this spread: ${selectedReferenceNames}. Keep to this cast unless the story moment clearly requires another named character.`,
+            ]
+          : [""],
+      },
+      {
+        variants: continuityReferenceLabels
+          ? [
+              `Approved continuity art references available: ${continuityReferenceLabels}. Use them only to preserve established likeness, outfits, recurring props, companion markings, and broad environment continuity when the same child, companion, or location reappears. Do not copy their exact composition, camera angle, pose, crop, or background layout. If these continuity images conflict with the latest selected cast references or current story moment, the latest selected cast references and current story moment win.`,
+              `Approved continuity art references available: ${continuityReferenceLabels}. Use them only to preserve established likeness, outfits, props, companion markings, and broad environment continuity. If they conflict with the latest selected cast references or current story moment, the latest selected cast references and current story moment win.`,
+              `Approved continuity art references available: ${continuityReferenceLabels}.`,
+            ]
+          : [""],
+      },
+      {
+        variants: latestReferenceContext
+          ? [
+              `Latest profile/reference overrides: ${latestReferenceContext} If this conflicts with the older character bible, old generated artwork, attached reference image, or previous generated reference summary, follow these latest edited profile/reference details. Latest edited appearance is the highest priority for changeable traits: hairstyle, hair length, facial hair, glasses, outfit, body build, and apparent age. Body build is a hard override: visibly adjust silhouette, torso width, face fullness, and overall proportions to match the latest body-build cue while preserving identity. Large means moderately fuller-than-average, not very large or oversized; only draw a very large plus-size silhouette when the latest cue explicitly says Very Large. Keep skin tone and core facial identity recognisable.`,
+              `Latest profile/reference overrides: ${compactLatestReferenceContext} If this conflicts with older artwork or the attached image, follow these latest edited profile/reference details. Latest edited appearance controls hairstyle, hair length, facial hair, glasses, outfit, body build, and apparent age. Large means moderately fuller-than-average, not oversized; only use a very large plus-size silhouette when the latest cue explicitly says Very Large.`,
+              `Latest profile/reference overrides: ${compactLatestReferenceContext}`,
+            ]
+          : [""],
+      },
+      {
+        variants: [
+          `Book title: ${story.title}. Main child: ${profile.name}. Age band: ${project.ageBand}. Spread sequence: ${spread.sequence}, ${side} page.`,
+          `Book title: ${story.title}. Main child: ${profile.name}. Spread sequence: ${spread.sequence}, ${side} page.`,
+          "",
+        ],
+      },
+      {
+        variants: correctionNote
+          ? [
+              `User correction for this redo: ${clampPromptText(correctionNote, 500)}. Apply this correction while preserving the story moment and art style. If the correction mentions hair, hairstyle, bun, ponytail, beard, glasses, outfit, body size, build, weight, skinny, thin, large, very large, plus-size, broad, age, or proportions, it is allowed and expected to visibly change that trait instead of preserving the old generated version.`,
+              `User correction for this redo: ${clampPromptText(correctionNote, 220)}. Apply it while preserving the story moment and art style; visible trait changes are allowed when explicitly requested.`,
+              `User correction for this redo: ${clampPromptText(correctionNote, 140)}.`,
+            ]
+          : [""],
+      },
+      {
+        variants: [
+          "Illustrate this specific story moment. Scene fidelity is higher priority than a convenient character pose: the depicted object locations, who is holding what, character actions, setting detail, sequence of events, and emotional tone must match the story moment constraints, scene brief, and illustration direction above. This image must look meaningfully different from every other page in the book. Keep every selected/reference character's face shape, apparent age, hair or fur, skin tone, glasses, latest body build, and core outfit or markings consistent with the latest overrides, not stale generated artwork. No text, lettering, or page numbers inside the art.",
+          "Illustrate this exact story moment. Match the described actions, props, locations, sequence, and emotional tone. Keep selected/reference characters visually consistent with the latest overrides, not stale artwork. No text, lettering, or page numbers inside the art.",
+        ],
+      },
+    ],
+    OPENAI_IMAGE_CORE_PROMPT_BUDGET
+  );
 }
 
 // ---------------------------------------------------------------------------

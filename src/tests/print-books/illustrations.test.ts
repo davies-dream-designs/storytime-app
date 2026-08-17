@@ -421,7 +421,7 @@ describe("generateCoverIllustration", () => {
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       void init;
-      if (url === "https://assets.example.com/glenpa.jpg") {
+      if (String(url).startsWith("https://assets.example.com/")) {
         return {
           ok: true,
           arrayBuffer: async () => Buffer.from("reference").buffer,
@@ -520,6 +520,131 @@ describe("generateCoverIllustration", () => {
     vi.doUnmock("sharp");
     vi.doUnmock("@/lib/print-books/storage");
   });
+
+  it("filters visual references down to the spread's relevant cast", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    vi.doMock("@/lib/print-books/storage", () => ({
+      storeBookAsset: mockStoreBookAsset,
+      isBookAssetStorageConfigured: () => true,
+    }));
+
+    vi.doMock("sharp", () => {
+      const instance = {
+        resize: vi.fn().mockReturnThis(),
+        composite: vi.fn().mockReturnThis(),
+        removeAlpha: vi.fn().mockReturnThis(),
+        raw: vi.fn().mockReturnThis(),
+        png: vi.fn().mockReturnThis(),
+        jpeg: vi.fn().mockReturnThis(),
+        rotate: vi.fn().mockReturnThis(),
+        toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
+          options?.resolveWithObject
+            ? Promise.resolve({
+                data: Buffer.from([128, 128, 128, 180, 180, 180]),
+                info: { channels: 3 },
+              })
+            : Promise.resolve(Buffer.from("upscaled-png"))
+        ),
+      };
+      const sharpFn = vi.fn(() => instance);
+      const sharpMock = Object.assign(sharpFn, {
+        kernel: { lanczos3: "lanczos3" },
+      });
+      return { default: sharpMock };
+    });
+
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      void init;
+      if (String(url).startsWith("https://assets.example.com/")) {
+        return {
+          ok: true,
+          arrayBuffer: async () => Buffer.from("reference").buffer,
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          data: [{ b64_json: Buffer.from("image").toString("base64") }],
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mockStoreBookAsset.mockResolvedValue("https://example.com/page.png");
+
+    vi.resetModules();
+    const { generateSpreadPageIllustration } =
+      await import("@/lib/print-books/illustrations");
+
+    const project = createProject();
+    const spread = {
+      ...project.spreads[0]!,
+      id: "book-1:spread:2",
+      sequence: 2,
+      pageStart: 3,
+      pageEnd: 4,
+      title: "Beach",
+      leftPageText: "Mila waved to Glenpa near the calm shore.",
+      rightPageText: "Together they looked for silver shells in the sand.",
+      sceneBrief: "Mila and Glenpa share a calm shell-finding moment.",
+      illustrationPrompt: "Mila and Glenpa at the quiet beach.",
+    };
+
+    await generateSpreadPageIllustration({
+      project,
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+      visualReferences: [
+        {
+          id: "profile:profile-1",
+          name: "Mila",
+          role: "main_child",
+          imageUrl: "https://assets.example.com/mila.jpg",
+          appearance: "Curly dark hair and bright brown eyes.",
+        },
+        {
+          id: "person:glenpa",
+          name: "Glenpa",
+          role: "family_friend_pet",
+          relationship: "grandparent",
+          imageUrl: "https://assets.example.com/glenpa.jpg",
+          appearance: "Warm smile, dark-framed glasses, grey hair in a neat bun.",
+        },
+        {
+          id: "person:poppy",
+          name: "Poppy",
+          role: "family_friend_pet",
+          relationship: "friend",
+          imageUrl: "https://assets.example.com/poppy.jpg",
+          appearance: "Red overalls and two braids.",
+        },
+      ],
+      spread,
+      side: "left",
+    });
+
+    const editCall = fetchMock.mock.calls.find((call) =>
+      String(call[0]).includes("/images/edits")
+    );
+    const body = editCall?.[1]?.body as FormData;
+    expect(body.get("prompt")).toContain(
+      "Selected cast for this spread: Mila, Glenpa"
+    );
+    expect(body.get("prompt")).toContain("Mila");
+    expect(body.get("prompt")).toContain("Glenpa");
+    expect(body.get("prompt")).not.toContain("Poppy");
+    expect(
+      fetchMock.mock.calls.some(
+        (call) => String(call[0]) === "https://assets.example.com/poppy.jpg"
+      )
+    ).toBe(false);
+
+    vi.unstubAllGlobals();
+    vi.doUnmock("sharp");
+    vi.doUnmock("@/lib/print-books/storage");
+  });
+
 
   it("falls back to a safe branded cover when cover moderation blocks generation", async () => {
     process.env.OPENAI_API_KEY = "test-key";

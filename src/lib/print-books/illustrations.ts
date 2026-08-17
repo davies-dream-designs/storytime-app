@@ -769,6 +769,87 @@ function getIllustratedSpreadMomentText(
     .join(" ");
 }
 
+const RELATIONSHIP_REFERENCE_HINTS: Record<string, string[]> = {
+  mum: ["mum", "mom", "mother", "mama"],
+  dad: ["dad", "father", "dada", "papa"],
+  parent: ["parent", "grown-up", "adult"],
+  grandparent: [
+    "grandparent",
+    "grandma",
+    "grandpa",
+    "nan",
+    "nana",
+    "pop",
+    "grandad",
+    "granddad",
+  ],
+  great_grandparent: ["great grandparent", "great grandma", "great grandpa"],
+  auntie: ["auntie", "aunty", "aunt"],
+  uncle: ["uncle"],
+  cousin: ["cousin"],
+  sibling: ["sibling", "brother", "sister"],
+  friend: ["friend", "pal", "buddy"],
+  carer: ["carer", "caregiver"],
+  babysitter: ["babysitter", "sitter"],
+  neighbour: ["neighbour", "neighbor"],
+  teacher: ["teacher"],
+  pet: ["pet", "puppy", "dog", "kitten", "cat"],
+  other: [],
+};
+
+function normalizeReferenceSearchText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getReferenceSearchTerms(reference: CharacterVisualReference): string[] {
+  const terms = [normalizeReferenceSearchText(reference.name)];
+  const relationship = normalizeReferenceSearchText(reference.relationship ?? "");
+  if (relationship) {
+    terms.push(relationship);
+    terms.push(
+      ...(RELATIONSHIP_REFERENCE_HINTS[
+        relationship.replace(/\s+/g, "_")
+      ] ?? [])
+    );
+  }
+  return Array.from(new Set(terms.filter(Boolean)));
+}
+
+function selectSpreadVisualReferences(
+  spread: BookSpread,
+  references: CharacterVisualReference[] = []
+): CharacterVisualReference[] {
+  if (references.length === 0) return [];
+
+  const haystack = normalizeReferenceSearchText(
+    [
+      spread.leftPageText,
+      spread.rightPageText,
+      spread.sceneBrief,
+      spread.illustrationPrompt,
+    ].join(" ")
+  );
+
+  const selected = references.filter((reference) => {
+    if (reference.role === "main_child") return true;
+    return getReferenceSearchTerms(reference).some(
+      (term) => term && haystack.includes(term)
+    );
+  });
+
+  const fallback =
+    selected.length > 0
+      ? selected
+      : references.filter((reference) => reference.role === "main_child");
+
+  return fallback.slice(0, MAX_VISUAL_REFERENCES_PER_IMAGE);
+}
+
+
 
 function buildPageIllustrationPrompt(input: {
   project: BookProject;
@@ -809,6 +890,10 @@ function buildPageIllustrationPrompt(input: {
       return `- ${reference.name} (${reference.role}${relationship}).${staleNote}${appearance}`;
     })
     .join(" ");
+  const selectedReferenceNames = (input.visualReferences ?? [])
+    .map((reference) => reference.name)
+    .filter(Boolean)
+    .join(", ");
 
   const compositionVariants = [
     "wide establishing shot showing the full environment",
@@ -836,6 +921,9 @@ function buildPageIllustrationPrompt(input: {
     `Composition: ${compositionHint}.`,
     // Character consistency follows as a constraint block.
     buildIllustrationDirection(characterBible),
+    selectedReferenceNames
+      ? `Selected cast for this spread: ${selectedReferenceNames}. Keep to this cast unless the story moment above clearly requires another named character.`
+      : "",
     latestReferenceContext
       ? `Latest profile/reference overrides: ${latestReferenceContext} If this conflicts with the older character bible, old generated artwork, attached reference image, or previous generated reference summary, follow these latest edited profile/reference details. Latest edited appearance is the highest priority for changeable traits: hairstyle, hair length, facial hair, glasses, outfit, body build, and apparent age. Body build is a hard override: visibly adjust silhouette, torso width, face fullness, and overall proportions to match the latest body-build cue while preserving identity. Large means moderately fuller-than-average, not very large or oversized; only draw a very large plus-size silhouette when the latest cue explicitly says Very Large. Keep skin tone and core facial identity recognisable.`
       : "",
@@ -1084,14 +1172,21 @@ export async function generateSpreadPageIllustration(input: {
     return { url, webUrl };
   };
 
-  const prompt = buildPageIllustrationPrompt(input);
+  const spreadVisualReferences = selectSpreadVisualReferences(
+    spread,
+    input.visualReferences
+  );
+  const prompt = buildPageIllustrationPrompt({
+    ...input,
+    visualReferences: spreadVisualReferences,
+  });
 
   try {
     let upscaled: Buffer;
     try {
       upscaled = await generateAndUpscale({
         prompt,
-        visualReferences: input.visualReferences,
+        visualReferences: spreadVisualReferences,
       });
     } catch (err) {
       if (!(err instanceof UnusableGeneratedImageError)) throw err;
@@ -1100,7 +1195,7 @@ export async function generateSpreadPageIllustration(input: {
       );
       upscaled = await generateAndUpscale({
         prompt,
-        visualReferences: input.visualReferences,
+        visualReferences: spreadVisualReferences,
       });
     }
     const { url, webUrl } = await storeWithWeb(upscaled);
@@ -1115,12 +1210,13 @@ export async function generateSpreadPageIllustration(input: {
     // Retry without page text - the text is the most common moderation trigger.
     const fallbackPrompt = buildPageIllustrationPrompt({
       ...input,
+      visualReferences: spreadVisualReferences,
       omitPageText: true,
     });
     try {
       const upscaled = await generateAndUpscale({
         prompt: fallbackPrompt,
-        visualReferences: input.visualReferences,
+        visualReferences: spreadVisualReferences,
       });
       const { url, webUrl } = await storeWithWeb(upscaled);
       return { url, webUrl, provider: "openai" };

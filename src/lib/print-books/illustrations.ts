@@ -898,12 +898,76 @@ const RELATIONSHIP_REFERENCE_HINTS: Record<string, string[]> = {
   other: [],
 };
 
+const IMPLIED_COMPANION_HINTS = [
+  "together",
+  "they",
+  "them",
+  "their",
+  "with",
+  "beside",
+  "alongside",
+  "joined",
+  "both",
+  "shared",
+  "walked",
+  "watched",
+];
+
+const CONTINUITY_KEYWORD_STOPWORDS = new Set([
+  "the",
+  "and",
+  "with",
+  "into",
+  "from",
+  "over",
+  "under",
+  "through",
+  "while",
+  "where",
+  "that",
+  "this",
+  "little",
+  "looked",
+  "look",
+  "walked",
+  "watched",
+  "story",
+  "scene",
+  "moment",
+  "page",
+  "spread",
+  "mila",
+]);
+
 function normalizeReferenceSearchText(value: string): string {
   return value
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function buildSpreadReferenceHaystack(spread: BookSpread): string {
+  return normalizeReferenceSearchText(
+    [
+      spread.title,
+      spread.leftPageText,
+      spread.rightPageText,
+      spread.sceneBrief,
+      spread.illustrationPrompt,
+    ].join(" ")
+  );
+}
+
+function tokenizeNormalizedText(value: string): string[] {
+  return Array.from(
+    new Set(
+      value
+        .split(" ")
+        .map((part) => part.trim())
+        .filter((part) => part.length >= 3)
+    )
+  );
 }
 
 function getReferenceSearchTerms(reference: CharacterVisualReference): string[] {
@@ -920,33 +984,92 @@ function getReferenceSearchTerms(reference: CharacterVisualReference): string[] 
   return Array.from(new Set(terms.filter(Boolean)));
 }
 
-function selectSpreadVisualReferences(
-  spread: BookSpread,
-  references: CharacterVisualReference[] = []
-): CharacterVisualReference[] {
+function getRecentSpreadCharacterReferenceIds(
+  project: BookProject,
+  spread: BookSpread
+): Set<string> {
+  return new Set(
+    project.spreads
+      .filter((candidate) => candidate.sequence < spread.sequence)
+      .sort((a, b) => b.sequence - a.sequence)
+      .slice(0, 2)
+      .flatMap((candidate) => [
+        ...(candidate.leftPageQa?.characterReferenceIds ?? []),
+        ...(candidate.rightPageQa?.characterReferenceIds ?? []),
+      ])
+  );
+}
+
+function scoreReferenceForSpread(input: {
+  reference: CharacterVisualReference;
+  haystack: string;
+  recentCharacterIds: Set<string>;
+  companionHintPresent: boolean;
+  nonMainReferenceCount: number;
+}): number {
+  const { reference, haystack, recentCharacterIds, companionHintPresent } = input;
+  let score = 0;
+  for (const term of getReferenceSearchTerms(reference)) {
+    if (!term) continue;
+    if (haystack.includes(term)) {
+      score += term === normalizeReferenceSearchText(reference.name) ? 40 : 24;
+    }
+  }
+  if (recentCharacterIds.has(reference.id) && companionHintPresent) score += 18;
+  if (
+    input.nonMainReferenceCount === 1 &&
+    recentCharacterIds.has(reference.id) &&
+    !score
+  ) {
+    score += 8;
+  }
+  return score;
+}
+
+function selectSpreadVisualReferences(input: {
+  project: BookProject;
+  spread: BookSpread;
+  references?: CharacterVisualReference[];
+}): CharacterVisualReference[] {
+  const references = input.references ?? [];
   if (references.length === 0) return [];
 
-  const haystack = normalizeReferenceSearchText(
-    [
-      spread.leftPageText,
-      spread.rightPageText,
-      spread.sceneBrief,
-      spread.illustrationPrompt,
-    ].join(" ")
+  const haystack = buildSpreadReferenceHaystack(input.spread);
+  const recentCharacterIds = getRecentSpreadCharacterReferenceIds(
+    input.project,
+    input.spread
   );
+  const companionHintPresent = IMPLIED_COMPANION_HINTS.some((hint) =>
+    haystack.includes(hint)
+  );
+  const mainChildReferences = references.filter(
+    (reference) => reference.role === "main_child"
+  );
+  const nonMainReferences = references.filter(
+    (reference) => reference.role !== "main_child"
+  );
+  const scoredNonMain = nonMainReferences
+    .map((reference) => ({
+      reference,
+      score: scoreReferenceForSpread({
+        reference,
+        haystack,
+        recentCharacterIds,
+        companionHintPresent,
+        nonMainReferenceCount: nonMainReferences.length,
+      }),
+    }))
+    .sort((a, b) => b.score - a.score);
 
-  const selected = references.filter((reference) => {
-    if (reference.role === "main_child") return true;
-    return getReferenceSearchTerms(reference).some(
-      (term) => term && haystack.includes(term)
-    );
-  });
+  const selected = scoredNonMain
+    .filter((entry) => entry.score >= 20)
+    .map((entry) => entry.reference);
 
-  const fallback =
-    selected.length > 0
-      ? selected
-      : references.filter((reference) => reference.role === "main_child");
+  if (selected.length === 0 && scoredNonMain[0]?.score >= 12) {
+    selected.push(scoredNonMain[0].reference);
+  }
 
+  const fallback = [...mainChildReferences, ...selected];
   return fallback.slice(0, MAX_VISUAL_REFERENCES_PER_IMAGE);
 }
 
@@ -956,38 +1079,75 @@ function isPlaceholderReferenceImageUrl(url?: string): boolean {
   return lower.startsWith("data:image/svg") || lower.endsWith(".svg");
 }
 
+function getContinuityKeywordScore(current: BookSpread, candidate: BookSpread): number {
+  const currentKeywords = tokenizeNormalizedText(buildSpreadReferenceHaystack(current)).filter(
+    (keyword) => !CONTINUITY_KEYWORD_STOPWORDS.has(keyword)
+  );
+  if (currentKeywords.length === 0) return 0;
+  const candidateKeywords = new Set(
+    tokenizeNormalizedText(buildSpreadReferenceHaystack(candidate)).filter(
+      (keyword) => !CONTINUITY_KEYWORD_STOPWORDS.has(keyword)
+    )
+  );
+  return currentKeywords.reduce(
+    (total, keyword) => total + (candidateKeywords.has(keyword) ? 1 : 0),
+    0
+  );
+}
+
+function scoreContinuitySpread(input: {
+  spread: BookSpread;
+  candidate: BookSpread;
+  selectedCharacterIds: Set<string>;
+}): number {
+  const candidateCharacterIds = new Set([
+    ...(input.candidate.leftPageQa?.characterReferenceIds ?? []),
+    ...(input.candidate.rightPageQa?.characterReferenceIds ?? []),
+  ]);
+  let sharedCharacterScore = 0;
+  for (const id of input.selectedCharacterIds) {
+    if (candidateCharacterIds.has(id)) sharedCharacterScore += 40;
+  }
+  const keywordScore = getContinuityKeywordScore(input.spread, input.candidate) * 6;
+  if (sharedCharacterScore === 0 && keywordScore === 0) return 0;
+  const recencyScore = Math.max(0, 12 - (input.spread.sequence - input.candidate.sequence));
+  const qaScore = candidateCharacterIds.size > 0 ? 4 : 0;
+  return sharedCharacterScore + keywordScore + recencyScore + qaScore;
+}
+
 function selectContinuityVisualReferences(input: {
   project: BookProject;
   spread: BookSpread;
+  selectedCharacterReferences: CharacterVisualReference[];
 }): ContinuityVisualReference[] {
-  const continuity: ContinuityVisualReference[] = [];
+  const selectedCharacterIds = new Set(
+    input.selectedCharacterReferences.map((reference) => reference.id)
+  );
+  const continuityCandidates: Array<ContinuityVisualReference & { score: number }> = [];
   const { project, spread } = input;
 
   if (!isPlaceholderReferenceImageUrl(project.assets.coverImageUrl)) {
-    continuity.push({
+    continuityCandidates.push({
       id: `cover:${project.id}`,
       label: "Approved cover art",
       imageUrl: project.assets.coverImageUrl!,
       source: "cover",
       sequence: 1,
+      score: selectedCharacterIds.size > 0 ? 16 : 8,
     });
   }
 
-  const priorSpreads = project.spreads
-    .filter(
-      (candidate) =>
-        candidate.sequence < spread.sequence &&
-        candidate.sequence > 1 &&
-        candidate.title !== "Cover" &&
-        !isPlaceholderReferenceImageUrl(
-          candidate.leftPageImageUrl ?? candidate.imageUrl ?? candidate.thumbnailUrl
-        )
-    )
-    .sort((a, b) => b.sequence - a.sequence)
-    .slice(0, 2)
-    .reverse();
+  const priorSpreads = project.spreads.filter(
+    (candidate) =>
+      candidate.sequence < spread.sequence &&
+      candidate.sequence > 1 &&
+      candidate.title !== "Cover" &&
+      !isPlaceholderReferenceImageUrl(
+        candidate.leftPageImageUrl ?? candidate.imageUrl ?? candidate.thumbnailUrl
+      )
+  );
 
-  continuity.push(
+  continuityCandidates.push(
     ...priorSpreads.map((candidate) => ({
       id: `spread:${candidate.id}`,
       label: `Approved spread ${candidate.sequence}`,
@@ -995,10 +1155,25 @@ function selectContinuityVisualReferences(input: {
         candidate.leftPageImageUrl ?? candidate.imageUrl ?? candidate.thumbnailUrl!,
       source: "spread" as const,
       sequence: candidate.sequence,
+      score: scoreContinuitySpread({
+        spread,
+        candidate,
+        selectedCharacterIds,
+      }),
     }))
   );
 
-  return continuity.slice(0, 3);
+  return continuityCandidates
+    .filter((candidate) => candidate.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map((candidate) => ({
+      id: candidate.id,
+      label: candidate.label,
+      imageUrl: candidate.imageUrl,
+      source: candidate.source,
+      sequence: candidate.sequence,
+    }));
 }
 
 function buildIllustrationQaMetadata(input: {
@@ -1023,6 +1198,9 @@ function buildIllustrationQaMetadata(input: {
     continuityReferenceLabels: input.continuityReferences.map(
       (reference) => reference.label
     ),
+    staleCharacterReferenceNames: input.characterReferences
+      .filter((reference) => reference.isStale)
+      .map((reference) => reference.name),
     correctionNote: input.correctionNote,
     pageTextOmitted: input.pageTextOmitted || undefined,
   };
@@ -1336,13 +1514,15 @@ export async function generateSpreadPageIllustration(input: {
   };
 
   if (!isGeneratedIllustrationConfigured()) {
-    const spreadVisualReferences = selectSpreadVisualReferences(
+    const spreadVisualReferences = selectSpreadVisualReferences({
+      project,
       spread,
-      input.visualReferences
-    );
+      references: input.visualReferences,
+    });
     const continuityReferences = selectContinuityVisualReferences({
       project,
       spread,
+      selectedCharacterReferences: spreadVisualReferences,
     });
     return {
       url: await storePlaceholderPage(),
@@ -1377,13 +1557,15 @@ export async function generateSpreadPageIllustration(input: {
     return { url, webUrl };
   };
 
-  const spreadVisualReferences = selectSpreadVisualReferences(
+  const spreadVisualReferences = selectSpreadVisualReferences({
+    project,
     spread,
-    input.visualReferences
-  );
+    references: input.visualReferences,
+  });
   const continuityReferences = selectContinuityVisualReferences({
     project,
     spread,
+    selectedCharacterReferences: spreadVisualReferences,
   });
   const buildQa = (options: {
     provider: "openai" | "placeholder";

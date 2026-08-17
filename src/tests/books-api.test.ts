@@ -313,6 +313,8 @@ describe("/api/books/[id] and /status", () => {
           illustrationPrompt: "Garden",
           leftPageImageUrl: "https://assets.example.com/print.png",
           leftPageWebImageUrl: "https://assets.example.com/web.jpg",
+          rightPageImageUrl: "https://assets.example.com/right.png",
+          rightPageImageError: "right-side drift",
           thumbnailUrl: "https://assets.example.com/thumb.jpg",
         },
       ],
@@ -337,6 +339,8 @@ describe("/api/books/[id] and /status", () => {
       thumbnailUrl: "https://assets.example.com/thumb.jpg",
       webImageUrl: "https://assets.example.com/web.jpg",
       leftPageImageUrl: "https://assets.example.com/print.png",
+      rightPageImageUrl: "https://assets.example.com/right.png",
+      rightPageImageError: "right-side drift",
     });
   });
 
@@ -367,6 +371,7 @@ describe("/api/books/[id] and /status", () => {
             characterReferenceNames: ["Mila"],
             continuityReferenceIds: ["cover:book-1"],
             continuityReferenceLabels: ["Approved cover art"],
+            staleCharacterReferenceNames: ["Mila"],
           },
         },
       ],
@@ -385,6 +390,7 @@ describe("/api/books/[id] and /status", () => {
       provider: "openai",
       characterReferenceNames: ["Mila"],
       continuityReferenceLabels: ["Approved cover art"],
+      staleCharacterReferenceNames: ["Mila"],
     });
   });
 

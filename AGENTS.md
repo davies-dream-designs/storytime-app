@@ -109,3 +109,8 @@ Always end the turn with an explicit completion/status response to the user. Do 
 - Do not delete or weaken the `.gitignore` rules for environment files.
 - Do not introduce secrets or hard-coded credentials.
 - Do not disable ESLint rules with `eslint-disable` comments without a documented reason.
+
+## Story-generation consistency gotcha
+
+- Persisted `story.storyPersonIds` can contain both saved `storyPeople` IDs and synthetic child-cast IDs like `child:<profileId>`.
+- Any route or job that reloads selected cast from a stored story must use `getSelectedStoryPeople(...)`, not `db.storyPeople.getByIds(...)` directly, or sibling/child-profile cast members will disappear during stream regeneration and book builds.

@@ -22,6 +22,8 @@ type SpreadPreview = {
   rightPageImageUrl?: string;
   leftPageImageError?: string;
   rightPageImageError?: string;
+  leftPageQa?: BookProject["spreads"][number]["leftPageQa"];
+  rightPageQa?: BookProject["spreads"][number]["rightPageQa"];
 };
 
 type ExpandedImage = {
@@ -132,6 +134,8 @@ function getSpreadPreviews(project: BookProject): SpreadPreview[] {
       rightPageImageUrl: undefined,
       leftPageImageError: s.leftPageImageError,
       rightPageImageError: undefined,
+      leftPageQa: s.leftPageQa,
+      rightPageQa: s.rightPageQa,
     }))
     .sort((a, b) => a.sequence - b.sequence);
 }

@@ -260,6 +260,7 @@ export async function regenerateBookSpreadPageImage(input: {
       profile: context.profile,
       characterBible,
       visualReferences: context.visualReferences,
+      referenceSnapshotKey: context.referenceSnapshotKey,
       spread,
       side: input.side,
       correctionNote: input.correctionNote,
@@ -326,6 +327,8 @@ export async function regenerateBookSpreadPageImage(input: {
       input.side === "left"
         ? (generated.webUrl ?? generated.url)
         : (spread.thumbnailUrl ?? spread.leftPageImageUrl ?? generated.url),
+    leftPageQa: input.side === "left" ? generated.qa : spread.leftPageQa,
+    rightPageQa: input.side === "right" ? generated.qa : spread.rightPageQa,
   };
 
   const nextSpreads = applySpreadIllustration(project.spreads, nextSpread);

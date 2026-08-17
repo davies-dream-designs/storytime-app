@@ -6,6 +6,8 @@ import type {
   BookSpread,
   CharacterBible,
   CharacterVisualReference,
+  ContinuityVisualReference,
+  IllustrationGenerationMetadata,
 } from "@/types/printBook";
 import { BOOK_SPEC } from "@/lib/print-books/bookConfig";
 import { buildIllustrationDirection } from "@/lib/print-books/characterBible";
@@ -362,12 +364,19 @@ function createPlaceholderPageSvg(input: {
 // ---------------------------------------------------------------------------
 
 const MAX_VISUAL_REFERENCES_PER_IMAGE = 6;
+const MAX_CONTINUITY_REFERENCES_PER_IMAGE = 3;
 
-async function loadVisualReferenceBuffer(
-  reference: CharacterVisualReference
-): Promise<Buffer | null> {
+type ImageConditionReference =
+  | ({ kind: "character" } & CharacterVisualReference)
+  | ({ kind: "continuity" } & ContinuityVisualReference);
+
+async function loadReferenceImageBuffer(input: {
+  id: string;
+  imageUrl: string;
+  kind: "character" | "continuity";
+}): Promise<Buffer | null> {
   try {
-    const response = await fetch(reference.imageUrl);
+    const response = await fetch(input.imageUrl);
     if (!response.ok) return null;
     const source = Buffer.from(await response.arrayBuffer());
     return sharp(source)
@@ -379,30 +388,51 @@ async function loadVisualReferenceBuffer(
       .png({ compressionLevel: 8 })
       .toBuffer();
   } catch (error) {
-    console.warn("Could not load character visual reference.", {
-      referenceId: reference.id,
+    console.warn("Could not load illustration conditioning reference.", {
+      referenceId: input.id,
+      referenceKind: input.kind,
       error: error instanceof Error ? error.message : String(error),
     });
     return null;
   }
 }
 
-async function buildVisualReferenceSheet(
-  references: CharacterVisualReference[] = []
-): Promise<{ image: Buffer; references: CharacterVisualReference[] } | null> {
-  const selected = references
+async function buildIllustrationConditioningSheet(input: {
+  visualReferences?: CharacterVisualReference[];
+  continuityReferences?: ContinuityVisualReference[];
+}): Promise<{
+  image: Buffer;
+  visualReferences: CharacterVisualReference[];
+  continuityReferences: ContinuityVisualReference[];
+} | null> {
+  const selectedCharacters = (input.visualReferences ?? [])
     .filter((reference) => reference.imageUrl)
     .slice(0, MAX_VISUAL_REFERENCES_PER_IMAGE);
+  const selectedContinuity = (input.continuityReferences ?? [])
+    .filter((reference) => reference.imageUrl)
+    .slice(0, MAX_CONTINUITY_REFERENCES_PER_IMAGE);
+  const selected: ImageConditionReference[] = [
+    ...selectedCharacters.map((reference) => ({
+      ...reference,
+      kind: "character" as const,
+    })),
+    ...selectedContinuity.map((reference) => ({
+      ...reference,
+      kind: "continuity" as const,
+    })),
+  ];
   if (selected.length === 0) return null;
 
   const loaded = await Promise.all(
     selected.map(async (reference) => ({
       reference,
-      image: await loadVisualReferenceBuffer(reference),
+      image: await loadReferenceImageBuffer(reference),
     }))
   );
   const usable = loaded.filter(
-    (item): item is { reference: CharacterVisualReference; image: Buffer } =>
+    (
+      item
+    ): item is { reference: ImageConditionReference; image: Buffer } =>
       Boolean(item.image)
   );
   if (usable.length === 0) return null;
@@ -430,15 +460,40 @@ async function buildVisualReferenceSheet(
 
   return {
     image,
-    references: usable.map((item) => item.reference),
+    visualReferences: usable
+      .filter(
+        (
+          item
+        ): item is {
+          reference: CharacterVisualReference & { kind: "character" };
+          image: Buffer;
+        } => item.reference.kind === "character"
+      )
+      .map((item) => {
+        const { kind: _kind, ...reference } = item.reference;
+        return reference;
+      }),
+    continuityReferences: usable
+      .filter(
+        (
+          item
+        ): item is {
+          reference: ContinuityVisualReference & { kind: "continuity" };
+          image: Buffer;
+        } => item.reference.kind === "continuity"
+      )
+      .map((item) => {
+        const { kind: _kind, ...reference } = item.reference;
+        return reference;
+      }),
   };
 }
 
-function buildVisualReferencePrompt(
-  references: CharacterVisualReference[] = []
-): string {
-  if (references.length === 0) return "";
-  const referenceList = references
+function buildVisualReferencePrompt(input: {
+  visualReferences?: CharacterVisualReference[];
+  continuityReferences?: ContinuityVisualReference[];
+}): string {
+  const referenceList = (input.visualReferences ?? [])
     .map((reference, index) => {
       const relationship = reference.relationship
         ? `, ${reference.relationship}`
@@ -452,28 +507,61 @@ function buildVisualReferencePrompt(
       return `${index + 1}. ${reference.name} (${reference.role}${relationship})${staleNote}${appearance}`;
     })
     .join(" ");
+  const continuityList = (input.continuityReferences ?? [])
+    .map((reference, index) => `${index + 1}. ${reference.label}`)
+    .join(" ");
 
   return [
-    `Attached visual reference sheet order: ${referenceList}`,
-    "Use the attached reference sheet only for character likeness and continuity; do not copy its crop, plain background, portrait pose, or sheet layout.",
-    "When a selected child, family member, friend, or pet appears, match the reference image for identity only: recognisable face, skin tone, and familiar markings.",
-    "If a reference is marked stale, do not preserve body size, hairstyle, outfit, apparent age, pose, or clothing from that image; preserve only core facial identity and follow the latest text.",
-    "Latest edited profile/reference text controls changeable visual traits including hair length, hairstyle, facial hair, glasses, outfit, body build, and apparent age. If latest text conflicts with the attached image or older generated image, change the artwork to match the latest text while keeping the person recognisable.",
-    "Body build is controlled by the latest profile/reference text. If that latest body-build text conflicts with the attached image or an older generated image, change the figure silhouette and proportions to match the latest body-build text while keeping the face recognisable.",
-    "If latest body build is Large, draw a moderately fuller-than-average person, not a very large or oversized person. If an attached reference image shows a much larger body than the latest Large cue, reduce the body size in the new artwork and preserve identity through face, hair, glasses, skin tone, and expression.",
-    "Only use a very large plus-size silhouette when the latest profile/reference text explicitly says Very Large.",
-    "Do not make grandparents generically older, thinner, heavier, or frailer than their latest profile/reference details.",
+    referenceList
+      ? `Attached character reference sheet order: ${referenceList}`
+      : "",
+    continuityList
+      ? `Attached approved continuity art sheet order: ${continuityList}`
+      : "",
+    referenceList || continuityList
+      ? "Use the attached reference sheet only for likeness and continuity; do not copy its crop, plain background, portrait pose, or sheet layout."
+      : "",
+    referenceList
+      ? "When a selected child, family member, friend, or pet appears, match the reference image for identity only: recognisable face, skin tone, and familiar markings."
+      : "",
+    referenceList
+      ? "If a reference is marked stale, do not preserve body size, hairstyle, outfit, apparent age, pose, or clothing from that image; preserve only core facial identity and follow the latest text."
+      : "",
+    referenceList
+      ? "Latest edited profile/reference text controls changeable visual traits including hair length, hairstyle, facial hair, glasses, outfit, body build, and apparent age. If latest text conflicts with the attached image or older generated image, change the artwork to match the latest text while keeping the person recognisable."
+      : "",
+    referenceList
+      ? "Body build is controlled by the latest profile/reference text. If that latest body-build text conflicts with the attached image or an older generated image, change the figure silhouette and proportions to match the latest body-build text while keeping the face recognisable."
+      : "",
+    referenceList
+      ? "If latest body build is Large, draw a moderately fuller-than-average person, not a very large or oversized person. If an attached reference image shows a much larger body than the latest Large cue, reduce the body size in the new artwork and preserve identity through face, hair, glasses, skin tone, and expression."
+      : "",
+    referenceList
+      ? "Only use a very large plus-size silhouette when the latest profile/reference text explicitly says Very Large."
+      : "",
+    referenceList
+      ? "Do not make grandparents generically older, thinner, heavier, or frailer than their latest profile/reference details."
+      : "",
+    continuityList
+      ? "Use approved continuity art only to preserve recurring outfit colours, key props, companion markings, and broad location continuity across spreads. Do not repeat the exact composition, angle, pose, or page layout from continuity art."
+      : "",
     "Do not add written labels, captions, names, numbers, watermarks, or relationship words to the artwork.",
-  ].join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 async function buildOpenAIImageEditBody(input: {
   model: string;
   prompt: string;
   size: "1024x1024";
-  visualReferences: CharacterVisualReference[];
+  visualReferences?: CharacterVisualReference[];
+  continuityReferences?: ContinuityVisualReference[];
 }): Promise<FormData> {
-  const sheet = await buildVisualReferenceSheet(input.visualReferences);
+  const sheet = await buildIllustrationConditioningSheet({
+    visualReferences: input.visualReferences,
+    continuityReferences: input.continuityReferences,
+  });
   if (!sheet) {
     throw new AppError("book.reference_image_unavailable", {
       message: "No usable reference images could be loaded.",
@@ -487,14 +575,20 @@ async function buildOpenAIImageEditBody(input: {
   const formData = new FormData();
   formData.append(
     "image",
-    new File([imageArrayBuffer], "storycot-character-references.png", {
+    new File([imageArrayBuffer], "storycot-illustration-references.png", {
       type: "image/png",
     })
   );
   formData.append("model", input.model);
   formData.append(
     "prompt",
-    [buildVisualReferencePrompt(sheet.references), input.prompt]
+    [
+      buildVisualReferencePrompt({
+        visualReferences: sheet.visualReferences,
+        continuityReferences: sheet.continuityReferences,
+      }),
+      input.prompt,
+    ]
       .filter(Boolean)
       .join(" ")
   );
@@ -603,6 +697,7 @@ async function generateOpenAIImage(input: {
   prompt: string;
   size: "1024x1024";
   visualReferences?: CharacterVisualReference[];
+  continuityReferences?: ContinuityVisualReference[];
 }): Promise<Buffer> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -619,13 +714,16 @@ async function generateOpenAIImage(input: {
     const MAX_RETRIES = 3;
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
-      const useVisualReferences = Boolean(input.visualReferences?.length);
-      const body = useVisualReferences
+      const useConditioningReferences = Boolean(
+        input.visualReferences?.length || input.continuityReferences?.length
+      );
+      const body = useConditioningReferences
         ? await buildOpenAIImageEditBody({
             model,
             prompt: input.prompt,
             size: input.size,
-            visualReferences: input.visualReferences ?? [],
+            visualReferences: input.visualReferences,
+            continuityReferences: input.continuityReferences,
           })
         : JSON.stringify({
             model,
@@ -635,12 +733,12 @@ async function generateOpenAIImage(input: {
             quality: "medium",
           });
       const response = await fetch(
-        useVisualReferences
+        useConditioningReferences
           ? "https://api.openai.com/v1/images/edits"
           : "https://api.openai.com/v1/images/generations",
         {
           method: "POST",
-          headers: useVisualReferences
+          headers: useConditioningReferences
             ? { Authorization: `Bearer ${apiKey}` }
             : {
                 Authorization: `Bearer ${apiKey}`,
@@ -708,13 +806,15 @@ async function generateOpenAIImage(input: {
 async function generateBaseImage(input: {
   prompt: string;
   visualReferences?: CharacterVisualReference[];
+  continuityReferences?: ContinuityVisualReference[];
 }): Promise<Buffer> {
-  if (input.visualReferences?.length) {
+  if (input.visualReferences?.length || input.continuityReferences?.length) {
     try {
       return await generateOpenAIImage({
         prompt: input.prompt,
         size: BOOK_SPEC.coverIllustrationOpenAISize,
         visualReferences: input.visualReferences,
+        continuityReferences: input.continuityReferences,
       });
     } catch (error) {
       if (!(error instanceof AppError)) throw error;
@@ -735,6 +835,7 @@ async function generateBaseImage(input: {
 async function generateAndUpscale(input: {
   prompt: string;
   visualReferences?: CharacterVisualReference[];
+  continuityReferences?: ContinuityVisualReference[];
 }): Promise<Buffer> {
   const png = await generateBaseImage(input);
   await assertUsableGeneratedImage(png);
@@ -849,7 +950,83 @@ function selectSpreadVisualReferences(
   return fallback.slice(0, MAX_VISUAL_REFERENCES_PER_IMAGE);
 }
 
+function isPlaceholderReferenceImageUrl(url?: string): boolean {
+  if (!url) return true;
+  const lower = url.toLowerCase();
+  return lower.startsWith("data:image/svg") || lower.endsWith(".svg");
+}
 
+function selectContinuityVisualReferences(input: {
+  project: BookProject;
+  spread: BookSpread;
+}): ContinuityVisualReference[] {
+  const continuity: ContinuityVisualReference[] = [];
+  const { project, spread } = input;
+
+  if (!isPlaceholderReferenceImageUrl(project.assets.coverImageUrl)) {
+    continuity.push({
+      id: `cover:${project.id}`,
+      label: "Approved cover art",
+      imageUrl: project.assets.coverImageUrl!,
+      source: "cover",
+      sequence: 1,
+    });
+  }
+
+  const priorSpreads = project.spreads
+    .filter(
+      (candidate) =>
+        candidate.sequence < spread.sequence &&
+        candidate.sequence > 1 &&
+        candidate.title !== "Cover" &&
+        !isPlaceholderReferenceImageUrl(
+          candidate.leftPageImageUrl ?? candidate.imageUrl ?? candidate.thumbnailUrl
+        )
+    )
+    .sort((a, b) => b.sequence - a.sequence)
+    .slice(0, 2)
+    .reverse();
+
+  continuity.push(
+    ...priorSpreads.map((candidate) => ({
+      id: `spread:${candidate.id}`,
+      label: `Approved spread ${candidate.sequence}`,
+      imageUrl:
+        candidate.leftPageImageUrl ?? candidate.imageUrl ?? candidate.thumbnailUrl!,
+      source: "spread" as const,
+      sequence: candidate.sequence,
+    }))
+  );
+
+  return continuity.slice(0, 3);
+}
+
+function buildIllustrationQaMetadata(input: {
+  provider: "openai" | "placeholder";
+  characterReferences: CharacterVisualReference[];
+  continuityReferences: ContinuityVisualReference[];
+  referenceSnapshotKey?: string;
+  correctionNote?: string;
+  pageTextOmitted?: boolean;
+}): IllustrationGenerationMetadata {
+  return {
+    provider: input.provider,
+    generatedAt: new Date().toISOString(),
+    referenceSnapshotKey: input.referenceSnapshotKey,
+    characterReferenceIds: input.characterReferences.map((reference) => reference.id),
+    characterReferenceNames: input.characterReferences.map(
+      (reference) => reference.name
+    ),
+    continuityReferenceIds: input.continuityReferences.map(
+      (reference) => reference.id
+    ),
+    continuityReferenceLabels: input.continuityReferences.map(
+      (reference) => reference.label
+    ),
+    correctionNote: input.correctionNote,
+    pageTextOmitted: input.pageTextOmitted || undefined,
+  };
+}
 
 function buildPageIllustrationPrompt(input: {
   project: BookProject;
@@ -857,6 +1034,7 @@ function buildPageIllustrationPrompt(input: {
   profile: ChildProfile;
   characterBible: CharacterBible;
   visualReferences?: CharacterVisualReference[];
+  continuityReferences?: ContinuityVisualReference[];
   spread: BookSpread;
   side: "left" | "right";
   omitPageText?: boolean;
@@ -894,6 +1072,10 @@ function buildPageIllustrationPrompt(input: {
     .map((reference) => reference.name)
     .filter(Boolean)
     .join(", ");
+  const continuityReferenceLabels = (input.continuityReferences ?? [])
+    .map((reference) => reference.label)
+    .filter(Boolean)
+    .join(", ");
 
   const compositionVariants = [
     "wide establishing shot showing the full environment",
@@ -923,6 +1105,9 @@ function buildPageIllustrationPrompt(input: {
     buildIllustrationDirection(characterBible),
     selectedReferenceNames
       ? `Selected cast for this spread: ${selectedReferenceNames}. Keep to this cast unless the story moment above clearly requires another named character.`
+      : "",
+    continuityReferenceLabels
+      ? `Approved continuity art references available: ${continuityReferenceLabels}. Use them only to preserve established likeness, outfits, recurring props, companion markings, and broad environment continuity when the same child, companion, or location reappears. Do not copy their exact composition, camera angle, pose, crop, or background layout. If these continuity images conflict with the latest selected cast references or current story moment, the latest selected cast references and current story moment win.`
       : "",
     latestReferenceContext
       ? `Latest profile/reference overrides: ${latestReferenceContext} If this conflicts with the older character bible, old generated artwork, attached reference image, or previous generated reference summary, follow these latest edited profile/reference details. Latest edited appearance is the highest priority for changeable traits: hairstyle, hair length, facial hair, glasses, outfit, body build, and apparent age. Body build is a hard override: visibly adjust silhouette, torso width, face fullness, and overall proportions to match the latest body-build cue while preserving identity. Large means moderately fuller-than-average, not very large or oversized; only draw a very large plus-size silhouette when the latest cue explicitly says Very Large. Keep skin tone and core facial identity recognisable.`
@@ -1127,6 +1312,7 @@ export async function generateSpreadPageIllustration(input: {
   profile: ChildProfile;
   characterBible: CharacterBible;
   visualReferences?: CharacterVisualReference[];
+  referenceSnapshotKey?: string;
   spread: BookSpread;
   side: "left" | "right";
   correctionNote?: string;
@@ -1134,6 +1320,7 @@ export async function generateSpreadPageIllustration(input: {
   url: string;
   webUrl?: string;
   provider: "openai" | "placeholder";
+  qa: IllustrationGenerationMetadata;
 }> {
   const { project, spread, side } = input;
   const suffix = side === "left" ? "-left" : "-right";
@@ -1149,7 +1336,25 @@ export async function generateSpreadPageIllustration(input: {
   };
 
   if (!isGeneratedIllustrationConfigured()) {
-    return { url: await storePlaceholderPage(), provider: "placeholder" };
+    const spreadVisualReferences = selectSpreadVisualReferences(
+      spread,
+      input.visualReferences
+    );
+    const continuityReferences = selectContinuityVisualReferences({
+      project,
+      spread,
+    });
+    return {
+      url: await storePlaceholderPage(),
+      provider: "placeholder",
+      qa: buildIllustrationQaMetadata({
+        provider: "placeholder",
+        characterReferences: spreadVisualReferences,
+        continuityReferences,
+        referenceSnapshotKey: input.referenceSnapshotKey,
+        correctionNote: input.correctionNote,
+      }),
+    };
   }
 
   const storeWithWeb = async (upscaled: Buffer) => {
@@ -1176,9 +1381,26 @@ export async function generateSpreadPageIllustration(input: {
     spread,
     input.visualReferences
   );
+  const continuityReferences = selectContinuityVisualReferences({
+    project,
+    spread,
+  });
+  const buildQa = (options: {
+    provider: "openai" | "placeholder";
+    pageTextOmitted?: boolean;
+  }) =>
+    buildIllustrationQaMetadata({
+      provider: options.provider,
+      characterReferences: spreadVisualReferences,
+      continuityReferences,
+      referenceSnapshotKey: input.referenceSnapshotKey,
+      correctionNote: input.correctionNote,
+      pageTextOmitted: options.pageTextOmitted,
+    });
   const prompt = buildPageIllustrationPrompt({
     ...input,
     visualReferences: spreadVisualReferences,
+    continuityReferences,
   });
 
   try {
@@ -1187,6 +1409,7 @@ export async function generateSpreadPageIllustration(input: {
       upscaled = await generateAndUpscale({
         prompt,
         visualReferences: spreadVisualReferences,
+        continuityReferences,
       });
     } catch (err) {
       if (!(err instanceof UnusableGeneratedImageError)) throw err;
@@ -1196,10 +1419,11 @@ export async function generateSpreadPageIllustration(input: {
       upscaled = await generateAndUpscale({
         prompt,
         visualReferences: spreadVisualReferences,
+        continuityReferences,
       });
     }
     const { url, webUrl } = await storeWithWeb(upscaled);
-    return { url, webUrl, provider: "openai" };
+    return { url, webUrl, provider: "openai", qa: buildQa({ provider: "openai" }) };
   } catch (err) {
     if (
       !(err instanceof ModerationBlockedError) &&
@@ -1211,15 +1435,22 @@ export async function generateSpreadPageIllustration(input: {
     const fallbackPrompt = buildPageIllustrationPrompt({
       ...input,
       visualReferences: spreadVisualReferences,
+      continuityReferences,
       omitPageText: true,
     });
     try {
       const upscaled = await generateAndUpscale({
         prompt: fallbackPrompt,
         visualReferences: spreadVisualReferences,
+        continuityReferences,
       });
       const { url, webUrl } = await storeWithWeb(upscaled);
-      return { url, webUrl, provider: "openai" };
+      return {
+        url,
+        webUrl,
+        provider: "openai",
+        qa: buildQa({ provider: "openai", pageTextOmitted: true }),
+      };
     } catch (fallbackErr) {
       if (
         !(fallbackErr instanceof ModerationBlockedError) &&
@@ -1246,6 +1477,7 @@ export async function generateSpreadIllustration(input: {
   profile: ChildProfile;
   characterBible: CharacterBible;
   visualReferences?: CharacterVisualReference[];
+  referenceSnapshotKey?: string;
   spread: BookSpread;
 }): Promise<{ spread: BookSpread; provider: "openai" | "placeholder" }> {
   const { spread } = input;
@@ -1262,6 +1494,7 @@ export async function generateSpreadIllustration(input: {
     nextSpread.thumbnailUrl = left.webUrl ?? left.url;
     nextSpread.leftPageImageError = undefined;
     nextSpread.rightPageImageError = undefined;
+    nextSpread.leftPageQa = left.qa;
     return {
       spread: nextSpread,
       provider: left.provider,

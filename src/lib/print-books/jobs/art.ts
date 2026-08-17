@@ -114,6 +114,7 @@ export async function regenerateProjectArt(input: {
             profile: input.profile,
             characterBible: input.characterBible,
             visualReferences: input.visualReferences,
+            referenceSnapshotKey: input.referenceSnapshotKey,
             spread: s,
           })
         : Promise.resolve(null)
@@ -131,6 +132,7 @@ export async function regenerateProjectArt(input: {
         profile: input.profile,
         characterBible: input.characterBible,
         visualReferences: input.visualReferences,
+        referenceSnapshotKey: input.referenceSnapshotKey,
         spread: s,
       });
     })

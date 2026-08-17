@@ -340,6 +340,55 @@ describe("/api/books/[id] and /status", () => {
     });
   });
 
+  it("includes stored illustration QA metadata in spread previews", async () => {
+    mockDb.bookProjects.getById.mockResolvedValue({
+      ...createBookProject(),
+      spreads: [
+        {
+          id: "spread-1",
+          bookProjectId: "book-1",
+          sequence: 2,
+          pageStart: 3,
+          pageEnd: 4,
+          layoutType: "text_art",
+          title: "Garden",
+          leftPageText: "Mila walked into the garden.",
+          rightPageText: "",
+          sceneBrief: "Garden",
+          illustrationPrompt: "Garden",
+          leftPageImageUrl: "https://assets.example.com/print.png",
+          leftPageWebImageUrl: "https://assets.example.com/web.jpg",
+          thumbnailUrl: "https://assets.example.com/thumb.jpg",
+          leftPageQa: {
+            provider: "openai",
+            generatedAt: "2026-08-17T00:00:00.000Z",
+            referenceSnapshotKey: "profile|profile-1|snapshot",
+            characterReferenceIds: ["profile:profile-1"],
+            characterReferenceNames: ["Mila"],
+            continuityReferenceIds: ["cover:book-1"],
+            continuityReferenceLabels: ["Approved cover art"],
+          },
+        },
+      ],
+    });
+    const { GET } = await import("@/app/api/books/[id]/status/route");
+    const res = await GET(
+      new NextRequest("http://localhost/api/books/book-1/status"),
+      {
+        params: Promise.resolve({ id: "book-1" }),
+      }
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.spreadPreviews[0]?.leftPageQa).toMatchObject({
+      provider: "openai",
+      characterReferenceNames: ["Mila"],
+      continuityReferenceLabels: ["Approved cover art"],
+    });
+  });
+
+
   it("returns sanitized print order status without shipping details", async () => {
     mockDb.bookProjects.getById.mockResolvedValue({
       ...createBookProject(),

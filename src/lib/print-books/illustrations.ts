@@ -886,8 +886,20 @@ export async function generateSpreadPageIllustration(input: {
   }
 }
 
-function getImageFailureMessage(err: unknown) {
-  return err instanceof Error ? err.message : "Image generation failed.";
+function getImageFailureMessage(err: unknown): string {
+  if (err instanceof AppError) {
+    switch (err.code) {
+      case "book.image_moderation_blocked":
+        return "This illustration was flagged by our safety system. Tap Retry to try again with a slightly different prompt.";
+      case "book.image_rate_limited":
+        return "The illustration service is busy right now. Tap Retry to try again.";
+      case "book.image_unusable":
+        return "The generated image was not usable. Tap Retry to generate a new one.";
+      default:
+        return "This illustration could not be generated. Tap Retry to try again.";
+    }
+  }
+  return "This illustration could not be generated. Tap Retry to try again.";
 }
 
 function generatedImagePathname(base: string, suffix: string) {

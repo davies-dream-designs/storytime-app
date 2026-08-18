@@ -12,6 +12,23 @@ import {
 import { hasResolvedImageFailure } from "@/lib/print-books/readiness";
 import type { BookProject } from "@/types/printBook";
 
+function sanitizeImageError(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  // Replace raw provider errors (stored before friendly messages were introduced)
+  // with a generic user-friendly message.
+  if (
+    raw.includes("OpenAI image generation failed") ||
+    raw.includes("string_above_max_length") ||
+    raw.includes("Invalid 'prompt'") ||
+    raw.includes("400 {") ||
+    raw.includes("429 {") ||
+    raw.includes("OPENAI_API_KEY")
+  ) {
+    return "This illustration could not be generated. Tap Retry to try again.";
+  }
+  return raw;
+}
+
 type SpreadPreview = {
   id: string;
   sequence: number;
@@ -176,7 +193,7 @@ export default function BookStatusPanel({
         preview,
         side: "left",
         url: getPreviewDisplayUrl(preview),
-        error: preview.leftPageImageError,
+        error: sanitizeImageError(preview.leftPageImageError),
       })),
     [spreadPreviews]
   );
@@ -1132,7 +1149,7 @@ export default function BookStatusPanel({
                               className="mx-auto h-8 w-8 text-night-300"
                             />
                             <p className="mt-2 text-sm font-medium text-night-400">
-                              {artwork.error ?? "Illustration pending"}
+                              {sanitizeImageError(artwork.error) ?? "Illustration pending"}
                             </p>
                           </>
                         )}
@@ -1155,7 +1172,7 @@ export default function BookStatusPanel({
                   <div className="flex items-center justify-between gap-3 border-t border-night-50 px-5 py-3">
                     {artwork.error ? (
                       <p className="flex-1 text-xs font-medium text-blush-700">
-                        {artwork.error}
+                        {sanitizeImageError(artwork.error)}
                       </p>
                     ) : (
                       <span />

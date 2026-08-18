@@ -31,10 +31,37 @@ function FAQSection({ title, items }: { title: string; items: FAQItem[] }) {
 }
 
 export default function SupportPage() {
+  const troubleshooting: FAQItem[] = [
+    {
+      q: `My book is stuck or shows "The illustrated book did not finish" — what do I do?`,
+      a: `Tap the "Retry" button on the book page to try again. If individual illustrations failed, each one shows a "Retry" button next to it — retrying a failed illustration is always free. If the whole book is stuck, the Retry button at the bottom of the page will resume it without charging you again.`,
+    },
+    {
+      q: `One or more illustrations say "Generation failed" — what does that mean?`,
+      a: `The AI illustration service occasionally hits a temporary error. Tap the "Retry" button next to any failed illustration to generate it again. Retrying a failed illustration is free — you only pay credits for new redos once the image has successfully generated.`,
+    },
+    {
+      q: "I see a technical error message instead of an illustration — is that normal?",
+      a: "That shouldn't happen. We've improved how errors are shown, so you should now see a friendly message instead of technical details. Tap Retry to try again, and if the problem keeps coming back, email us at hello@storycot.com.au.",
+    },
+    {
+      q: `Why does the book say "0 of X illustrations complete" when I can see it's trying?`,
+      a: "Illustrations are generated in parallel — they'll all appear at roughly the same time once they're done. A typical illustrated book takes around 2–4 minutes depending on the number of pages. If it seems stuck for more than 10 minutes, tap Retry.",
+    },
+    {
+      q: "My illustration was flagged by the safety system — what happened?",
+      a: "Our AI provider automatically checks generated images for content safety. If a particular page scene is flagged, Storycot will try again automatically with a simplified prompt. If it's still blocked, you'll see a Retry button — tapping it is free and will attempt a different approach.",
+    },
+    {
+      q: "Can I change a finished illustration I don't like?",
+      a: `Yes! Tap the "Redo" button on any completed illustration. You can type in what you'd like changed (e.g. "make the cape blue", "show both boots") and we'll generate a new version. Redoing a finished illustration costs 1 credit.`,
+    },
+  ];
+
   const gettingStarted: FAQItem[] = [
     {
       q: "How do credits work?",
-      a: "Every new account gets 3 free credits to get started. Each text story costs 1 credit, and adding illustrations costs 8 credits. You can buy more credit packs any time from your account page.",
+      a: "Every new account gets free credits to get started. Text stories cost 1 credit each. Adding illustrations costs credits based on the story length — it varies by age band. You can buy more credit packs any time from your account page.",
     },
     {
       q: "How do I generate a story?",
@@ -48,6 +75,14 @@ export default function SupportPage() {
       q: "Do I need an account to use Storycot?",
       a: "Yes - you'll need to sign up so your stories and profiles are saved and ready whenever you need them.",
     },
+    {
+      q: "Can I change the language?",
+      a: "Yes — use the language selector in the navigation bar to switch between supported languages.",
+    },
+    {
+      q: "Can I share my story with someone?",
+      a: "Yes — tap the share button on the story page to get a link. Anyone with the link can read the story without needing an account.",
+    },
   ];
 
   const illustratedBooks: FAQItem[] = [
@@ -57,15 +92,23 @@ export default function SupportPage() {
     },
     {
       q: "How much does an illustrated book cost?",
-      a: "Generating illustrations costs 8 credits. That unlocks the full illustrated book and lets you download it as a PDF or EPUB.",
+      a: "The credit cost depends on the story's length and age band. The cost is shown on the book page before you start. You can buy more credits from your account page.",
+    },
+    {
+      q: "How long does it take to illustrate a book?",
+      a: "Typically 2–4 minutes. Storycot generates all the illustrations in parallel, so the whole book arrives at once rather than page by page.",
     },
     {
       q: "Can I download my illustrated book?",
-      a: "Yes - once illustrations are ready, you can download your book as a PDF or EPUB from the book page. Downloads are available for 180 days after your book is ready.",
+      a: "Yes - once illustrations are ready, you can unlock a digital download for $9.95 AUD. The download includes an illustrated PDF, an EPUB, all the illustration images, and voice narration. Downloads are available for 180 days after your book is ready.",
+    },
+    {
+      q: "What's included in the digital download?",
+      a: "The digital download ($9.95 AUD) includes: an illustrated PDF, an EPUB e-reader file, all the illustration images as a ZIP, and AI voice narration of the story.",
     },
     {
       q: "What happens if the illustrations fail to generate?",
-      a: "No worries - Storycot will automatically retry. If it fails completely after retrying, your 8 credits are refunded to your account. You won't lose anything.",
+      a: "Storycot will automatically retry failed illustrations. If a book fails completely after retrying, your credits are refunded to your account. You won't lose anything. You can also manually retry individual failed illustrations for free from the book review page.",
     },
   ];
 
@@ -107,7 +150,7 @@ export default function SupportPage() {
     },
     {
       q: "What if there's a problem with my print order?",
-      a: "If something goes wrong with your order, our team is automatically notified and will get it sorted. You don't need to do anything - but if you want to follow up, you're always welcome to reach out at hello@storycot.com.",
+      a: "If something goes wrong with your order, our team is automatically notified and will get it sorted. You don't need to do anything - but if you want to follow up, you're always welcome to reach out at hello@storycot.com.au.",
     },
   ];
 
@@ -122,7 +165,7 @@ export default function SupportPage() {
     },
     {
       q: "Can I get a refund on credits?",
-      a: "Credits are automatically refunded if an illustration job fails completely. For other billing questions or concerns, please get in touch at hello@storycot.com.",
+      a: "Credits are automatically refunded if an illustration job fails completely. For other billing questions or concerns, please get in touch at hello@storycot.com.au.",
     },
   ];
 
@@ -142,14 +185,15 @@ export default function SupportPage() {
           <p className="mt-3 text-night-500">
             Can&apos;t find what you&apos;re looking for? Email us at{" "}
             <a
-              href="mailto:hello@storycot.com"
+              href="mailto:hello@storycot.com.au"
               className="font-bold text-night-700 underline underline-offset-2 hover:text-night-900"
             >
-              hello@storycot.com
+              hello@storycot.com.au
             </a>
           </p>
         </div>
 
+        <FAQSection title="Troubleshooting" items={troubleshooting} />
         <FAQSection title="Getting started" items={gettingStarted} />
         <FAQSection title="Illustrated books" items={illustratedBooks} />
         <FAQSection title="Voice narration" items={voiceNarration} />
@@ -165,10 +209,10 @@ export default function SupportPage() {
             Drop us a line and we&apos;ll get back to you as soon as we can.
           </p>
           <a
-            href="mailto:hello@storycot.com"
+            href="mailto:hello@storycot.com.au"
             className="mt-5 inline-block rounded-full bg-night-800 px-7 py-3 text-sm font-bold text-white transition hover:bg-night-700"
           >
-            hello@storycot.com
+            hello@storycot.com.au
           </a>
         </div>
       </main>

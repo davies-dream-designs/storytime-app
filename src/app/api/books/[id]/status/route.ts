@@ -3,6 +3,21 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { dispatchBookBuildJob } from "@/lib/print-books/jobs";
 
+function sanitizeStoredImageError(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  if (
+    raw.includes("OpenAI image generation failed") ||
+    raw.includes("string_above_max_length") ||
+    raw.includes("Invalid 'prompt'") ||
+    raw.includes("400 {") ||
+    raw.includes("429 {") ||
+    raw.includes("OPENAI_API_KEY")
+  ) {
+    return "This illustration could not be generated. Tap Retry to try again.";
+  }
+  return raw;
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -53,9 +68,9 @@ export async function GET(
           s.thumbnailUrl ?? s.leftPageWebImageUrl ?? s.imageUrl ?? undefined,
         webImageUrl: s.leftPageWebImageUrl ?? s.thumbnailUrl ?? undefined,
         leftPageImageUrl: s.leftPageImageUrl ?? s.imageUrl ?? undefined,
-        rightPageImageUrl: undefined,
-        leftPageImageError: s.leftPageImageError,
-        rightPageImageError: undefined,
+        rightPageImageUrl: s.rightPageImageUrl ?? undefined,
+        leftPageImageError: sanitizeStoredImageError(s.leftPageImageError),
+        rightPageImageError: sanitizeStoredImageError(s.rightPageImageError),
       })),
     assets: {
       lastBuildMode: project.assets.lastBuildMode,

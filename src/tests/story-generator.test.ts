@@ -64,6 +64,28 @@ describe("buildStoryPrompt", () => {
     );
   });
 
+  it("keeps the premise grounded and preserves every named premise element", () => {
+    const prompt = buildStoryPrompt({
+      profile: createProfile(),
+      characters: [],
+      theme: "family time",
+      notes: "",
+      premise:
+        "Bailey eating ice cream by the beach at sunset with chips as an entree",
+      storyPreset: "preschool-story",
+      locale: "en",
+    });
+
+    expect(prompt).toContain("Stay grounded and true to this premise");
+    expect(prompt).toContain("Include every element the premise names");
+    expect(prompt).toMatch(
+      /do NOT turn an incidental or side detail into a giant, surreal, magical, or physically impossible centrepiece/
+    );
+    expect(prompt).toContain(
+      "keep the premise and its everyday details grounded and realistic"
+    );
+  });
+
   it("uses selected gender guidance when the profile provides it", () => {
     const prompt = buildStoryPrompt({
       profile: { ...createProfile(), gender: "girl" },

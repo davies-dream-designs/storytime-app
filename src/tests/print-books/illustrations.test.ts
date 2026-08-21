@@ -170,6 +170,12 @@ describe("generateCoverIllustration", () => {
     );
     expect(prompt).toContain("Book title: Moonlight Garden.");
     expect(prompt).toContain("Cover scene:");
+    expect(prompt).toContain(
+      "Apply the warm palette only to background, clothing, and lighting"
+    );
+    expect(prompt).toMatch(
+      /never warm-tint, redden, or lighten hair, skin, or eyes/
+    );
   });
 
   it("includes locked character rules in illustration prompts", async () => {
@@ -489,6 +495,7 @@ describe("generateCoverIllustration", () => {
       "Attached character reference sheet order"
     );
     expect(body.get("prompt")).toContain("Latest profile/reference overrides");
+    expect(body.get("prompt")).toContain("Identity colour lock");
     expect(body.get("prompt")).toContain("grey hair tied in a neat man bun");
     expect(body.get("prompt")).toContain("grey-brown shoulder-length wavy hair");
     expect(body.get("prompt")).toContain("very large plus-size body build");

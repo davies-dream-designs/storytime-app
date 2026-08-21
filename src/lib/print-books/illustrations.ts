@@ -337,8 +337,8 @@ export function buildCoverIllustrationPrompt(input: {
       },
       {
         variants: [
-          "Match the interior pages: keep every character's face shape, apparent age, hair or fur, skin tone, glasses, latest body build, footwear, and core outfit or markings consistent with their locked bible appearance, so the cover looks like it belongs to the same book as the interior pages.",
-          "Match the interior pages: keep each character's face, hair, glasses, body build, footwear, and outfit consistent with their locked appearance so the cover matches the interior.",
+          "Outfit source of truth, so the cover matches the interior pages: for each character, use the specific outfit named in their own described appearance or identity rules above if one is given (for example denim overalls or a striped jumper), otherwise use their locked Outfit rules; always include their locked footwear. Any attached reference portrait defines only face shape, hair, eyebrows, facial hair, glasses, skin tone, eye colour, and body build - it does NOT define clothing. Do not copy the plain top, jumper, or sweater shown in a head-and-shoulders reference portrait; draw each character's full described/locked outfit instead.",
+          "Dress each character in the specific outfit from their described appearance above (for example overalls) if given, else their locked Outfit rules, plus locked footwear. Reference portraits define face, hair, glasses, skin, and build only - never clothing; do not copy the plain portrait top. This keeps the cover matching the interior pages.",
         ],
       },
       {

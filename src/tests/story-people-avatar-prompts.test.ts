@@ -145,4 +145,70 @@ describe("story people avatar prompts", () => {
     expect(prompt).toContain("Because no source photo is supplied");
     expect(prompt).toContain("upper chest to top of head");
   });
+
+  describe("identity locks (hair colour + eyeglasses)", () => {
+    const person: StoryPerson = {
+      id: "person-1",
+      userId: "user-1",
+      name: "Dad",
+      relationship: "parent",
+      ageGroup: "adult",
+      description: "",
+      personality: "",
+      appearance: "Dark brown hair, short beard, clear-framed glasses.",
+      availableToAllProfiles: true,
+      profileIds: [],
+      createdAt: "2026-08-02T00:00:00.000Z",
+      updatedAt: "2026-08-02T00:00:00.000Z",
+    };
+    const profile: ChildProfile = {
+      id: "profile-1",
+      userId: "user-1",
+      name: "Levi",
+      age: 4,
+      gender: "boy",
+      appearance: {
+        hairColor: "dark_brown",
+        hairStyles: [],
+        featureEmphasis: [],
+        distinguishingFeatures: ["glasses"],
+        expressionVibes: [],
+      },
+      favouriteCharacters: [],
+      favouriteActivities: [],
+      favouriteAnimals: [],
+      favouritePlaces: [],
+      lessons: [],
+      createdAt: "2026-08-02T00:00:00.000Z",
+    };
+    const analysis = {
+      appearance: "dark brown hair, short beard, clear-framed rectangular glasses",
+      appearanceSummary: "Adult with dark brown hair and clear glasses.",
+    };
+
+    it("locks hair colour and glasses in the photo-based family prompt", () => {
+      const prompt = buildStoryPersonAvatarPrompt(person);
+      expect(prompt).toContain("Identity lock, highest priority");
+      expect(prompt).toMatch(/never warm-tint|Never warm-tint/);
+      expect(prompt).toContain("never remove or omit them");
+      expect(prompt).toMatch(
+        /apply the warm Storycot palette only to background, clothing, and lighting/i
+      );
+    });
+
+    it("locks hair colour and glasses in the photo-based child prompt", () => {
+      const prompt = buildChildProfileAvatarPrompt(profile, analysis);
+      expect(prompt).toContain("Identity lock, highest priority");
+      expect(prompt).toContain("never remove or omit them");
+    });
+
+    it("locks hair colour and glasses in the description-only prompts", () => {
+      expect(buildStoryPersonDescriptionAvatarPrompt(person)).toContain(
+        "Identity lock, highest priority"
+      );
+      expect(buildChildProfileDescriptionAvatarPrompt(profile)).toContain(
+        "Identity lock, highest priority"
+      );
+    });
+  });
 });

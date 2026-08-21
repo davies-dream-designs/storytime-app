@@ -108,6 +108,7 @@ export function buildStoryPersonAvatarPrompt(
     "Use the supplied image only as private visual reference for broad visible body, face, hair or fur, posture, colouring, and expression.",
     "Treat the supplied image as visual source of truth for identity, but latest written age, height, hairstyle, facial hair, glasses, outfit, and body build override stale generated details when they conflict.",
     "Do not exaggerate body shape, age, expression, or proportions from either the image or written profile notes.",
+    "Do not infer a larger body from loose, baggy, oversized, or bulky clothing; judge build from the face, neck, and visible frame and keep a natural, non-exaggerated build. If another person or pet overlaps the subject's body in the photo, do not add bulk where they were.",
     "Do not copy any clothing graphics, logos, printed text, costumes, branded characters, franchise characters, toy characters, mascot art, or recognisable protected designs visible in the photo.",
     "For people, use a head-and-shoulders portrait with a plain unbranded jumper or top in a gentle Storycot palette. If the photo shows character-print clothing, replace it with simple solid-colour clothing with no graphics or lettering.",
     "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
@@ -482,6 +483,27 @@ function isTextOnlyAdjustment(adjustment?: string): boolean {
   );
 }
 
+function adjustmentChangesBodyBuild(adjustment?: string): boolean {
+  return /\b(body|build|size|weight|fat|fatter|thin|thinner|slim|slimmer|skinny|large|larger|very large|plus[- ]?size|broad|broader|bigger|smaller|wider|narrower|heavier|lighter|chubby|round|rounder|belly|tummy|frame|proportion|proportions|shape)\b/i.test(
+    adjustment ?? ""
+  );
+}
+
+// The redo path edits the previously generated avatar, not the source photo.
+// When a correction removes another person or pet that was overlapping the
+// subject's body (e.g. a child held across the torso), the model tends to
+// invent an oversized body to fill the vacated space. Unless the correction is
+// explicitly about body size, keep body build/proportions locked to the
+// reference and forbid adding bulk.
+export function buildRedoFidelityInstruction(adjustment?: string): string {
+  const base =
+    "Preserve the same reusable Storycot reference style and core facial identity from the supplied generated illustration.";
+  if (adjustmentChangesBodyBuild(adjustment)) {
+    return `${base} Apply the current profile traits and the requested correction, even when that means changing body build, age, hairstyle, facial hair, glasses, outfit, or proportions from the old generated image.`;
+  }
+  return `${base} Apply the current profile traits and the requested correction, but keep the subject's body build, face width, torso width, and proportions the same as the supplied reference; do not make the subject fuller, rounder, or larger. When the correction removes another person, pet, or object, do not enlarge, widen, or add bulk to the remaining subject and do not invent a larger body to fill the space the removed subject occupied; keep a natural build consistent with the face and neck.`;
+}
+
 function buildAdjustedAppearance(
   appearance: string,
   adjustment?: string
@@ -607,7 +629,7 @@ export async function redoStoryPersonAvatar(input: {
     image: normalizedImage,
     prompt: [
       buildStoryPersonAvatarPrompt(input.person, adjustment),
-      "Preserve the same reusable Storycot reference style and core facial identity from the supplied generated illustration. Apply the current profile traits and the requested correction, even when that means changing body build, age, hairstyle, facial hair, glasses, outfit, or proportions from the old generated image.",
+      buildRedoFidelityInstruction(adjustment),
     ].join(" "),
   });
   const webImage = await sharp(generated)
@@ -756,7 +778,7 @@ export async function redoChildProfileAvatar(input: {
         { appearance: "", appearanceSummary: "" },
         adjustment
       ),
-      "Preserve the same reusable Storycot reference style and core facial identity from the supplied generated illustration. Apply the current child profile traits and the requested correction, even when that means changing body build, age, hairstyle, outfit, or proportions from the old generated image.",
+      buildRedoFidelityInstruction(adjustment),
     ].join(" "),
   });
   const webImage = await sharp(generated)

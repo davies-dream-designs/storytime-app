@@ -4,6 +4,7 @@ import {
   buildChildProfileAvatarPrompt,
   buildStoryPersonDescriptionAvatarPrompt,
   buildStoryPersonAvatarPrompt,
+  buildRedoFidelityInstruction,
 } from "@/lib/storyPeopleAvatars";
 import type { ChildProfile, StoryPerson } from "@/types";
 
@@ -208,6 +209,36 @@ describe("story people avatar prompts", () => {
       );
       expect(buildChildProfileDescriptionAvatarPrompt(profile)).toContain(
         "Identity lock, highest priority"
+      );
+    });
+
+    it("does not let the family reference infer body size from baggy clothing or occluding people", () => {
+      const prompt = buildStoryPersonAvatarPrompt(person);
+      expect(prompt).toContain(
+        "Do not infer a larger body from loose, baggy, oversized, or bulky clothing"
+      );
+      expect(prompt).toContain("do not add bulk where they were");
+    });
+  });
+
+  describe("redo fidelity (body build preservation)", () => {
+    it("preserves body build and forbids bulk-fill for non-size corrections", () => {
+      const instruction = buildRedoFidelityInstruction("remove the child");
+      expect(instruction).toContain(
+        "keep the subject's body build, face width, torso width, and proportions the same"
+      );
+      expect(instruction).toContain(
+        "do not invent a larger body to fill the space the removed subject occupied"
+      );
+      expect(instruction).not.toContain("even when that means changing body build");
+    });
+
+    it("still allows body-build changes when the correction asks for them", () => {
+      expect(buildRedoFidelityInstruction("make her slimmer")).toContain(
+        "even when that means changing body build"
+      );
+      expect(buildRedoFidelityInstruction("very large plus-size build")).toContain(
+        "even when that means changing body build"
       );
     });
   });

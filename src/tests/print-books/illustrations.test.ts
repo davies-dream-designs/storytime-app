@@ -190,6 +190,50 @@ describe("generateCoverIllustration", () => {
     );
   });
 
+  it("uses attached interior page art as the outfit source of truth on the cover", async () => {
+    const { buildCoverIllustrationPrompt } =
+      await import("@/lib/print-books/illustrations");
+    const project = createProject();
+    const prompt = buildCoverIllustrationPrompt({
+      project,
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+      coverSpread: project.spreads[0],
+      continuityReferences: [
+        {
+          id: "spread:seed",
+          label: "Approved spread 2",
+          imageUrl: "https://example.com/books/x/spreads/2.png",
+          source: "spread",
+          sequence: 2,
+        },
+      ],
+    });
+
+    expect(prompt).toContain("Approved interior page art is attached");
+    expect(prompt).toContain("Approved spread 2");
+    expect(prompt).toMatch(
+      /source of truth for each character's actual clothing/
+    );
+    expect(prompt).toMatch(/Do not copy that page's exact pose/);
+  });
+
+  it("omits the interior-page continuity clause when no page art is attached", async () => {
+    const { buildCoverIllustrationPrompt } =
+      await import("@/lib/print-books/illustrations");
+    const project = createProject();
+    const prompt = buildCoverIllustrationPrompt({
+      project,
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+      coverSpread: project.spreads[0],
+    });
+
+    expect(prompt).not.toContain("Approved interior page art is attached");
+  });
+
   it("includes locked character rules in illustration prompts", async () => {
     const { buildCoverIllustrationPrompt } =
       await import("@/lib/print-books/illustrations");

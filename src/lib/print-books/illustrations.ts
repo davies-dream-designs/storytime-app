@@ -284,9 +284,14 @@ export function buildCoverIllustrationPrompt(input: {
   profile: ChildProfile;
   characterBible: CharacterBible;
   coverSpread?: BookSpread;
+  continuityReferences?: ContinuityVisualReference[];
   omitSceneDetails?: boolean;
 }): string {
   const { story, profile, characterBible, coverSpread } = input;
+  const continuityReferenceLabels = (input.continuityReferences ?? [])
+    .map((reference) => reference.label)
+    .filter(Boolean)
+    .join(", ");
 
   if (input.omitSceneDetails) {
     return fitPromptSegments(
@@ -340,6 +345,14 @@ export function buildCoverIllustrationPrompt(input: {
           "Outfit source of truth, so the cover matches the interior pages: for each character, use the specific outfit named in their own described appearance or identity rules above if one is given (for example denim overalls or a striped jumper), otherwise use their locked Outfit rules; always include their locked footwear. Any attached reference portrait defines only face shape, hair, eyebrows, facial hair, glasses, skin tone, eye colour, and body build - it does NOT define clothing. Do not copy the plain top, jumper, or sweater shown in a head-and-shoulders reference portrait; draw each character's full described/locked outfit instead.",
           "Dress each character in the specific outfit from their described appearance above (for example overalls) if given, else their locked Outfit rules, plus locked footwear. Reference portraits define face, hair, glasses, skin, and build only - never clothing; do not copy the plain portrait top. This keeps the cover matching the interior pages.",
         ],
+      },
+      {
+        variants: continuityReferenceLabels
+          ? [
+              `Approved interior page art is attached as a reference (${continuityReferenceLabels}). This interior page is the source of truth for each character's actual clothing and overall look on the cover: match the same outfit (for example the same overalls, dress, or jumper), footwear, hairstyle, and colours the characters wear in that interior page, so the cover clearly belongs to the same book. Do not copy that page's exact pose, camera angle, crop, or background - only its established character look and clothing.`,
+              `Attached interior page art (${continuityReferenceLabels}) is the source of truth for each character's clothing and look on the cover: match the same outfit, footwear, hair, and colours from that page, but not its pose, crop, or background.`,
+            ]
+          : [""],
       },
       {
         variants: [
@@ -1626,6 +1639,7 @@ export async function generateCoverIllustration(input: {
   profile: ChildProfile;
   characterBible: CharacterBible;
   visualReferences?: CharacterVisualReference[];
+  continuityReferences?: ContinuityVisualReference[];
 }): Promise<{
   coverImageUrl: string;
   coverWebImageUrl?: string;
@@ -1642,6 +1656,7 @@ export async function generateCoverIllustration(input: {
         upscaled = await generateAndUpscale({
           prompt,
           visualReferences: input.visualReferences,
+          continuityReferences: input.continuityReferences,
         });
       } catch (err) {
         if (!(err instanceof UnusableGeneratedImageError)) throw err;
@@ -1649,6 +1664,7 @@ export async function generateCoverIllustration(input: {
         upscaled = await generateAndUpscale({
           prompt,
           visualReferences: input.visualReferences,
+          continuityReferences: input.continuityReferences,
         });
       }
 

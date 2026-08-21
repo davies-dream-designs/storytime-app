@@ -37,6 +37,19 @@ const IDENTITY_LOCK_WITH_PHOTO =
 const IDENTITY_LOCK_FROM_DESCRIPTION =
   "Identity lock, highest priority: match the written hair colour, skin tone, and eye colour exactly. Never warm-tint, redden, or lighten hair, eyebrows, beard, skin, or eyes to fit the bedtime palette; apply the warm Storycot palette only to background, clothing, and lighting. If the description mentions glasses, keep them as a permanent identity feature and never omit them.";
 
+// Body build drifts toward "overweight": a Broad or larger build gets rendered
+// with a rounder, fuller face and added belly rather than the intended wider
+// shoulders/frame, and loose clothing is read as a bigger body. Keep build in
+// the frame/shoulders and keep the face shape true to the reference.
+const BUILD_FIDELITY_LOCK =
+  "Body-build fidelity: express body build through shoulder width and overall frame only. Broad means broad-shouldered and solidly built, not overweight; never round out, widen, or fatten the face, cheeks, jaw, or neck beyond the reference, and do not add a belly or double chin unless the build is Large or Very Large. Keep the face shape, jawline, and facial proportions the same as the reference. Do not infer a larger body from loose, baggy, oversized, or bulky clothing; judge build from the face, neck, and visible frame. If another person, pet, or object overlaps the subject's body, do not add bulk where they were.";
+
+// Family members were rendering at inconsistent realism levels (one flat 2-D
+// watercolour, another glossy semi-realistic portrait), so they looked like
+// they came from different books. Pin one shared illustration realism level.
+const STORYCOT_RENDER_STYLE_LOCK =
+  "Rendering-level lock: draw a flat two-dimensional children's picture-book illustration with soft watercolour and coloured-pencil shading and gentle paper texture. Do not produce a glossy three-dimensional render, CGI or Pixar-style portrait, airbrushed digital painting, or photorealistic likeness. Use the same illustration realism, line quality, and shading level for every family member so all Storycot characters look like they belong in the same book.";
+
 function formatAdjustmentInstruction(adjustment?: string): string {
   const clean = adjustment?.trim().slice(0, 240);
   if (!clean) return "";
@@ -108,10 +121,11 @@ export function buildStoryPersonAvatarPrompt(
     "Use the supplied image only as private visual reference for broad visible body, face, hair or fur, posture, colouring, and expression.",
     "Treat the supplied image as visual source of truth for identity, but latest written age, height, hairstyle, facial hair, glasses, outfit, and body build override stale generated details when they conflict.",
     "Do not exaggerate body shape, age, expression, or proportions from either the image or written profile notes.",
-    "Do not infer a larger body from loose, baggy, oversized, or bulky clothing; judge build from the face, neck, and visible frame and keep a natural, non-exaggerated build. If another person or pet overlaps the subject's body in the photo, do not add bulk where they were.",
+    BUILD_FIDELITY_LOCK,
     "Do not copy any clothing graphics, logos, printed text, costumes, branded characters, franchise characters, toy characters, mascot art, or recognisable protected designs visible in the photo.",
     "For people, use a head-and-shoulders portrait with a plain unbranded jumper or top in a gentle Storycot palette. If the photo shows character-print clothing, replace it with simple solid-colour clothing with no graphics or lettering.",
     "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
+    STORYCOT_RENDER_STYLE_LOCK,
     "Make it suitable as a reusable character reference for Storycot hardcover interiors and child profile illustrations: square crop, head-and-shoulders person portrait or full pet pose, clear visible features, stable unbranded outfit or pet markings, no scene-specific props unless requested.",
     "Show only the named subject. If the supplied image contains any extra adult, child, baby, pet, toy, or background object, remove it unless the correction explicitly asks to keep it.",
     "Do not make a photorealistic portrait, caricature, sticker, logo, toy packaging image, or social-media avatar.",
@@ -159,9 +173,11 @@ export function buildStoryPersonDescriptionAvatarPrompt(
     formatAdjustmentInstruction(adjustment),
     "Because no source photo is supplied, infer any missing non-sensitive visual details once from the written profile and make a stable reusable reference.",
     "Do not exaggerate body shape, age, expression, or proportions from written profile notes.",
+    BUILD_FIDELITY_LOCK,
     "Do not include branded clothing, recognisable protected character designs, toy characters, mascot art, logos, or clothing graphics.",
     "For people, use a head-and-shoulders portrait with a plain unbranded jumper or top in a gentle Storycot palette.",
     "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
+    STORYCOT_RENDER_STYLE_LOCK,
     "Make it suitable as a reusable character reference for Storycot hardcover interiors and child profile illustrations: square crop, head-and-shoulders person portrait or full pet pose, clear visible features, stable unbranded outfit or pet markings, no scene-specific props unless requested.",
     "Show only one subject. Do not add extra adults, children, babies, pets, toys, props, or background objects unless the written profile explicitly describes them as part of the subject.",
     "Do not make a photorealistic portrait, caricature, sticker, logo, toy packaging image, or social-media avatar.",
@@ -200,9 +216,11 @@ export function buildChildProfileAvatarPrompt(
     "Use the supplied image only as private visual reference for broad visible face, hair, colouring, and expression.",
     "Treat the supplied image as visual source of truth for identity, but latest written profile appearance and body build override stale generated details when they conflict.",
     "Do not exaggerate body shape, age, expression, or proportions from either the image or written profile notes.",
+    BUILD_FIDELITY_LOCK,
     "Do not copy any clothing graphics, logos, printed text, costumes, branded characters, franchise characters, toy characters, mascot art, or recognisable protected designs visible in the photo.",
     "Use a portrait crop from upper chest to top of head, centred on the child's face. Do not create a full-body standing or seated character sheet, full outfit pose, poster, profile page, or scene.",
     "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
+    STORYCOT_RENDER_STYLE_LOCK,
     "Make it suitable as a reusable child reference for Storycot hardcover interiors: square crop, head-and-shoulders portrait only, plain unbranded child-safe top in a gentle Storycot palette, clear visible features, stable outfit guidance, no scene-specific props unless already in the profile.",
     "Show only the child. If the supplied image contains any extra adult, child, baby, pet, toy, or background object, remove it unless the correction explicitly asks to keep it.",
     "Do not make a photorealistic portrait, caricature, sticker, logo, toy packaging image, or social-media avatar.",
@@ -241,9 +259,11 @@ export function buildChildProfileDescriptionAvatarPrompt(
     formatAdjustmentInstruction(adjustment),
     "Because no source photo is supplied, infer any missing non-sensitive visual details once from the written profile and make a stable reusable reference.",
     "Do not exaggerate body shape, age, expression, or proportions from written profile notes.",
+    BUILD_FIDELITY_LOCK,
     "Do not include branded clothing, recognisable protected character designs, toy characters, mascot art, logos, or clothing graphics.",
     "Use a portrait crop from upper chest to top of head, centred on the child's face. Do not create a full-body standing or seated character sheet, full outfit pose, poster, profile page, or scene.",
     "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
+    STORYCOT_RENDER_STYLE_LOCK,
     "Make it suitable as a reusable child reference for Storycot hardcover interiors: square crop, head-and-shoulders portrait only, plain unbranded child-safe top in a gentle Storycot palette, clear visible features, stable outfit guidance, no scene-specific props unless already in the profile.",
     "Show only the child. Do not add extra adults, children, babies, pets, toys, props, or background objects unless the written profile explicitly describes them as part of the child.",
     "Do not make a photorealistic portrait, caricature, sticker, logo, toy packaging image, or social-media avatar.",

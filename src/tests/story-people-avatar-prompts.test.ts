@@ -219,6 +219,30 @@ describe("story people avatar prompts", () => {
       );
       expect(prompt).toContain("do not add bulk where they were");
     });
+
+    it("locks build fidelity and rendering level in every builder", () => {
+      const prompts = [
+        buildStoryPersonAvatarPrompt(person),
+        buildStoryPersonDescriptionAvatarPrompt(person),
+        buildChildProfileAvatarPrompt(profile, analysis),
+        buildChildProfileDescriptionAvatarPrompt(profile),
+      ];
+      for (const prompt of prompts) {
+        expect(prompt).toContain(
+          "Broad means broad-shouldered and solidly built, not overweight"
+        );
+        expect(prompt).toContain(
+          "never round out, widen, or fatten the face"
+        );
+        expect(prompt).toContain("Rendering-level lock");
+        expect(prompt).toMatch(
+          /Do not produce a glossy three-dimensional render, CGI or Pixar-style portrait/
+        );
+        expect(prompt).toContain(
+          "belong in the same book"
+        );
+      }
+    });
   });
 
   describe("redo fidelity (body build preservation)", () => {

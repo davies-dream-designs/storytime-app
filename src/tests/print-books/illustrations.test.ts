@@ -180,6 +180,10 @@ describe("generateCoverIllustration", () => {
     expect(prompt).toMatch(
       /do not produce a glossy three-dimensional render, CGI or Pixar-style portrait/
     );
+    expect(prompt).toContain("Footwear lock");
+    expect(prompt).toContain(
+      "so the cover looks like it belongs to the same book as the interior pages"
+    );
   });
 
   it("includes locked character rules in illustration prompts", async () => {

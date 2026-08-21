@@ -263,7 +263,9 @@ ${originalCharacters.map((c) => `- ${c.name}: ${c.description}. Personality: ${c
 
   const premiseSection = premise
     ? `\n\nStory premise (this is the spine - follow it closely):
-${premise}`
+${premise}
+
+Stay grounded and true to this premise. Include every element the premise names (for example, if it mentions both ice cream and chips, both appear as ordinary food). Keep everyday objects, food, animals, and settings realistic and physically plausible - do NOT turn an incidental or side detail into a giant, surreal, magical, or physically impossible centrepiece, and do not let a minor noun take over the plot, unless the premise explicitly asks for fantasy or magic. Gentle, cosy imagination is welcome; nonsensical or bizarre imagery is not.`
     : "";
 
   const notesSection = notes ? `\n\nExtra details to include: ${notes}` : "";
@@ -291,7 +293,7 @@ Write the story in ${language}. Write a warm, age-appropriate bedtime story that
 5. Matches this reading style: ${len.style}
 6. Has a positive, cosy tone ending with ${profile.name} settling down to sleep
 7. Clearly weaves in the theme: ${theme || "a gentle adventure"}. Include one small age-appropriate moment where ${profile.name} notices, practices, or learns this theme through action, then carry that lesson into the calm ending.
-8. Feels FRESH and DIFFERENT from typical stories - surprise us with the opening
+8. Feels FRESH and DIFFERENT from typical stories through the telling, characters, and small moments - surprise us with the opening, but keep the premise and its everyday details grounded and realistic
 9. Uses warm repetition for ages 0-5; uses chapter-like progression and less repetition for ages 6+
 10. Does not invent named parents, grandparents, siblings, friends, or pets. Use only selected people listed above, legacy saved characters, or generic phrases like "a grown-up nearby" when an adult presence is needed.
 11. Does NOT include "The End", "Sweet dreams", "Goodnight", or any closing sign-off in the story text - the last page ends naturally with the child drifting to sleep

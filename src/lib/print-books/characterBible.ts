@@ -137,7 +137,7 @@ Return ONLY valid JSON with this exact shape:
 Requirements:
 - Keep the child recognisable and age-appropriate across every illustration.
 - Prefer concrete physical details over vague adjectives.
-- Outfit rules should be stable, reusable, and practical for many scenes.
+- Outfit rules should be stable, reusable, and practical for many scenes, and must name specific footwear (shoes or boots, colour and style) so shoes stay identical on every page.
 - Recurring props should be few, memorable, and visually helpful.
 - Companion characters should include only characters that should reappear visually.
 - For selected family/friends/pets, preserve the supplied appearance and reference-image notes. Do not turn relationship roles into generic stereotypes; for example, do not make grandparents much older, thinner, heavier, or frailer unless their reference/appearance says so.
@@ -389,6 +389,9 @@ export function buildIllustrationDirection(
       : "Rendering-level lock: draw a flat two-dimensional children's picture-book illustration with soft watercolour and coloured-pencil shading; do not produce a glossy three-dimensional render, CGI or Pixar-style portrait, or photorealistic likeness. Use the same illustration realism and shading level for every character so they all belong in the same book.",
     `Lighting tone: ${clampPromptValue(bible.lightingTone, compact ? 100 : 180)}`,
     `Do not change: ${clampPromptValue(continuity, compact ? 180 : 320)}`,
+    compact
+      ? "Keep each character's exact footwear identical on every page; never restyle or recolour shoes or boots."
+      : "Footwear lock: give each character one fixed pair of shoes or boots and keep the same style and colour on the cover and every page; never swap, redesign, or recolour their footwear between pages.",
     "For selected family/friends/pets, preserve their described/reference apparent age, face shape, hair, glasses, body build, and markings. Do not make grandparents generically elderly or alter body build from the reference.",
   ].join(" ");
 }

@@ -337,6 +337,12 @@ export function buildCoverIllustrationPrompt(input: {
       },
       {
         variants: [
+          "Match the interior pages: keep every character's face shape, apparent age, hair or fur, skin tone, glasses, latest body build, footwear, and core outfit or markings consistent with their locked bible appearance, so the cover looks like it belongs to the same book as the interior pages.",
+          "Match the interior pages: keep each character's face, hair, glasses, body build, footwear, and outfit consistent with their locked appearance so the cover matches the interior.",
+        ],
+      },
+      {
+        variants: [
           "Create a square children's picture-book front cover with space for title treatment and a warm bedtime-book feeling.",
           "Create a square bedtime picture-book front cover with a warm storybook feeling.",
         ],

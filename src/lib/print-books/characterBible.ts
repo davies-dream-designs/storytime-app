@@ -380,6 +380,9 @@ export function buildIllustrationDirection(
     `Recurring props: ${clampPromptValue(recurringProps, compact ? 120 : 220)}`,
     `Companion characters: ${clampPromptValue(companionCharacters, compact ? 120 : 220)}`,
     `Palette: ${clampPromptValue(bible.palette, compact ? 100 : 180)}`,
+    compact
+      ? "Apply the palette only to background, clothing, and lighting, never to hair, skin, or eyes."
+      : "Apply the warm palette only to background, clothing, and lighting. Keep every character's hair colour, eyebrow colour, facial-hair colour, skin tone, and eye colour true to their locked appearance; never warm-tint, redden, or lighten hair, skin, or eyes to match the palette.",
     `Render style: ${clampPromptValue(bible.renderStyle, compact ? 100 : 180)}`,
     `Lighting tone: ${clampPromptValue(bible.lightingTone, compact ? 100 : 180)}`,
     `Do not change: ${clampPromptValue(continuity, compact ? 180 : 320)}`,

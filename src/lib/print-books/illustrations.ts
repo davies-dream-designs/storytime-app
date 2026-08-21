@@ -683,6 +683,16 @@ function buildVisualReferencePrompt(input: {
       {
         variants: [
           referenceList
+            ? "Identity colour lock: match each character's real hair colour, eyebrow colour, facial-hair colour, skin tone, and eye colour to the reference image. Never warm-tint, redden, or lighten hair, skin, or eyes to fit the bedtime palette; apply the warm palette only to background, clothing, and lighting. Keep any eyeglasses shown on a character in every spread they appear in."
+            : "",
+          referenceList
+            ? "Identity colour lock: keep each character's hair, skin, and eye colour and any eyeglasses as in the reference; apply the warm palette only to background, clothing, and lighting, never to hair, skin, or eyes."
+            : "",
+        ],
+      },
+      {
+        variants: [
+          referenceList
             ? "If a reference is marked stale, do not preserve body size, hairstyle, outfit, apparent age, pose, or clothing from that image; preserve only core facial identity and follow the latest text."
             : "",
           referenceList

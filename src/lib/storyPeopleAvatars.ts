@@ -26,6 +26,17 @@ export type PhotoAnalysis = {
 const NO_VISIBLE_TEXT_IN_REFERENCE =
   "The image must contain only the illustrated subject and simple background. Do not include any written words, letters, numbers, labels, UI text, signs, captions, name tags, initials, age labels, pronouns, relationship labels, speech bubbles, or watermarks.";
 
+// Identity features the model most often loses or restyles: real hair/eyebrow/
+// facial-hair colour drifts warm to match the palette, and subtle clear
+// eyeglasses get "cleaned up" out of the portrait. These must be locked to the
+// supplied photo and kept out of the palette's reach, or every downstream book
+// page inherits the wrong likeness from the seed reference.
+const IDENTITY_LOCK_WITH_PHOTO =
+  "Identity lock, highest priority: match the subject's real hair colour, eyebrow colour, facial-hair colour, skin tone, and eye colour exactly as they appear in the supplied photo. Never warm-tint, redden, lighten, or otherwise shift hair, eyebrow, beard, skin, or eye colour to fit the bedtime palette; apply the warm Storycot palette only to background, clothing, and lighting, never to hair, skin, or eyes. If the subject wears eyeglasses in the photo, keep the same glasses as a permanent identity feature with the same frame shape and clarity; never remove or omit them. Preserve visible facial hair shape and coverage as shown.";
+
+const IDENTITY_LOCK_FROM_DESCRIPTION =
+  "Identity lock, highest priority: match the written hair colour, skin tone, and eye colour exactly. Never warm-tint, redden, or lighten hair, eyebrows, beard, skin, or eyes to fit the bedtime palette; apply the warm Storycot palette only to background, clothing, and lighting. If the description mentions glasses, keep them as a permanent identity feature and never omit them.";
+
 function formatAdjustmentInstruction(adjustment?: string): string {
   const clean = adjustment?.trim().slice(0, 240);
   if (!clean) return "";
@@ -71,6 +82,7 @@ export function buildStoryPersonAvatarPrompt(
   return [
     NO_VISIBLE_TEXT_IN_REFERENCE,
     `Create a square Storycot-style illustrated character reference of this ${subject}.`,
+    IDENTITY_LOCK_WITH_PHOTO,
     `Relationship context: ${getStoryPersonRelationshipLabel(person)}.`,
     "Use relationship, name, and pronoun data only as private context outside the image; never draw words, labels, or name tags.",
     person.description
@@ -116,6 +128,7 @@ export function buildStoryPersonDescriptionAvatarPrompt(
   return [
     NO_VISIBLE_TEXT_IN_REFERENCE,
     `Create a square Storycot-style illustrated character reference of a ${person.relationship === "pet" ? "beloved family pet" : "family member or friend"}.`,
+    IDENTITY_LOCK_FROM_DESCRIPTION,
     `Relationship context: ${getStoryPersonRelationshipLabel(person)}.`,
     "Use profile details only as private generation context; never draw words, labels, names, relationship labels, or name tags.",
     person.appearance.trim()
@@ -166,6 +179,7 @@ export function buildChildProfileAvatarPrompt(
   return [
     NO_VISIBLE_TEXT_IN_REFERENCE,
     "Create a square Storycot-style illustrated child profile reference.",
+    IDENTITY_LOCK_WITH_PHOTO,
     "Use child profile metadata only as private context outside the image; never draw the child's name, age, gender, pronouns, labels, or captions.",
     `Use ${getChildDrawingStage(profile)} only for visual scale and proportions.`,
     analysis.appearance
@@ -206,6 +220,7 @@ export function buildChildProfileDescriptionAvatarPrompt(
   return [
     NO_VISIBLE_TEXT_IN_REFERENCE,
     "Create a square Storycot-style illustrated child profile reference from the written child profile.",
+    IDENTITY_LOCK_FROM_DESCRIPTION,
     "Use child profile metadata only as private generation context; never draw the child's name, age, gender, pronouns, labels, or captions.",
     `Use ${getChildDrawingStage(profile)} only for visual scale and proportions.`,
     appearance ? `Current profile appearance: ${appearance}.` : "",
@@ -390,9 +405,9 @@ async function analyzePhoto(input: {
             },
             {
               type: "text",
-              text: `Describe only visible, non-sensitive appearance details that help keep this ${input.subject} consistent in original Storycot bedtime illustrations. Do not identify the person, infer ethnicity, health, personality, age beyond broad child/adult if obvious, or any sensitive trait. Ignore and do not name any logos, text, brand marks, franchise characters, toy characters, mascot art, costumes, or clothing graphics; for clothing mention only plain generic colour/type if useful. Do not mention the photo or camera. Return only JSON:
+              text: `Describe only visible, non-sensitive appearance details that help keep this ${input.subject} consistent in original Storycot bedtime illustrations. Always state the exact visible hair colour (and beard/moustache colour if present) and whether the subject is wearing eyeglasses, including the frame style, because these are the details illustrations most often get wrong. Do not identify the person, infer ethnicity, health, personality, age beyond broad child/adult if obvious, or any sensitive trait. Ignore and do not name any logos, text, brand marks, franchise characters, toy characters, mascot art, costumes, or clothing graphics; for clothing mention only plain generic colour/type if useful. Do not mention the photo or camera. Return only JSON:
 {
-  "appearance": "one concise sentence of visible features, hair/fur/markings, plain generic clothing colour/type if useful, accessories, and expression, with no brands or character prints",
+  "appearance": "one concise sentence of visible features, exact hair/beard colour, eyeglasses and frame style if worn, hair/fur/markings, plain generic clothing colour/type if useful, accessories, and expression, with no brands or character prints",
   "appearanceSummary": "short reusable illustration reference summary"
 }`,
             },

@@ -825,7 +825,7 @@ export default function BookReader({
                 <button
                   onClick={prev}
                   disabled={index === 0}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-2xl leading-none text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30 lg:border lg:border-night-200 lg:bg-white lg:text-night-700 lg:hover:bg-night-50"
+                  className={`h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-2xl leading-none text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30 lg:hidden ${isLandscape ? "flex" : "hidden"}`}
                   aria-label={t("previousPage")}
                 >
                   ‹
@@ -851,7 +851,7 @@ export default function BookReader({
                 <button
                   onClick={next}
                   disabled={index === total - 1}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-2xl leading-none text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30 lg:border lg:border-night-200 lg:bg-white lg:text-night-700 lg:hover:bg-night-50"
+                  className={`h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-2xl leading-none text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30 lg:hidden ${isLandscape ? "flex" : "hidden"}`}
                   aria-label={t("nextPage")}
                 >
                   ›

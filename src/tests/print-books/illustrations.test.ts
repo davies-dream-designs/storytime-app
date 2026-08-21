@@ -181,8 +181,12 @@ describe("generateCoverIllustration", () => {
       /do not produce a glossy three-dimensional render, CGI or Pixar-style portrait/
     );
     expect(prompt).toContain("Footwear lock");
+    expect(prompt).toContain("Outfit source of truth");
+    expect(prompt).toMatch(
+      /reference portrait defines only face shape, hair[\s\S]*it does NOT define clothing/
+    );
     expect(prompt).toContain(
-      "so the cover looks like it belongs to the same book as the interior pages"
+      "draw each character's full described/locked outfit instead"
     );
   });
 

@@ -384,6 +384,9 @@ export function buildIllustrationDirection(
       ? "Apply the palette only to background, clothing, and lighting, never to hair, skin, or eyes."
       : "Apply the warm palette only to background, clothing, and lighting. Keep every character's hair colour, eyebrow colour, facial-hair colour, skin tone, and eye colour true to their locked appearance; never warm-tint, redden, or lighten hair, skin, or eyes to match the palette.",
     `Render style: ${clampPromptValue(bible.renderStyle, compact ? 100 : 180)}`,
+    compact
+      ? "Flat 2-D storybook illustration, not a glossy 3-D or photorealistic render; same realism for every character."
+      : "Rendering-level lock: draw a flat two-dimensional children's picture-book illustration with soft watercolour and coloured-pencil shading; do not produce a glossy three-dimensional render, CGI or Pixar-style portrait, or photorealistic likeness. Use the same illustration realism and shading level for every character so they all belong in the same book.",
     `Lighting tone: ${clampPromptValue(bible.lightingTone, compact ? 100 : 180)}`,
     `Do not change: ${clampPromptValue(continuity, compact ? 180 : 320)}`,
     "For selected family/friends/pets, preserve their described/reference apparent age, face shape, hair, glasses, body build, and markings. Do not make grandparents generically elderly or alter body build from the reference.",

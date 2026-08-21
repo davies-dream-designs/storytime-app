@@ -176,6 +176,10 @@ describe("generateCoverIllustration", () => {
     expect(prompt).toMatch(
       /never warm-tint, redden, or lighten hair, skin, or eyes/
     );
+    expect(prompt).toContain("Rendering-level lock");
+    expect(prompt).toMatch(
+      /do not produce a glossy three-dimensional render, CGI or Pixar-style portrait/
+    );
   });
 
   it("includes locked character rules in illustration prompts", async () => {

@@ -579,42 +579,11 @@ export default function StoryPeopleManager({
           </div>
         ) : (
           <div className="mt-5 space-y-4">
-            <div className="rounded-xl border border-night-100 bg-night-50 p-3">
-              <p className="text-sm font-bold text-night-700">
-                How Would You Like To Start?
+            <div>
+              <p className="text-sm font-bold text-night-700">Who They Are</p>
+              <p className="mt-1 text-xs leading-5 text-night-500">
+                These details shape how they appear and behave in the stories.
               </p>
-              <div className="mt-3 grid gap-2">
-                {[
-                  {
-                    value: "description" as const,
-                    title: "Describe Them",
-                    body: "Write the visual and story details yourself.",
-                  },
-                  {
-                    value: "photo" as const,
-                    title: "Use A Photo",
-                    body: "Upload or take a clear photo and let Storycot fill the visual reference.",
-                  },
-                ].map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setNewPersonMode(option.value)}
-                    className={`rounded-xl border p-3 text-left transition ${
-                      newPersonMode === option.value
-                        ? "border-night-700 bg-night-700 text-moon-200"
-                        : "border-night-100 bg-white text-night-600 hover:bg-night-100"
-                    }`}
-                  >
-                    <span className="block text-sm font-bold">
-                      {option.title}
-                    </span>
-                    <span className="mt-1 block text-xs leading-5 opacity-80">
-                      {option.body}
-                    </span>
-                  </button>
-                ))}
-              </div>
             </div>
 
             <div>
@@ -787,8 +756,89 @@ export default function StoryPeopleManager({
               />
             </div>
 
-            {newPersonMode === "photo" ? (
-              <div className="rounded-xl border border-night-100 bg-night-50 p-3">
+            <div>
+              <div className="flex items-center justify-between gap-3">
+                <label className={formStyles.subLabel}>Story Role</label>
+                <span className="text-xs font-bold text-night-300">
+                  {splitList(form.description).length}/3
+                </span>
+              </div>
+              <div className="mb-2 flex flex-wrap gap-2">
+                {STORY_ROLE_OPTIONS.map((option) => {
+                  const selected = splitList(form.description).includes(option);
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => toggleListField("description", option)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                        selected
+                          ? "bg-night-700 text-moon-200"
+                          : "bg-night-50 text-night-600 hover:bg-night-100"
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  );
+                })}
+              </div>
+              <textarea
+                value={form.description}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    description: event.target.value,
+                  }))
+                }
+                rows={2}
+                placeholder="Choose up to 3, or add your own comma-separated notes."
+                className={formStyles.textarea}
+              />
+            </div>
+
+            <div className="rounded-xl border border-night-100 bg-night-50 p-3">
+              <p className="text-sm font-bold text-night-700">
+                How Should We Picture Them?
+              </p>
+              <p className="mt-1 text-xs leading-5 text-night-500">
+                Choose how Storycot creates the illustrated reference. You can
+                upload a photo, or just describe how they look.
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {[
+                  {
+                    value: "photo" as const,
+                    title: "Upload A Photo",
+                    body: "We turn a clear photo into a Storycot-style reference.",
+                  },
+                  {
+                    value: "description" as const,
+                    title: "Describe Their Look",
+                    body: "Write a few visual notes instead of a photo.",
+                  },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setNewPersonMode(option.value)}
+                    className={`rounded-xl border p-3 text-left transition ${
+                      newPersonMode === option.value
+                        ? "border-night-700 bg-night-700 text-moon-200"
+                        : "border-night-100 bg-white text-night-600 hover:bg-night-100"
+                    }`}
+                  >
+                    <span className="block text-sm font-bold">
+                      {option.title}
+                    </span>
+                    <span className="mt-1 block text-xs leading-5 opacity-80">
+                      {option.body}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {newPersonMode === "photo" ? (
+              <div className="mt-3 rounded-xl border border-night-100 bg-white p-3">
                 <p className="text-sm font-bold text-night-700">
                   Photo Reference
                 </p>
@@ -922,64 +972,25 @@ export default function StoryPeopleManager({
                   ) : null}
                 </div>
               </div>
-            ) : null}
-
-            {newPersonMode === "description" ? (
-              <div>
-                <label className={formStyles.subLabel}>Appearance</label>
-                <textarea
-                  value={form.appearance}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      appearance: event.target.value,
-                    }))
-                  }
-                  rows={3}
-                  placeholder="Short visual notes for storybook illustrations."
-                  className={formStyles.textarea}
-                />
-              </div>
-            ) : null}
-
-            <div>
-              <div className="flex items-center justify-between gap-3">
-                <label className={formStyles.subLabel}>Story Role</label>
-                <span className="text-xs font-bold text-night-300">
-                  {splitList(form.description).length}/3
-                </span>
-              </div>
-              <div className="mb-2 flex flex-wrap gap-2">
-                {STORY_ROLE_OPTIONS.map((option) => {
-                  const selected = splitList(form.description).includes(option);
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => toggleListField("description", option)}
-                      className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                        selected
-                          ? "bg-night-700 text-moon-200"
-                          : "bg-night-50 text-night-600 hover:bg-night-100"
-                      }`}
-                    >
-                      {option}
-                    </button>
-                  );
-                })}
-              </div>
-              <textarea
-                value={form.description}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    description: event.target.value,
-                  }))
-                }
-                rows={2}
-                placeholder="Choose up to 3, or add your own comma-separated notes."
-                className={formStyles.textarea}
-              />
+              ) : (
+                <div className="mt-3">
+                  <label className={formStyles.subLabel}>
+                    Extra Visual Notes (Optional)
+                  </label>
+                  <textarea
+                    value={form.appearance}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        appearance: event.target.value,
+                      }))
+                    }
+                    rows={3}
+                    placeholder="Anything the age, height, and body build above don't cover: hair, glasses, usual outfit, etc."
+                    className={formStyles.textarea}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="rounded-xl border border-night-100 bg-night-50 p-3">

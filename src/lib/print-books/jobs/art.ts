@@ -10,6 +10,8 @@ import { getBookProjectStageLabel } from "@/lib/print-books/status";
 import type {
   BookProject,
   CharacterBible,
+  CharacterVisualReference,
+  ContinuityVisualReference,
 } from "@/types/printBook";
 import type { BuildContext } from "./context";
 import { getProjectArtMode } from "./artState";
@@ -21,6 +23,8 @@ export async function regenerateProjectArt(input: {
   story: BuildContext["story"];
   profile: BuildContext["profile"];
   characterBible: CharacterBible;
+  visualReferences?: CharacterVisualReference[];
+  referenceSnapshotKey?: string;
   buildMode: "full" | "art";
 }) {
   const totalArtSteps = input.project.spreads.length;
@@ -40,16 +44,62 @@ export async function regenerateProjectArt(input: {
         artGenerationTotal: totalArtSteps,
         artMode: input.project.assets.artMode ?? "placeholder",
         lastBuildMode: input.buildMode,
+        referenceSnapshotKey: input.referenceSnapshotKey,
+        referenceImageCount: input.visualReferences?.length ?? 0,
       },
     });
   }
 
   if (currentCursor === 0) {
+    // Generate one interior page first so the cover can copy each character's
+    // established outfit and look from real page art (the character bible and
+    // avatar reference intentionally strip outfits, so a text-only cover drifts
+    // to the plain reference-portrait clothing).
+    const seedIndex = input.project.spreads.findIndex((s) =>
+      isBookStoryIllustrationSpread(s)
+    );
+
+    let seededSpreads = input.project.spreads;
+    let continuityReferences: ContinuityVisualReference[] | undefined;
+    let nextCursor = 1;
+
+    if (seedIndex !== -1) {
+      const seedResult = await generateSpreadIllustration({
+        project: input.project,
+        story: input.story,
+        profile: input.profile,
+        characterBible: input.characterBible,
+        visualReferences: input.visualReferences,
+        referenceSnapshotKey: input.referenceSnapshotKey,
+        spread: input.project.spreads[seedIndex]!,
+      });
+      seededSpreads = applySpreadIllustration(seededSpreads, seedResult.spread);
+
+      const seed = seedResult.spread;
+      const seedImage = seed.leftPageImageError
+        ? undefined
+        : seed.leftPageImageUrl ?? seed.imageUrl;
+      if (seedImage && seedImage.includes("/spreads/") && seedImage.endsWith(".png")) {
+        continuityReferences = [
+          {
+            id: `spread:${seed.id}`,
+            label: `Approved spread ${seed.sequence}`,
+            imageUrl: seedImage,
+            source: "spread",
+            sequence: seed.sequence,
+          },
+        ];
+      }
+      nextCursor = seedIndex + 1;
+    }
+
     const cover = await generateCoverIllustration({
-      project: input.project,
+      project: { ...input.project, spreads: seededSpreads },
       story: input.story,
       profile: input.profile,
       characterBible: input.characterBible,
+      visualReferences: input.visualReferences,
+      continuityReferences,
     });
 
     return db.bookProjects.update(input.id, {
@@ -57,7 +107,7 @@ export async function regenerateProjectArt(input: {
       currentStageLabel: "Generating final art...",
       characterBible: input.characterBible,
       spreads: cover.spreads,
-      completedSpreads: 1,
+      completedSpreads: nextCursor,
       totalSpreads: totalArtSteps,
       assets: {
         ...input.project.assets,
@@ -65,8 +115,10 @@ export async function regenerateProjectArt(input: {
         coverWebImageUrl: cover.coverWebImageUrl,
         artMode: cover.provider === "openai" ? "generated" : "placeholder",
         lastBuildMode: input.buildMode,
-        artGenerationCursor: 1,
+        artGenerationCursor: nextCursor,
         artGenerationTotal: totalArtSteps,
+        referenceSnapshotKey: input.referenceSnapshotKey,
+        referenceImageCount: input.visualReferences?.length ?? 0,
       },
     });
   }
@@ -91,6 +143,8 @@ export async function regenerateProjectArt(input: {
         artGenerationTotal: totalArtSteps,
         artMode: input.project.assets.artMode ?? "placeholder",
         lastBuildMode: input.buildMode,
+        referenceSnapshotKey: input.referenceSnapshotKey,
+        referenceImageCount: input.visualReferences?.length ?? 0,
       },
     });
   }
@@ -103,6 +157,8 @@ export async function regenerateProjectArt(input: {
             story: input.story,
             profile: input.profile,
             characterBible: input.characterBible,
+            visualReferences: input.visualReferences,
+            referenceSnapshotKey: input.referenceSnapshotKey,
             spread: s,
           })
         : Promise.resolve(null)
@@ -119,6 +175,8 @@ export async function regenerateProjectArt(input: {
         story: input.story,
         profile: input.profile,
         characterBible: input.characterBible,
+        visualReferences: input.visualReferences,
+        referenceSnapshotKey: input.referenceSnapshotKey,
         spread: s,
       });
     })
@@ -169,6 +227,8 @@ export async function regenerateProjectArt(input: {
           lastBuildMode: input.buildMode,
           artGenerationCursor: undefined,
           artGenerationTotal: totalArtSteps,
+          referenceSnapshotKey: input.referenceSnapshotKey,
+          referenceImageCount: input.visualReferences?.length ?? 0,
         },
       });
     }
@@ -193,6 +253,8 @@ export async function regenerateProjectArt(input: {
         lastBuildMode: input.buildMode,
         artGenerationCursor: undefined,
         artGenerationTotal: totalArtSteps,
+        referenceSnapshotKey: input.referenceSnapshotKey,
+        referenceImageCount: input.visualReferences?.length ?? 0,
       },
     });
   }
@@ -216,6 +278,8 @@ export async function regenerateProjectArt(input: {
       lastBuildMode: input.buildMode,
       artGenerationCursor: nextCursor,
       artGenerationTotal: totalArtSteps,
+      referenceSnapshotKey: input.referenceSnapshotKey,
+      referenceImageCount: input.visualReferences?.length ?? 0,
     },
   });
 }

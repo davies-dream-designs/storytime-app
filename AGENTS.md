@@ -109,3 +109,15 @@ Always end the turn with an explicit completion/status response to the user. Do 
 - Do not delete or weaken the `.gitignore` rules for environment files.
 - Do not introduce secrets or hard-coded credentials.
 - Do not disable ESLint rules with `eslint-disable` comments without a documented reason.
+
+## Story-generation consistency gotcha
+
+- Persisted `story.storyPersonIds` can contain both saved `storyPeople` IDs and synthetic child-cast IDs like `child:<profileId>`.
+- Any route or job that reloads selected cast from a stored story must use `getSelectedStoryPeople(...)`, not `db.storyPeople.getByIds(...)` directly, or sibling/child-profile cast members will disappear during stream regeneration and book builds.
+- For later print-book spreads, use approved cover art plus prior interior spread art only as optional continuity references; they should preserve recurring likeness/outfit/prop/location continuity, but must never override the current story moment or latest selected-cast appearance text.
+- Generated spread art now stores `leftPageQa`/`rightPageQa` metadata with the character reference IDs, continuity reference labels, snapshot key, and fallback flags so spread-review tooling can inspect what conditioning was used.
+- The review UI and `/api/books/[id]/status` must preserve right-page image URLs/errors/QA metadata as first-class fields; otherwise right-side drift becomes invisible and redo targeting silently misses it.
+- Continuity reference ranking now works best when prior approved spreads already carry accurate `leftPageQa`/`rightPageQa.characterReferenceIds`; later pronoun-only spreads can recover companions from that QA trail, and irrelevant prior art should be excluded unless it shares cast or scene keywords.
+- OpenAI image-edit prompts can exceed the provider's 32,000-character limit once character-bible rules, reference appearances, continuity labels, and redo notes all stack together; keep the illustration prompt builders budgeted and compact long dynamic fields before submitting image requests.
+
+

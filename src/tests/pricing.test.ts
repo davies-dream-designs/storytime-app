@@ -3,13 +3,17 @@ import {
   estimateCreditValueAud,
   estimateDigitalGenerationCostAud,
   estimateIllustratedBookCredits,
+  FREE_REFERENCE_AVATAR_LIMIT,
   ILLUSTRATED_BOOK_CREDIT_COST,
+  REFERENCE_REDO_CREDIT_COST,
   STORY_CREDIT_COST,
 } from "@/lib/pricing";
 
 describe("pricing policy", () => {
   it("sets plain stories and illustrated books to distinct credit costs", () => {
     expect(STORY_CREDIT_COST).toBe(1);
+    expect(FREE_REFERENCE_AVATAR_LIMIT).toBe(2);
+    expect(REFERENCE_REDO_CREDIT_COST).toBe(1);
     expect(ILLUSTRATED_BOOK_CREDIT_COST).toBe(6);
   });
 
@@ -34,6 +38,34 @@ describe("pricing policy", () => {
   });
 
   it("estimates illustrated book credits by age and complexity", () => {
+    expect(
+      estimateIllustratedBookCredits({
+        ageBand: "baby-drift",
+        pageCount: 24,
+        illustrationCount: 9,
+      }).credits
+    ).toBe(7);
+    expect(
+      estimateIllustratedBookCredits({
+        ageBand: "toddler-tale",
+        pageCount: 24,
+        illustrationCount: 9,
+      }).credits
+    ).toBe(7);
+    expect(
+      estimateIllustratedBookCredits({
+        ageBand: "preschool-story",
+        pageCount: 28,
+        illustrationCount: 11,
+      }).credits
+    ).toBe(9);
+    expect(
+      estimateIllustratedBookCredits({
+        ageBand: "young-reader-classic",
+        pageCount: 56,
+        illustrationCount: 11,
+      }).credits
+    ).toBe(13);
     expect(
       estimateIllustratedBookCredits({
         ageBand: "0-2",

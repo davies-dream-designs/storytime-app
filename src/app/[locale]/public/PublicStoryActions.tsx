@@ -37,6 +37,7 @@ export default function PublicStoryActions({
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [reason, setReason] =
     useState<(typeof reportReasons)[number]["value"]>("privacy");
+  const [reportNote, setReportNote] = useState("");
   const [shipping, setShipping] = useState({
     name: "",
     email: "",
@@ -80,11 +81,18 @@ export default function PublicStoryActions({
 
   function report() {
     setMessage(null);
+    if (reason === "other" && !reportNote.trim()) {
+      setMessage("Tell us what needs review.");
+      return;
+    }
     startTransition(async () => {
       const res = await fetch(`/api/public-stories/${storyId}/report`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason }),
+        body: JSON.stringify({
+          reason,
+          note: reportNote.trim() || undefined,
+        }),
       });
       const body = (await res.json().catch(() => null)) as {
         error?: string;
@@ -96,6 +104,7 @@ export default function PublicStoryActions({
         return;
       }
       setReportOpen(false);
+      setReportNote("");
       setMessage(
         body?.hiddenForReview
           ? "Reported and hidden for review"
@@ -211,6 +220,52 @@ export default function PublicStoryActions({
     await copyShareLink();
   }
 
+  const reportForm = (
+    <div className="rounded-xl border border-night-100 bg-night-50 p-3">
+      <label className="block text-xs font-bold uppercase tracking-wide text-night-400">
+        Reason
+      </label>
+      <select
+        value={reason}
+        onChange={(event) =>
+          setReason(
+            event.target.value as (typeof reportReasons)[number]["value"]
+          )
+        }
+        className="mt-1 w-full rounded-lg border border-night-200 bg-white px-2 py-2 text-sm text-night-800"
+      >
+        {reportReasons.map((item) => (
+          <option key={item.value} value={item.value}>
+            {item.label}
+          </option>
+        ))}
+      </select>
+      {reason === "other" ? (
+        <label className="mt-3 block">
+          <span className="block text-xs font-bold uppercase tracking-wide text-night-400">
+            What Should We Review?
+          </span>
+          <textarea
+            value={reportNote}
+            onChange={(event) => setReportNote(event.target.value)}
+            maxLength={500}
+            rows={3}
+            placeholder="Briefly describe the issue."
+            className="mt-1 w-full resize-none rounded-lg border border-night-200 bg-white px-2 py-2 text-sm text-night-800 outline-none focus:border-star-400 focus:ring-2 focus:ring-star-100"
+          />
+        </label>
+      ) : null}
+      <button
+        type="button"
+        onClick={report}
+        disabled={isPending}
+        className="storycot-btn storycot-btn-primary storycot-btn-compact mt-3"
+      >
+        Send report
+      </button>
+    </div>
+  );
+
   if (variant === "compact") {
     return (
       <div className="space-y-1">
@@ -259,36 +314,7 @@ export default function PublicStoryActions({
           </button>
         </div>
         {checkoutForm}
-        {reportOpen ? (
-          <div className="rounded-xl border border-night-100 bg-night-50 p-3">
-            <label className="block text-xs font-bold uppercase tracking-wide text-night-400">
-              Reason
-            </label>
-            <select
-              value={reason}
-              onChange={(event) =>
-                setReason(
-                  event.target.value as (typeof reportReasons)[number]["value"]
-                )
-              }
-              className="mt-1 w-full rounded-lg border border-night-200 bg-white px-2 py-2 text-sm text-night-800"
-            >
-              {reportReasons.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={report}
-              disabled={isPending}
-              className="storycot-btn storycot-btn-primary storycot-btn-compact mt-3"
-            >
-              Send report
-            </button>
-          </div>
-        ) : null}
+        {reportOpen ? reportForm : null}
         {message ? (
           <p className="text-right text-xs font-bold text-night-500">
             {message}
@@ -358,36 +384,7 @@ export default function PublicStoryActions({
         </button>
       </div>
       {checkoutForm}
-      {reportOpen ? (
-        <div className="rounded-xl border border-night-100 bg-night-50 p-3">
-          <label className="block text-xs font-bold uppercase tracking-wide text-night-400">
-            Reason
-          </label>
-          <select
-            value={reason}
-            onChange={(event) =>
-              setReason(
-                event.target.value as (typeof reportReasons)[number]["value"]
-              )
-            }
-            className="mt-1 w-full rounded-lg border border-night-200 bg-white px-2 py-2 text-sm text-night-800"
-          >
-            {reportReasons.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={report}
-            disabled={isPending}
-            className="storycot-btn storycot-btn-primary storycot-btn-compact mt-3"
-          >
-            Send report
-          </button>
-        </div>
-      ) : null}
+      {reportOpen ? reportForm : null}
       {message ? (
         <p className="text-xs font-bold text-night-500">{message}</p>
       ) : null}

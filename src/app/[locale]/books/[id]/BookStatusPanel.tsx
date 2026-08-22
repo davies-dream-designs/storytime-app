@@ -10,36 +10,24 @@ import {
   getBookProjectProgress,
 } from "@/lib/print-books/status";
 import { hasResolvedImageFailure } from "@/lib/print-books/readiness";
+import {
+  getArtworkError,
+  getArtworkPreviews,
+  getArtworkQa,
+  getArtworkRiskFlags,
+  getArtworkSideLabel,
+  getArtworkUrl,
+  getFailedImageTargets,
+  isPlaceholderImageUrl,
+  getRepairImageTargets,
+  getSpreadPreviews,
+  type ArtworkPreview,
+  type ExpandedImageTarget,
+  type SpreadPreview,
+} from "@/lib/print-books/review";
 import type { BookProject } from "@/types/printBook";
 
-type SpreadPreview = {
-  id: string;
-  sequence: number;
-  title?: string;
-  thumbnailUrl?: string;
-  webImageUrl?: string;
-  leftPageImageUrl?: string;
-  rightPageImageUrl?: string;
-  leftPageImageError?: string;
-  rightPageImageError?: string;
-};
-
-type ExpandedImage = {
-  spreadId: string;
-  sequence: number;
-  title?: string;
-  side: "left" | "right";
-  url?: string;
-  displayLabel?: string;
-  index?: number;
-};
-
-type ArtworkPreview = {
-  preview: SpreadPreview;
-  side: "left" | "right";
-  url?: string;
-  error?: string;
-};
+type ExpandedImage = ExpandedImageTarget;
 
 type BookStatusPayload = Pick<
   BookProject,
@@ -53,91 +41,114 @@ type BookStatusPayload = Pick<
   | "errorCode"
   | "errorMessage"
   | "assets"
-> & { spreadPreviews?: SpreadPreview[] };
-
-function getFailedImageTargets(spreads: SpreadPreview[]): ExpandedImage[] {
-  return spreads
-    .filter(
-      (preview) =>
-        Boolean(preview.leftPageImageError) || !preview.leftPageImageUrl
-    )
-    .map((preview) => ({
-      spreadId: preview.id,
-      sequence: preview.sequence,
-      title: preview.title,
-      side: "left",
-      url: getPreviewDisplayUrl(preview),
-    }));
-}
-
-function isPlaceholderImageUrl(url?: string): boolean {
-  if (!url) return false;
-  const lower = url.toLowerCase();
-  return lower.startsWith("data:image/svg") || lower.endsWith(".svg");
-}
-
-function getPreviewDisplayUrl(preview?: SpreadPreview) {
-  return (
-    preview?.webImageUrl ??
-    preview?.thumbnailUrl ??
-    preview?.leftPageImageUrl ??
-    preview?.rightPageImageUrl
-  );
-}
-
-function getRepairImageTargets(spreads: SpreadPreview[]): ExpandedImage[] {
-  return spreads
-    .filter(
-      (preview) =>
-        Boolean(preview.leftPageImageError) ||
-        !preview.leftPageImageUrl ||
-        isPlaceholderImageUrl(preview.leftPageImageUrl)
-    )
-    .map((preview) => ({
-      spreadId: preview.id,
-      sequence: preview.sequence,
-      title: preview.title,
-      side: "left",
-      url: getPreviewDisplayUrl(preview),
-    }));
-}
+> & {
+  spreadPreviews?: SpreadPreview[];
+  referencesAreStale?: boolean;
+  referenceImageCount?: number;
+};
 
 function isTerminal(status: BookProject["status"]): boolean {
   return status === "ready" || status === "failed";
 }
 
-function getSpreadPreviews(project: BookProject): SpreadPreview[] {
-  const seen = new Set<string>();
-  return project.spreads
-    .filter((s) => {
-      if (seen.has(s.id)) return false;
-      seen.add(s.id);
-      return (
-        s.layoutType === "text_art" ||
-        s.layoutType === "hero" ||
-        s.layoutType === "quiet"
-      );
-    })
-    .map((s) => ({
-      id: s.id,
-      sequence: s.sequence,
-      title: s.title,
-      thumbnailUrl: s.thumbnailUrl ?? s.leftPageWebImageUrl ?? s.imageUrl,
-      webImageUrl: s.leftPageWebImageUrl ?? s.thumbnailUrl,
-      leftPageImageUrl: s.leftPageImageUrl ?? s.imageUrl,
-      rightPageImageUrl: undefined,
-      leftPageImageError: s.leftPageImageError,
-      rightPageImageError: undefined,
-    }))
-    .sort((a, b) => a.sequence - b.sequence);
+function ArtworkQaSummary({
+  preview,
+  side,
+  compact = false,
+}: {
+  preview: SpreadPreview;
+  side: ArtworkPreview["side"];
+  compact?: boolean;
+}) {
+  const qa = getArtworkQa(preview, side);
+  const riskFlags = getArtworkRiskFlags(preview, side);
+  const visibleFlags = compact ? riskFlags.slice(0, 2) : riskFlags;
+
+  if (!qa && visibleFlags.length === 0) {
+    return compact ? (
+      <div className="flex flex-wrap gap-1">
+        <span className="rounded-full bg-night-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-night-500">
+          {getArtworkSideLabel(side)}
+        </span>
+      </div>
+    ) : null;
+  }
+
+  return (
+    <div
+      className={
+        compact
+          ? "space-y-1"
+          : "space-y-2 rounded-2xl border border-night-100 bg-night-50 p-3"
+      }
+    >
+      <div className="flex flex-wrap gap-1.5">
+        <span className="rounded-full bg-night-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-night-500">
+          {getArtworkSideLabel(side)}
+        </span>
+        {visibleFlags.map((flag) => (
+          <span
+            key={flag}
+            className="rounded-full bg-star-100 px-2 py-0.5 text-[10px] font-bold text-star-700"
+          >
+            {flag}
+          </span>
+        ))}
+      </div>
+      {!compact && qa ? (
+        <dl className="space-y-1 text-xs text-night-600">
+          <div>
+            <dt className="font-bold text-night-700">Character refs</dt>
+            <dd>
+              {qa.characterReferenceNames.length > 0
+                ? qa.characterReferenceNames.join(", ")
+                : "None recorded"}
+            </dd>
+          </div>
+          <div>
+            <dt className="font-bold text-night-700">Continuity refs</dt>
+            <dd>
+              {qa.continuityReferenceLabels.length > 0
+                ? qa.continuityReferenceLabels.join(", ")
+                : "None recorded"}
+            </dd>
+          </div>
+          {qa.staleCharacterReferenceNames?.length ? (
+            <div>
+              <dt className="font-bold text-night-700">Stale refs</dt>
+              <dd>{qa.staleCharacterReferenceNames.join(", ")}</dd>
+            </div>
+          ) : null}
+          {qa.correctionNote ? (
+            <div>
+              <dt className="font-bold text-night-700">Correction note</dt>
+              <dd>{qa.correctionNote}</dd>
+            </div>
+          ) : null}
+          {qa.pageTextOmitted ? (
+            <div>
+              <dt className="font-bold text-night-700">Fallback</dt>
+              <dd>Prompt retried without page text.</dd>
+            </div>
+          ) : null}
+        </dl>
+      ) : null}
+    </div>
+  );
 }
 
 export default function BookStatusPanel({
   initialProject,
   initialIsReady = false,
+  initialReferencesAreStale = false,
+  initialReferenceImageCount = 0,
+  isAdmin = false,
 }: {
   initialProject: BookProject;
   initialIsReady?: boolean;
+  initialReferencesAreStale?: boolean;
+  initialReferenceImageCount?: number;
+  isAdmin?: boolean;
 }) {
   const t = useTranslations("books");
   const router = useRouter();
@@ -148,6 +159,13 @@ export default function BookStatusPanel({
   const [retrying, setRetrying] = useState(false);
   const [repairingArt, setRepairingArt] = useState(false);
   const [regeneratingExports, setRegeneratingExports] = useState(false);
+  const [rebuildingReferences, setRebuildingReferences] = useState(false);
+  const [referencesAreStale, setReferencesAreStale] = useState(
+    initialReferencesAreStale
+  );
+  const [referenceImageCount, setReferenceImageCount] = useState(
+    initialReferenceImageCount
+  );
   const [regeneratingImage, setRegeneratingImage] = useState<string | null>(
     null
   );
@@ -171,25 +189,22 @@ export default function BookStatusPanel({
   const isExportRefresh =
     activeJobMode === "exports" || activeJobMode === "finalize";
   const artworkPreviews: ArtworkPreview[] = useMemo(
-    () =>
-      spreadPreviews.map((preview) => ({
-        preview,
-        side: "left",
-        url: getPreviewDisplayUrl(preview),
-        error: preview.leftPageImageError,
-      })),
+    () => getArtworkPreviews(spreadPreviews),
     [spreadPreviews]
   );
   const completedArtworkCount = artworkPreviews.filter(
     (preview) => preview.url
   ).length;
 
-  // Text from initial project - doesn't change during build
   const spreadTextMap = useMemo(() => {
     const map = new Map<string, string>();
-    for (const s of initialProject.spreads) {
-      const text = s.leftPageText || s.rightPageText;
-      if (text) map.set(s.id, text);
+    for (const spread of initialProject.spreads) {
+      if (spread.leftPageText) {
+        map.set(`${spread.id}:left`, spread.leftPageText);
+      }
+      if (spread.rightPageText) {
+        map.set(`${spread.id}:right`, spread.rightPageText);
+      }
     }
     return map;
   }, [initialProject]);
@@ -204,7 +219,7 @@ export default function BookStatusPanel({
         title: artwork.preview.title,
         side: artwork.side,
         url: artwork.url,
-        displayLabel: `Illustration ${index + 1}`,
+        displayLabel: `Illustration ${index + 1} · ${getArtworkSideLabel(artwork.side)}`,
         index,
       };
     },
@@ -291,6 +306,8 @@ export default function BookStatusPanel({
           latestProjectUpdatedAtRef.current = nextUpdatedAt;
         }
         setProject((current) => ({ ...current, ...next }));
+        setReferencesAreStale(Boolean(next.referencesAreStale));
+        setReferenceImageCount(next.referenceImageCount ?? 0);
         if (next.spreadPreviews) {
           setSpreadPreviews(
             [...next.spreadPreviews].sort((a, b) => a.sequence - b.sequence)
@@ -318,7 +335,7 @@ export default function BookStatusPanel({
     );
 
     return () => window.clearInterval(interval);
-  }, [activeJobStatus, pollUntil, project.id, project.status, router]);
+  }, [activeJobStatus, initialIsReady, pollUntil, project.id, project.status, router]);
 
   useEffect(() => {
     if (!expandedImage) return;
@@ -411,10 +428,7 @@ export default function BookStatusPanel({
       const nextPreview = previews.find(
         (preview) => preview.id === image.spreadId
       );
-      const nextUrl =
-        image.side === "left"
-          ? getPreviewDisplayUrl(nextPreview)
-          : nextPreview?.rightPageImageUrl;
+      const nextUrl = getArtworkUrl(nextPreview, image.side);
       if (nextUrl) setExpandedImage({ ...image, url: nextUrl });
       window.dispatchEvent(new CustomEvent("storycot:credits-updated"));
       router.refresh();
@@ -442,14 +456,8 @@ export default function BookStatusPanel({
     const targetPreview = spreadPreviews.find(
       (preview) => preview.id === redoTarget.spreadId
     );
-    const targetUrl =
-      redoTarget.side === "left"
-        ? targetPreview?.leftPageImageUrl
-        : targetPreview?.rightPageImageUrl;
-    const targetError =
-      redoTarget.side === "left"
-        ? targetPreview?.leftPageImageError
-        : targetPreview?.rightPageImageError;
+    const targetUrl = getArtworkUrl(targetPreview, redoTarget.side);
+    const targetError = getArtworkError(targetPreview, redoTarget.side);
     const isPaidRedo =
       Boolean(targetUrl) && !targetError && !isPlaceholderImageUrl(targetUrl);
 
@@ -492,6 +500,24 @@ export default function BookStatusPanel({
     setRepairingArt(false);
   }
 
+  async function handleRebuildWithLatestReferences() {
+    setRebuildingReferences(true);
+    const res = await fetch(`/api/books/${project.id}/build`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "full" }),
+    });
+    if (res.ok) {
+      const next = (await res.json()) as BookProject;
+      setProject(next);
+      setReferencesAreStale(false);
+      setPollUntil(Date.now() + 20_000);
+      router.refresh();
+    }
+    setRebuildingReferences(false);
+  }
+
   const failedImageTargets = getFailedImageTargets(spreadPreviews);
   const hasLocallyResolvedImageFailure =
     hasResolvedImageFailure(project) ||
@@ -511,6 +537,11 @@ export default function BookStatusPanel({
         errorMessage: undefined,
       } as BookProject)
     : project;
+  const fullRebuildCreditCopy = isAdmin
+    ? "Admin rebuild: 0 credits."
+    : project.billing?.credits
+      ? `This starts a full illustrated rebuild and uses ${project.billing.credits} credits.`
+      : "This starts a full illustrated rebuild and uses the normal illustrated-book credit cost.";
   const progress = getBookProjectProgress(displayProject);
   const stageLabel = getBookProjectDisplayStageLabel(displayProject);
   const isActiveBuild =
@@ -522,7 +553,6 @@ export default function BookStatusPanel({
     completedArtworkCount >= artworkPreviews.length;
 
   // Auto-advance reader to latest completed illustration during active builds
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!isActiveBuild) return;
     if (completedArtworkCount <= prevCompletedCount.current) return;
@@ -615,9 +645,9 @@ export default function BookStatusPanel({
                   type="button"
                   aria-label="Close book tools"
                   onClick={() => setReadyToolsOpen(false)}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-night-50 text-lg font-bold text-night-500 transition hover:bg-night-100"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-night-100 bg-white text-2xl font-bold leading-none text-night-800 shadow-sm transition hover:bg-night-50"
                 >
-                  X
+                  ×
                 </button>
               </div>
 
@@ -643,7 +673,7 @@ export default function BookStatusPanel({
                           preview.title !== "Title" &&
                           preview.title !== "Back Cover";
                         const isFreeRetry = Boolean(error) || !url;
-                        const displayLabel = `Illustration ${index + 1}`;
+                        const displayLabel = `Illustration ${index + 1} · ${getArtworkSideLabel(side)}`;
                         return (
                           <div
                             key={key}
@@ -670,8 +700,11 @@ export default function BookStatusPanel({
                                 </div>
                               )}
                             </button>
+                            <div className="px-1 py-1.5">
+                              <ArtworkQaSummary preview={preview} side={side} compact />
+                            </div>
                             {canRegenerate ? (
-                              <div className="px-1 py-1.5 text-center">
+                              <div className="px-1 pb-1.5 text-center">
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -823,27 +856,35 @@ export default function BookStatusPanel({
 
         {expandedImage ? (
           <div
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-night-900/75 p-4"
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-night-900/75 p-2 sm:p-4"
             role="dialog"
             aria-modal="true"
             aria-labelledby="expanded-image-dialog-title"
             onClick={() => setExpandedImage(null)}
           >
             <div
-              className="max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-3xl bg-white shadow-2xl"
+              className="relative flex max-h-[92dvh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:rounded-3xl"
               onClick={(event) => event.stopPropagation()}
             >
+              <button
+                type="button"
+                aria-label="Close artwork preview"
+                onClick={() => setExpandedImage(null)}
+                className="absolute right-2 top-2 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-night-100 bg-white/95 text-2xl font-bold leading-none text-night-800 shadow-lg ring-1 ring-white/70 transition hover:bg-night-50"
+              >
+                ×
+              </button>
               {expandedImage.url ? (
-                <div className="relative bg-night-100">
+                <div className="relative min-h-0 bg-night-100">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={expandedImage.url}
                     alt={expandedImage.displayLabel ?? "Selected illustration"}
-                    className="max-h-[76vh] w-full object-contain"
+                    className="max-h-[calc(92dvh-96px)] w-full object-contain"
                   />
                 </div>
               ) : null}
-              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+              <div className="shrink-0 flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4">
                 <p
                   id="expanded-image-dialog-title"
                   className="text-sm font-bold text-night-700"
@@ -939,7 +980,7 @@ export default function BookStatusPanel({
                 preview.title !== "Title" &&
                 preview.title !== "Back Cover";
               const isFreeRetry = Boolean(error) || !url;
-              const displayLabel = `Illustration ${index + 1}`;
+              const displayLabel = `Illustration ${index + 1} · ${getArtworkSideLabel(side)}`;
               return (
                 <div
                   key={key}
@@ -954,6 +995,7 @@ export default function BookStatusPanel({
                     aria-label={`Open ${displayLabel}`}
                   >
                     {url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={url}
                         alt={displayLabel}
@@ -965,8 +1007,11 @@ export default function BookStatusPanel({
                       </div>
                     )}
                   </button>
+                  <div className="px-1 py-1.5">
+                    <ArtworkQaSummary preview={preview} side={side} compact />
+                  </div>
                   {canRegenerate ? (
-                    <div className="px-1 py-1.5 text-center">
+                    <div className="px-1 pb-1.5 text-center">
                       <button
                         type="button"
                         onClick={() =>
@@ -1084,7 +1129,8 @@ export default function BookStatusPanel({
               artwork.preview.title !== "Cover" &&
               artwork.preview.title !== "Title" &&
               artwork.preview.title !== "Back Cover";
-            const pageText = spreadTextMap.get(artwork.preview.id) ?? "";
+            const pageText =
+              spreadTextMap.get(`${artwork.preview.id}:${artwork.side}`) ?? "";
 
             return (
               <div className="overflow-hidden rounded-2xl border border-night-100 bg-white shadow-sm">
@@ -1153,6 +1199,13 @@ export default function BookStatusPanel({
                   </div>
                 ) : null}
 
+                <div className="border-t border-night-50 px-5 py-4">
+                  <ArtworkQaSummary
+                    preview={artwork.preview}
+                    side={artwork.side}
+                  />
+                </div>
+
                 {/* Redo row */}
                 {artwork.error || canRegenerate ? (
                   <div className="flex items-center justify-between gap-3 border-t border-night-50 px-5 py-3">
@@ -1173,7 +1226,7 @@ export default function BookStatusPanel({
                             title: artwork.preview.title,
                             side: artwork.side,
                             url: artwork.url,
-                            displayLabel: `Illustration ${readerIndex + 1}`,
+                            displayLabel: `Illustration ${readerIndex + 1} · ${getArtworkSideLabel(artwork.side)}`,
                             index: readerIndex,
                           })
                         }
@@ -1374,6 +1427,36 @@ export default function BookStatusPanel({
         </div>
       ) : null}
 
+      {referencesAreStale && !activeJobStatus ? (
+        <div className="mt-6 rounded-2xl border border-star-200 bg-star-50 p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
+          <div>
+            <p className="text-sm font-bold text-star-800">
+              Newer Character References Are Available
+            </p>
+            <p className="mt-1 text-sm text-star-900">
+              Rebuild the character setup and artwork with the latest child and
+              Family & Friends references
+              {referenceImageCount > 0
+                ? `, including ${referenceImageCount} illustrated reference ${
+                    referenceImageCount === 1 ? "image" : "images"
+                  }`
+                : ""}
+              . {fullRebuildCreditCopy}
+            </p>
+          </div>
+          <Button
+            variant="secondary"
+            onClick={handleRebuildWithLatestReferences}
+            disabled={rebuildingReferences}
+            className="mt-4 sm:mt-0"
+          >
+            {rebuildingReferences
+              ? "Rebuilding..."
+              : "Rebuild With Latest References"}
+          </Button>
+        </div>
+      ) : null}
+
       {(displayStatus === "ready" || displayStatus === "failed") &&
       !activeJobStatus ? (
         <div className="mt-6 rounded-2xl border border-night-100 bg-night-50 p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
@@ -1419,22 +1502,31 @@ export default function BookStatusPanel({
 
       {expandedImage ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-night-900/75 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-night-900/75 p-2 sm:p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="expanded-image-dialog-title"
           onClick={() => setExpandedImage(null)}
         >
           <div
-            className="max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-3xl bg-white shadow-2xl"
+            className="relative flex max-h-[92dvh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:rounded-3xl"
             onClick={(event) => event.stopPropagation()}
           >
+            <button
+              type="button"
+              aria-label="Close artwork preview"
+              onClick={() => setExpandedImage(null)}
+              className="absolute right-2 top-2 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-night-100 bg-white/95 text-2xl font-bold leading-none text-night-800 shadow-lg ring-1 ring-white/70 transition hover:bg-night-50"
+            >
+              ×
+            </button>
             {expandedImage.url ? (
-              <div className="relative bg-night-100">
+              <div className="relative min-h-0 bg-night-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={expandedImage.url}
                   alt={expandedImage.displayLabel ?? "Selected illustration"}
-                  className="max-h-[76vh] w-full object-contain"
+                  className="max-h-[calc(92dvh-112px)] w-full object-contain"
                 />
                 {artworkPreviews.length > 1 ? (
                   <>
@@ -1458,45 +1550,57 @@ export default function BookStatusPanel({
                 ) : null}
               </div>
             ) : null}
-            <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-              <p
-                id="expanded-image-dialog-title"
-                className="text-sm font-bold text-night-700"
-              >
-                {expandedImage.displayLabel ?? "Selected illustration"}
-                {expandedImage.index !== undefined ? (
-                  <span className="ml-2 font-medium text-night-400">
-                    {expandedImage.index + 1} of {artworkPreviews.length}
-                  </span>
-                ) : null}
-              </p>
-              <div className="flex items-center gap-2">
-                {(displayStatus === "ready" || displayStatus === "failed") &&
-                expandedImage.title !== "Cover" &&
-                expandedImage.title !== "Title" &&
-                expandedImage.title !== "Back Cover" ? (
+            <div className="shrink-0 px-4 py-3 sm:px-5 sm:py-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p
+                  id="expanded-image-dialog-title"
+                  className="text-sm font-bold text-night-700"
+                >
+                  {expandedImage.displayLabel ?? "Selected illustration"}
+                  {expandedImage.index !== undefined ? (
+                    <span className="ml-2 font-medium text-night-400">
+                      {expandedImage.index + 1} of {artworkPreviews.length}
+                    </span>
+                  ) : null}
+                </p>
+                <div className="flex items-center gap-2">
+                  {(displayStatus === "ready" || displayStatus === "failed") &&
+                  expandedImage.title !== "Cover" &&
+                  expandedImage.title !== "Title" &&
+                  expandedImage.title !== "Back Cover" ? (
+                    <Button
+                      variant="secondary"
+                      size="compact"
+                      onClick={() => openRedoPrompt(expandedImage)}
+                      disabled={
+                        Boolean(regeneratingImage) || Boolean(activeJobStatus)
+                      }
+                    >
+                      {regeneratingImage ===
+                      `${expandedImage.spreadId}:${expandedImage.side}`
+                        ? "Regenerating…"
+                        : "Redo"}
+                    </Button>
+                  ) : null}
                   <Button
                     variant="secondary"
                     size="compact"
-                    onClick={() => openRedoPrompt(expandedImage)}
-                    disabled={
-                      Boolean(regeneratingImage) || Boolean(activeJobStatus)
-                    }
+                    onClick={() => setExpandedImage(null)}
                   >
-                    {regeneratingImage ===
-                    `${expandedImage.spreadId}:${expandedImage.side}`
-                      ? "Regenerating…"
-                      : "Redo"}
+                    Close
                   </Button>
-                ) : null}
-                <Button
-                  variant="secondary"
-                  size="compact"
-                  onClick={() => setExpandedImage(null)}
-                >
-                  Close
-                </Button>
+                </div>
               </div>
+              {(() => {
+                const preview = spreadPreviews.find(
+                  (item) => item.id === expandedImage.spreadId
+                );
+                return preview ? (
+                  <div className="mt-3">
+                    <ArtworkQaSummary preview={preview} side={expandedImage.side} />
+                  </div>
+                ) : null;
+              })()}
             </div>
           </div>
         </div>

@@ -2,7 +2,10 @@ import { after } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "@/lib/db";
 import { deriveBeatsFromStory } from "@/lib/print-books/beats";
-import { generateCharacterBible } from "@/lib/print-books/characterBible";
+import {
+  enrichCharacterBibleWithLockedRules,
+  generateCharacterBible,
+} from "@/lib/print-books/characterBible";
 import { composePrintBookSpreads } from "@/lib/print-books/composer";
 import {
   applySpreadIllustration,
@@ -53,7 +56,9 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
   if (
     project.status === "queued" ||
     project.status === "planning" ||
-    !project.beats.length
+    !project.beats.length ||
+    (project.assets.lastBuildMode === "full" &&
+      project.assets.referenceSnapshotKey !== context.referenceSnapshotKey)
   ) {
     const beats = deriveBeatsFromStory(context.story);
     return db.bookProjects.update(project.id, {
@@ -62,8 +67,15 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
       errorCode: undefined,
       errorMessage: undefined,
       beats,
+      characterBible: undefined,
+      spreads: [],
       completedSpreads: 0,
       totalSpreads: project.spreadCount,
+      assets: {
+        ...project.assets,
+        referenceSnapshotKey: context.referenceSnapshotKey,
+        referenceImageCount: context.visualReferences.length,
+      },
     });
   }
 
@@ -76,6 +88,7 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
       profile: context.profile,
       story: context.story,
       characters: context.characters,
+      storyPeople: context.storyPeople,
     });
 
     const spreads = composePrintBookSpreads({
@@ -97,6 +110,8 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
       assets: {
         ...project.assets,
         lastBuildMode: "full",
+        referenceSnapshotKey: context.referenceSnapshotKey,
+        referenceImageCount: context.visualReferences.length,
         artGenerationCursor: 0,
         artGenerationTotal: spreads.length,
       },
@@ -110,6 +125,8 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
       story: context.story,
       profile: context.profile,
       characterBible: project.characterBible,
+      visualReferences: context.visualReferences,
+      referenceSnapshotKey: context.referenceSnapshotKey,
       buildMode: "full",
     });
   }
@@ -134,13 +151,23 @@ async function advanceArtBuild(project: BookProject, context: BuildContext) {
     );
   }
 
+  const characterBible = enrichCharacterBibleWithLockedRules(
+    project.characterBible,
+    {
+      profile: context.profile,
+      storyPeople: context.storyPeople,
+    }
+  );
+
   if (project.status === "illustrating") {
     return regenerateProjectArt({
       id: project.id,
       project,
       story: context.story,
       profile: context.profile,
-      characterBible: project.characterBible,
+      characterBible,
+      visualReferences: context.visualReferences,
+      referenceSnapshotKey: context.referenceSnapshotKey,
       buildMode: "art",
     });
   }
@@ -218,13 +245,22 @@ export async function regenerateBookSpreadPageImage(input: {
   }
 
   const context = await loadBuildContext(project);
+  const characterBible = enrichCharacterBibleWithLockedRules(
+    project.characterBible,
+    {
+      profile: context.profile,
+      storyPeople: context.storyPeople,
+    }
+  );
   let generated: Awaited<ReturnType<typeof generateSpreadPageIllustration>>;
   try {
     generated = await generateSpreadPageIllustration({
       project,
       story: context.story,
       profile: context.profile,
-      characterBible: project.characterBible,
+      characterBible,
+      visualReferences: context.visualReferences,
+      referenceSnapshotKey: context.referenceSnapshotKey,
       spread,
       side: input.side,
       correctionNote: input.correctionNote,
@@ -257,6 +293,7 @@ export async function regenerateBookSpreadPageImage(input: {
         : {};
     await db.bookProjects.update(project.id, {
       ...failedImagePatch,
+      characterBible,
       spreads: applySpreadIllustration(project.spreads, failedSpread),
     });
     await logEvent({
@@ -290,6 +327,8 @@ export async function regenerateBookSpreadPageImage(input: {
       input.side === "left"
         ? (generated.webUrl ?? generated.url)
         : (spread.thumbnailUrl ?? spread.leftPageImageUrl ?? generated.url),
+    leftPageQa: input.side === "left" ? generated.qa : spread.leftPageQa,
+    rightPageQa: input.side === "right" ? generated.qa : spread.rightPageQa,
   };
 
   const nextSpreads = applySpreadIllustration(project.spreads, nextSpread);
@@ -298,6 +337,7 @@ export async function regenerateBookSpreadPageImage(input: {
     currentStageLabel: "Refreshing exports with the regenerated image...",
     errorCode: undefined,
     errorMessage: undefined,
+    characterBible,
     spreads: nextSpreads,
     assets: {
       ...project.assets,

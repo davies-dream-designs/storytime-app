@@ -1,4 +1,16 @@
-export type AgeBand = "0-2" | "3-5" | "6-8";
+export type AgeBand =
+  | "baby-drift"
+  | "little-listener"
+  | "toddler-tale"
+  | "first-adventure"
+  | "preschool-story"
+  | "big-kid-chapter"
+  | "young-reader-short"
+  | "young-reader-classic"
+  | "young-reader-long"
+  | "0-2"
+  | "3-5"
+  | "6-8";
 
 export type BookProjectStatus =
   | "queued"
@@ -49,7 +61,7 @@ export interface ProofingCheck {
 }
 
 export type BookSpreadLayoutType =
-  "front_matter" | "text_art" | "hero" | "quiet" | "end_matter";
+  "front_matter" | "text_art" | "hero" | "quiet" | "text_only" | "end_matter";
 
 export type BeatPurpose =
   | "setup"
@@ -82,6 +94,48 @@ export interface CharacterBible {
   renderStyle: string;
   lightingTone: string;
   doNotChange: string[];
+  lockedCharacterRules?: LockedCharacterRule[];
+}
+
+export interface LockedCharacterRule {
+  id: string;
+  name: string;
+  role: "main_child" | "family_friend_pet";
+  relationship?: string;
+  identityRules: string;
+  outfitRules: string;
+  continuityRules: string[];
+}
+
+export interface CharacterVisualReference {
+  id: string;
+  name: string;
+  role: "main_child" | "family_friend_pet";
+  relationship?: string;
+  imageUrl: string;
+  appearance?: string;
+  isStale?: boolean;
+}
+
+export interface ContinuityVisualReference {
+  id: string;
+  label: string;
+  imageUrl: string;
+  source: "cover" | "spread";
+  sequence?: number;
+}
+
+export interface IllustrationGenerationMetadata {
+  provider: "openai" | "placeholder";
+  generatedAt: string;
+  referenceSnapshotKey?: string;
+  characterReferenceIds: string[];
+  characterReferenceNames: string[];
+  continuityReferenceIds: string[];
+  continuityReferenceLabels: string[];
+  staleCharacterReferenceNames?: string[];
+  correctionNote?: string;
+  pageTextOmitted?: boolean;
 }
 
 export interface BookSpread {
@@ -103,6 +157,8 @@ export interface BookSpread {
   leftPageImageError?: string;
   rightPageImageError?: string;
   thumbnailUrl?: string;
+  leftPageQa?: IllustrationGenerationMetadata;
+  rightPageQa?: IllustrationGenerationMetadata;
 }
 
 export interface BookAsset {
@@ -141,6 +197,8 @@ export interface BookAsset {
   activeJobUpdatedAt?: string;
   artGenerationCursor?: number;
   artGenerationTotal?: number;
+  referenceSnapshotKey?: string;
+  referenceImageCount?: number;
   openAIImageBatch?: OpenAIImageBatchAsset;
   orderabilityState?: BookOrderabilityState;
   finalizedAt?: string;

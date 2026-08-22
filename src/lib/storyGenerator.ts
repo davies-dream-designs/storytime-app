@@ -2,15 +2,20 @@ import Anthropic from "@anthropic-ai/sdk";
 import type {
   ChildProfile,
   Character,
+  StoryPerson,
   StoryPage,
   StorySuggestion,
   StoryPreset,
 } from "@/types";
-import { getAge, buildChildAppearanceSummary } from "@/types";
+import { getAge, getStoryPersonRelationshipLabel } from "@/types";
 import {
   assessStoryIdeaIp,
   buildIpSafeGenerationInstruction,
 } from "@/lib/ipGuardrails";
+import {
+  buildChildCanonicalAppearanceContext,
+  buildStoryPersonCanonicalAppearanceContext,
+} from "@/lib/characterReferenceContext";
 
 const client = new Anthropic();
 
@@ -27,23 +32,98 @@ const LOCALE_LANGUAGE: Record<string, string> = {
 };
 
 const STORY_PRESET_CONFIG = {
+  "baby-drift": {
+    words: "90-140",
+    pages: "8",
+    maxPages: 8,
+    sentencesPerPage: "1 very short",
+    style:
+      "lullaby-like, sensory, repetitive, almost no plot, designed for a baby being read to sleep",
+  },
+  "little-listener": {
+    words: "140-220",
+    pages: "10",
+    maxPages: 10,
+    sentencesPerPage: "1 short",
+    style:
+      "simple bedtime routine, familiar objects, warm repetition, gentle cause and effect",
+  },
+  "toddler-tale": {
+    words: "220-340",
+    pages: "12",
+    maxPages: 12,
+    sentencesPerPage: "1-2 short",
+    style:
+      "tiny adventure with one clear feeling or lesson and a satisfying bedtime close",
+  },
+  "first-adventure": {
+    words: "350-500",
+    pages: "12-14",
+    maxPages: 14,
+    sentencesPerPage: "2 short",
+    style:
+      "simple plot, playful surprise, a little more agency, still very bedtime-safe",
+  },
+  "preschool-story": {
+    words: "450-650",
+    pages: "14",
+    maxPages: 14,
+    sentencesPerPage: "2",
+    style:
+      "clear story arc, playful detail, lesson through action, cosy bedtime resolution",
+  },
+  "big-kid-chapter": {
+    words: "750-1050",
+    pages: "16",
+    maxPages: 16,
+    sentencesPerPage: "2-3",
+    style:
+      "early chapter-book style with richer plot, more dialogue, stronger child agency, and fewer image-dependent moments",
+  },
+  "young-reader-short": {
+    words: "1200-1600",
+    pages: "18-22",
+    maxPages: 22,
+    sentencesPerPage: "3-5",
+    style:
+      "short chapter-book style with scene breaks, more interior thoughts, and occasional illustration-worthy moments",
+  },
+  "young-reader-classic": {
+    words: "1800-2400",
+    pages: "24-30",
+    maxPages: 30,
+    sentencesPerPage: "3-5",
+    style:
+      "classic chapter-book style with a fuller arc, chapter-like beats, more dialogue, and sparse illustration-worthy moments",
+  },
+  "young-reader-long": {
+    words: "2600-3400",
+    pages: "32-40",
+    maxPages: 40,
+    sentencesPerPage: "4-6",
+    style:
+      "longer chapter-book style with several linked scenes, richer emotional payoff, and sparse illustration-worthy moments",
+  },
   "tiny-tales": {
     words: "150–250",
     pages: "4–6",
     maxPages: 6,
     sentencesPerPage: "1",
+    style: "legacy toddler picture-book style",
   },
   "moonlit-adventures": {
     words: "350–550",
     pages: "8–10",
     maxPages: 10,
     sentencesPerPage: "2–3",
+    style: "legacy balanced picture-book style",
   },
   "epic-sagas": {
     words: "600–900",
     pages: "10–14",
     maxPages: 14,
     sentencesPerPage: "3–4",
+    style: "legacy older-child picture-book style",
   },
 } as const;
 
@@ -63,6 +143,7 @@ function buildGenderPromptLine(profile: ChildProfile): string {
 interface GenerateStoryInput {
   profile: ChildProfile;
   characters: Character[];
+  storyPeople?: StoryPerson[];
   theme: string;
   premise?: string;
   notes: string;
@@ -120,7 +201,7 @@ export function prepareGeneratedStoryForPostCheck(
   input: Pick<GenerateStoryInput, "storyPreset">,
   story: GeneratedStory
 ): GeneratedStory {
-  const preset = STORY_PRESET_CONFIG[input.storyPreset ?? "moonlit-adventures"];
+  const preset = STORY_PRESET_CONFIG[input.storyPreset ?? "preschool-story"];
   const seenTexts = new Set<string>();
   const uniquePages: StoryPage[] = [];
 
@@ -144,6 +225,7 @@ export function buildStoryPrompt(input: GenerateStoryInput): string {
   const {
     profile,
     characters,
+    storyPeople = [],
     theme,
     premise,
     notes,
@@ -152,7 +234,7 @@ export function buildStoryPrompt(input: GenerateStoryInput): string {
     locale,
   } = input;
   const language = LOCALE_LANGUAGE[locale ?? "en"] ?? "English";
-  const len = STORY_PRESET_CONFIG[storyPreset ?? "moonlit-adventures"];
+  const len = STORY_PRESET_CONFIG[storyPreset ?? "preschool-story"];
   const originalCharacters = characters.filter((character) => {
     const policy = assessStoryIdeaIp({
       premise: `${character.name} ${character.description}`,
@@ -160,16 +242,30 @@ export function buildStoryPrompt(input: GenerateStoryInput): string {
     });
     return policy.riskLevel === "clear";
   });
+  const originalStoryPeople = storyPeople.filter((person) => {
+    const policy = assessStoryIdeaIp({
+      premise: `${person.name} ${getStoryPersonRelationshipLabel(person)} ${person.description}`,
+      notes: `${person.personality} ${buildStoryPersonCanonicalAppearanceContext(person)}`,
+    });
+    return policy.riskLevel === "clear";
+  });
 
+  const familySection =
+    originalStoryPeople.length > 0
+      ? `\n\nSelected family, friends, pets, or story people to include when they fit naturally:
+${originalStoryPeople.map((person) => `- ${person.name} (${getStoryPersonRelationshipLabel(person)}${person.pronouns ? `, ${person.pronouns}` : ""}): ${person.description || "No description provided."} Personality: ${person.personality || "No personality notes provided."} Appearance: ${buildStoryPersonCanonicalAppearanceContext(person) || "No appearance notes provided."}`).join("\n")}`
+      : "";
   const characterSection =
     originalCharacters.length > 0
-      ? `\n\nEstablished characters (use these exactly as described):
+      ? `\n\nLegacy saved characters for this child:
 ${originalCharacters.map((c) => `- ${c.name}: ${c.description}. Personality: ${c.personality}. Appearance: ${c.appearance}.`).join("\n")}`
       : "";
 
   const premiseSection = premise
     ? `\n\nStory premise (this is the spine - follow it closely):
-${premise}`
+${premise}
+
+Stay grounded and true to this premise. Include every element the premise names (for example, if it mentions both ice cream and chips, both appear as ordinary food). Keep everyday objects, food, animals, and settings realistic and physically plausible - do NOT turn an incidental or side detail into a giant, surreal, magical, or physically impossible centrepiece, and do not let a minor noun take over the plot, unless the premise explicitly asks for fantasy or magic. Gentle, cosy imagination is welcome; nonsensical or bizarre imagery is not.`
     : "";
 
   const notesSection = notes ? `\n\nExtra details to include: ${notes}` : "";
@@ -185,24 +281,27 @@ ${recentTitles.map((t) => `- ${t}`).join("\n")}`
 
 Child: ${profile.name}, age ${getAge(profile)}
 ${buildGenderPromptLine(profile)}
+- Appearance reference: ${buildChildCanonicalAppearanceContext(profile) || "No structured appearance details provided."}
 - Theme/lesson: ${theme || "a gentle adventure"}
-${characterSection}${premiseSection}${notesSection}${avoidSection}
+${familySection}${characterSection}${premiseSection}${notesSection}${avoidSection}
 
 Write the story in ${language}. Write a warm, age-appropriate bedtime story that:
 1. Features ${profile.name} as the main character
 2. Follows this 5-part structure: introduction → adventure/problem → character growth → resolution → calm bedtime ending
 3. Uses simple vocabulary appropriate for age ${getAge(profile)}
 4. Is approximately ${len.words} words total
-5. Has a positive, cosy tone ending with ${profile.name} settling down to sleep
-6. Clearly weaves in the theme: ${theme || "a gentle adventure"}. Include one small age-appropriate moment where ${profile.name} notices, practices, or learns this theme through action, then carry that lesson into the calm ending.
-7. Feels FRESH and DIFFERENT from typical stories - surprise us with the opening
-8. Uses some warm repetition suitable for young children
-9. Does NOT include "The End", "Sweet dreams", "Goodnight", or any closing sign-off in the story text - the last page ends naturally with the child drifting to sleep
-10. Avoids scenes that could look unsafe or sensitive when illustrated: no bathing, toilets, undressing, visible underwear/nappies, medical treatment, injuries, restraint, scary peril, weapons, drowning, or a child alone in risky water.
-11. Keeps ${profile.name} visibly clothed, safe, comfortable, and supervised or clearly secure in every visual moment. If water appears, keep it shallow/calm and frame ${profile.name} safely on dry ground or with a trusted adult nearby.
-12. Avoids close-up descriptions of private/sensitive body areas. Do not focus illustration prompts on feet, bare skin, mud on body parts, vulnerability, fear, hiding, or being watched.
-13. Makes every illustrationPrompt image-safe: describe setting, characters, action, mood, clothing, and composition only. Do not quote story prose. Do not include wording about nudity, bare body parts, bathing, toilets, fear, injury, danger, restraint, or a child being alone near water.
-14. Follows all IP originality requirements below.
+5. Matches this reading style: ${len.style}
+6. Has a positive, cosy tone ending with ${profile.name} settling down to sleep
+7. Clearly weaves in the theme: ${theme || "a gentle adventure"}. Include one small age-appropriate moment where ${profile.name} notices, practices, or learns this theme through action, then carry that lesson into the calm ending.
+8. Feels FRESH and DIFFERENT from typical stories through the telling, characters, and small moments - surprise us with the opening, but keep the premise and its everyday details grounded and realistic
+9. Uses warm repetition for ages 0-5; uses chapter-like progression and less repetition for ages 6+
+10. Does not invent named parents, grandparents, siblings, friends, or pets. Use only selected people listed above, legacy saved characters, or generic phrases like "a grown-up nearby" when an adult presence is needed.
+11. Does NOT include "The End", "Sweet dreams", "Goodnight", or any closing sign-off in the story text - the last page ends naturally with the child drifting to sleep
+12. Avoids scenes that could look unsafe or sensitive when illustrated: no bathing, toilets, undressing, visible underwear/nappies, medical treatment, injuries, restraint, scary peril, weapons, drowning, or a child alone in risky water.
+13. Keeps ${profile.name} visibly clothed, safe, comfortable, and supervised or clearly secure in every visual moment. If water appears, keep it shallow/calm and frame ${profile.name} safely on dry ground or with a trusted adult nearby.
+14. Avoids close-up descriptions of private/sensitive body areas. Do not focus illustration prompts on feet, bare skin, mud on body parts, vulnerability, fear, hiding, or being watched.
+15. Makes every illustrationPrompt image-safe: describe setting, characters, action, mood, clothing, and composition only. Do not quote story prose. Do not include wording about nudity, bare body parts, bathing, toilets, fear, injury, danger, restraint, or a child being alone near water.
+16. Follows all IP originality requirements below.
 
 ${ipSection}
 
@@ -507,6 +606,7 @@ export async function generateSuggestions(
   options: {
     selectedTheme?: string;
     previousSuggestions?: StorySuggestion[];
+    storyPeople?: StoryPerson[];
   } = {}
 ): Promise<StorySuggestion[]> {
   const language = LOCALE_LANGUAGE[locale ?? "en"] ?? "English";
@@ -526,19 +626,36 @@ export async function generateSuggestions(
           )
           .join("\n")}`
       : "";
+  const originalStoryPeople = (options.storyPeople ?? []).filter((person) => {
+    const policy = assessStoryIdeaIp({
+      premise: `${person.name} ${getStoryPersonRelationshipLabel(person)} ${person.description}`,
+      notes: `${person.personality} ${buildStoryPersonCanonicalAppearanceContext(person)}`,
+    });
+    return policy.riskLevel === "clear";
+  });
+  const familySection =
+    originalStoryPeople.length > 0
+      ? `\n\nSelected family, friends, pets, or other child profiles to include when they fit naturally:\n${originalStoryPeople
+          .map(
+            (person) =>
+              `- ${person.name} (${getStoryPersonRelationshipLabel(person)}${person.pronouns ? `, ${person.pronouns}` : ""}): ${person.description || "No description provided."} Personality: ${person.personality || "No personality notes provided."}`
+          )
+          .join("\n")}`
+      : "";
 
   const prompt = `You are a creative children's story idea generator.
 
 Child profile:
 - Name: ${profile.name}, age ${getAge(profile)}
 ${buildGenderPromptLine(profile)}
-- Appearance: ${buildChildAppearanceSummary(profile.appearance) || "No structured appearance details provided."}
+- Appearance: ${buildChildCanonicalAppearanceContext(profile) || "No structured appearance details provided."}
 - Favourite toys: ${(profile.favouriteCharacters ?? []).join(", ") || "none"}
 - Favourite activities: ${(profile.favouriteActivities ?? []).join(", ") || "none"}
 - Favourite animals: ${(profile.favouriteAnimals ?? []).join(", ") || "none"}
 - Favourite places: ${(profile.favouritePlaces ?? []).join(", ") || "none"}
 - Themes they like: ${(profile.lessons ?? []).join(", ") || "adventure, kindness"}
 Selected theme for this batch: ${selectedTheme}
+${familySection}
 ${avoidSection}
 ${previousIdeasSection}
 
@@ -548,6 +665,7 @@ Each should:
 - Use DIFFERENT elements from their profile (don't repeat the same toys/places across all 3)
 - Avoid repeating any profile element, setting, problem, or ending from the already-shown ideas
 - Have a fresh, specific premise - not generic ("goes on an adventure")
+- If selected family/friends/pets/other child profiles are listed, make at least one idea naturally include one or more of them by name. Do not invent named parents, grandparents, siblings, friends, or pets that are not listed.
 - Be warm and cosy, suitable for bedtime
 - Feel genuinely different from each other in setting, tone, and focus
 

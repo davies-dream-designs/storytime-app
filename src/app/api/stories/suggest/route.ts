@@ -3,6 +3,10 @@ import { auth } from "@clerk/nextjs/server";
 import { kv } from "@vercel/kv";
 import { db } from "@/lib/db";
 import { generateSuggestions } from "@/lib/storyGenerator";
+import {
+  getSelectedStoryPeople,
+  normalizeStoryPersonIds,
+} from "@/lib/storyPeopleSelection";
 import type { StorySuggestion } from "@/types";
 
 const CACHE_TTL_SECONDS = 60 * 60 * 24; // 24 hours
@@ -22,16 +26,23 @@ function uniqueSuggestions(suggestions: StorySuggestion[]) {
   });
 }
 
+function buildCastCacheKeyPart(storyPersonIds: unknown) {
+  const ids = normalizeStoryPersonIds(storyPersonIds).sort();
+  return ids.length > 0 ? ids.join(",") : "none";
+}
+
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { profileId, locale, fresh, theme } = (await req.json()) as {
+  const { profileId, locale, fresh, theme, storyPersonIds } =
+    (await req.json()) as {
     profileId: string;
     locale?: string;
     fresh?: boolean;
     theme?: string;
+    storyPersonIds?: string[];
   };
   if (!profileId)
     return NextResponse.json(
@@ -52,7 +63,8 @@ export async function POST(req: NextRequest) {
   }
 
   const selectedTheme = normalizeTheme(theme || profile.lessons?.[0]);
-  const cacheKey = `suggestions:${profileId}:${locale ?? "en"}:${selectedTheme}`;
+  const castCacheKeyPart = buildCastCacheKeyPart(storyPersonIds);
+  const cacheKey = `suggestions:${profileId}:${locale ?? "en"}:${selectedTheme}:${castCacheKeyPart}`;
   const cached = (await kv.get<StorySuggestion[]>(cacheKey)) ?? [];
   if (!fresh) {
     if (cached.length > 0) return NextResponse.json(cached);
@@ -65,10 +77,16 @@ export async function POST(req: NextRequest) {
     .sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1))
     .slice(0, 5)
     .map((s) => s.title);
+  const selectedStoryPeople = await getSelectedStoryPeople({
+    userId,
+    profileId,
+    storyPersonIds,
+  });
 
   const suggestions = await generateSuggestions(profile, recentStories, locale, {
     selectedTheme,
     previousSuggestions: cached,
+    storyPeople: selectedStoryPeople,
   });
   const accumulated = uniqueSuggestions([...cached, ...suggestions]).slice(
     0,

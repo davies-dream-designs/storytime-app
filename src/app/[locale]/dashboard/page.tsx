@@ -15,11 +15,12 @@ import { getStoryThemeName } from "@/lib/storyTheme";
 
 export default async function Dashboard() {
   const { userId } = await auth();
-  const [t, tHome, profiles, storiesRaw] = await Promise.all([
+  const [t, tHome, profiles, storiesRaw, storyPeople] = await Promise.all([
     getTranslations("dashboard"),
     getTranslations("home"),
     db.profiles.getByUserId(userId!),
     db.stories.getByUserId(userId!),
+    db.storyPeople.getByUserId(userId!),
   ]);
   const themeNames = tHome.raw("themes") as Record<string, string>;
   const stories = storiesRaw.sort((a, b) =>
@@ -41,7 +42,7 @@ export default async function Dashboard() {
           profilesCount={profiles.length}
         />
 
-        <div className="mb-10 grid gap-4 sm:grid-cols-3">
+        <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
             {
               label: t("statProfiles"),
@@ -54,6 +55,12 @@ export default async function Dashboard() {
               value: stories.length,
               icon: "book",
               href: "/stories",
+            },
+            {
+              label: t("statFamily"),
+              value: storyPeople.length,
+              icon: "profile",
+              href: "/family",
             },
             {
               label: t("statLastStory"),
@@ -109,6 +116,18 @@ export default async function Dashboard() {
               <p className="text-sm text-night-400">{t("addProfileSub")}</p>
             </div>
           </Link>
+          <Link
+            href="/family"
+            className="flex items-center gap-4 rounded-2xl border border-night-100 bg-white px-6 py-5 text-night-600 transition hover:border-night-300 hover:text-night-800 hover:shadow-sm"
+          >
+            <Icon name="profile" className="h-7 w-7" />
+            <div>
+              <p className="font-display text-lg font-bold">
+                {t("familyTitle")}
+              </p>
+              <p className="text-sm text-night-400">{t("familySub")}</p>
+            </div>
+          </Link>
         </div>
 
         {recentStories.length > 0 && (
@@ -145,10 +164,7 @@ export default async function Dashboard() {
 
         {stories.length === 0 && profiles.length === 0 && (
           <div className="rounded-3xl border-2 border-dashed border-night-200 p-16 text-center">
-            <Icon
-              name="sparkle"
-              className="mx-auto h-10 w-10 text-star-500"
-            />
+            <Icon name="sparkle" className="mx-auto h-10 w-10 text-star-500" />
             <h2 className="mt-4 font-display text-2xl font-bold text-night-700">
               {t("emptyTitle")}
             </h2>

@@ -137,6 +137,23 @@ describe("public story actions", () => {
     );
   });
 
+  it("requires a note for other report reasons", async () => {
+    const { POST } = await import("@/app/api/public-stories/[id]/report/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/public-stories/story-1/report", {
+        method: "POST",
+        body: JSON.stringify({ reason: "other" }),
+      }),
+      { params: Promise.resolve({ id: "story-1" }) }
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({
+      error: "Please tell us what needs review.",
+    });
+    expect(mockDb.publicStoryReports.create).not.toHaveBeenCalled();
+  });
+
   it("auto-hides a story after three open reports", async () => {
     mockDb.publicStoryReports.countOpenByStoryId.mockResolvedValue(3);
 

@@ -114,6 +114,13 @@ export const ERROR_REGISTRY = {
     userMessage:
       "We're being rate-limited by the image service. Retry in a moment.",
   },
+  "book.reference_image_unavailable": {
+    domain: "book",
+    severity: "warning",
+    retryable: true,
+    userMessage:
+      "A character reference image could not be loaded, so we'll use text details instead.",
+  },
   "book.cover_failed": {
     domain: "book",
     severity: "warning",

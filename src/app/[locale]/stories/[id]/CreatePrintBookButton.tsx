@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
+import { useConfirmDialog } from "@/components/ui/useConfirmDialog";
 
 export default function CreatePrintBookButton({
   storyId,
@@ -13,7 +14,6 @@ export default function CreatePrintBookButton({
   illustrationCount,
   userCredits,
   isAdmin,
-  storyPreset,
   compact = false,
 }: {
   storyId: string;
@@ -22,13 +22,13 @@ export default function CreatePrintBookButton({
   illustrationCount: number;
   userCredits: number;
   isAdmin: boolean;
-  storyPreset?: string;
   compact?: boolean;
 }) {
   const t = useTranslations("books");
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { confirm, ConfirmDialog } = useConfirmDialog();
 
   const hasEnoughCredits = isAdmin || userCredits >= credits;
 
@@ -50,9 +50,12 @@ export default function CreatePrintBookButton({
   }
 
   async function handleCreate() {
-    if (!window.confirm(t("creditConfirm", { credits }))) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: t("createButton"),
+      message: t("creditConfirm", { credits }),
+      confirmLabel: t("createButton"),
+    });
+    if (!confirmed) return;
 
     setLoading(true);
     setError(null);
@@ -94,30 +97,11 @@ export default function CreatePrintBookButton({
     }
   }
 
-  const estimateBodyText =
-    storyPreset === "tiny-tales"
-      ? t("estimateBodyTinyTales", {
-          credits,
-          pages: pageCount,
-          illustrations: illustrationCount,
-        })
-      : storyPreset === "moonlit-adventures"
-        ? t("estimateBodyMoonlitAdventures", {
-            credits,
-            pages: pageCount,
-            illustrations: illustrationCount,
-          })
-        : storyPreset === "epic-sagas"
-          ? t("estimateBodyEpicSagas", {
-              credits,
-              pages: pageCount,
-              illustrations: illustrationCount,
-            })
-          : t("estimateBody", {
-              credits,
-              pages: pageCount,
-              illustrations: illustrationCount,
-            });
+  const estimateBodyText = t("estimateBody", {
+    credits,
+    pages: pageCount,
+    illustrations: illustrationCount,
+  });
 
   const estimateBox = (
     <div className="mb-3 max-w-md rounded-2xl border border-star-200 bg-star-50 px-4 py-3 text-sm text-night-600">
@@ -129,30 +113,36 @@ export default function CreatePrintBookButton({
   if (!hasEnoughCredits) {
     if (compact) {
       return (
-        <Link
-          href="/account"
-          className="storycot-btn storycot-btn-secondary border-blush-200 bg-blush-50 text-blush-700 hover:bg-blush-100"
-        >
-          <Icon name="account" />
-          Top up credits
-        </Link>
+        <>
+          <Link
+            href="/account"
+            className="storycot-btn storycot-btn-secondary border-blush-200 bg-blush-50 text-blush-700 hover:bg-blush-100"
+          >
+            <Icon name="account" />
+            Top up credits
+          </Link>
+          <ConfirmDialog />
+        </>
       );
     }
     return (
-      <div className="basis-full sm:basis-auto">
-        {estimateBox}
-        <div className="mb-3 max-w-md rounded-2xl border border-blush-200 bg-blush-100 px-4 py-3 text-sm">
-          <p className="font-bold text-blush-700">Not enough credits</p>
-          <p className="mt-1 text-blush-600">
-            You have {userCredits} credit{userCredits === 1 ? "" : "s"} - this
-            book costs {credits}. Top up to unlock illustrations.
-          </p>
+      <>
+        <div className="basis-full sm:basis-auto">
+          {estimateBox}
+          <div className="mb-3 max-w-md rounded-2xl border border-blush-200 bg-blush-100 px-4 py-3 text-sm">
+            <p className="font-bold text-blush-700">Not enough credits</p>
+            <p className="mt-1 text-blush-600">
+              You have {userCredits} credit{userCredits === 1 ? "" : "s"} -
+              this book costs {credits}. Top up to unlock illustrations.
+            </p>
+          </div>
+          <Link href="/account" className="storycot-btn storycot-btn-primary">
+            <Icon name="account" />
+            Top up credits
+          </Link>
         </div>
-        <Link href="/account" className="storycot-btn storycot-btn-primary">
-          <Icon name="account" />
-          Top up credits
-        </Link>
-      </div>
+        <ConfirmDialog />
+      </>
     );
   }
 
@@ -174,40 +164,44 @@ export default function CreatePrintBookButton({
             {error}
           </p>
         ) : null}
+        <ConfirmDialog />
       </>
     );
   }
 
   return (
-    <div className={error ? "basis-full sm:basis-auto" : ""}>
-      {estimateBox}
-      <Button
-        variant="secondary"
-        size="compact"
-        onClick={handleCreate}
-        disabled={loading}
-        className={`border-star-200 bg-star-50 text-star-700 hover:bg-star-100 ${
-          error ? "w-full sm:w-auto" : ""
-        }`}
-      >
-        <Icon name="image" />
-        {loading ? t("creatingButton") : t("createButton")}
-      </Button>
-      {error ? (
-        <div className="mt-3 max-w-md rounded-2xl border border-blush-200 bg-blush-100 px-4 py-3 text-sm text-blush-700 sm:max-w-sm">
-          <p className="font-bold">{t("createErrorTitle")}</p>
-          <p className="mt-1">{error}</p>
-          {/insufficient credits/i.test(error) ? (
-            <Link
-              href="/account"
-              className="storycot-btn storycot-btn-primary mt-3 inline-block text-sm"
-            >
-              <Icon name="account" />
-              Top up credits
-            </Link>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
+    <>
+      <div className={error ? "basis-full sm:basis-auto" : ""}>
+        {estimateBox}
+        <Button
+          variant="secondary"
+          size="compact"
+          onClick={handleCreate}
+          disabled={loading}
+          className={`border-star-200 bg-star-50 text-star-700 hover:bg-star-100 ${
+            error ? "w-full sm:w-auto" : ""
+          }`}
+        >
+          <Icon name="image" />
+          {loading ? t("creatingButton") : t("createButton")}
+        </Button>
+        {error ? (
+          <div className="mt-3 max-w-md rounded-2xl border border-blush-200 bg-blush-100 px-4 py-3 text-sm text-blush-700 sm:max-w-sm">
+            <p className="font-bold">{t("createErrorTitle")}</p>
+            <p className="mt-1">{error}</p>
+            {/insufficient credits/i.test(error) ? (
+              <Link
+                href="/account"
+                className="storycot-btn storycot-btn-primary mt-3 inline-block text-sm"
+              >
+                <Icon name="account" />
+                Top up credits
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+      <ConfirmDialog />
+    </>
   );
 }

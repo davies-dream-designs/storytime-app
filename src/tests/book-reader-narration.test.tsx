@@ -117,6 +117,36 @@ function projectWithTwoTextSpreads(): BookProject {
   };
 }
 
+function projectWithMixedSpreads(): BookProject {
+  const project = projectWithTwoTextSpreads();
+  return {
+    ...project,
+    spreadCount: 3,
+    completedSpreads: 3,
+    totalSpreads: 3,
+    spreads: [
+      project.spreads[0]!,
+      {
+        id: "spread-text-only",
+        bookProjectId: "book-1",
+        sequence: 2,
+        pageStart: 3,
+        pageEnd: 4,
+        layoutType: "text_only",
+        title: "Quiet page",
+        leftPageText: "This is a longer reading beat without its own art.",
+        rightPageText: "",
+        sceneBrief: "",
+        illustrationPrompt: "",
+      },
+      {
+        ...project.spreads[1]!,
+        sequence: 3,
+      },
+    ],
+  };
+}
+
 describe("BookReader narration", () => {
   beforeEach(() => {
     MockAudio.instances = [];
@@ -168,5 +198,21 @@ describe("BookReader narration", () => {
     expect(MockAudio.instances[0]?.src).toBe(
       "https://audio.test/spread-2.mp3"
     );
+  });
+
+  it("shows text-only spreads in fullscreen without a missing-illustration panel", async () => {
+    render(<BookReader project={projectWithMixedSpreads()} />);
+
+    fireEvent.click(screen.getByLabelText("viewFullScreen"));
+    fireEvent.click(screen.getAllByLabelText("nextPage")[0]!);
+
+    expect(
+      screen.getAllByText("This is a longer reading beat without its own art.")
+        .length
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText("noIllustration")).not.toBeInTheDocument();
+    expect(screen.queryByText("illustrationComingSoon")).not.toBeInTheDocument();
+    expect(screen.getAllByLabelText("previousPage").length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText("nextPage").length).toBeGreaterThan(0);
   });
 });

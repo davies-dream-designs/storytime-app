@@ -13,7 +13,13 @@ import {
 } from "drizzle-orm";
 import { getClient } from "./client";
 import * as schema from "./schema";
-import type { ChildProfile, Story, Character, StoryPreset } from "@/types";
+import type {
+  ChildProfile,
+  Story,
+  Character,
+  StoryPerson,
+  StoryPreset,
+} from "@/types";
 import type {
   BookBuildJob,
   BookProject,
@@ -35,6 +41,8 @@ import {
 type ProfileRow = typeof schema.profiles.$inferSelect;
 type StoryRow = typeof schema.stories.$inferSelect;
 type CharacterRow = typeof schema.characters.$inferSelect;
+type StoryPersonRow = typeof schema.storyPeople.$inferSelect;
+type StoryPersonProfileRow = typeof schema.storyPersonProfiles.$inferSelect;
 type BookProjectRow = typeof schema.bookProjects.$inferSelect;
 type BookBuildJobRow = typeof schema.bookBuildJobs.$inferSelect;
 type GiftOrderRow = typeof schema.giftOrders.$inferSelect;
@@ -64,6 +72,10 @@ function rowToProfile(row: ProfileRow): ChildProfile {
     dateOfBirth: row.dateOfBirth ?? undefined,
     gender: row.gender ?? "not_specified",
     appearance: row.appearance ?? undefined,
+    avatarImageUrl: row.avatarImageUrl ?? undefined,
+    appearanceSummary: row.appearanceSummary ?? undefined,
+    avatarTraitHash: row.avatarTraitHash ?? undefined,
+    avatarGeneratedAt: row.avatarGeneratedAt ?? undefined,
     favouriteCharacters: row.favouriteCharacters ?? [],
     favouriteActivities: row.favouriteActivities ?? [],
     favouriteAnimals: row.favouriteAnimals ?? [],
@@ -82,6 +94,10 @@ function profileToRow(p: ChildProfile) {
     dateOfBirth: p.dateOfBirth ?? null,
     gender: p.gender ?? "not_specified",
     appearance: p.appearance ?? null,
+    avatarImageUrl: p.avatarImageUrl ?? null,
+    appearanceSummary: p.appearanceSummary ?? null,
+    avatarTraitHash: p.avatarTraitHash ?? null,
+    avatarGeneratedAt: p.avatarGeneratedAt ?? null,
     favouriteCharacters: p.favouriteCharacters,
     favouriteActivities: p.favouriteActivities,
     favouriteAnimals: p.favouriteAnimals,
@@ -104,6 +120,7 @@ function rowToStory(row: StoryRow): Story {
     premise: row.premise ?? undefined,
     notes: row.notes,
     storyPreset: row.storyPreset ?? undefined,
+    storyPersonIds: row.storyPersonIds ?? [],
     ipPolicy: row.ipPolicy ?? undefined,
     createdAt: row.createdAt,
     status: row.status ?? undefined,
@@ -133,6 +150,7 @@ function storyToRow(s: Story) {
     premise: s.premise ?? null,
     notes: s.notes,
     storyPreset: s.storyPreset ?? null,
+    storyPersonIds: s.storyPersonIds ?? [],
     ipPolicy: s.ipPolicy ?? null,
     createdAt: s.createdAt,
     status: s.status ?? null,
@@ -147,6 +165,71 @@ function storyToRow(s: Story) {
     publicAuthorName: s.publicAuthorName ?? null,
     publicTermsAcceptedAt: s.publicTermsAcceptedAt ?? null,
   };
+}
+
+function rowToStoryPerson(
+  row: StoryPersonRow,
+  profileIds: string[] = []
+): StoryPerson {
+  return {
+    id: row.id,
+    userId: row.userId,
+    name: row.name,
+    relationship: row.relationship,
+    customRelationship: row.customRelationship ?? undefined,
+    bodyBuild: row.bodyBuild ?? undefined,
+    ageGroup: row.ageGroup ?? undefined,
+    height: row.height ?? undefined,
+    description: row.description,
+    personality: row.personality,
+    appearance: row.appearance,
+    pronouns: row.pronouns ?? undefined,
+    avatarImageUrl: row.avatarImageUrl ?? undefined,
+    appearanceSummary: row.appearanceSummary ?? undefined,
+    avatarTraitHash: row.avatarTraitHash ?? undefined,
+    avatarGeneratedAt: row.avatarGeneratedAt ?? undefined,
+    availableToAllProfiles: row.availableToAllProfiles,
+    profileIds,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function storyPersonToRow(person: StoryPerson) {
+  return {
+    id: person.id,
+    userId: person.userId,
+    name: person.name,
+    relationship: person.relationship,
+    customRelationship: person.customRelationship ?? null,
+    bodyBuild: person.bodyBuild ?? null,
+    ageGroup: person.ageGroup ?? null,
+    height: person.height ?? null,
+    description: person.description,
+    personality: person.personality,
+    appearance: person.appearance,
+    pronouns: person.pronouns ?? null,
+    avatarImageUrl: person.avatarImageUrl ?? null,
+    appearanceSummary: person.appearanceSummary ?? null,
+    avatarTraitHash: person.avatarTraitHash ?? null,
+    avatarGeneratedAt: person.avatarGeneratedAt ?? null,
+    availableToAllProfiles: person.availableToAllProfiles,
+    createdAt: person.createdAt,
+    updatedAt: person.updatedAt,
+  };
+}
+
+function profileIdsByPersonId(
+  links: StoryPersonProfileRow[]
+): Map<string, string[]> {
+  const byId = new Map<string, string[]>();
+  for (const link of links) {
+    byId.set(link.storyPersonId, [
+      ...(byId.get(link.storyPersonId) ?? []),
+      link.profileId,
+    ]);
+  }
+  return byId;
 }
 
 function rowToCharacter(row: CharacterRow): Character {
@@ -437,6 +520,18 @@ export const db = {
         .where(eq(schema.profiles.userId, userId));
       return rows.map(rowToProfile);
     },
+    async countAvatarReferencesByUserId(userId: string): Promise<number> {
+      const rows = await getClient()
+        .select({ count: sql<number>`count(*)` })
+        .from(schema.profiles)
+        .where(
+          and(
+            eq(schema.profiles.userId, userId),
+            isNotNull(schema.profiles.avatarImageUrl)
+          )
+        );
+      return Number(rows[0]?.count ?? 0);
+    },
     async getById(id: string): Promise<ChildProfile | undefined> {
       const rows = await getClient()
         .select()
@@ -555,6 +650,149 @@ export const db = {
       await Promise.all(books.map((book) => db.bookProjects.delete(book.id)));
       await getClient().delete(schema.stories).where(eq(schema.stories.id, id));
       return true;
+    },
+  },
+
+  storyPeople: {
+    async getByUserId(userId: string): Promise<StoryPerson[]> {
+      const [rows, links] = await Promise.all([
+        getClient()
+          .select()
+          .from(schema.storyPeople)
+          .where(eq(schema.storyPeople.userId, userId)),
+        getClient()
+          .select()
+          .from(schema.storyPersonProfiles)
+          .where(eq(schema.storyPersonProfiles.userId, userId)),
+      ]);
+      const profileIds = profileIdsByPersonId(links);
+      return rows.map((row) =>
+        rowToStoryPerson(row, profileIds.get(row.id) ?? [])
+      );
+    },
+    async countAvatarReferencesByUserId(userId: string): Promise<number> {
+      const rows = await getClient()
+        .select({ count: sql<number>`count(*)` })
+        .from(schema.storyPeople)
+        .where(
+          and(
+            eq(schema.storyPeople.userId, userId),
+            isNotNull(schema.storyPeople.avatarImageUrl)
+          )
+        );
+      return Number(rows[0]?.count ?? 0);
+    },
+    async getByProfileId(
+      profileId: string,
+      userId: string
+    ): Promise<StoryPerson[]> {
+      const people = await this.getByUserId(userId);
+      return people.filter(
+        (person) =>
+          person.availableToAllProfiles || person.profileIds.includes(profileId)
+      );
+    },
+    async getByIds(ids: string[], userId: string): Promise<StoryPerson[]> {
+      const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+      if (uniqueIds.length === 0) return [];
+      const [rows, links] = await Promise.all([
+        getClient()
+          .select()
+          .from(schema.storyPeople)
+          .where(
+            and(
+              eq(schema.storyPeople.userId, userId),
+              inArray(schema.storyPeople.id, uniqueIds)
+            )
+          ),
+        getClient()
+          .select()
+          .from(schema.storyPersonProfiles)
+          .where(
+            and(
+              eq(schema.storyPersonProfiles.userId, userId),
+              inArray(schema.storyPersonProfiles.storyPersonId, uniqueIds)
+            )
+          ),
+      ]);
+      const profileIds = profileIdsByPersonId(links);
+      return rows.map((row) =>
+        rowToStoryPerson(row, profileIds.get(row.id) ?? [])
+      );
+    },
+    async getById(id: string): Promise<StoryPerson | undefined> {
+      const rows = await getClient()
+        .select()
+        .from(schema.storyPeople)
+        .where(eq(schema.storyPeople.id, id));
+      const row = rows[0];
+      if (!row) return undefined;
+      const links = await getClient()
+        .select()
+        .from(schema.storyPersonProfiles)
+        .where(eq(schema.storyPersonProfiles.storyPersonId, id));
+      return rowToStoryPerson(
+        row,
+        links.map((link) => link.profileId)
+      );
+    },
+    async create(person: StoryPerson): Promise<void> {
+      await getClient()
+        .insert(schema.storyPeople)
+        .values(storyPersonToRow(person));
+      await this.setProfileLinks(person.id, person.userId, person.profileIds);
+    },
+    async update(
+      id: string,
+      updates: Partial<StoryPerson>
+    ): Promise<StoryPerson | undefined> {
+      const current = await this.getById(id);
+      if (!current) return undefined;
+      const next = {
+        ...current,
+        ...updates,
+        updatedAt: updates.updatedAt ?? new Date().toISOString(),
+      };
+      await getClient()
+        .update(schema.storyPeople)
+        .set(storyPersonToRow(next))
+        .where(eq(schema.storyPeople.id, id));
+      if (updates.profileIds) {
+        await this.setProfileLinks(id, current.userId, updates.profileIds);
+      }
+      return next;
+    },
+    async setProfileLinks(
+      storyPersonId: string,
+      userId: string,
+      profileIds: string[]
+    ): Promise<void> {
+      const createdAt = new Date().toISOString();
+      await getClient()
+        .delete(schema.storyPersonProfiles)
+        .where(eq(schema.storyPersonProfiles.storyPersonId, storyPersonId));
+      const uniqueProfileIds = Array.from(new Set(profileIds.filter(Boolean)));
+      if (uniqueProfileIds.length === 0) return;
+      await getClient()
+        .insert(schema.storyPersonProfiles)
+        .values(
+          uniqueProfileIds.map((profileId) => ({
+            storyPersonId,
+            profileId,
+            userId,
+            createdAt,
+          }))
+        );
+    },
+    async delete(id: string): Promise<boolean> {
+      await getClient()
+        .delete(schema.storyPersonProfiles)
+        .where(eq(schema.storyPersonProfiles.storyPersonId, id));
+      const result = await getClient()
+        .delete(schema.storyPeople)
+        .where(eq(schema.storyPeople.id, id))
+        .returning({ id: schema.storyPeople.id });
+      return result.length > 0;
     },
   },
 

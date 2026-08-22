@@ -3,6 +3,7 @@ import {
   getAdjustedPageCountForProduct,
   getPrintProductQuotes,
   getStorycotIllustrationCountForAgeBand,
+  getStorycotIllustratedStorySpreadCountForAgeBand,
   getStorycotPageCountForAgeBand,
   getStorycotStorySpreadCountForAgeBand,
   quotePrintProduct,
@@ -10,12 +11,39 @@ import {
 
 describe("print product policy", () => {
   it("chooses age-based logical book lengths", () => {
+    expect(getStorycotPageCountForAgeBand("baby-drift")).toBe(24);
+    expect(getStorycotPageCountForAgeBand("little-listener")).toBe(24);
+    expect(getStorycotPageCountForAgeBand("toddler-tale")).toBe(24);
+    expect(getStorycotPageCountForAgeBand("first-adventure")).toBe(28);
+    expect(getStorycotPageCountForAgeBand("preschool-story")).toBe(28);
+    expect(getStorycotPageCountForAgeBand("big-kid-chapter")).toBe(32);
+    expect(getStorycotPageCountForAgeBand("young-reader-short")).toBe(40);
+    expect(getStorycotPageCountForAgeBand("young-reader-classic")).toBe(56);
+    expect(getStorycotPageCountForAgeBand("young-reader-long")).toBe(72);
     expect(getStorycotPageCountForAgeBand("0-2")).toBe(20);
     expect(getStorycotPageCountForAgeBand("3-5")).toBe(28);
     expect(getStorycotPageCountForAgeBand("6-8")).toBe(32);
   });
 
   it("chooses age-based story spread and illustration counts", () => {
+    expect(getStorycotStorySpreadCountForAgeBand("baby-drift")).toBe(8);
+    expect(getStorycotStorySpreadCountForAgeBand("young-reader-classic")).toBe(
+      24
+    );
+    expect(
+      getStorycotIllustratedStorySpreadCountForAgeBand("young-reader-classic")
+    ).toBe(10);
+    expect(getStorycotIllustrationCountForAgeBand("baby-drift")).toBe(9);
+    expect(getStorycotIllustrationCountForAgeBand("big-kid-chapter")).toBe(10);
+    expect(getStorycotIllustrationCountForAgeBand("young-reader-short")).toBe(
+      9
+    );
+    expect(getStorycotIllustrationCountForAgeBand("young-reader-classic")).toBe(
+      11
+    );
+    expect(getStorycotIllustrationCountForAgeBand("young-reader-long")).toBe(
+      13
+    );
     expect(getStorycotStorySpreadCountForAgeBand("0-2")).toBe(6);
     expect(getStorycotStorySpreadCountForAgeBand("3-5")).toBe(10);
     expect(getStorycotStorySpreadCountForAgeBand("6-8")).toBe(12);

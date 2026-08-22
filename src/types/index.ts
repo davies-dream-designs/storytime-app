@@ -1,4 +1,11 @@
 import type { ChildAppearance } from "./profileAppearance";
+import { getBodyBuildLabel, type BodyBuild } from "./bodyBuild";
+import {
+  getStoryPersonAgeGroupLabel,
+  getStoryPersonHeightLabel,
+  type StoryPersonAgeGroup,
+  type StoryPersonHeight,
+} from "./storyPersonTraits";
 
 export const CHILD_GENDERS = [
   "girl",
@@ -23,6 +30,10 @@ export interface ChildProfile {
   dateOfBirth?: string; // YYYY-MM-DD
   gender?: ChildGender;
   appearance?: ChildAppearance;
+  avatarImageUrl?: string;
+  appearanceSummary?: string;
+  avatarTraitHash?: string;
+  avatarGeneratedAt?: string;
   favouriteCharacters: string[];
   favouriteActivities: string[];
   favouriteAnimals: string[];
@@ -42,6 +53,21 @@ export function getAge(profile: ChildProfile): number {
       : age;
   }
   return profile.age ?? 0;
+}
+
+export function getAgeInMonths(profile: ChildProfile): number {
+  if (profile.dateOfBirth) {
+    const dob = new Date(profile.dateOfBirth);
+    const today = new Date();
+    return Math.max(
+      0,
+      (today.getFullYear() - dob.getFullYear()) * 12 +
+        (today.getMonth() - dob.getMonth()) -
+        (today.getDate() < dob.getDate() ? 1 : 0)
+    );
+  }
+
+  return Math.max(0, Math.round((profile.age ?? 0) * 12));
 }
 
 export function formatAge(profile: ChildProfile): string {
@@ -85,7 +111,19 @@ export interface StorySuggestion {
   theme: string;
 }
 
-export type StoryPreset = "tiny-tales" | "moonlit-adventures" | "epic-sagas";
+export type StoryPreset =
+  | "baby-drift"
+  | "little-listener"
+  | "toddler-tale"
+  | "first-adventure"
+  | "preschool-story"
+  | "big-kid-chapter"
+  | "young-reader-short"
+  | "young-reader-classic"
+  | "young-reader-long"
+  | "tiny-tales"
+  | "moonlit-adventures"
+  | "epic-sagas";
 
 export interface StoryIpPolicy {
   riskLevel: "clear" | "originalized" | "restricted";
@@ -102,15 +140,28 @@ export type PublicReviewStatus =
   "not_submitted" | "pending_review" | "approved" | "rejected";
 
 export const STORY_PRESETS = [
-  "tiny-tales",
-  "moonlit-adventures",
-  "epic-sagas",
+  "baby-drift",
+  "little-listener",
+  "toddler-tale",
+  "first-adventure",
+  "preschool-story",
+  "big-kid-chapter",
+  "young-reader-short",
+  "young-reader-classic",
+  "young-reader-long",
 ] as const;
 
-export function getDefaultPreset(ageYears: number): StoryPreset {
-  if (ageYears <= 3) return "tiny-tales";
-  if (ageYears <= 6) return "moonlit-adventures";
-  return "epic-sagas";
+export function getDefaultPreset(
+  ageYears: number,
+  ageMonths = ageYears * 12
+): StoryPreset {
+  if (ageMonths < 12) return "baby-drift";
+  if (ageMonths < 24) return "little-listener";
+  if (ageMonths < 36) return "toddler-tale";
+  if (ageMonths < 48) return "first-adventure";
+  if (ageYears <= 5) return "preschool-story";
+  if (ageYears <= 8) return "big-kid-chapter";
+  return "young-reader-classic";
 }
 
 export interface Story {
@@ -125,6 +176,7 @@ export interface Story {
   premise?: string;
   notes: string;
   storyPreset?: StoryPreset;
+  storyPersonIds?: string[];
   ipPolicy?: StoryIpPolicy;
   createdAt: string;
   status?: "generating" | "ready" | "failed";
@@ -151,6 +203,89 @@ export interface Character {
   createdAt: string;
 }
 
+export const STORY_PERSON_RELATIONSHIPS = [
+  "mum",
+  "dad",
+  "parent",
+  "grandparent",
+  "great_grandparent",
+  "auntie",
+  "uncle",
+  "cousin",
+  "sibling",
+  "friend",
+  "carer",
+  "babysitter",
+  "neighbour",
+  "teacher",
+  "pet",
+  "other",
+] as const;
+
+export type StoryPersonRelationship =
+  (typeof STORY_PERSON_RELATIONSHIPS)[number];
+
+export interface StoryPerson {
+  id: string;
+  userId: string;
+  name: string;
+  relationship: StoryPersonRelationship;
+  customRelationship?: string;
+  bodyBuild?: BodyBuild;
+  ageGroup?: StoryPersonAgeGroup;
+  height?: StoryPersonHeight;
+  description: string;
+  personality: string;
+  appearance: string;
+  pronouns?: string;
+  avatarImageUrl?: string;
+  appearanceSummary?: string;
+  avatarTraitHash?: string;
+  avatarGeneratedAt?: string;
+  availableToAllProfiles: boolean;
+  profileIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function sanitizeStoryPersonRelationship(
+  value: unknown
+): StoryPersonRelationship {
+  return STORY_PERSON_RELATIONSHIPS.includes(value as StoryPersonRelationship)
+    ? (value as StoryPersonRelationship)
+    : "other";
+}
+
+export function getStoryPersonRelationshipLabel(
+  person: Pick<StoryPerson, "relationship" | "customRelationship">
+): string {
+  const custom = person.customRelationship?.trim();
+  if (person.relationship === "other" && custom) return custom;
+  return person.relationship
+    .split("_")
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+export function getStoryPersonAppearanceContext(person: StoryPerson): string {
+  const parts = [
+    person.appearance.trim(),
+    person.ageGroup && person.ageGroup !== "not_specified"
+      ? `Age group: ${getStoryPersonAgeGroupLabel(person.ageGroup)}.`
+      : "",
+    person.height && person.height !== "not_specified"
+      ? `Height: ${getStoryPersonHeightLabel(person.height)}.`
+      : "",
+    person.bodyBuild && person.bodyBuild !== "not_specified"
+      ? `Body build: ${getBodyBuildLabel(person.bodyBuild)}.`
+      : "",
+    person.appearanceSummary?.trim()
+      ? `Previous generated reference summary, use only when it does not conflict with the latest appearance, age, height, or body build: ${person.appearanceSummary.trim()}`
+      : "",
+  ].filter(Boolean);
+  return Array.from(new Set(parts)).join(" ");
+}
+
 export const LESSON_OPTIONS = [
   "kindness",
   "bravery",
@@ -174,4 +309,6 @@ export const LESSON_OPTIONS = [
 
 export type Lesson = (typeof LESSON_OPTIONS)[number];
 
+export * from "./bodyBuild";
 export * from "./profileAppearance";
+export * from "./storyPersonTraits";

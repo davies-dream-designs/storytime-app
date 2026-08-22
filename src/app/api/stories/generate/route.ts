@@ -15,6 +15,7 @@ import {
   profileIpErrorResponse,
 } from "@/lib/ipGuardrails";
 import { generateStory, StoryGenerationError } from "@/lib/storyGenerator";
+import { getSelectedStoryPeople } from "@/lib/storyPeopleSelection";
 import type { Story } from "@/types";
 
 export async function POST(req: NextRequest) {
@@ -22,13 +23,15 @@ export async function POST(req: NextRequest) {
   if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { profileId, theme, premise, notes, locale } = (await req.json()) as {
-    profileId: string;
-    theme?: string;
-    premise?: string;
-    notes?: string;
-    locale?: string;
-  };
+  const { profileId, theme, premise, notes, locale, storyPersonIds } =
+    (await req.json()) as {
+      profileId: string;
+      theme?: string;
+      premise?: string;
+      notes?: string;
+      locale?: string;
+      storyPersonIds?: string[];
+    };
 
   const safety = validateStoryIdeaSafety({ theme, premise, notes });
   if (!safety.ok) {
@@ -72,9 +75,15 @@ export async function POST(req: NextRequest) {
     db.stories.getByProfileId(profileId),
   ]);
   const safeCharacters = characters.filter((c) => c.userId === userId);
+  const selectedStoryPeople = await getSelectedStoryPeople({
+    userId,
+    profileId,
+    storyPersonIds,
+  });
   const profileIpPolicy = assessProfileIp({
     ...profile,
     characters: safeCharacters,
+    storyPeople: selectedStoryPeople,
   });
   if (profileIpPolicy.printAllowed === false) {
     return NextResponse.json(profileIpErrorResponse(profileIpPolicy), {
@@ -95,6 +104,7 @@ export async function POST(req: NextRequest) {
     generated = await generateStory({
       profile,
       characters: safeCharacters,
+      storyPeople: selectedStoryPeople,
       theme: theme ?? "a gentle adventure",
       premise: ipPolicy.originalizedPremise ?? premise,
       notes: ipPolicy.originalizedNotes ?? notes ?? "",
@@ -124,6 +134,7 @@ export async function POST(req: NextRequest) {
     theme: theme ?? "a gentle adventure",
     premise: ipPolicy.originalizedPremise ?? premise,
     notes: ipPolicy.originalizedNotes ?? notes ?? "",
+    storyPersonIds: selectedStoryPeople.map((person) => person.id),
     ipPolicy,
     createdAt: new Date().toISOString(),
     status: "ready",

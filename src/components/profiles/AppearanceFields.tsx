@@ -4,8 +4,10 @@ import { useTranslations } from "next-intl";
 import {
   APPEARANCE_EXPRESSION_LIMIT,
   APPEARANCE_FEATURE_LIMIT,
+  APPEARANCE_CUSTOM_DETAIL_MAX_LENGTH,
   APPEARANCE_NOTE_EXAMPLES,
   APPEARANCE_NOTE_MAX_LENGTH,
+  BODY_BUILD_OPTIONS,
   CLOTHING_VIBE_OPTIONS,
   createEmptyChildAppearance,
   DISTINGUISHING_FEATURE_OPTIONS,
@@ -14,12 +16,14 @@ import {
   FAVORITE_CLOTHING_ITEM_OPTIONS,
   FEATURE_EMPHASIS_OPTIONS,
   getAppearanceOptionLabel,
+  getBodyBuildLabel,
   HAIR_COLOR_OPTIONS,
   HAIR_LENGTH_OPTIONS,
   HAIR_STYLE_OPTIONS,
   HAIR_TEXTURE_OPTIONS,
   SKIN_TONE_OPTIONS,
   type ChildAppearance,
+  type BodyBuild,
   type ClothingVibeOption,
   type DistinguishingFeatureOption,
   type ExpressionVibeOption,
@@ -61,6 +65,39 @@ function SelectField<T extends string>({
         ))}
       </select>
     </div>
+  );
+}
+
+function CustomDetailField({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value?: string;
+  placeholder: string;
+  onChange: (value?: string) => void;
+}) {
+  return (
+    <label className="mt-2 block">
+      <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-night-400">
+        {label}
+      </span>
+      <input
+        value={value ?? ""}
+        onChange={(event) =>
+          onChange(
+            event.target.value
+              .slice(0, APPEARANCE_CUSTOM_DETAIL_MAX_LENGTH)
+              .trimStart() || undefined
+          )
+        }
+        maxLength={APPEARANCE_CUSTOM_DETAIL_MAX_LENGTH}
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-night-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-star-400 focus:ring-2 focus:ring-star-200"
+      />
+    </label>
   );
 }
 
@@ -263,13 +300,45 @@ export default function AppearanceFields({
           options={UNDERTONE_OPTIONS}
           onChange={(undertone) => patch({ undertone })}
         />
+        <div>
+          <label className="mb-1.5 block text-sm font-bold text-night-700">
+            Body Build
+          </label>
+          <select
+            value={state.bodyBuild ?? "not_specified"}
+            onChange={(event) =>
+              patch({ bodyBuild: event.target.value as BodyBuild })
+            }
+            className="w-full rounded-xl border border-night-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-star-400 focus:ring-2 focus:ring-star-200"
+          >
+            {BODY_BUILD_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {getBodyBuildLabel(option)}
+              </option>
+            ))}
+          </select>
+        </div>
         <SwatchField
           label={t("appearanceHairColorLabel")}
           value={state.hairColor}
           options={HAIR_COLOR_OPTIONS}
           swatches={storycotTheme.appearance.hair}
-          onChange={(hairColor) => patch({ hairColor })}
+          onChange={(hairColor) =>
+            patch({
+              hairColor,
+              customHairColor:
+                hairColor === "other" ? state.customHairColor : undefined,
+            })
+          }
         />
+        {state.hairColor === "other" ? (
+          <CustomDetailField
+            label="Describe Other Hair Colour"
+            value={state.customHairColor}
+            placeholder="e.g. strawberry blonde, silver streaks"
+            onChange={(customHairColor) => patch({ customHairColor })}
+          />
+        ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
           <SelectField
             label={t("appearanceHairTextureLabel")}
@@ -288,15 +357,44 @@ export default function AppearanceFields({
           label={t("appearanceHairStyleLabel")}
           values={state.hairStyles}
           options={HAIR_STYLE_OPTIONS}
-          onChange={(hairStyles) => patch({ hairStyles })}
+          onChange={(hairStyles) =>
+            patch({
+              hairStyles,
+              customHairStyle: hairStyles.includes("other")
+                ? state.customHairStyle
+                : undefined,
+            })
+          }
         />
+        {state.hairStyles.includes("other") ? (
+          <CustomDetailField
+            label="Describe Other Hair Style"
+            value={state.customHairStyle}
+            placeholder="e.g. undercut, two small buns"
+            onChange={(customHairStyle) => patch({ customHairStyle })}
+          />
+        ) : null}
         <SwatchField
           label={t("appearanceEyeColorLabel")}
           value={state.eyeColor}
           options={EYE_COLOR_OPTIONS}
           swatches={storycotTheme.appearance.eyes}
-          onChange={(eyeColor) => patch({ eyeColor })}
+          onChange={(eyeColor) =>
+            patch({
+              eyeColor,
+              customEyeColor:
+                eyeColor === "other" ? state.customEyeColor : undefined,
+            })
+          }
         />
+        {state.eyeColor === "other" ? (
+          <CustomDetailField
+            label="Describe Other Eye Colour"
+            value={state.customEyeColor}
+            placeholder="e.g. blue-grey, one blue and one brown"
+            onChange={(customEyeColor) => patch({ customEyeColor })}
+          />
+        ) : null}
       </div>
 
       <div className="space-y-5 rounded-2xl bg-night-50/50 p-4">
@@ -313,17 +411,51 @@ export default function AppearanceFields({
           values={state.featureEmphasis}
           options={FEATURE_EMPHASIS_OPTIONS}
           limit={APPEARANCE_FEATURE_LIMIT}
-          onChange={(featureEmphasis) => patch({ featureEmphasis })}
+          onChange={(featureEmphasis) =>
+            patch({
+              featureEmphasis,
+              customFeatureEmphasis: featureEmphasis.includes("other")
+                ? state.customFeatureEmphasis
+                : undefined,
+            })
+          }
         />
+        {state.featureEmphasis.includes("other") ? (
+          <CustomDetailField
+            label="Describe Other Feature"
+            value={state.customFeatureEmphasis}
+            placeholder="e.g. strong eyebrows, tiny cleft chin"
+            onChange={(customFeatureEmphasis) =>
+              patch({ customFeatureEmphasis })
+            }
+          />
+        ) : null}
         <MultiChoiceField<DistinguishingFeatureOption>
           label={t("appearanceDistinguishingFeaturesLabel")}
           values={state.distinguishingFeatures}
           options={DISTINGUISHING_FEATURE_OPTIONS}
           limit={APPEARANCE_FEATURE_LIMIT}
           onChange={(distinguishingFeatures) =>
-            patch({ distinguishingFeatures })
+            patch({
+              distinguishingFeatures,
+              customDistinguishingFeature: distinguishingFeatures.includes(
+                "other"
+              )
+                ? state.customDistinguishingFeature
+                : undefined,
+            })
           }
         />
+        {state.distinguishingFeatures.includes("other") ? (
+          <CustomDetailField
+            label="Describe Other Distinguishing Detail"
+            value={state.customDistinguishingFeature}
+            placeholder="e.g. small scar on eyebrow, favourite necklace"
+            onChange={(customDistinguishingFeature) =>
+              patch({ customDistinguishingFeature })
+            }
+          />
+        ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
           <SelectField<ClothingVibeOption>
             label={t("appearanceClothingVibeLabel")}
@@ -335,9 +467,27 @@ export default function AppearanceFields({
             label={t("appearanceFavoriteClothingItemLabel")}
             value={state.favoriteClothingItem}
             options={FAVORITE_CLOTHING_ITEM_OPTIONS}
-            onChange={(favoriteClothingItem) => patch({ favoriteClothingItem })}
+            onChange={(favoriteClothingItem) =>
+              patch({
+                favoriteClothingItem,
+                customFavoriteClothingItem:
+                  favoriteClothingItem === "other"
+                    ? state.customFavoriteClothingItem
+                    : undefined,
+              })
+            }
           />
         </div>
+        {state.favoriteClothingItem === "other" ? (
+          <CustomDetailField
+            label="Describe Other Clothing Item"
+            value={state.customFavoriteClothingItem}
+            placeholder="e.g. dinosaur jumper, yellow gumboots"
+            onChange={(customFavoriteClothingItem) =>
+              patch({ customFavoriteClothingItem })
+            }
+          />
+        ) : null}
         <MultiChoiceField<ExpressionVibeOption>
           label={t("appearanceExpressionLabel")}
           values={state.expressionVibes}

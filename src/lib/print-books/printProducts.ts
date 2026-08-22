@@ -43,6 +43,21 @@ export const PRINT_PRODUCTS = {
 
 export function getStorycotPageCountForAgeBand(ageBand: AgeBand): number {
   switch (ageBand) {
+    case "baby-drift":
+    case "little-listener":
+    case "toddler-tale":
+      return 24;
+    case "first-adventure":
+    case "preschool-story":
+      return 28;
+    case "big-kid-chapter":
+      return 32;
+    case "young-reader-short":
+      return 40;
+    case "young-reader-classic":
+      return 56;
+    case "young-reader-long":
+      return 72;
     case "0-2":
       return 20;
     case "3-5":
@@ -56,6 +71,21 @@ export function getStorycotStorySpreadCountForAgeBand(
   ageBand: AgeBand
 ): number {
   switch (ageBand) {
+    case "baby-drift":
+    case "little-listener":
+    case "toddler-tale":
+      return 8;
+    case "first-adventure":
+    case "preschool-story":
+      return 10;
+    case "big-kid-chapter":
+      return 12;
+    case "young-reader-short":
+      return 16;
+    case "young-reader-classic":
+      return 24;
+    case "young-reader-long":
+      return 32;
     case "0-2":
       return 6;
     case "3-5":
@@ -65,10 +95,27 @@ export function getStorycotStorySpreadCountForAgeBand(
   }
 }
 
+export function getStorycotIllustratedStorySpreadCountForAgeBand(
+  ageBand: AgeBand
+): number {
+  switch (ageBand) {
+    case "big-kid-chapter":
+      return 9;
+    case "young-reader-short":
+      return 8;
+    case "young-reader-classic":
+      return 10;
+    case "young-reader-long":
+      return 12;
+    default:
+      return getStorycotStorySpreadCountForAgeBand(ageBand);
+  }
+}
+
 export function getStorycotIllustrationCountForAgeBand(
   ageBand: AgeBand
 ): number {
-  return getStorycotStorySpreadCountForAgeBand(ageBand) + 1;
+  return getStorycotIllustratedStorySpreadCountForAgeBand(ageBand) + 1;
 }
 
 export function isPrintProductKey(value: unknown): value is PrintProductKey {

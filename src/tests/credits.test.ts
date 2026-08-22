@@ -69,12 +69,12 @@ describe("illustrated book credits", () => {
     const project = await reserveIllustratedBookCredits(createProject());
 
     expect(mockUpdateUserMetadata).toHaveBeenCalledWith("user-1", {
-      privateMetadata: { credits: 2 },
+      privateMetadata: { credits: 1 },
     });
     expect(project.billing).toMatchObject({
       product: "illustrated_book",
       status: "reserved",
-      credits: 8,
+      credits: 9,
     });
   });
 
@@ -157,5 +157,37 @@ describe("illustrated book credits", () => {
         redeemedGiftOrderIds: ["gift-0", "gift-1"],
       },
     });
+  });
+
+  it("charges one credit for reference redo", async () => {
+    mockGetUser.mockResolvedValue({
+      privateMetadata: { credits: 4 },
+    });
+
+    const { chargeReferenceRedoCredit } = await import("@/lib/credits");
+    await expect(chargeReferenceRedoCredit("user-1")).resolves.toEqual({
+      credits: 3,
+      isAdmin: false,
+      charged: true,
+    });
+
+    expect(mockUpdateUserMetadata).toHaveBeenCalledWith("user-1", {
+      privateMetadata: { credits: 3 },
+    });
+  });
+
+  it("does not charge admins for reference redo", async () => {
+    mockGetUser.mockResolvedValue({
+      privateMetadata: { credits: 4, isAdmin: true },
+    });
+
+    const { chargeReferenceRedoCredit } = await import("@/lib/credits");
+    await expect(chargeReferenceRedoCredit("user-1")).resolves.toEqual({
+      credits: 4,
+      isAdmin: true,
+      charged: false,
+    });
+
+    expect(mockUpdateUserMetadata).not.toHaveBeenCalled();
   });
 });

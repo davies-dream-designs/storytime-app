@@ -1,4 +1,10 @@
-import type { Character, ChildProfile, Story, StoryPage } from "@/types";
+import type {
+  Character,
+  ChildProfile,
+  Story,
+  StoryPage,
+  StoryPerson,
+} from "@/types";
 
 export type StoryIpRiskLevel = "clear" | "originalized" | "restricted";
 
@@ -26,6 +32,7 @@ type ProfileIpInput = Pick<
   | "lessons"
 > & {
   characters?: Character[];
+  storyPeople?: StoryPerson[];
 };
 
 const PROTECTED_REFERENCE_PATTERNS: Array<{ pattern: RegExp; label: string }> =
@@ -187,6 +194,15 @@ export function assessProfileIp(input: ProfileIpInput): StoryIpPolicy {
       character.description,
       character.personality,
       character.appearance,
+    ]),
+    ...(input.storyPeople ?? []).flatMap((person) => [
+      person.name,
+      person.relationship,
+      person.customRelationship,
+      person.description,
+      person.personality,
+      person.appearance,
+      person.appearanceSummary,
     ]),
   ]
     .filter((value): value is string => Boolean(value?.trim()))

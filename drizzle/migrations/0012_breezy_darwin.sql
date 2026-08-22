@@ -1,0 +1,1 @@
+ALTER TABLE "story_people" ADD COLUMN "body_build" text;

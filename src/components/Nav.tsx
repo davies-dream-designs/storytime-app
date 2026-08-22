@@ -68,11 +68,13 @@ export default function Nav() {
   const mobileLinks = [
     { href: "/dashboard", label: t("dashboard"), icon: "dashboard" },
     { href: "/profiles", label: t("profilesMobile"), icon: "profile" },
+    { href: "/family", label: "Family & Friends", icon: "profile" },
     { href: "/stories", label: t("storiesMobile"), icon: "book" },
     { href: "/account", label: t("accountMobile"), icon: "account" },
   ] satisfies Array<{ href: string; label: string; icon: IconName }>;
   const desktopAuthedLinks = [
     { href: "/profiles", label: t("profiles"), icon: "profile" },
+    { href: "/family", label: "Family & Friends", icon: "profile" },
     { href: "/stories", label: t("stories"), icon: "book" },
     { href: "/stories/new", label: t("newStory"), icon: "plus" },
   ] satisfies Array<{ href: string; label: string; icon: IconName }>;
@@ -251,7 +253,9 @@ export default function Nav() {
         <div className="sm:hidden border-t border-night-100 bg-parchment/95 backdrop-blur px-4 py-3 flex flex-col gap-1">
           {isSignedIn ? (
             <>
-              {mobileLinks.slice(0, 3).map(renderMobileLink)}
+              {mobileLinks
+                .filter((item) => item.href !== "/account")
+                .map(renderMobileLink)}
               <Link
                 href="/account"
                 aria-current={isActive("/account") ? "page" : undefined}

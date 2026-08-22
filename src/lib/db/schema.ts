@@ -5,14 +5,19 @@ import {
   jsonb,
   index,
   uniqueIndex,
+  boolean,
 } from "drizzle-orm/pg-core";
 import type { ChildAppearance } from "@/types/profileAppearance";
 import type {
   ChildGender,
+  BodyBuild,
   PublicReviewStatus,
   StoryPage,
   StoryIpPolicy,
   StoryPreset,
+  StoryPersonAgeGroup,
+  StoryPersonHeight,
+  StoryPersonRelationship,
   StoryVisibility,
 } from "@/types";
 import type {
@@ -43,6 +48,10 @@ export const profiles = pgTable(
       .notNull()
       .default("not_specified"),
     appearance: jsonb("appearance").$type<ChildAppearance>(),
+    avatarImageUrl: text("avatar_image_url"),
+    appearanceSummary: text("appearance_summary"),
+    avatarTraitHash: text("avatar_trait_hash"),
+    avatarGeneratedAt: text("avatar_generated_at"),
     favouriteCharacters: text("favourite_characters")
       .array()
       .notNull()
@@ -73,6 +82,7 @@ export const stories = pgTable(
     premise: text("premise"),
     notes: text("notes").notNull().default(""),
     storyPreset: text("story_preset").$type<StoryPreset>(),
+    storyPersonIds: text("story_person_ids").array().notNull().default([]),
     ipPolicy: jsonb("ip_policy").$type<StoryIpPolicy>(),
     createdAt: text("created_at").notNull(),
     status: text("status").$type<"generating" | "ready" | "failed">(),
@@ -99,6 +109,56 @@ export const stories = pgTable(
     index("stories_public_review_status_idx").on(t.publicReviewStatus),
     index("stories_public_gallery_idx").on(t.visibility, t.publicReviewStatus),
     uniqueIndex("stories_share_token_idx").on(t.shareToken),
+  ]
+);
+
+export const storyPeople = pgTable(
+  "story_people",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    name: text("name").notNull(),
+    relationship: text("relationship")
+      .$type<StoryPersonRelationship>()
+      .notNull()
+      .default("other"),
+    customRelationship: text("custom_relationship"),
+    bodyBuild: text("body_build").$type<BodyBuild>(),
+    ageGroup: text("age_group").$type<StoryPersonAgeGroup>(),
+    height: text("height").$type<StoryPersonHeight>(),
+    description: text("description").notNull().default(""),
+    personality: text("personality").notNull().default(""),
+    appearance: text("appearance").notNull().default(""),
+    pronouns: text("pronouns"),
+    avatarImageUrl: text("avatar_image_url"),
+    appearanceSummary: text("appearance_summary"),
+    avatarTraitHash: text("avatar_trait_hash"),
+    avatarGeneratedAt: text("avatar_generated_at"),
+    availableToAllProfiles: boolean("available_to_all_profiles")
+      .notNull()
+      .default(false),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [index("story_people_user_id_idx").on(t.userId)]
+);
+
+export const storyPersonProfiles = pgTable(
+  "story_person_profiles",
+  {
+    storyPersonId: text("story_person_id").notNull(),
+    profileId: text("profile_id").notNull(),
+    userId: text("user_id").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("story_person_profiles_unique_idx").on(
+      t.storyPersonId,
+      t.profileId
+    ),
+    index("story_person_profiles_person_idx").on(t.storyPersonId),
+    index("story_person_profiles_profile_idx").on(t.profileId),
+    index("story_person_profiles_user_idx").on(t.userId),
   ]
 );
 

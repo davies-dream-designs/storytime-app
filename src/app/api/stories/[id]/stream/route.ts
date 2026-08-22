@@ -11,6 +11,7 @@ import {
 } from "@/lib/ipGuardrails";
 import { logEvent } from "@/lib/logEvent";
 import { storyRatelimit, checkRatelimit } from "@/lib/ratelimit";
+import { getSelectedStoryPeople } from "@/lib/storyPeopleSelection";
 import type { StoryPage } from "@/types";
 
 function sendEvent(
@@ -93,9 +94,15 @@ export async function POST(
           db.stories.getByProfileId(story.profileId),
         ]);
         const safeCharacters = characters.filter((c) => c.userId === userId);
+        const selectedStoryPeople = await getSelectedStoryPeople({
+          userId,
+          profileId: story.profileId,
+          storyPersonIds: story.storyPersonIds ?? [],
+        });
         const profileIpPolicy = assessProfileIp({
           ...profile,
           characters: safeCharacters,
+          storyPeople: selectedStoryPeople,
         });
         if (profileIpPolicy.printAllowed === false) {
           const response = profileIpErrorResponse(profileIpPolicy);
@@ -112,6 +119,7 @@ export async function POST(
           {
             profile,
             characters: safeCharacters,
+            storyPeople: selectedStoryPeople,
             theme: story.theme,
             premise: story.premise,
             notes: story.notes,

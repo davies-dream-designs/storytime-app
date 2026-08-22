@@ -60,6 +60,10 @@ export default function SupportPage() {
       a: "Generating illustrations costs from 6 credits, depending on your child's age and book length — 6 for Tiny Tales, 9 for Bedtime Adventures, and 11 for Older Readers. Once illustrations are ready, you can unlock your digital download (PDF, e-reader file, and illustrations) for a separate one-off payment of $9.95 AUD.",
     },
     {
+      q: "Can I use photos for child and Family & Friends references?",
+      a: "Yes. You can upload or take a photo to create a Storycot-style illustrated reference. The first 2 child references and first 2 Family & Friends references are free; extra references or redos cost 1 credit each. For best results, use a clear, well-lit photo with one person or pet, minimal background clutter, and no visible text, branded clothing, or toys.",
+    },
+    {
       q: "Can I download my illustrated book?",
       a: "Yes - once illustrations are ready, you can download your book as a PDF or e-reader file from the book page. Downloads are available for 180 days after your book is ready.",
     },

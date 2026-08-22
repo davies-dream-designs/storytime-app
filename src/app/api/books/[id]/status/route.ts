@@ -5,6 +5,8 @@ import {
   enqueueBookBuildJob,
   isBookBuildJobStale,
 } from "@/lib/print-books/jobs";
+import { loadBuildContext } from "@/lib/print-books/jobs/context";
+import { getSpreadPreviews } from "@/lib/print-books/review";
 import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
 import type { BookBuildJob, BookProject } from "@/types/printBook";
 
@@ -91,6 +93,13 @@ export async function GET(
     await recoverExportJob(project, req.nextUrl.origin);
   }
 
+  const context = await loadBuildContext(project).catch(() => null);
+  const latestReferenceSnapshotKey = context?.referenceSnapshotKey;
+  const referencesAreStale = Boolean(
+    latestReferenceSnapshotKey &&
+      project.assets.referenceSnapshotKey !== latestReferenceSnapshotKey
+  );
+
   return NextResponse.json({
     id: project.id,
     status: project.status,
@@ -101,26 +110,9 @@ export async function GET(
     readyAt: project.readyAt,
     errorCode: project.errorCode,
     errorMessage: project.errorMessage,
-    spreadPreviews: project.spreads
-      .filter(
-        (s) =>
-          s.layoutType === "text_art" ||
-          s.layoutType === "hero" ||
-          s.layoutType === "quiet"
-      )
-      .map((s) => ({
-        id: s.id,
-        sequence: s.sequence,
-        title: s.title,
-        layoutType: s.layoutType,
-        thumbnailUrl:
-          s.thumbnailUrl ?? s.leftPageWebImageUrl ?? s.imageUrl ?? undefined,
-        webImageUrl: s.leftPageWebImageUrl ?? s.thumbnailUrl ?? undefined,
-        leftPageImageUrl: s.leftPageImageUrl ?? s.imageUrl ?? undefined,
-        rightPageImageUrl: undefined,
-        leftPageImageError: s.leftPageImageError,
-        rightPageImageError: undefined,
-      })),
+    referencesAreStale,
+    referenceImageCount: context?.visualReferences.length ?? 0,
+    spreadPreviews: getSpreadPreviews(project),
     assets: {
       lastBuildMode: project.assets.lastBuildMode,
       activeJobId: project.assets.activeJobId,

@@ -6,7 +6,7 @@ import Icon from "@/components/ui/Icon";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 import { db } from "@/lib/db";
 
-export const metadata = { title: "Profiles - Storycot" };
+export const metadata = { title: "Children - Storycot" };
 
 export default async function ProfilesPage() {
   const { userId } = await auth();
@@ -73,8 +73,20 @@ export default async function ProfilesPage() {
                     className="group block rounded-2xl border border-night-100 bg-white p-6 pb-16 shadow-sm transition hover:shadow-md"
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-star-300 to-moon-300 font-display text-2xl font-bold text-night-800">
-                        {profile.name[0].toUpperCase()}
+                      <div
+                        className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-star-300 to-moon-300 bg-cover bg-center font-display text-2xl font-bold text-night-800"
+                        style={
+                          profile.avatarImageUrl
+                            ? {
+                                backgroundImage: `url("${profile.avatarImageUrl}")`,
+                              }
+                            : undefined
+                        }
+                        aria-label={`${profile.name} illustrated reference`}
+                      >
+                        {!profile.avatarImageUrl
+                          ? profile.name[0].toUpperCase()
+                          : null}
                       </div>
                       <span className="rounded-full bg-night-50 px-3 py-1 text-sm font-bold text-night-500">
                         {(() => {

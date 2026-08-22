@@ -104,7 +104,10 @@
     "story": "storia",
     "stories": "storie",
     "profile": "profilo",
-    "profiles": "profili"
+    "profiles": "profili",
+    "statFamily": "Family & Friends",
+    "familyTitle": "Add Family & Friends",
+    "familySub": "Reusable people, pets, and photo references."
   },
   "profiles": {
     "title": "Profili bambini",
@@ -300,6 +303,51 @@
     "deleteError": "Non siamo riusciti a eliminare questa storia.",
     "storyPresetLabel": "Story style",
     "storyPreset": {
+      "baby-drift": {
+        "label": "Baby Drift",
+        "ageRange": "0-12 months",
+        "desc": "1-2 min read · 8 tiny story pages · 24-page hardcover · 9 illustrations"
+      },
+      "little-listener": {
+        "label": "Little Listener",
+        "ageRange": "1-2 years",
+        "desc": "2-3 min read · 10 simple story pages · 24-page hardcover · 9 illustrations"
+      },
+      "toddler-tale": {
+        "label": "Toddler Tale",
+        "ageRange": "2-3 years",
+        "desc": "3-5 min read · 12 gentle story pages · 24-page hardcover · 9 illustrations"
+      },
+      "first-adventure": {
+        "label": "First Adventure",
+        "ageRange": "3-4 years",
+        "desc": "4-6 min read · 12-14 story pages · 28-page hardcover · 11 illustrations"
+      },
+      "preschool-story": {
+        "label": "Preschool Story",
+        "ageRange": "4-5 years",
+        "desc": "5-7 min read · 14 story pages · 28-page hardcover · 11 illustrations"
+      },
+      "big-kid-chapter": {
+        "label": "Big Kid Chapter",
+        "ageRange": "6-8 years",
+        "desc": "8-10 min read · 16 story pages · 32-page hardcover · 10 illustrations"
+      },
+      "young-reader-short": {
+        "label": "Young Reader Short",
+        "ageRange": "9-12 years",
+        "desc": "Short chapter book · 40-page hardcover · 9 illustrations"
+      },
+      "young-reader-classic": {
+        "label": "Young Reader Classic",
+        "ageRange": "9-12 years",
+        "desc": "Classic chapter book · 56-page hardcover · 11 illustrations"
+      },
+      "young-reader-long": {
+        "label": "Young Reader Long",
+        "ageRange": "9-12 years",
+        "desc": "Longer chapter book · 72-page hardcover · 13 illustrations"
+      },
       "tiny-tales": {
         "label": "Tiny Tales",
         "ageRange": "Ages 0–3",
@@ -437,7 +485,8 @@
       "text_art": "Testo + arte",
       "hero": "Apertura principale",
       "quiet": "Apertura tranquilla",
-      "end_matter": "Pagine finali"
+      "end_matter": "Pagine finali",
+      "text_only": "Text only"
     },
     "artMode": {
       "placeholder": "Arte bozza",

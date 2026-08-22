@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { usePendingUI } from "@/components/GlobalPending";
+import { useConfirmDialog } from "@/components/ui/useConfirmDialog";
 
 export default function DeleteBookButton({
   bookId,
@@ -18,9 +19,16 @@ export default function DeleteBookButton({
   const t = useTranslations("books");
   const { startPending } = usePendingUI();
   const [deleting, setDeleting] = useState(false);
+  const { confirm, alert, ConfirmDialog } = useConfirmDialog();
 
   async function handleDelete() {
-    if (!confirm(t("deleteConfirm"))) return;
+    const confirmed = await confirm({
+      title: t("deleteBook"),
+      message: t("deleteConfirm"),
+      confirmLabel: t("deleteBook"),
+      variant: "danger",
+    });
+    if (!confirmed) return;
 
     setDeleting(true);
     const stopPending = startPending(t("deleting"), 12000);
@@ -32,18 +40,25 @@ export default function DeleteBookButton({
     } catch {
       stopPending();
       setDeleting(false);
-      alert(t("deleteError"));
+      await alert({
+        title: t("deleteError"),
+        message: t("deleteError"),
+        variant: "danger",
+      });
     }
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleDelete}
-      disabled={deleting}
-      className={`storycot-btn storycot-btn-danger ${compact ? "storycot-btn-compact" : ""}`}
-    >
-      {deleting ? t("deleting") : t("deleteBook")}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={handleDelete}
+        disabled={deleting}
+        className={`storycot-btn storycot-btn-danger ${compact ? "storycot-btn-compact" : ""}`}
+      >
+        {deleting ? t("deleting") : t("deleteBook")}
+      </button>
+      <ConfirmDialog />
+    </>
   );
 }

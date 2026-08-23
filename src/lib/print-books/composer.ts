@@ -412,7 +412,11 @@ function createStoryExpansionSpread(input: {
       role.leftPageText,
       "",
       role.sceneBrief,
-      withCharacterBiblePrompt(role.illustrationPrompt, characterBible)
+      withCharacterBiblePrompt(
+        role.illustrationPrompt,
+        characterBible,
+        `${role.leftPageText} ${role.sceneBrief}`
+      )
     );
   }
 
@@ -457,7 +461,11 @@ function createStoryExpansionSpread(input: {
       role.leftPageText,
       role.rightPageText,
       role.sceneBrief,
-      withCharacterBiblePrompt(role.illustrationPrompt, characterBible)
+      withCharacterBiblePrompt(
+        role.illustrationPrompt,
+        characterBible,
+        `${role.leftPageText} ${role.rightPageText} ${role.sceneBrief}`
+      )
     );
   }
 
@@ -503,7 +511,11 @@ function createStoryExpansionSpread(input: {
     role.rightPageText,
     role.sceneBrief,
     illustrated
-      ? withCharacterBiblePrompt(role.illustrationPrompt, characterBible)
+      ? withCharacterBiblePrompt(
+          role.illustrationPrompt,
+          characterBible,
+          `${role.leftPageText} ${role.rightPageText} ${role.sceneBrief}`
+        )
       : ""
   );
 }
@@ -616,7 +628,8 @@ function createStorySpreads(
         shouldIllustrate
           ? withCharacterBiblePrompt(
               "A peaceful children’s-book spread with soft night-time atmosphere and room for reflection.",
-              characterBible
+              characterBible,
+              "A quiet visual pause that gives the story room to breathe."
             )
           : ""
       )

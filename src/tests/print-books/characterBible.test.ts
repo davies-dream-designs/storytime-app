@@ -1,6 +1,57 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChildProfile, Story } from "@/types";
-import { generateCharacterBible } from "@/lib/print-books/characterBible";
+import type { CharacterBible } from "@/types/printBook";
+import {
+  buildIllustrationDirection,
+  generateCharacterBible,
+} from "@/lib/print-books/characterBible";
+
+function bibleWithCompanion(): CharacterBible {
+  return {
+    childAppearance: "Bailey has short ginger hair and blue eyes.",
+    outfitRules: "Blue tee, grey joggers, yellow boots.",
+    recurringProps: ["speckled egg", "silver lantern"],
+    companionCharacters: ["a small green baby dinosaur named Pip"],
+    palette: "soft green garden tones",
+    renderStyle: "storybook gouache",
+    lightingTone: "warm afternoon",
+    doNotChange: ["ginger hair"],
+  };
+}
+
+describe("buildIllustrationDirection companion/prop gating", () => {
+  it("shows all companions and props when no scene text is provided", () => {
+    const direction = buildIllustrationDirection(bibleWithCompanion());
+    expect(direction).toContain("baby dinosaur");
+    expect(direction).toContain("speckled egg");
+  });
+
+  it("hides a companion the story text has not introduced yet", () => {
+    const direction = buildIllustrationDirection(bibleWithCompanion(), {
+      activeSceneText:
+        "Bailey found a speckled egg in the garden and made a cosy nest.",
+    });
+    expect(direction).toContain("Companion characters: none");
+    // The egg has appeared, so its prop is still allowed.
+    expect(direction).toContain("speckled egg");
+  });
+
+  it("shows a companion once the story text introduces it", () => {
+    const direction = buildIllustrationDirection(bibleWithCompanion(), {
+      activeSceneText:
+        "The egg cracked and a tiny dinosaur peeked out. Bailey named the dinosaur Pip.",
+    });
+    expect(direction).toContain("dinosaur");
+    expect(direction).not.toContain("Companion characters: none");
+  });
+
+  it("does not trigger a companion on unrelated colour words in the scene", () => {
+    const direction = buildIllustrationDirection(bibleWithCompanion(), {
+      activeSceneText: "Bailey played in the green garden all afternoon.",
+    });
+    expect(direction).toContain("Companion characters: none");
+  });
+});
 
 const { mockMessagesCreate } = vi.hoisted(() => ({
   mockMessagesCreate: vi.fn(),

@@ -55,9 +55,31 @@ export async function regenerateProjectArt(input: {
     // established outfit and look from real page art (the character bible and
     // avatar reference intentionally strip outfits, so a text-only cover drifts
     // to the plain reference-portrait clothing).
-    const seedIndex = input.project.spreads.findIndex((s) =>
-      isBookStoryIllustrationSpread(s)
-    );
+    //
+    // Prefer a seed page where the family member actually appears; otherwise
+    // their outfit has no interior reference and the cover falls back to their
+    // neutral avatar portrait.
+    const familyNames = (input.visualReferences ?? [])
+      .filter((reference) => reference.role === "family_friend_pet")
+      .map((reference) => reference.name.trim().toLowerCase())
+      .filter(Boolean);
+    const spreadIncludesFamily = (spread: BookProject["spreads"][number]) => {
+      const text =
+        `${spread.leftPageText} ${spread.rightPageText} ${spread.sceneBrief} ${spread.illustrationPrompt}`.toLowerCase();
+      return familyNames.some((name) => text.includes(name));
+    };
+
+    let seedIndex =
+      familyNames.length > 0
+        ? input.project.spreads.findIndex(
+            (s) => isBookStoryIllustrationSpread(s) && spreadIncludesFamily(s)
+          )
+        : -1;
+    if (seedIndex === -1) {
+      seedIndex = input.project.spreads.findIndex((s) =>
+        isBookStoryIllustrationSpread(s)
+      );
+    }
 
     let seededSpreads = input.project.spreads;
     let continuityReferences: ContinuityVisualReference[] | undefined;
@@ -98,7 +120,11 @@ export async function regenerateProjectArt(input: {
       story: input.story,
       profile: input.profile,
       characterBible: input.characterBible,
-      visualReferences: input.visualReferences,
+      // Avatar portraits are drawn in a neutral plain top; as image references
+      // they override the outfit text and pull the cover back to that top. When
+      // we have an interior seed page (correct story outfits), condition on it
+      // alone; only fall back to avatars when no seed reference is available.
+      visualReferences: continuityReferences ? undefined : input.visualReferences,
       continuityReferences,
     });
 

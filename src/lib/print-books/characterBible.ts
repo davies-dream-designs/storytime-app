@@ -138,7 +138,7 @@ Requirements:
 - Keep the child recognisable and age-appropriate across every illustration.
 - Prefer concrete physical details over vague adjectives.
 - Outfit rules should be stable, reusable, and practical for many scenes, and must name specific footwear (shoes or boots, colour and style) so shoes stay identical on every page.
-- Recurring props should be few, memorable, and visually helpful.
+- Recurring props should be few, memorable, and visually helpful. Never list clothing, footwear, shoes, or boots as a recurring prop; worn items belong only in outfitRules so they are not drawn twice.
 - Companion characters should include only characters that should reappear visually.
 - For selected family/friends/pets, preserve the supplied appearance and reference-image notes. Do not turn relationship roles into generic stereotypes; for example, do not make grandparents much older, thinner, heavier, or frailer unless their reference/appearance says so.
 - Palette, renderStyle, and lightingTone should fit a warm bedtime picture book.
@@ -169,6 +169,16 @@ function normalizeList(values: unknown): string[] {
     .filter((value): value is string => typeof value === "string")
     .map((value) => value.trim())
     .filter(Boolean);
+}
+
+// Worn items are locked via outfitRules/footwear; if the model also lists them
+// as recurring props they get drawn a second time as loose scene objects (e.g. a
+// spare pair of boots by the door), so they are stripped from the prop list.
+const WORN_ITEM_PROP_PATTERN =
+  /\b(boots?|shoes?|sandals?|slippers?|sneakers?|trainers?|wellies|wellingtons?|socks?|hat|cap|beanie|scarf|mittens?|gloves?|coat|jacket|jumper|sweater|cardigan|dress|skirt|shirt|top|tee|t-shirt|trousers|pants|shorts|overalls|dungarees|pyjamas|pajamas|onesie|outfit|clothes|clothing|footwear)\b/i;
+
+function stripWornItemsFromProps(props: string[]): string[] {
+  return props.filter((prop) => !WORN_ITEM_PROP_PATTERN.test(prop));
 }
 
 function normalizeLockedCharacterRules(
@@ -209,7 +219,7 @@ function normalizeCharacterBible(bible: CharacterBible): CharacterBible {
     outfitRules:
       bible.outfitRules?.trim() ||
       "Use one consistent bedtime-ready outfit with only scene-appropriate minor variations.",
-    recurringProps: normalizeList(bible.recurringProps),
+    recurringProps: stripWornItemsFromProps(normalizeList(bible.recurringProps)),
     companionCharacters: normalizeList(bible.companionCharacters),
     palette:
       bible.palette?.trim() ||
@@ -429,6 +439,11 @@ export function buildIllustrationDirection(
     `Outfit rules: ${clampPromptValue(bible.outfitRules, compact ? 180 : 420)}`,
     `Recurring props: ${clampPromptValue(recurringProps, compact ? 120 : 220)}`,
     `Companion characters: ${clampPromptValue(companionCharacters, compact ? 120 : 220)}`,
+    gatedCompanions.length > 0
+      ? compact
+        ? "Companion characters are living creatures, never plush, stuffed, or soft toys. Only draw a companion when this page's scene actually places it here; if the text only remembers or mentions it, do not add it."
+        : "Companion characters are real, living creatures in the story - never draw them as a plush, stuffed animal, soft toy, or figurine. Only include a companion when this specific page's scene physically places it there; if the page's text only remembers, mentions, or thinks about the companion without it being present, do not add it to the illustration."
+      : "",
     `Palette: ${clampPromptValue(bible.palette, compact ? 100 : 180)}`,
     compact
       ? "Apply the palette only to background, clothing, and lighting, never to hair, skin, or eyes."
@@ -440,8 +455,8 @@ export function buildIllustrationDirection(
     `Lighting tone: ${clampPromptValue(bible.lightingTone, compact ? 100 : 180)}`,
     `Do not change: ${clampPromptValue(continuity, compact ? 180 : 320)}`,
     compact
-      ? "Keep each character's exact footwear identical on every page; never restyle or recolour shoes or boots."
-      : "Footwear lock: give each character one fixed pair of shoes or boots and keep the same style and colour on the cover and every page; never swap, redesign, or recolour their footwear between pages.",
+      ? "Keep each character's exact footwear identical on every page; never restyle or recolour shoes or boots. Footwear is worn on the feet only - never add a second spare pair as a scene object."
+      : "Footwear lock: give each character one fixed pair of shoes or boots and keep the same style and colour on the cover and every page; never swap, redesign, or recolour their footwear between pages. Each character's footwear is worn on their feet only; do not also place a duplicate or spare pair of their shoes or boots elsewhere in the scene.",
     "For selected family/friends/pets, preserve their described/reference apparent age, face shape, hair, glasses, body build, and markings. Do not make grandparents generically elderly or alter body build from the reference.",
   ].join(" ");
 }

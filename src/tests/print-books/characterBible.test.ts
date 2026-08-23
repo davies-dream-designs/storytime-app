@@ -51,6 +51,26 @@ describe("buildIllustrationDirection companion/prop gating", () => {
     });
     expect(direction).toContain("Companion characters: none");
   });
+
+  it("tells the model companions are living creatures, never toys, when a companion is present", () => {
+    const direction = buildIllustrationDirection(bibleWithCompanion(), {
+      activeSceneText: "The egg cracked and a tiny dinosaur peeked out.",
+    });
+    expect(direction.toLowerCase()).toContain("never");
+    expect(direction).toMatch(/plush|stuffed|soft toy/i);
+  });
+
+  it("omits the living-creature line when no companion is on the page", () => {
+    const direction = buildIllustrationDirection(bibleWithCompanion(), {
+      activeSceneText: "Bailey played in the garden all afternoon.",
+    });
+    expect(direction).not.toMatch(/plush, stuffed/i);
+  });
+
+  it("forbids drawing a duplicate spare pair of footwear as a scene object", () => {
+    const direction = buildIllustrationDirection(bibleWithCompanion());
+    expect(direction.toLowerCase()).toContain("worn on their feet only");
+  });
 });
 
 const { mockMessagesCreate } = vi.hoisted(() => ({
@@ -136,5 +156,34 @@ describe("generateCharacterBible", () => {
     expect(prompt).toContain(
       "Illustration prompt 12 with moon flowers and a sleepy fox."
     );
+  });
+
+  it("strips worn clothing/footwear from recurring props so they aren't drawn twice", async () => {
+    mockMessagesCreate.mockResolvedValueOnce({
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            childAppearance: "Bailey has short ginger hair.",
+            outfitRules: "Blue tee, grey joggers, yellow rain boots.",
+            recurringProps: ["yellow rain boots", "wooden basket"],
+            companionCharacters: [],
+            palette: "soft green",
+            renderStyle: "storybook gouache",
+            lightingTone: "warm afternoon",
+            doNotChange: ["ginger hair"],
+          }),
+        },
+      ],
+    });
+
+    const bible = await generateCharacterBible({
+      profile: createProfile(),
+      story: createStory(12),
+      characters: [],
+    });
+
+    expect(bible.recurringProps).toContain("wooden basket");
+    expect(bible.recurringProps).not.toContain("yellow rain boots");
   });
 });

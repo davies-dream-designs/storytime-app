@@ -11,7 +11,9 @@ import {
 } from "@/lib/print-books/status";
 import {
   computeEtaSeconds,
+  creepProgress,
   formatBuildEta,
+  formatElapsed,
   smoothEtaSeconds,
 } from "@/lib/print-books/buildEta";
 import { hasResolvedImageFailure } from "@/lib/print-books/readiness";
@@ -185,8 +187,10 @@ export default function BookStatusPanel({
   const [startingBuild, setStartingBuild] = useState(false);
   const [readerIndex, setReaderIndex] = useState(0);
   const [etaSeconds, setEtaSeconds] = useState<number | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const prevCompletedCount = useRef(0);
   const etaTotalRef = useRef(0);
+  const buildStartedAtRef = useRef<number | null>(null);
   const buildStartedRef = useRef(false);
   const latestProjectUpdatedAtRef = useRef(
     Date.parse(initialProject.updatedAt)
@@ -568,16 +572,30 @@ export default function BookStatusPanel({
     return null;
   }, [artworkPreviews]);
 
-  // Data-driven ETA from real per-illustration completion timestamps.
+  // Tick every second during an active build so the elapsed timer and the
+  // progress "creep" stay live (batches land lumpily, so real progress can sit
+  // still for a minute or more between windows).
+  useEffect(() => {
+    if (!isActiveBuild) return;
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [isActiveBuild]);
+
+  // Anchor the elapsed timer the first time we observe an active build.
   useEffect(() => {
     if (!isActiveBuild || artworkPreviews.length === 0) {
-      setEtaSeconds(null);
+      buildStartedAtRef.current = null;
       etaTotalRef.current = 0;
+      setEtaSeconds(null);
       return;
     }
-    // A change in total means a fresh/rebuilt job; drop the old estimate.
+    if (buildStartedAtRef.current == null) {
+      buildStartedAtRef.current = Date.now();
+    }
+    // A change in total means a fresh/rebuilt job; restart the estimate.
     if (etaTotalRef.current !== artworkPreviews.length) {
       etaTotalRef.current = artworkPreviews.length;
+      buildStartedAtRef.current = Date.now();
       setEtaSeconds(null);
     }
     const completedAtMs = artworkPreviews
@@ -592,10 +610,21 @@ export default function BookStatusPanel({
     setEtaSeconds((prev) => smoothEtaSeconds(prev, raw));
   }, [isActiveBuild, artworkPreviews, completedArtworkCount, project.updatedAt]);
 
-  const buildEtaLabel = formatBuildEta(
-    etaSeconds,
-    isPreparingFinalFiles ? "finalizing" : "illustrating"
-  );
+  const elapsedSeconds =
+    buildStartedAtRef.current != null
+      ? Math.max(0, (nowMs - buildStartedAtRef.current) / 1000)
+      : 0;
+  // Primary signal is an always-moving elapsed timer; show a numeric ETA only
+  // once we can actually compute a trustworthy one. This avoids the previous
+  // "Estimating time left…" state that never resolved for lumpy builds.
+  const buildEtaLabel = isPreparingFinalFiles
+    ? formatBuildEta(etaSeconds, "finalizing")
+    : etaSeconds != null
+      ? formatBuildEta(etaSeconds, "illustrating")
+      : `Elapsed ${formatElapsed(elapsedSeconds)}`;
+  const displayedBuildProgress = isPreparingFinalFiles
+    ? progress
+    : creepProgress(elapsedSeconds, progress);
 
   // Auto-advance reader to latest completed illustration during active builds
   useEffect(() => {
@@ -993,14 +1022,14 @@ export default function BookStatusPanel({
       <div
         className="mt-6 h-3 overflow-hidden rounded-full bg-night-100"
         role="progressbar"
-        aria-valuenow={Math.min(progress, 100)}
+        aria-valuenow={Math.min(displayedBuildProgress, 100)}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={t("progressLabel")}
       >
         <div
-          className="h-full rounded-full bg-star-400 transition-all"
-          style={{ width: `${Math.min(progress, 100)}%` }}
+          className="h-full rounded-full bg-star-400 transition-[width] duration-1000 ease-linear"
+          style={{ width: `${Math.min(displayedBuildProgress, 100)}%` }}
         />
       </div>
 
@@ -1204,11 +1233,11 @@ export default function BookStatusPanel({
                 <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-night-100">
                   <div
                     role="progressbar"
-                    aria-valuenow={progress}
+                    aria-valuenow={displayedBuildProgress}
                     aria-valuemin={0}
                     aria-valuemax={100}
-                    className="h-full rounded-full bg-gradient-to-r from-lilac-400 to-star-500 transition-[width] duration-700 ease-out"
-                    style={{ width: `${Math.max(progress, 4)}%` }}
+                    className="h-full rounded-full bg-gradient-to-r from-lilac-400 to-star-500 transition-[width] duration-1000 ease-linear"
+                    style={{ width: `${Math.max(displayedBuildProgress, 4)}%` }}
                   />
                   {completedArtworkCount === 0 ? (
                     <div className="pointer-events-none absolute inset-0 -translate-x-full animate-book-progress-shimmer bg-gradient-to-r from-transparent via-white/60 to-transparent" />

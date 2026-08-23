@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   computeEtaSeconds,
+  creepProgress,
   formatBuildEta,
+  formatElapsed,
   smoothEtaSeconds,
 } from "@/lib/print-books/buildEta";
 
@@ -79,5 +81,46 @@ describe("formatBuildEta", () => {
     expect(formatBuildEta(40)).toBe("Less than a minute left");
     expect(formatBuildEta(90)).toBe("About 2 minutes left");
     expect(formatBuildEta(61)).toBe("About 1 minute left");
+  });
+});
+
+describe("formatElapsed", () => {
+  it("formats seconds as M:SS", () => {
+    expect(formatElapsed(0)).toBe("0:00");
+    expect(formatElapsed(9)).toBe("0:09");
+    expect(formatElapsed(75)).toBe("1:15");
+    expect(formatElapsed(600)).toBe("10:00");
+  });
+
+  it("clamps negatives to 0:00", () => {
+    expect(formatElapsed(-5)).toBe("0:00");
+  });
+});
+
+describe("creepProgress", () => {
+  it("starts at real progress and eases upward over time", () => {
+    expect(creepProgress(0, 35)).toBe(35);
+    const at30 = creepProgress(30, 35);
+    const at90 = creepProgress(90, 35);
+    expect(at30).toBeGreaterThan(35);
+    expect(at90).toBeGreaterThan(at30);
+  });
+
+  it("never overtakes real progress once a batch lands", () => {
+    // A big real jump should win over the time-based creep.
+    expect(creepProgress(20, 78)).toBe(78);
+  });
+
+  it("is capped below 100 so it never claims completion", () => {
+    expect(creepProgress(100000, 0)).toBeLessThanOrEqual(92);
+  });
+
+  it("is monotonic in elapsed time", () => {
+    let prev = -1;
+    for (let s = 0; s <= 300; s += 15) {
+      const v = creepProgress(s, 0);
+      expect(v).toBeGreaterThanOrEqual(prev);
+      prev = v;
+    }
   });
 });

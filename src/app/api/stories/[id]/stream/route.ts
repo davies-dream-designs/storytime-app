@@ -20,9 +20,21 @@ function sendEvent(
   data: unknown
 ) {
   const encoder = new TextEncoder();
-  controller.enqueue(
-    encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
-  );
+  try {
+    controller.enqueue(
+      encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+    );
+  } catch {
+    // Controller is already closed (client disconnected); nothing to send.
+  }
+}
+
+function safeClose(controller: ReadableStreamDefaultController<Uint8Array>) {
+  try {
+    controller.close();
+  } catch {
+    // Already closed.
+  }
 }
 
 export async function POST(
@@ -171,8 +183,15 @@ export async function POST(
         }
 
         sendEvent(controller, "complete", updated ?? storyForStorage);
-        controller.close();
+        safeClose(controller);
       } catch (err) {
+        // If the client navigated away, the failure is just the disconnect.
+        // Don't corrupt the story record to "failed" - leave it as-is so a
+        // reload can recover, and skip the noisy error log/event.
+        if (req.signal.aborted) {
+          safeClose(controller);
+          return;
+        }
         const message =
           err instanceof StoryGenerationError
             ? err.message
@@ -204,7 +223,7 @@ export async function POST(
           },
         });
         sendEvent(controller, "error", { error: message });
-        controller.close();
+        safeClose(controller);
       }
     },
   });

@@ -476,6 +476,51 @@ describe("story post-check", () => {
     expect(mockMessagesCreate).toHaveBeenCalledTimes(1);
   });
 
+  it("falls back to the un-polished draft when the polish step fails", async () => {
+    const generatedStory = {
+      title: "Bailey Moon",
+      pages: [
+        {
+          pageNumber: 1,
+          text: "Bailey waved.",
+          illustrationPrompt: "Bailey in a cosy room.",
+        },
+      ],
+    };
+    const stream = {
+      on: vi.fn(
+        (
+          event: string,
+          callback: (delta: string, snapshot: string) => void
+        ) => {
+          if (event === "text") {
+            callback("", JSON.stringify(generatedStory));
+          }
+          return stream;
+        }
+      ),
+      finalText: vi.fn(async () => JSON.stringify(generatedStory)),
+    };
+    mockMessagesStream.mockReturnValueOnce(stream);
+    mockMessagesCreate.mockRejectedValueOnce(new Error("polish 500"));
+
+    const result = await streamStory(
+      {
+        profile: createProfile(),
+        characters: [],
+        theme: "kindness",
+        notes: "",
+        storyPreset: "tiny-tales",
+        locale: "en",
+      },
+      () => {},
+      () => {}
+    );
+
+    expect(result).toEqual(normalizeGeneratedStory(generatedStory));
+    expect(mockMessagesCreate).toHaveBeenCalledTimes(1);
+  });
+
   it("removes em and en dashes from generated story fields", () => {
     expect(
       normalizeGeneratedStory({

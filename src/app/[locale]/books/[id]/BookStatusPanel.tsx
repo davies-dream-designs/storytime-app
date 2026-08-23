@@ -9,6 +9,11 @@ import {
   getBookProjectDisplayStageLabel,
   getBookProjectProgress,
 } from "@/lib/print-books/status";
+import {
+  computeEtaSeconds,
+  formatBuildEta,
+  smoothEtaSeconds,
+} from "@/lib/print-books/buildEta";
 import { hasResolvedImageFailure } from "@/lib/print-books/readiness";
 import {
   getArtworkError,
@@ -179,7 +184,9 @@ export default function BookStatusPanel({
   const [pollUntil, setPollUntil] = useState(0);
   const [startingBuild, setStartingBuild] = useState(false);
   const [readerIndex, setReaderIndex] = useState(0);
+  const [etaSeconds, setEtaSeconds] = useState<number | null>(null);
   const prevCompletedCount = useRef(0);
+  const etaTotalRef = useRef(0);
   const buildStartedRef = useRef(false);
   const latestProjectUpdatedAtRef = useRef(
     Date.parse(initialProject.updatedAt)
@@ -551,6 +558,44 @@ export default function BookStatusPanel({
     displayStatus === "composing" &&
     artworkPreviews.length > 0 &&
     completedArtworkCount >= artworkPreviews.length;
+
+  // Latest completed illustration to show as a calm hero preview while building.
+  const latestCompletedArtwork = useMemo(() => {
+    for (let i = artworkPreviews.length - 1; i >= 0; i -= 1) {
+      const artwork = artworkPreviews[i];
+      if (artwork?.url) return { artwork, index: i };
+    }
+    return null;
+  }, [artworkPreviews]);
+
+  // Data-driven ETA from real per-illustration completion timestamps.
+  useEffect(() => {
+    if (!isActiveBuild || artworkPreviews.length === 0) {
+      setEtaSeconds(null);
+      etaTotalRef.current = 0;
+      return;
+    }
+    // A change in total means a fresh/rebuilt job; drop the old estimate.
+    if (etaTotalRef.current !== artworkPreviews.length) {
+      etaTotalRef.current = artworkPreviews.length;
+      setEtaSeconds(null);
+    }
+    const completedAtMs = artworkPreviews
+      .filter((a) => a.url && a.qa?.generatedAt)
+      .map((a) => Date.parse(a.qa!.generatedAt))
+      .filter((ms) => Number.isFinite(ms));
+    const raw = computeEtaSeconds(
+      completedAtMs,
+      artworkPreviews.length,
+      Date.now()
+    );
+    setEtaSeconds((prev) => smoothEtaSeconds(prev, raw));
+  }, [isActiveBuild, artworkPreviews, completedArtworkCount, project.updatedAt]);
+
+  const buildEtaLabel = formatBuildEta(
+    etaSeconds,
+    isPreparingFinalFiles ? "finalizing" : "illustrating"
+  );
 
   // Auto-advance reader to latest completed illustration during active builds
   useEffect(() => {
@@ -1102,22 +1147,105 @@ export default function BookStatusPanel({
 
       {artworkPreviews.length > 0 && displayStatus !== "ready" ? (
         <div className="mt-6">
-          {/* Progress header */}
-          <div className="mb-3 flex items-center justify-between gap-4">
-            <p className="text-xs font-bold uppercase tracking-wide text-night-400">
-              {isPreparingFinalFiles
-                ? "Preparing final book files..."
-                : `${completedArtworkCount} of ${artworkPreviews.length} illustrations${isActiveBuild ? " loading..." : " complete"}`}
-            </p>
-            {!isActiveBuild ? (
+          {/* Active build: calm progress panel with the latest painted page */}
+          {isActiveBuild ? (
+            <div className="overflow-hidden rounded-2xl border border-night-100 bg-white shadow-sm">
+              <div
+                className="relative w-full bg-night-50"
+                style={{ paddingBottom: "100%" }}
+              >
+                {latestCompletedArtwork ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      key={latestCompletedArtwork.artwork.url}
+                      src={latestCompletedArtwork.artwork.url}
+                      alt={`Latest painted illustration ${latestCompletedArtwork.index + 1}`}
+                      className="absolute inset-0 h-full w-full animate-book-hero-fade object-cover"
+                      draggable={false}
+                      onContextMenu={(e) => e.preventDefault()}
+                    />
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent px-5 pb-4 pt-12">
+                      <p className="font-display text-base font-bold text-white">
+                        {isPreparingFinalFiles
+                          ? "Adding the final touches…"
+                          : "Painting your book…"}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
+                    <div>
+                      <Icon
+                        name="sparkle"
+                        className="mx-auto h-9 w-9 text-star-400 motion-safe:animate-book-hero-fade"
+                      />
+                      <p className="mt-3 font-display text-lg font-bold text-night-700">
+                        Bringing your first pages to life…
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3 border-t border-night-50 px-5 py-4">
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="font-display text-base font-bold text-night-800">
+                    {stageLabel}
+                  </p>
+                  <p
+                    className="shrink-0 text-sm font-bold text-star-600"
+                    aria-live="polite"
+                  >
+                    {buildEtaLabel}
+                  </p>
+                </div>
+
+                <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-night-100">
+                  <div
+                    role="progressbar"
+                    aria-valuenow={progress}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    className="h-full rounded-full bg-gradient-to-r from-lilac-400 to-star-500 transition-[width] duration-700 ease-out"
+                    style={{ width: `${Math.max(progress, 4)}%` }}
+                  />
+                  {completedArtworkCount === 0 ? (
+                    <div className="pointer-events-none absolute inset-0 -translate-x-full animate-book-progress-shimmer bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+                  ) : null}
+                </div>
+
+                <p
+                  className="text-sm font-medium text-night-500"
+                  aria-live="polite"
+                >
+                  {isPreparingFinalFiles
+                    ? "All illustrations painted — preparing your book files."
+                    : `${completedArtworkCount} of ${artworkPreviews.length} illustrations painted`}
+                </p>
+                <p className="text-xs font-medium text-night-400">
+                  You can leave this page — we&apos;ll keep painting and have it
+                  ready when you return.
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Progress header (review state) */}
+          {!isActiveBuild ? (
+            <div className="mb-3 flex items-center justify-between gap-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-night-400">
+                {`${completedArtworkCount} of ${artworkPreviews.length} illustrations complete`}
+              </p>
               <p className="text-xs font-bold text-night-400">
                 Retry free · Redo finished: 1 credit
               </p>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
 
-          {/* Streaming reader card */}
-          {(() => {
+          {/* Streaming reader card (review state) */}
+          {!isActiveBuild &&
+            (() => {
             const artwork = artworkPreviews[readerIndex];
             if (!artwork) return null;
             const imgKey = `${artwork.preview.id}:${artwork.side}`;
@@ -1248,48 +1376,50 @@ export default function BookStatusPanel({
             );
           })()}
 
-          {/* Navigation */}
-          <div className="mt-4 flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => setReaderIndex((i) => Math.max(0, i - 1))}
-              disabled={readerIndex === 0}
-              className="flex items-center gap-1.5 rounded-full border border-night-200 px-5 py-2.5 text-sm font-bold text-night-600 transition hover:bg-night-50 disabled:cursor-not-allowed disabled:opacity-30"
-            >
-              ← Prev
-            </button>
+          {/* Navigation (review state) */}
+          {!isActiveBuild ? (
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setReaderIndex((i) => Math.max(0, i - 1))}
+                disabled={readerIndex === 0}
+                className="flex items-center gap-1.5 rounded-full border border-night-200 px-5 py-2.5 text-sm font-bold text-night-600 transition hover:bg-night-50 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                ← Prev
+              </button>
 
-            <div className="flex max-w-[40%] flex-wrap justify-center gap-1">
-              {artworkPreviews.map((a, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setReaderIndex(i)}
-                  aria-label={`Illustration ${i + 1}`}
-                  className={`h-2 rounded-full transition-all ${
-                    i === readerIndex
-                      ? "w-5 bg-night-700"
-                      : a.url
-                        ? "w-2 bg-night-300 hover:bg-night-500"
-                        : "w-2 bg-night-100"
-                  }`}
-                />
-              ))}
+              <div className="flex max-w-[40%] flex-wrap justify-center gap-1">
+                {artworkPreviews.map((a, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setReaderIndex(i)}
+                    aria-label={`Illustration ${i + 1}`}
+                    className={`h-2 rounded-full transition-all ${
+                      i === readerIndex
+                        ? "w-5 bg-night-700"
+                        : a.url
+                          ? "w-2 bg-night-300 hover:bg-night-500"
+                          : "w-2 bg-night-100"
+                    }`}
+                  />
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setReaderIndex((i) =>
+                    Math.min(artworkPreviews.length - 1, i + 1)
+                  )
+                }
+                disabled={readerIndex === artworkPreviews.length - 1}
+                className="flex items-center gap-1.5 rounded-full border border-night-200 px-5 py-2.5 text-sm font-bold text-night-600 transition hover:bg-night-50 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                Next →
+              </button>
             </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                setReaderIndex((i) =>
-                  Math.min(artworkPreviews.length - 1, i + 1)
-                )
-              }
-              disabled={readerIndex === artworkPreviews.length - 1}
-              className="flex items-center gap-1.5 rounded-full border border-night-200 px-5 py-2.5 text-sm font-bold text-night-600 transition hover:bg-night-50 disabled:cursor-not-allowed disabled:opacity-30"
-            >
-              Next →
-            </button>
-          </div>
+          ) : null}
 
           {imageError ? (
             <p

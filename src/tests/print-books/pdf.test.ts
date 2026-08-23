@@ -195,6 +195,28 @@ function createProjectWithFullBackMatter(): BookProject {
   };
 }
 
+describe("formatCreatedOnDate", () => {
+  it("formats a book's creation timestamp as a full UTC date", async () => {
+    const { formatCreatedOnDate } = await import(
+      "@/lib/print-books/pdf/rendering"
+    );
+    expect(formatCreatedOnDate("2026-07-15T00:00:00.000Z")).toBe(
+      "15 July 2026"
+    );
+    // Uses UTC, so a just-before-midnight UTC time stays on the same day.
+    expect(formatCreatedOnDate("2026-03-03T23:30:00.000Z")).toBe(
+      "3 March 2026"
+    );
+  });
+
+  it("returns an empty string for an invalid date", async () => {
+    const { formatCreatedOnDate } = await import(
+      "@/lib/print-books/pdf/rendering"
+    );
+    expect(formatCreatedOnDate("not-a-date")).toBe("");
+  });
+});
+
 describe("generateBookPdfs", () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -330,16 +330,66 @@ function clampPromptValue(value: string, maxChars: number): string {
   return `${(boundary > maxChars * 0.6 ? trimmed.slice(0, boundary) : trimmed).trim()}…`;
 }
 
+// Words that carry no identifying signal for a companion/prop, so they must not
+// be used to decide whether it has appeared in the story yet (e.g. a "small
+// green dinosaur" must not be triggered by unrelated "green garden" text).
+const COMPANION_MATCH_STOPWORDS = new Set([
+  "the", "a", "an", "and", "or", "with", "who", "that", "this", "her", "his",
+  "its", "their", "of", "for", "in", "on", "to", "is", "are",
+  "tiny", "small", "little", "big", "large", "baby", "young", "old", "giant",
+  "green", "red", "blue", "brown", "grey", "gray", "white", "black", "yellow",
+  "purple", "pink", "orange", "golden", "gold", "silver", "dark", "light",
+  "soft", "friendly", "cuddly", "toy", "plush", "stuffed", "character",
+  "companion", "creature", "animal", "pet", "shiny", "spiky", "fluffy", "round",
+  "gentle", "happy", "cute", "colour", "color", "coloured", "colored",
+  "named", "called", "some", "very", "into", "from", "they", "them",
+]);
+
+// Content words (>=4 chars, not a stopword) that identify a companion/prop.
+function companionMatchKeywords(entry: string): string[] {
+  return Array.from(
+    new Set(
+      entry
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]+/g, " ")
+        .split(/\s+/)
+        .filter((word) => word.length >= 4 && !COMPANION_MATCH_STOPWORDS.has(word))
+    )
+  );
+}
+
+// Keep only companions/props the story text has introduced by this point.
+// An entry with no identifying keyword (e.g. "a friendly creature") is dropped
+// rather than shown everywhere, so nothing is drawn before it appears.
+function filterEntriesByScene(entries: string[], sceneText: string): string[] {
+  const haystack = sceneText.toLowerCase();
+  if (!haystack.trim()) return entries;
+  return entries.filter((entry) => {
+    const keywords = companionMatchKeywords(entry);
+    if (keywords.length === 0) return false;
+    return keywords.some((keyword) => haystack.includes(keyword));
+  });
+}
+
 export function buildIllustrationDirection(
   bible: CharacterBible,
-  options?: { compact?: boolean }
+  options?: { compact?: boolean; activeSceneText?: string }
 ): string {
   const compact = options?.compact ?? false;
+  const activeSceneText = options?.activeSceneText;
+  const gatedProps =
+    activeSceneText === undefined
+      ? bible.recurringProps
+      : filterEntriesByScene(bible.recurringProps, activeSceneText);
+  const gatedCompanions =
+    activeSceneText === undefined
+      ? bible.companionCharacters
+      : filterEntriesByScene(bible.companionCharacters, activeSceneText);
   const recurringProps =
-    bible.recurringProps.length > 0 ? bible.recurringProps.join(", ") : "none";
+    gatedProps.length > 0 ? gatedProps.join(", ") : "none";
   const companionCharacters =
-    bible.companionCharacters.length > 0
-      ? bible.companionCharacters.join(", ")
+    gatedCompanions.length > 0
+      ? gatedCompanions.join(", ")
       : "none";
   const continuity =
     bible.doNotChange.length > 0

@@ -212,10 +212,11 @@ function createSpread(
 
 function withCharacterBiblePrompt(
   prompt: string,
-  characterBible?: CharacterBible
+  characterBible?: CharacterBible,
+  activeSceneText?: string
 ): string {
   if (!characterBible) return prompt;
-  return `${buildIllustrationDirection(characterBible)} Scene direction: ${prompt}`.trim();
+  return `${buildIllustrationDirection(characterBible, { activeSceneText })} Scene direction: ${prompt}`.trim();
 }
 
 function createFrontMatterSpreads(
@@ -261,10 +262,15 @@ function createEndMatterSpreads(
   story: Story,
   profile: ChildProfile,
   pageCount: number,
+  beats: Beat[],
   characterBible?: CharacterBible
 ): BookSpread[] {
   const endSequence = pageCount / 2 - 1;
   const backCoverSequence = pageCount / 2;
+  const finalBeat = beats[beats.length - 1];
+  const closingScene = finalBeat
+    ? `A peaceful closing image that continues the story's final moment: ${clampText(finalBeat.visualIntent, 200)}`
+    : `A peaceful closing image for ${profile.name}.`;
   return [
     createSpread(
       bookProjectId,
@@ -274,10 +280,7 @@ function createEndMatterSpreads(
       `The End.\n\nSweet dreams, ${profile.name}.`,
       "",
       `Closing pages for ${story.title}`,
-      withCharacterBiblePrompt(
-        `A peaceful closing image for ${profile.name} settling into sleep.`,
-        characterBible
-      ),
+      withCharacterBiblePrompt(closingScene, characterBible),
       "The End"
     ),
     createSpread(
@@ -526,9 +529,13 @@ function createStorySpreads(
   let pageStart = INTERIOR_START_PAGE;
   let sequence = 3;
   const interiorEndPage = getInteriorEndPage(pageCount);
+  // Narrative revealed so far, so a companion/prop is only drawn from the page
+  // its story text introduces it onward.
+  const cumulativeSceneText = storyBeats.map((beat) => beat.textDraft);
 
   for (let i = 0; i < storyBeats.length; i += 1) {
     const beat = storyBeats[i];
+    const sceneSoFar = cumulativeSceneText.slice(0, i + 1).join(" ");
     const shouldIllustrate = shouldIllustrateStorySpread(
       ageBand,
       i + 1,
@@ -556,7 +563,7 @@ function createStorySpreads(
         rightPageText,
         buildSceneBrief(beat),
         shouldIllustrate
-          ? withCharacterBiblePrompt(beat.visualIntent, characterBible)
+          ? withCharacterBiblePrompt(beat.visualIntent, characterBible, sceneSoFar)
           : ""
       )
     );
@@ -648,6 +655,7 @@ export function composePrintBookSpreads(input: {
       story,
       profile,
       pageCount,
+      beats,
       characterBible
     ),
   ];

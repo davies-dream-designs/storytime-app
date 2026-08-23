@@ -27,6 +27,19 @@ import {
   type PlaceholderTheme,
 } from "./placeholders";
 
+// Deterministic UTC date for the printed keepsake (e.g. "3 March 2026"),
+// so the same book always prints the same date regardless of server locale.
+export function formatCreatedOnDate(isoDate: string): string {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
 export async function drawSpreadArtIntoRect(input: {
   pdfDoc: PDFDocument;
   page: ReturnType<PDFDocument["addPage"]>;
@@ -450,6 +463,13 @@ export async function drawCopyrightPage(input: {
       color: BRAND_PURPLE,
     }
   );
+  page.drawText(`Created on ${formatCreatedOnDate(project.createdAt)}`, {
+    x: pageWidth * 0.12,
+    y: pageHeight * 0.255,
+    font: sans,
+    size: 10,
+    color: rgb(0.34, 0.35, 0.4),
+  });
   page.drawText(BOOK_SPEC.trimLabel, {
     x: pageWidth * 0.12,
     y: pageHeight * 0.24,

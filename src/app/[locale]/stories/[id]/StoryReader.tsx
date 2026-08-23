@@ -16,7 +16,9 @@ export default function StoryReader({ story }: { story: Story }) {
   const [streaming, setStreaming] = useState(story.status === "generating");
   const [streamStatus, setStreamStatus] = useState<StreamStatus>("starting");
   const [error, setError] = useState(story.generationError ?? "");
+  const [polishSeconds, setPolishSeconds] = useState(0);
   const startedRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
   const t = useTranslations("stories");
   const locale = useLocale();
   const currentPage = liveStory.pages[page];
@@ -31,6 +33,9 @@ export default function StoryReader({ story }: { story: Story }) {
       : t("streamingPageCount", { count: total });
 
   const startStreaming = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setStreaming(true);
     setStreamStatus("starting");
     setError("");
@@ -40,6 +45,7 @@ export default function StoryReader({ story }: { story: Story }) {
         `/api/stories/${liveStory.id}/stream?locale=${locale}`,
         {
           method: "POST",
+          signal: controller.signal,
         }
       );
       if (!res.ok || !res.body) {
@@ -69,10 +75,16 @@ export default function StoryReader({ story }: { story: Story }) {
             .find((line) => line.startsWith("data: "));
           if (!dataLine) continue;
 
-          const data = JSON.parse(dataLine.slice(6)) as Partial<Story> & {
+          let data: Partial<Story> & {
             error?: string;
             status?: StreamStatus;
           };
+          try {
+            data = JSON.parse(dataLine.slice(6));
+          } catch {
+            // Skip a malformed/partial SSE line rather than failing the stream.
+            continue;
+          }
 
           if (event === "status" && data.status) {
             setStreamStatus(data.status);
@@ -101,6 +113,11 @@ export default function StoryReader({ story }: { story: Story }) {
         }
       }
     } catch (err) {
+      // Navigating away/unmounting aborts the fetch; that's not a real failure,
+      // so don't surface an error or mark the story failed.
+      if (controller.signal.aborted || (err instanceof Error && err.name === "AbortError")) {
+        return;
+      }
       setStreaming(false);
       setLiveStory((current) => ({ ...current, status: "failed" }));
       setError(err instanceof Error ? err.message : "Story generation failed");
@@ -112,6 +129,25 @@ export default function StoryReader({ story }: { story: Story }) {
     startedRef.current = true;
     void startStreaming();
   }, [startStreaming, story.status]);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  // Elapsed-time heartbeat so the non-streamed polish step doesn't look frozen.
+  useEffect(() => {
+    if (!streaming || streamStatus !== "polishing") {
+      setPolishSeconds(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const interval = setInterval(() => {
+      setPolishSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [streaming, streamStatus]);
 
   return (
     <div className="select-none">
@@ -156,8 +192,16 @@ export default function StoryReader({ story }: { story: Story }) {
       </div>
 
       {streaming && total > 0 && (
-        <p className="mt-4 text-center text-sm font-bold text-star-600">
-          {streamingProgress}
+        <p className="mt-4 flex items-center justify-center gap-2 text-center text-sm font-bold text-star-600">
+          {streamStatus === "polishing" && (
+            <Icon name="sparkle" className="h-4 w-4 animate-spin text-star-500" />
+          )}
+          <span>
+            {streamingProgress}
+            {streamStatus === "polishing" && polishSeconds > 0
+              ? ` (${polishSeconds}s)`
+              : ""}
+          </span>
         </p>
       )}
 

@@ -389,23 +389,34 @@ async function postCheckStory(
   story: GeneratedStory
 ): Promise<GeneratedStory> {
   const normalized = normalizeGeneratedStory(story);
-  const message = await client.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 4096,
-    messages: [
-      { role: "user", content: buildStoryPostCheckPrompt(input, normalized) },
-    ],
-  });
+  // Polishing is a best-effort copyedit pass. A polish/model/validation failure
+  // must not discard an otherwise-good draft, so fall back to the un-polished
+  // story rather than failing the whole generation.
+  try {
+    const message = await client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 4096,
+      messages: [
+        { role: "user", content: buildStoryPostCheckPrompt(input, normalized) },
+      ],
+    });
 
-  const content = message.content[0];
-  if (content.type !== "text") {
-    throw new Error("Unexpected response type from story post-check");
+    const content = message.content[0];
+    if (content.type !== "text") {
+      throw new Error("Unexpected response type from story post-check");
+    }
+
+    return validatePostCheckedStory(
+      normalized,
+      await parseGeneratedStoryWithRepair(content.text.trim(), "post-check")
+    );
+  } catch (err) {
+    console.warn(
+      "Story post-check failed; using un-polished draft.",
+      err instanceof Error ? err.message : err
+    );
+    return normalized;
   }
-
-  return validatePostCheckedStory(
-    normalized,
-    await parseGeneratedStoryWithRepair(content.text.trim(), "post-check")
-  );
 }
 
 export async function generateStory(

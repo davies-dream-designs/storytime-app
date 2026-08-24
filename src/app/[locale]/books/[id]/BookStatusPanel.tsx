@@ -1205,43 +1205,39 @@ export default function BookStatusPanel({
           {/* Active build: calm progress panel with the latest painted page */}
           {isActiveBuild ? (
             <div className="overflow-hidden rounded-2xl border border-night-100 bg-white shadow-sm">
-              <div
-                className="relative w-full bg-night-50"
-                style={{ paddingBottom: "100%" }}
-              >
-                {latestCompletedArtwork ? (
-                  <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      key={latestCompletedArtwork.artwork.url}
-                      src={latestCompletedArtwork.artwork.url}
-                      alt={`Latest painted illustration ${latestCompletedArtwork.index + 1}`}
-                      className="absolute inset-0 h-full w-full animate-book-hero-fade object-cover"
-                      draggable={false}
-                      onContextMenu={(e) => e.preventDefault()}
-                    />
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent px-5 pb-4 pt-12">
-                      <p className="font-display text-base font-bold text-white">
-                        {isPreparingFinalFiles
-                          ? "Assembling your book…"
-                          : "Painting your book…"}
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
-                    <div>
-                      <Icon
-                        name="sparkle"
-                        className="mx-auto h-9 w-9 text-star-400 motion-safe:animate-book-hero-fade"
-                      />
-                      <p className="mt-3 font-display text-lg font-bold text-night-700">
-                        Bringing your first pages to life…
-                      </p>
-                    </div>
+              {latestCompletedArtwork ? (
+                <div
+                  className="relative w-full bg-night-50"
+                  style={{ paddingBottom: "100%" }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    key={latestCompletedArtwork.artwork.url}
+                    src={latestCompletedArtwork.artwork.url}
+                    alt={`Latest painted illustration ${latestCompletedArtwork.index + 1}`}
+                    className="absolute inset-0 h-full w-full animate-book-hero-fade object-cover"
+                    draggable={false}
+                    onContextMenu={(e) => e.preventDefault()}
+                  />
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent px-5 pb-4 pt-12">
+                    <p className="font-display text-base font-bold text-white">
+                      {isPreparingFinalFiles
+                        ? "Assembling your book…"
+                        : "Painting your book…"}
+                    </p>
                   </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-3 bg-night-50 px-6 py-8 text-center">
+                  <Icon
+                    name="sparkle"
+                    className="h-6 w-6 shrink-0 text-star-400 motion-safe:animate-book-hero-fade"
+                  />
+                  <p className="font-display text-base font-bold text-night-700">
+                    Bringing your first pages to life…
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-3 border-t border-night-50 px-5 py-4">
                 <div className="flex items-baseline justify-between gap-3">

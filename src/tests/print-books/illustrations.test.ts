@@ -1565,3 +1565,45 @@ describe("generateCoverIllustration", () => {
     vi.doUnmock("@/lib/print-books/storage");
   });
 });
+
+describe("scoreContinuitySpread", () => {
+  function spread(partial: Partial<BookProject["spreads"][number]>) {
+    return {
+      id: "x",
+      sequence: 5,
+      title: "Page",
+      leftPageText: "",
+      rightPageText: "",
+      ...partial,
+    } as BookProject["spreads"][number];
+  }
+
+  it("scores a prior same-location spread even with no shared characters", async () => {
+    const { scoreContinuitySpread } = await import(
+      "@/lib/print-books/illustrations"
+    );
+    const score = scoreContinuitySpread({
+      spread: spread({ sequence: 5, locationId: "bedroom" }),
+      candidate: spread({ sequence: 2, locationId: "bedroom" }),
+      selectedCharacterIds: new Set(),
+    });
+    expect(score).toBeGreaterThan(0);
+  });
+
+  it("does not add the location bonus for a different location", async () => {
+    const { scoreContinuitySpread } = await import(
+      "@/lib/print-books/illustrations"
+    );
+    const same = scoreContinuitySpread({
+      spread: spread({ sequence: 5, locationId: "bedroom" }),
+      candidate: spread({ sequence: 4, locationId: "bedroom" }),
+      selectedCharacterIds: new Set(),
+    });
+    const different = scoreContinuitySpread({
+      spread: spread({ sequence: 5, locationId: "bedroom" }),
+      candidate: spread({ sequence: 4, locationId: "garden" }),
+      selectedCharacterIds: new Set(),
+    });
+    expect(same).toBeGreaterThan(different);
+  });
+});

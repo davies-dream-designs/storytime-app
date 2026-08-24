@@ -10,6 +10,7 @@ import { composePrintBookSpreads } from "@/lib/print-books/composer";
 import { generateLocationBible } from "@/lib/print-books/locationBible";
 import {
   applySpreadIllustration,
+  generateLocationEstablishingImages,
   generateSpreadPageIllustration,
   isGeneratedIllustrationConfigured,
 } from "@/lib/print-books/illustrations";
@@ -109,6 +110,15 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
           }),
     ]);
 
+    // Give each location a canonical establishing image so every spread set
+    // there anchors to the same room layout and object orientation. Runs once,
+    // before any spread is drawn; failures are non-fatal (fall back to text).
+    const locationBibleWithEstablishing =
+      await generateLocationEstablishingImages({
+        project,
+        locationBible,
+      });
+
     const spreads = composePrintBookSpreads({
       bookProjectId: project.id,
       story: context.story,
@@ -116,14 +126,14 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
       ageBand: project.ageBand,
       beats: project.beats,
       characterBible,
-      locationBible,
+      locationBible: locationBibleWithEstablishing,
     });
 
     return db.bookProjects.update(project.id, {
       status: "illustrating",
       currentStageLabel: getBookProjectStageLabel("illustrating"),
       characterBible,
-      locationBible,
+      locationBible: locationBibleWithEstablishing,
       spreads,
       completedSpreads: 0,
       totalSpreads: spreads.length,

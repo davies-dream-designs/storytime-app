@@ -134,4 +134,17 @@ describe("applyFixtureToLocation", () => {
     expect(applied.summary).toBe("Real lounge with green sofa");
     expect(applied.fixedElements).toEqual(["green velvet sofa"]);
   });
+
+  it("carries a fixture establishing image onto the location", () => {
+    const location = makeLocation({ id: "l2", place: "Playroom" });
+    const fixture = makeFixture({
+      id: "f-playroom",
+      place: "Playroom",
+      establishingImageUrl: "https://example.com/playroom-establishing.png",
+    });
+    const applied = applyFixtureToLocation(location, fixture);
+    expect(applied.establishingImageUrl).toBe(
+      "https://example.com/playroom-establishing.png"
+    );
+  });
 });

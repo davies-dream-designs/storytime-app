@@ -1,0 +1,1 @@
+ALTER TABLE "location_fixtures" ADD COLUMN "establishing_image_url" text;

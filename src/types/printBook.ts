@@ -97,6 +97,26 @@ export interface CharacterBible {
   lockedCharacterRules?: LockedCharacterRule[];
 }
 
+export interface SceneLocation {
+  id: string;
+  name: string;
+  summary: string;
+  fixedElements: string[];
+  lighting: string;
+  palette: string;
+  doNotChange: string[];
+}
+
+export interface LocationBible {
+  locations: SceneLocation[];
+  /**
+   * Maps a story page number (from the source story) to a location id in
+   * `locations`. Pages that revisit an earlier place point at the same id so
+   * the setting is redrawn consistently (e.g. home → outside → home).
+   */
+  pageLocations: Record<number, string>;
+}
+
 export interface LockedCharacterRule {
   id: string;
   name: string;
@@ -150,6 +170,8 @@ export interface BookSpread {
   rightPageText: string;
   sceneBrief: string;
   illustrationPrompt: string;
+  /** Location id (from the project's LocationBible) this spread is set in. */
+  locationId?: string;
   imageUrl?: string;
   leftPageImageUrl?: string;
   leftPageWebImageUrl?: string;
@@ -337,6 +359,7 @@ export interface BookProject {
   totalSpreads: number;
   currentStageLabel: string;
   characterBible?: CharacterBible;
+  locationBible?: LocationBible;
   beats: Beat[];
   spreads: BookSpread[];
   assets: BookAsset;

@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
-import type { SceneLocation } from "@/types/printBook";
+import type { LocationFixture, SceneLocation } from "@/types/printBook";
+import { suggestFixtureMatches } from "@/lib/print-books/locationFixtures";
 
 type Props = {
   projectId: string;
@@ -40,6 +41,75 @@ export default function LocationDetailsModal({
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const [fixtures, setFixtures] = useState<LocationFixture[]>([]);
+  const [savedLocationIds, setSavedLocationIds] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(
+    () => new Set()
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    // Fixtures are a convenience; if the request fails the modal still works.
+    fetch("/api/location-fixtures")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: LocationFixture[]) => {
+        if (!cancelled && Array.isArray(data)) setFixtures(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const suggestionByLocationId = useMemo(() => {
+    const map = new Map<string, LocationFixture>();
+    for (const s of suggestFixtureMatches(locations, fixtures)) {
+      map.set(s.location.id, s.fixture);
+    }
+    return map;
+  }, [locations, fixtures]);
+
+  function applyFixture(locationId: string, fixture: LocationFixture) {
+    if (fixture.notes) {
+      setNotes((prev) => ({ ...prev, [locationId]: fixture.notes as string }));
+    }
+    if (fixture.referenceImageUrl) {
+      setPhotos((prev) => ({
+        ...prev,
+        [locationId]: fixture.referenceImageUrl as string,
+      }));
+    }
+    setDismissedSuggestions((prev) => new Set(prev).add(locationId));
+  }
+
+  async function saveToLibrary(location: SceneLocation) {
+    const note = (notes[location.id] ?? "").trim();
+    const photo = photos[location.id];
+    if (!note && !photo) return;
+    try {
+      const res = await fetch("/api/location-fixtures", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          place: location.place,
+          area: location.area,
+          summary: location.summary,
+          notes: note || undefined,
+          referenceImageUrl: photo || undefined,
+        }),
+      });
+      if (res.ok) {
+        const created = (await res.json()) as LocationFixture;
+        setFixtures((prev) => [created, ...prev]);
+        setSavedLocationIds((prev) => new Set(prev).add(location.id));
+      }
+    } catch {
+      // Non-fatal: saving to the library is optional.
+    }
+  }
 
   async function uploadPhoto(locationId: string, file: File) {
     setUploadingId(locationId);
@@ -119,6 +189,47 @@ export default function LocationDetailsModal({
                     {location.summary}
                   </p>
                 ) : null}
+                {suggestionByLocationId.has(location.id) &&
+                !dismissedSuggestions.has(location.id) ? (
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-star-200 bg-star-50 px-3 py-2">
+                    <p className="text-xs text-night-600">
+                      Looks like your saved{" "}
+                      <span className="font-bold">
+                        “{suggestionByLocationId.get(location.id)!.place}
+                        {suggestionByLocationId.get(location.id)!.area
+                          ? ` (${suggestionByLocationId.get(location.id)!.area})`
+                          : ""}
+                        ”
+                      </span>
+                      . Use those details?
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="secondary"
+                        size="compact"
+                        onClick={() =>
+                          applyFixture(
+                            location.id,
+                            suggestionByLocationId.get(location.id)!
+                          )
+                        }
+                      >
+                        Use saved details
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="compact"
+                        onClick={() =>
+                          setDismissedSuggestions((prev) =>
+                            new Set(prev).add(location.id)
+                          )
+                        }
+                      >
+                        No thanks
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
                 <textarea
                   value={notes[location.id] ?? ""}
                   onChange={(e) =>
@@ -175,6 +286,18 @@ export default function LocationDetailsModal({
                         : "Add photo"}
                     </Button>
                   )}
+                  {(notes[location.id] ?? "").trim() || photos[location.id] ? (
+                    <Button
+                      variant="secondary"
+                      size="compact"
+                      onClick={() => saveToLibrary(location)}
+                      disabled={savedLocationIds.has(location.id)}
+                    >
+                      {savedLocationIds.has(location.id)
+                        ? "Saved to library ✓"
+                        : "Save to library"}
+                    </Button>
+                  ) : null}
                 </div>
               </li>
             ))}

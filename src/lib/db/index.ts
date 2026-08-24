@@ -26,6 +26,7 @@ import type {
   BookAsset,
   PrintBookOrder,
   PrintOrderRecord,
+  LocationFixture,
 } from "@/types/printBook";
 import type { GiftOrder } from "@/types/gift";
 import type { ErrorEventRecord, ErrorEventFilters } from "@/lib/errors";
@@ -44,6 +45,7 @@ type CharacterRow = typeof schema.characters.$inferSelect;
 type StoryPersonRow = typeof schema.storyPeople.$inferSelect;
 type StoryPersonProfileRow = typeof schema.storyPersonProfiles.$inferSelect;
 type BookProjectRow = typeof schema.bookProjects.$inferSelect;
+type LocationFixtureRow = typeof schema.locationFixtures.$inferSelect;
 type BookBuildJobRow = typeof schema.bookBuildJobs.$inferSelect;
 type GiftOrderRow = typeof schema.giftOrders.$inferSelect;
 type PrintOrderRow = typeof schema.printOrders.$inferSelect;
@@ -216,6 +218,42 @@ function storyPersonToRow(person: StoryPerson) {
     availableToAllProfiles: person.availableToAllProfiles,
     createdAt: person.createdAt,
     updatedAt: person.updatedAt,
+  };
+}
+
+function rowToLocationFixture(row: LocationFixtureRow): LocationFixture {
+  return {
+    id: row.id,
+    userId: row.userId,
+    place: row.place,
+    area: row.area ?? undefined,
+    summary: row.summary ?? undefined,
+    notes: row.notes ?? undefined,
+    referenceImageUrl: row.referenceImageUrl ?? undefined,
+    fixedElements: row.fixedElements ?? [],
+    doNotChange: row.doNotChange ?? [],
+    lighting: row.lighting ?? undefined,
+    palette: row.palette ?? undefined,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function locationFixtureToRow(fixture: LocationFixture) {
+  return {
+    id: fixture.id,
+    userId: fixture.userId,
+    place: fixture.place,
+    area: fixture.area ?? null,
+    summary: fixture.summary ?? null,
+    notes: fixture.notes ?? null,
+    referenceImageUrl: fixture.referenceImageUrl ?? null,
+    fixedElements: fixture.fixedElements,
+    doNotChange: fixture.doNotChange,
+    lighting: fixture.lighting ?? null,
+    palette: fixture.palette ?? null,
+    createdAt: fixture.createdAt,
+    updatedAt: fixture.updatedAt,
   };
 }
 
@@ -847,6 +885,57 @@ export const db = {
         .delete(schema.characters)
         .where(eq(schema.characters.id, id))
         .returning({ id: schema.characters.id });
+      return result.length > 0;
+    },
+  },
+
+  locationFixtures: {
+    async getByUserId(userId: string): Promise<LocationFixture[]> {
+      const rows = await getClient()
+        .select()
+        .from(schema.locationFixtures)
+        .where(eq(schema.locationFixtures.userId, userId))
+        .orderBy(desc(schema.locationFixtures.updatedAt));
+      return rows.map(rowToLocationFixture);
+    },
+    async getById(id: string): Promise<LocationFixture | undefined> {
+      const rows = await getClient()
+        .select()
+        .from(schema.locationFixtures)
+        .where(eq(schema.locationFixtures.id, id));
+      const row = rows[0];
+      return row ? rowToLocationFixture(row) : undefined;
+    },
+    async create(fixture: LocationFixture): Promise<void> {
+      await getClient()
+        .insert(schema.locationFixtures)
+        .values(locationFixtureToRow(fixture));
+    },
+    async update(
+      id: string,
+      updates: Partial<LocationFixture>
+    ): Promise<LocationFixture | undefined> {
+      const current = await this.getById(id);
+      if (!current) return undefined;
+      const next: LocationFixture = {
+        ...current,
+        ...updates,
+        id: current.id,
+        userId: current.userId,
+        createdAt: current.createdAt,
+        updatedAt: new Date().toISOString(),
+      };
+      await getClient()
+        .update(schema.locationFixtures)
+        .set(locationFixtureToRow(next))
+        .where(eq(schema.locationFixtures.id, id));
+      return next;
+    },
+    async delete(id: string): Promise<boolean> {
+      const result = await getClient()
+        .delete(schema.locationFixtures)
+        .where(eq(schema.locationFixtures.id, id))
+        .returning({ id: schema.locationFixtures.id });
       return result.length > 0;
     },
   },

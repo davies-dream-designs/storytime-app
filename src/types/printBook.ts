@@ -133,6 +133,28 @@ export interface LocationBible {
   pageLocations: Record<number, string>;
 }
 
+/**
+ * A reusable, per-account saved location. Lets a parent describe a real place
+ * once (notes + reference photo) and reuse it across every book, instead of
+ * re-entering it each time. Shares the visual fields of `SceneLocation` so a
+ * fixture can seed a location in a new book's bible.
+ */
+export interface LocationFixture {
+  id: string;
+  userId: string;
+  place: string;
+  area?: string;
+  summary?: string;
+  notes?: string;
+  referenceImageUrl?: string;
+  fixedElements: string[];
+  doNotChange: string[];
+  lighting?: string;
+  palette?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface LockedCharacterRule {
   id: string;
   name: string;

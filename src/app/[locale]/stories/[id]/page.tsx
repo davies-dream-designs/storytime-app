@@ -298,7 +298,7 @@ export default async function StoryPage({
                 })}
               </p>
             </div>
-            <div className="mt-4 shrink-0 sm:mt-0">
+            <div className="mt-4 flex shrink-0 flex-col items-start gap-2 sm:mt-0 sm:items-end">
               <CreatePrintBookButton
                 storyId={id}
                 credits={illustrationEstimate.credits}
@@ -306,6 +306,7 @@ export default async function StoryPage({
                 illustrationCount={estimatedIllustrationCount}
                 userCredits={userCredits}
                 isAdmin={isAdmin}
+                compact
               />
             </div>
           </div>

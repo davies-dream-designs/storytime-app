@@ -65,6 +65,32 @@ export function smoothEtaSeconds(
   return blended;
 }
 
+/** "M:SS" elapsed label. */
+export function formatElapsed(seconds: number): string {
+  const safe = Math.max(0, Math.floor(seconds));
+  const mins = Math.floor(safe / 60);
+  const secs = safe % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+const CREEP_MAX = 92;
+const CREEP_TAU_SECONDS = 55;
+
+/**
+ * A time-based progress "creep" so the bar keeps inching forward during the
+ * long, lumpy waits between illustration batches (which otherwise leave the
+ * real progress frozen for a minute or more). Eases toward CREEP_MAX and never
+ * overtakes real progress once a batch lands.
+ */
+export function creepProgress(
+  elapsedSeconds: number,
+  realProgress: number
+): number {
+  const eased =
+    CREEP_MAX * (1 - Math.exp(-Math.max(0, elapsedSeconds) / CREEP_TAU_SECONDS));
+  return Math.round(Math.min(CREEP_MAX, Math.max(realProgress, eased)));
+}
+
 export type BuildEtaPhase = "illustrating" | "finalizing";
 
 /**

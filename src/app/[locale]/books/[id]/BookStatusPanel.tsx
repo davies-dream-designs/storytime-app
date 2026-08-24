@@ -168,6 +168,7 @@ export default function BookStatusPanel({
   const [repairingArt, setRepairingArt] = useState(false);
   const [regeneratingExports, setRegeneratingExports] = useState(false);
   const [rebuildingReferences, setRebuildingReferences] = useState(false);
+  const [rebuildingBibles, setRebuildingBibles] = useState(false);
   const [referencesAreStale, setReferencesAreStale] = useState(
     initialReferencesAreStale
   );
@@ -529,6 +530,22 @@ export default function BookStatusPanel({
       router.refresh();
     }
     setRebuildingReferences(false);
+  }
+
+  async function handleRebuildBibles() {
+    setRebuildingBibles(true);
+    const res = await fetch(`/api/admin/books/${project.id}/rebuild`, {
+      method: "POST",
+      credentials: "same-origin",
+    });
+    if (res.ok) {
+      const { project: next } = (await res.json()) as { project: BookProject };
+      setProject(next);
+      setReferencesAreStale(false);
+      setPollUntil(Date.now() + 20_000);
+      router.refresh();
+    }
+    setRebuildingBibles(false);
   }
 
   const failedImageTargets = getFailedImageTargets(spreadPreviews);
@@ -1666,6 +1683,29 @@ export default function BookStatusPanel({
               {regeneratingExports ? "Refreshing PDFs..." : "Refresh PDFs"}
             </Button>
           </div>
+        </div>
+      ) : null}
+
+      {isAdmin && !activeJobStatus ? (
+        <div className="mt-6 rounded-2xl border border-dashed border-night-200 bg-night-50 p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
+          <div>
+            <p className="text-sm font-bold text-night-700">
+              Admin: rebuild bibles
+            </p>
+            <p className="mt-1 text-sm text-night-500">
+              Regenerates the character and location bibles from scratch, then
+              runs a full illustrated rebuild. Use this to apply bible
+              improvements to an existing book. {fullRebuildCreditCopy}
+            </p>
+          </div>
+          <Button
+            variant="secondary"
+            onClick={handleRebuildBibles}
+            disabled={rebuildingBibles}
+            className="mt-4 sm:mt-0"
+          >
+            {rebuildingBibles ? "Rebuilding..." : "Rebuild bibles"}
+          </Button>
         </div>
       ) : null}
 

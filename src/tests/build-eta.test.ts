@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeEtaSeconds,
   creepProgress,
+  estimateFinalizeRemainingSeconds,
   formatBuildEta,
   formatElapsed,
   smoothEtaSeconds,
@@ -122,5 +123,33 @@ describe("creepProgress", () => {
       expect(v).toBeGreaterThanOrEqual(prev);
       prev = v;
     }
+  });
+});
+
+describe("estimateFinalizeRemainingSeconds", () => {
+  it("scales the expected duration with page count", () => {
+    // base 20 + 3/page
+    expect(estimateFinalizeRemainingSeconds(0, 0)).toBe(20);
+    expect(estimateFinalizeRemainingSeconds(10, 0)).toBe(50);
+    expect(estimateFinalizeRemainingSeconds(24, 0)).toBe(92);
+  });
+
+  it("counts down as time elapses", () => {
+    expect(estimateFinalizeRemainingSeconds(10, 20)).toBe(30);
+    expect(estimateFinalizeRemainingSeconds(10, 45)).toBe(5);
+  });
+
+  it("floors at a small positive remaining so it never hits zero/negative", () => {
+    expect(estimateFinalizeRemainingSeconds(10, 999)).toBe(5);
+    expect(estimateFinalizeRemainingSeconds(10, 48)).toBe(5);
+  });
+
+  it("produces friendly buckets through formatBuildEta", () => {
+    expect(formatBuildEta(estimateFinalizeRemainingSeconds(24, 0))).toBe(
+      "About 2 minutes left"
+    );
+    expect(formatBuildEta(estimateFinalizeRemainingSeconds(10, 999))).toBe(
+      "Almost done"
+    );
   });
 });

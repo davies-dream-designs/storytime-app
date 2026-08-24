@@ -12,6 +12,7 @@ import {
 import {
   computeEtaSeconds,
   creepProgress,
+  estimateFinalizeRemainingSeconds,
   formatBuildEta,
   formatElapsed,
   smoothEtaSeconds,
@@ -191,6 +192,7 @@ export default function BookStatusPanel({
   const prevCompletedCount = useRef(0);
   const etaTotalRef = useRef(0);
   const buildStartedAtRef = useRef<number | null>(null);
+  const composingStartedAtRef = useRef<number | null>(null);
   const buildStartedRef = useRef(false);
   const latestProjectUpdatedAtRef = useRef(
     Date.parse(initialProject.updatedAt)
@@ -610,20 +612,44 @@ export default function BookStatusPanel({
     setEtaSeconds((prev) => smoothEtaSeconds(prev, raw));
   }, [isActiveBuild, artworkPreviews, completedArtworkCount, project.updatedAt]);
 
+  // Anchor a separate timer when the finalizing/compose phase begins, so its
+  // elapsed + rough estimate don't include the (longer) illustrating time.
+  useEffect(() => {
+    if (isPreparingFinalFiles) {
+      if (composingStartedAtRef.current == null) {
+        composingStartedAtRef.current = Date.now();
+      }
+    } else {
+      composingStartedAtRef.current = null;
+    }
+  }, [isPreparingFinalFiles]);
+
   const elapsedSeconds =
     buildStartedAtRef.current != null
       ? Math.max(0, (nowMs - buildStartedAtRef.current) / 1000)
       : 0;
-  // Primary signal is an always-moving elapsed timer; show a numeric ETA only
-  // once we can actually compute a trustworthy one. This avoids the previous
-  // "Estimating time left…" state that never resolved for lumpy builds.
+  const composingElapsedSeconds =
+    composingStartedAtRef.current != null
+      ? Math.max(0, (nowMs - composingStartedAtRef.current) / 1000)
+      : 0;
+
+  // Finalizing has no per-item progress signal, so we show a rough page-scaled
+  // estimate (via the same vague buckets) plus a live elapsed timer, and keep
+  // the bar gently creeping. Illustrating uses the real data-driven ETA, with
+  // an always-moving elapsed timer as the honest fallback.
   const buildEtaLabel = isPreparingFinalFiles
-    ? formatBuildEta(etaSeconds, "finalizing")
+    ? formatBuildEta(
+        estimateFinalizeRemainingSeconds(
+          artworkPreviews.length,
+          composingElapsedSeconds
+        ),
+        "illustrating"
+      )
     : etaSeconds != null
       ? formatBuildEta(etaSeconds, "illustrating")
       : `Elapsed ${formatElapsed(elapsedSeconds)}`;
   const displayedBuildProgress = isPreparingFinalFiles
-    ? progress
+    ? creepProgress(composingElapsedSeconds, progress)
     : creepProgress(elapsedSeconds, progress);
 
   // Auto-advance reader to latest completed illustration during active builds
@@ -1197,7 +1223,7 @@ export default function BookStatusPanel({
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent px-5 pb-4 pt-12">
                       <p className="font-display text-base font-bold text-white">
                         {isPreparingFinalFiles
-                          ? "Adding the final touches…"
+                          ? "Assembling your book…"
                           : "Painting your book…"}
                       </p>
                     </div>
@@ -1220,7 +1246,9 @@ export default function BookStatusPanel({
               <div className="space-y-3 border-t border-night-50 px-5 py-4">
                 <div className="flex items-baseline justify-between gap-3">
                   <p className="font-display text-base font-bold text-night-800">
-                    {stageLabel}
+                    {isPreparingFinalFiles
+                      ? "Step 2 of 2 · Assembling your book"
+                      : "Step 1 of 2 · Painting illustrations"}
                   </p>
                   <p
                     className="shrink-0 text-sm font-bold text-star-600"
@@ -1249,12 +1277,13 @@ export default function BookStatusPanel({
                   aria-live="polite"
                 >
                   {isPreparingFinalFiles
-                    ? "All illustrations painted — preparing your book files."
+                    ? `All illustrations painted — building the PDF and e‑reader files · ${formatElapsed(composingElapsedSeconds)} elapsed`
                     : `${completedArtworkCount} of ${artworkPreviews.length} illustrations painted`}
                 </p>
                 <p className="text-xs font-medium text-night-400">
-                  You can leave this page — we&apos;ll keep painting and have it
-                  ready when you return.
+                  {isPreparingFinalFiles
+                    ? "Almost there — this last step usually takes a minute or two."
+                    : "You can leave this page — we’ll keep painting and have it ready when you return."}
                 </p>
               </div>
             </div>

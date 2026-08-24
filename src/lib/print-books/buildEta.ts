@@ -91,6 +91,26 @@ export function creepProgress(
   return Math.round(Math.min(CREEP_MAX, Math.max(realProgress, eased)));
 }
 
+const FINALIZE_BASE_SECONDS = 20;
+const FINALIZE_PER_PAGE_SECONDS = 3;
+const FINALIZE_MIN_REMAINING = 5;
+
+/**
+ * Rough remaining estimate for the finalizing/compose phase. It has no
+ * per-item progress signal to measure, so this is a page-scaled expectation
+ * (base + k·pages) minus elapsed, floored. Deliberately fed through the same
+ * vague `formatBuildEta` buckets so it never reads as a precise promise.
+ */
+export function estimateFinalizeRemainingSeconds(
+  pageCount: number,
+  elapsedSeconds: number
+): number {
+  const expected =
+    FINALIZE_BASE_SECONDS + FINALIZE_PER_PAGE_SECONDS * Math.max(0, pageCount);
+  const remaining = expected - Math.max(0, elapsedSeconds);
+  return Math.max(FINALIZE_MIN_REMAINING, remaining);
+}
+
 export type BuildEtaPhase = "illustrating" | "finalizing";
 
 /**

@@ -1406,7 +1406,7 @@ function getContinuityKeywordScore(current: BookSpread, candidate: BookSpread): 
   );
 }
 
-function scoreContinuitySpread(input: {
+export function scoreContinuitySpread(input: {
   spread: BookSpread;
   candidate: BookSpread;
   selectedCharacterIds: Set<string>;
@@ -1419,11 +1419,21 @@ function scoreContinuitySpread(input: {
   for (const id of input.selectedCharacterIds) {
     if (candidateCharacterIds.has(id)) sharedCharacterScore += 40;
   }
+  // Prior spreads set in the SAME location are strong anchors for object/scene
+  // continuity (e.g. keeping a cot's placement and orientation stable), even
+  // when they share no characters with the current spread.
+  const sharedLocationScore =
+    input.spread.locationId &&
+    input.candidate.locationId === input.spread.locationId
+      ? 30
+      : 0;
   const keywordScore = getContinuityKeywordScore(input.spread, input.candidate) * 6;
-  if (sharedCharacterScore === 0 && keywordScore === 0) return 0;
+  if (sharedCharacterScore === 0 && sharedLocationScore === 0 && keywordScore === 0) {
+    return 0;
+  }
   const recencyScore = Math.max(0, 12 - (input.spread.sequence - input.candidate.sequence));
   const qaScore = candidateCharacterIds.size > 0 ? 4 : 0;
-  return sharedCharacterScore + keywordScore + recencyScore + qaScore;
+  return sharedCharacterScore + sharedLocationScore + keywordScore + recencyScore + qaScore;
 }
 
 function selectContinuityVisualReferences(input: {
@@ -1459,19 +1469,28 @@ function selectContinuityVisualReferences(input: {
   );
 
   continuityCandidates.push(
-    ...priorSpreads.map((candidate) => ({
-      id: `spread:${candidate.id}`,
-      label: `Approved spread ${candidate.sequence}`,
-      imageUrl:
-        candidate.leftPageImageUrl ?? candidate.imageUrl ?? candidate.thumbnailUrl!,
-      source: "spread" as const,
-      sequence: candidate.sequence,
-      score: scoreContinuitySpread({
-        spread,
-        candidate,
-        selectedCharacterIds,
-      }),
-    }))
+    ...priorSpreads.map((candidate) => {
+      const sameLocation = Boolean(
+        spread.locationId && candidate.locationId === spread.locationId
+      );
+      return {
+        id: `spread:${candidate.id}`,
+        label: sameLocation
+          ? `Approved spread ${candidate.sequence} — same location (match the room layout, furniture placement, and object orientation)`
+          : `Approved spread ${candidate.sequence}`,
+        imageUrl:
+          candidate.leftPageImageUrl ??
+          candidate.imageUrl ??
+          candidate.thumbnailUrl!,
+        source: "spread" as const,
+        sequence: candidate.sequence,
+        score: scoreContinuitySpread({
+          spread,
+          candidate,
+          selectedCharacterIds,
+        }),
+      };
+    })
   );
 
   return continuityCandidates

@@ -352,6 +352,9 @@ export function buildLocationDirection(
     parts.push(
       `Fixed elements and positions (do not add, remove, resize, or move them between pages): ${clampPreview(els, compact ? 260 : 600)}.`
     );
+    parts.push(
+      "Keep each fixed object's orientation and the direction it faces identical to earlier pages in this location — do not rotate, mirror, or flip furniture and props (e.g. a cot must face the same way every time)."
+    );
   }
   if (location.lighting) {
     parts.push(
@@ -364,7 +367,7 @@ export function buildLocationDirection(
     );
   }
   parts.push(
-    "Vary the camera angle and composition for visual interest, but the room, furniture, props, their positions, and the light source must stay the same as other pages in this location."
+    "You may frame the shot from a different distance or height for visual interest, but keep the same viewing direction into the room as other pages here: the room, furniture, props, their positions and the way each one faces, and the light source must stay consistent — reposition the camera, not the room."
   );
   return parts.join(" ");
 }

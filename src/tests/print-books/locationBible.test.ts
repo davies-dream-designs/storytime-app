@@ -128,6 +128,20 @@ describe("buildLocationDirection", () => {
     expect(compact.length).toBeLessThan(full.length);
     expect(compact).toContain("Levi's bedroom");
   });
+
+  it("locks fixed-object orientation and reframes the camera without turning the room", () => {
+    const text = buildLocationDirection(bedroom);
+    expect(text).toContain("do not rotate, mirror, or flip");
+    expect(text).toContain("reposition the camera, not the room");
+    expect(text).not.toContain("Vary the camera angle");
+  });
+
+  it("omits the orientation lock when there are no fixed elements", () => {
+    const noFixed: SceneLocation = { ...bedroom, fixedElements: [] };
+    expect(buildLocationDirection(noFixed)).not.toContain(
+      "do not rotate, mirror, or flip"
+    );
+  });
 });
 
 describe("stampSpreadLocations", () => {

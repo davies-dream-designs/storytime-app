@@ -306,6 +306,23 @@ export function buildCoverIllustrationPrompt(input: {
             "Create a square children's picture-book front cover with a warm, gentle bedtime illustration style.",
           ],
         },
+        // Keep the outfit lock even on the stripped moderation-retry prompt, so
+        // the cover still matches the interior pages instead of reverting to the
+        // plain top from a reference portrait.
+        {
+          variants: [
+            "Dress each character in the specific outfit from their described appearance (for example denim overalls) if given, otherwise their usual outfit, plus their usual footwear. Any attached reference portrait defines only face, hair, glasses, skin tone, and body build - never clothing; do not copy the plain top shown in a portrait.",
+            "Dress each character in their described outfit (for example overalls), not the plain top from a reference portrait.",
+          ],
+        },
+        {
+          variants: continuityReferenceLabels
+            ? [
+                `Attached interior page art (${continuityReferenceLabels}) is the source of truth for each character's clothing, footwear, hair, and colours - match it, but not its pose, crop, or background.`,
+                `Match each character's clothing and look to the attached interior page art (${continuityReferenceLabels}).`,
+              ]
+            : [""],
+        },
         {
           variants: [
             "Do not render any visible publisher logo or extra text into the art itself.",
@@ -1467,6 +1484,12 @@ function buildPageIllustrationPrompt(input: {
   const pageMoment = omitPageText
     ? ""
     : sanitizePageMomentForImagePrompt(pageText);
+  // This spread's own narrative/scene text. It already reflects the cumulative
+  // per-spread gating applied at compose time (companions/props not yet
+  // introduced were stripped from the spread's illustrationPrompt), so gating
+  // the render-time direction by it stays aligned with the story's progress and
+  // keeps a companion drawn only once the story has introduced it.
+  const cumulativeSceneText = buildSpreadReferenceHaystack(spread);
   const latestReferenceContext = buildLatestReferenceContext(input.visualReferences);
   const compactLatestReferenceContext = buildLatestReferenceContext(
     input.visualReferences,
@@ -1525,8 +1548,13 @@ function buildPageIllustrationPrompt(input: {
       },
       {
         variants: [
-          buildIllustrationDirection(characterBible),
-          buildIllustrationDirection(characterBible, { compact: true }),
+          buildIllustrationDirection(characterBible, {
+            activeSceneText: cumulativeSceneText,
+          }),
+          buildIllustrationDirection(characterBible, {
+            compact: true,
+            activeSceneText: cumulativeSceneText,
+          }),
         ],
       },
       {
@@ -1711,6 +1739,7 @@ export async function generateCoverIllustration(input: {
         const retryUpscaled = await generateAndUpscale({
           prompt: fallbackPrompt,
           visualReferences: input.visualReferences,
+          continuityReferences: input.continuityReferences,
         });
         const [coverImageUrl, coverWebImageUrl] = await Promise.all([
           storeBookAsset({

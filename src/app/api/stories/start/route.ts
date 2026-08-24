@@ -45,8 +45,21 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const client = await clerkClient();
-  const user = await client.users.getUser(userId);
+  if (!profileId)
+    return NextResponse.json(
+      { error: "profileId is required" },
+      { status: 400 }
+    );
+
+  // These four lookups only depend on userId/profileId, not on each other, so
+  // run them concurrently to keep the click→navigate round-trip snappy.
+  const [user, profile, characters, selectedStoryPeople] = await Promise.all([
+    clerkClient().then((client) => client.users.getUser(userId)),
+    db.profiles.getById(profileId),
+    db.characters.getByProfileId(profileId),
+    getSelectedStoryPeople({ userId, profileId, storyPersonIds }),
+  ]);
+
   const isAdmin = user.privateMetadata.isAdmin === true;
   const credits = (user.privateMetadata.credits as number | undefined) ?? 3;
 
@@ -57,23 +70,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!profileId)
-    return NextResponse.json(
-      { error: "profileId is required" },
-      { status: 400 }
-    );
-
-  const profile = await db.profiles.getById(profileId);
   if (!profile || profile.userId !== userId) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
-
-  const characters = await db.characters.getByProfileId(profileId);
-  const selectedStoryPeople = await getSelectedStoryPeople({
-    userId,
-    profileId,
-    storyPersonIds,
-  });
   const profileIpPolicy = assessProfileIp({
     ...profile,
     characters: characters.filter((c) => c.userId === userId),

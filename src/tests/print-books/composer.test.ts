@@ -106,6 +106,48 @@ describe("createEmptyBookProject", () => {
   });
 });
 
+describe("composePrintBookSpreads narrative-aware art prompts", () => {
+  it("derives the closing image from the final story beat, not a fixed sleep motif", () => {
+    const story = createStory(10);
+    const spreads = composePrintBookSpreads({
+      bookProjectId: "book-1",
+      story,
+      profile: createProfile(4),
+      ageBand: "3-5",
+      beats: deriveBeatsFromStory(story),
+      characterBible: createCharacterBible(),
+    });
+
+    const theEnd = spreads.find((spread) => spread.title === "The End");
+    expect(theEnd).toBeDefined();
+    expect(theEnd?.illustrationPrompt).toContain("final moment");
+    expect(theEnd?.illustrationPrompt).toContain("Illustration prompt 10");
+    expect(theEnd?.illustrationPrompt).not.toContain("settling into sleep");
+  });
+
+  it("keeps a companion out of art prompts until the story introduces it", () => {
+    const story = createSentenceStory();
+    const spreads = composePrintBookSpreads({
+      bookProjectId: "book-1",
+      story,
+      profile: createProfile(4),
+      ageBand: "3-5",
+      beats: deriveBeatsFromStory(story),
+      characterBible: createCharacterBible(),
+    });
+
+    const firstStorySpread = spreads.find((spread) => spread.sequence === 3);
+    // Page 1 (silver gate) never mentions the fox, so it must not be drawn yet.
+    expect(firstStorySpread?.illustrationPrompt).not.toContain("sleepy fox");
+
+    // The fox appears on page 3, so at least one later spread includes it.
+    const foxSpread = spreads.find((spread) =>
+      spread.illustrationPrompt.includes("sleepy fox")
+    );
+    expect(foxSpread).toBeDefined();
+  });
+});
+
 describe("composePrintBookSpreads", () => {
   it("composes a 3-5 book to 14 spreads covering 28 pages", () => {
     const story = createStory(10);

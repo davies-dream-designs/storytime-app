@@ -1,6 +1,77 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChildProfile, Story } from "@/types";
-import { generateCharacterBible } from "@/lib/print-books/characterBible";
+import type { CharacterBible } from "@/types/printBook";
+import {
+  buildIllustrationDirection,
+  generateCharacterBible,
+} from "@/lib/print-books/characterBible";
+
+function bibleWithCompanion(): CharacterBible {
+  return {
+    childAppearance: "Bailey has short ginger hair and blue eyes.",
+    outfitRules: "Blue tee, grey joggers, yellow boots.",
+    recurringProps: ["speckled egg", "silver lantern"],
+    companionCharacters: ["a small green baby dinosaur named Pip"],
+    palette: "soft green garden tones",
+    renderStyle: "storybook gouache",
+    lightingTone: "warm afternoon",
+    doNotChange: ["ginger hair"],
+  };
+}
+
+describe("buildIllustrationDirection companion/prop gating", () => {
+  it("shows all companions and props when no scene text is provided", () => {
+    const direction = buildIllustrationDirection(bibleWithCompanion());
+    expect(direction).toContain("baby dinosaur");
+    expect(direction).toContain("speckled egg");
+  });
+
+  it("hides a companion the story text has not introduced yet", () => {
+    const direction = buildIllustrationDirection(bibleWithCompanion(), {
+      activeSceneText:
+        "Bailey found a speckled egg in the garden and made a cosy nest.",
+    });
+    expect(direction).toContain("Companion characters: none");
+    // The egg has appeared, so its prop is still allowed.
+    expect(direction).toContain("speckled egg");
+  });
+
+  it("shows a companion once the story text introduces it", () => {
+    const direction = buildIllustrationDirection(bibleWithCompanion(), {
+      activeSceneText:
+        "The egg cracked and a tiny dinosaur peeked out. Bailey named the dinosaur Pip.",
+    });
+    expect(direction).toContain("dinosaur");
+    expect(direction).not.toContain("Companion characters: none");
+  });
+
+  it("does not trigger a companion on unrelated colour words in the scene", () => {
+    const direction = buildIllustrationDirection(bibleWithCompanion(), {
+      activeSceneText: "Bailey played in the green garden all afternoon.",
+    });
+    expect(direction).toContain("Companion characters: none");
+  });
+
+  it("tells the model companions are living creatures, never toys, when a companion is present", () => {
+    const direction = buildIllustrationDirection(bibleWithCompanion(), {
+      activeSceneText: "The egg cracked and a tiny dinosaur peeked out.",
+    });
+    expect(direction.toLowerCase()).toContain("never");
+    expect(direction).toMatch(/plush|stuffed|soft toy/i);
+  });
+
+  it("omits the living-creature line when no companion is on the page", () => {
+    const direction = buildIllustrationDirection(bibleWithCompanion(), {
+      activeSceneText: "Bailey played in the garden all afternoon.",
+    });
+    expect(direction).not.toMatch(/plush, stuffed/i);
+  });
+
+  it("forbids drawing a duplicate spare pair of footwear as a scene object", () => {
+    const direction = buildIllustrationDirection(bibleWithCompanion());
+    expect(direction.toLowerCase()).toContain("worn on their feet only");
+  });
+});
 
 const { mockMessagesCreate } = vi.hoisted(() => ({
   mockMessagesCreate: vi.fn(),
@@ -85,5 +156,34 @@ describe("generateCharacterBible", () => {
     expect(prompt).toContain(
       "Illustration prompt 12 with moon flowers and a sleepy fox."
     );
+  });
+
+  it("strips worn clothing/footwear from recurring props so they aren't drawn twice", async () => {
+    mockMessagesCreate.mockResolvedValueOnce({
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            childAppearance: "Bailey has short ginger hair.",
+            outfitRules: "Blue tee, grey joggers, yellow rain boots.",
+            recurringProps: ["yellow rain boots", "wooden basket"],
+            companionCharacters: [],
+            palette: "soft green",
+            renderStyle: "storybook gouache",
+            lightingTone: "warm afternoon",
+            doNotChange: ["ginger hair"],
+          }),
+        },
+      ],
+    });
+
+    const bible = await generateCharacterBible({
+      profile: createProfile(),
+      story: createStory(12),
+      characters: [],
+    });
+
+    expect(bible.recurringProps).toContain("wooden basket");
+    expect(bible.recurringProps).not.toContain("yellow rain boots");
   });
 });

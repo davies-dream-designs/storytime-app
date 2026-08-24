@@ -99,6 +99,13 @@
       "when": 1786487083000,
       "tag": "0013_reference_trait_hashes",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1787547434956,
+      "tag": "0014_location_bible",
+      "breakpoints": true
     }
   ]
 }

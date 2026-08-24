@@ -7,6 +7,7 @@ import {
   generateCharacterBible,
 } from "@/lib/print-books/characterBible";
 import { composePrintBookSpreads } from "@/lib/print-books/composer";
+import { generateLocationBible } from "@/lib/print-books/locationBible";
 import {
   applySpreadIllustration,
   generateSpreadPageIllustration,
@@ -84,12 +85,24 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
     !project.characterBible ||
     !project.spreads.length
   ) {
-    const characterBible = await generateCharacterBible({
-      profile: context.profile,
-      story: context.story,
-      characters: context.characters,
-      storyPeople: context.storyPeople,
-    });
+    const [characterBible, locationBible] = await Promise.all([
+      generateCharacterBible({
+        profile: context.profile,
+        story: context.story,
+        characters: context.characters,
+        storyPeople: context.storyPeople,
+      }),
+      generateLocationBible({ story: context.story }).catch((err) => {
+        // A missing location bible degrades to today's behaviour; never fail the
+        // whole build over the continuity enhancement.
+        console.warn(
+          `Location bible generation failed (${
+            err instanceof Error ? err.message : "unknown error"
+          }) - continuing without it.`
+        );
+        return undefined;
+      }),
+    ]);
 
     const spreads = composePrintBookSpreads({
       bookProjectId: project.id,
@@ -98,12 +111,14 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
       ageBand: project.ageBand,
       beats: project.beats,
       characterBible,
+      locationBible,
     });
 
     return db.bookProjects.update(project.id, {
       status: "illustrating",
       currentStageLabel: getBookProjectStageLabel("illustrating"),
       characterBible,
+      locationBible,
       spreads,
       completedSpreads: 0,
       totalSpreads: spreads.length,

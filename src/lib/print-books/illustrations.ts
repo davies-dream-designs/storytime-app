@@ -12,6 +12,10 @@ import type {
 import { BOOK_SPEC } from "@/lib/print-books/bookConfig";
 import { buildIllustrationDirection } from "@/lib/print-books/characterBible";
 import {
+  buildLocationDirection,
+  resolveSpreadLocation,
+} from "@/lib/print-books/locationBible";
+import {
   isBookAssetStorageConfigured,
   storeBookAsset,
 } from "@/lib/print-books/storage";
@@ -1490,6 +1494,7 @@ function buildPageIllustrationPrompt(input: {
   // the render-time direction by it stays aligned with the story's progress and
   // keeps a companion drawn only once the story has introduced it.
   const cumulativeSceneText = buildSpreadReferenceHaystack(spread);
+  const spreadLocation = resolveSpreadLocation(project.locationBible, spread);
   const latestReferenceContext = buildLatestReferenceContext(input.visualReferences);
   const compactLatestReferenceContext = buildLatestReferenceContext(
     input.visualReferences,
@@ -1535,6 +1540,15 @@ function buildPageIllustrationPrompt(input: {
         ],
       },
       {
+        variants: spreadLocation
+          ? [
+              buildLocationDirection(spreadLocation),
+              buildLocationDirection(spreadLocation, { compact: true }),
+              "",
+            ]
+          : [""],
+      },
+      {
         variants: pageMoment
           ? [
               `Story moment constraints, image-safe summary: ${pageMoment}. Preserve scene state exactly: which characters are present, what each character is doing, what each object or pet is doing, who is holding or not holding each object, where every important object/person/pet is located, and what has or has not happened yet. Do not move objects, pets, toys, books, gifts, food, clothing, or story props into a character's hands, onto the floor, into the background, or out of the scene unless this exact moment says so.`,
@@ -1567,11 +1581,17 @@ function buildPageIllustrationPrompt(input: {
       },
       {
         variants: continuityReferenceLabels
-          ? [
-              `Approved continuity art references available: ${continuityReferenceLabels}. Use them only to preserve established likeness, outfits, recurring props, companion markings, and broad environment continuity when the same child, companion, or location reappears. Do not copy their exact composition, camera angle, pose, crop, or background layout. If these continuity images conflict with the latest selected cast references or current story moment, the latest selected cast references and current story moment win.`,
-              `Approved continuity art references available: ${continuityReferenceLabels}. Use them only to preserve established likeness, outfits, props, companion markings, and broad environment continuity. If they conflict with the latest selected cast references or current story moment, the latest selected cast references and current story moment win.`,
-              `Approved continuity art references available: ${continuityReferenceLabels}.`,
-            ]
+          ? spreadLocation
+            ? [
+                `Approved continuity art references available: ${continuityReferenceLabels}. Use them to preserve established likeness, outfits, recurring props, companion markings, and — when the reference is set in this same location — the room, furniture, props, their positions, and the light source. You may vary the camera angle, pose, and crop, but keep the setting consistent with references from this location. If these continuity images conflict with the latest selected cast references or current story moment, the latest selected cast references and current story moment win.`,
+                `Approved continuity art references available: ${continuityReferenceLabels}. Preserve likeness, outfits, props, and — for the same location — the room, furniture, positions, and lighting; vary only the camera angle and pose. If they conflict with the latest selected cast references or current story moment, the latest wins.`,
+                `Approved continuity art references available: ${continuityReferenceLabels}.`,
+              ]
+            : [
+                `Approved continuity art references available: ${continuityReferenceLabels}. Use them only to preserve established likeness, outfits, recurring props, companion markings, and broad environment continuity when the same child, companion, or location reappears. Do not copy their exact composition, camera angle, pose, crop, or background layout. If these continuity images conflict with the latest selected cast references or current story moment, the latest selected cast references and current story moment win.`,
+                `Approved continuity art references available: ${continuityReferenceLabels}. Use them only to preserve established likeness, outfits, props, companion markings, and broad environment continuity. If they conflict with the latest selected cast references or current story moment, the latest selected cast references and current story moment win.`,
+                `Approved continuity art references available: ${continuityReferenceLabels}.`,
+              ]
           : [""],
       },
       {
@@ -1600,10 +1620,15 @@ function buildPageIllustrationPrompt(input: {
           : [""],
       },
       {
-        variants: [
-          "Illustrate this specific story moment. Scene fidelity is higher priority than a convenient character pose: the depicted object locations, who is holding what, character actions, setting detail, sequence of events, and emotional tone must match the story moment constraints, scene brief, and illustration direction above. This image must look meaningfully different from every other page in the book. Keep every selected/reference character's face shape, apparent age, hair or fur, skin tone, glasses, latest body build, and core outfit or markings consistent with the latest overrides, not stale generated artwork. No text, lettering, or page numbers inside the art.",
-          "Illustrate this exact story moment. Match the described actions, props, locations, sequence, and emotional tone. Keep selected/reference characters visually consistent with the latest overrides, not stale artwork. No text, lettering, or page numbers inside the art.",
-        ],
+        variants: spreadLocation
+          ? [
+              "Illustrate this specific story moment. Scene fidelity is higher priority than a convenient character pose: the depicted object locations, who is holding what, character actions, setting detail, sequence of events, and emotional tone must match the story moment constraints, scene brief, illustration direction, and setting above. Vary the camera angle and composition from other pages for visual interest, but keep the room, furniture, props, their positions, and the light source consistent with other pages set in this same location. Keep every selected/reference character's face shape, apparent age, hair or fur, skin tone, glasses, latest body build, and core outfit or markings consistent with the latest overrides, not stale generated artwork. No text, lettering, or page numbers inside the art.",
+              "Illustrate this exact story moment. Match the described actions, props, locations, sequence, and emotional tone, and keep the setting consistent with other pages in this location while varying the camera angle. Keep selected/reference characters visually consistent with the latest overrides, not stale artwork. No text, lettering, or page numbers inside the art.",
+            ]
+          : [
+              "Illustrate this specific story moment. Scene fidelity is higher priority than a convenient character pose: the depicted object locations, who is holding what, character actions, setting detail, sequence of events, and emotional tone must match the story moment constraints, scene brief, and illustration direction above. This image must look meaningfully different from every other page in the book. Keep every selected/reference character's face shape, apparent age, hair or fur, skin tone, glasses, latest body build, and core outfit or markings consistent with the latest overrides, not stale generated artwork. No text, lettering, or page numbers inside the art.",
+              "Illustrate this exact story moment. Match the described actions, props, locations, sequence, and emotional tone. Keep selected/reference characters visually consistent with the latest overrides, not stale artwork. No text, lettering, or page numbers inside the art.",
+            ],
       },
     ],
     OPENAI_IMAGE_CORE_PROMPT_BUDGET

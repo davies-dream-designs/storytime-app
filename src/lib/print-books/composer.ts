@@ -6,8 +6,10 @@ import type {
   BookSpread,
   BookSpreadLayoutType,
   CharacterBible,
+  LocationBible,
 } from "@/types/printBook";
 import { buildIllustrationDirection } from "@/lib/print-books/characterBible";
+import { stampSpreadLocations } from "@/lib/print-books/locationBible";
 import {
   getStorycotIllustratedStorySpreadCountForAgeBand,
   getStorycotPageCountForAgeBand,
@@ -648,12 +650,20 @@ export function composePrintBookSpreads(input: {
   ageBand: AgeBand;
   beats: Beat[];
   characterBible?: CharacterBible;
+  locationBible?: LocationBible;
 }): BookSpread[] {
-  const { bookProjectId, story, profile, ageBand, beats, characterBible } =
-    input;
+  const {
+    bookProjectId,
+    story,
+    profile,
+    ageBand,
+    beats,
+    characterBible,
+    locationBible,
+  } = input;
   const pageCount = getStorycotPageCountForAgeBand(ageBand);
 
-  return [
+  const spreads = [
     ...createFrontMatterSpreads(bookProjectId, story, profile, characterBible),
     ...createStorySpreads(
       bookProjectId,
@@ -672,6 +682,8 @@ export function composePrintBookSpreads(input: {
       characterBible
     ),
   ];
+
+  return stampSpreadLocations(spreads, story, locationBible);
 }
 
 export function createEmptyBookProject(input: {

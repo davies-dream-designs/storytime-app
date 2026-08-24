@@ -6,6 +6,8 @@ import { Link, useRouter } from "@/i18n/navigation";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import { useConfirmDialog } from "@/components/ui/useConfirmDialog";
+import type { SceneLocation } from "@/types/printBook";
+import LocationDetailsModal from "./LocationDetailsModal";
 
 export default function CreatePrintBookButton({
   storyId,
@@ -28,6 +30,8 @@ export default function CreatePrintBookButton({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingProjectId, setPendingProjectId] = useState<string | null>(null);
+  const [locations, setLocations] = useState<SceneLocation[]>([]);
   const { confirm, ConfirmDialog } = useConfirmDialog();
 
   const hasEnoughCredits = isAdmin || userCredits >= credits;
@@ -73,10 +77,55 @@ export default function CreatePrintBookButton({
 
       const project = (await createRes.json()) as { id: string };
 
+      // Prepare the location list so the parent can optionally add real-life
+      // details before illustrations are drawn. If this degrades (e.g. the
+      // location model hiccups), fall through to building directly.
+      const prepared = await prepareLocations(project.id);
+      if (prepared.length > 0) {
+        setPendingProjectId(project.id);
+        setLocations(prepared);
+        setLoading(false);
+        return;
+      }
+
+      await runBuild(project.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("createError"));
+      setLoading(false);
+    }
+  }
+
+  async function prepareLocations(projectId: string): Promise<SceneLocation[]> {
+    try {
+      const res = await fetch(`/api/books/${projectId}/locations/prepare`, {
+        method: "POST",
+      });
+      if (!res.ok) return [];
+      const data = (await res.json().catch(() => null)) as {
+        locationBible?: { locations?: SceneLocation[] };
+      } | null;
+      return data?.locationBible?.locations ?? [];
+    } catch {
+      return [];
+    }
+  }
+
+  async function runBuild(projectId: string, notes?: Record<string, string>) {
+    setLoading(true);
+    setError(null);
+    try {
+      if (notes && Object.keys(notes).length > 0) {
+        await fetch(`/api/books/${projectId}/locations`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ notes }),
+        });
+      }
+
       // Kick off the build. A 409 means this book can't be fully rebuilt and
       // needs the "retry failed images" panel instead - that's expected, so we
       // just refresh and let that panel appear rather than surfacing an error.
-      const buildRes = await fetch(`/api/books/${project.id}/build`, {
+      const buildRes = await fetch(`/api/books/${projectId}/build`, {
         method: "POST",
       });
       if (!buildRes.ok && buildRes.status !== 409) {
@@ -88,6 +137,7 @@ export default function CreatePrintBookButton({
         );
       }
 
+      setPendingProjectId(null);
       // Refresh so the server re-renders with the book's status panel in place
       // of this button.
       router.refresh();
@@ -96,6 +146,22 @@ export default function CreatePrintBookButton({
       setLoading(false);
     }
   }
+
+  const locationModal =
+    pendingProjectId !== null ? (
+      <LocationDetailsModal
+        projectId={pendingProjectId}
+        locations={locations}
+        submitting={loading}
+        onCancel={() => {
+          setPendingProjectId(null);
+          setLoading(false);
+        }}
+        onConfirm={(notes) => {
+          if (pendingProjectId) void runBuild(pendingProjectId, notes);
+        }}
+      />
+    ) : null;
 
   const estimateBodyText = t("estimateBody", {
     credits,
@@ -165,6 +231,7 @@ export default function CreatePrintBookButton({
           </p>
         ) : null}
         <ConfirmDialog />
+        {locationModal}
       </>
     );
   }
@@ -202,6 +269,7 @@ export default function CreatePrintBookButton({
         ) : null}
       </div>
       <ConfirmDialog />
+      {locationModal}
     </>
   );
 }

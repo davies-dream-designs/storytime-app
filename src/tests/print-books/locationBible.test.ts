@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildLocationDirection,
   resolveSpreadLocation,
+  resolveSpreadLocationReference,
   stampSpreadLocations,
 } from "@/lib/print-books/locationBible";
 import type { Story } from "@/types";
@@ -10,6 +11,8 @@ import type { BookSpread, LocationBible, SceneLocation } from "@/types/printBook
 const bedroom: SceneLocation = {
   id: "bedroom",
   name: "Levi's bedroom",
+  place: "House",
+  area: "Nursery",
   summary: "A cosy nursery with a wooden cot beside the window.",
   fixedElements: [
     "wooden slatted cot to the right of the window",
@@ -23,6 +26,7 @@ const bedroom: SceneLocation = {
 const garden: SceneLocation = {
   id: "garden",
   name: "Moonlit garden",
+  place: "Garden",
   summary: "A garden path under a full moon.",
   fixedElements: ["silver gate at the end of the path"],
   lighting: "cool moonlight from above",
@@ -173,5 +177,46 @@ describe("stampSpreadLocations", () => {
     });
     const [stamped] = stampSpreadLocations([spread], story, bible);
     expect(stamped.locationId).toBeUndefined();
+  });
+});
+
+describe("parent-supplied location details", () => {
+  it("injects parent notes as authoritative ground-truth", () => {
+    const withNotes: SceneLocation = {
+      ...bedroom,
+      notes: "The cot is white metal, not wooden, and sits under the window.",
+    };
+    const direction = buildLocationDirection(withNotes);
+    expect(direction).toContain("Ground-truth from the family");
+    expect(direction).toContain("white metal");
+  });
+
+  it("adds no notes clause when the parent left notes empty", () => {
+    const direction = buildLocationDirection(bedroom);
+    expect(direction).not.toContain("Ground-truth from the family");
+  });
+
+  it("resolves a location reference photo for a stamped spread", () => {
+    const photoBible: LocationBible = {
+      locations: [
+        { ...bedroom, referenceImageUrl: "https://cdn.example/nursery.jpg" },
+        garden,
+      ],
+      pageLocations: bible.pageLocations,
+    };
+    const ref = resolveSpreadLocationReference(photoBible, {
+      locationId: "bedroom",
+    });
+    expect(ref).toEqual({
+      id: "location:bedroom",
+      label: "Location photo — Levi's bedroom",
+      imageUrl: "https://cdn.example/nursery.jpg",
+    });
+  });
+
+  it("returns no reference photo when the location has none", () => {
+    expect(
+      resolveSpreadLocationReference(bible, { locationId: "bedroom" })
+    ).toBeUndefined();
   });
 });

@@ -8,12 +8,14 @@ import type {
   CharacterVisualReference,
   ContinuityVisualReference,
   IllustrationGenerationMetadata,
+  LocationVisualReference,
 } from "@/types/printBook";
 import { BOOK_SPEC } from "@/lib/print-books/bookConfig";
 import { buildIllustrationDirection } from "@/lib/print-books/characterBible";
 import {
   buildLocationDirection,
   resolveSpreadLocation,
+  resolveSpreadLocationReference,
 } from "@/lib/print-books/locationBible";
 import {
   isBookAssetStorageConfigured,
@@ -526,15 +528,17 @@ function createPlaceholderPageSvg(input: {
 
 const MAX_VISUAL_REFERENCES_PER_IMAGE = 6;
 const MAX_CONTINUITY_REFERENCES_PER_IMAGE = 3;
+const MAX_LOCATION_REFERENCES_PER_IMAGE = 1;
 
 type ImageConditionReference =
   | ({ kind: "character" } & CharacterVisualReference)
-  | ({ kind: "continuity" } & ContinuityVisualReference);
+  | ({ kind: "continuity" } & ContinuityVisualReference)
+  | ({ kind: "location" } & LocationVisualReference);
 
 async function loadReferenceImageBuffer(input: {
   id: string;
   imageUrl: string;
-  kind: "character" | "continuity";
+  kind: "character" | "continuity" | "location";
 }): Promise<Buffer | null> {
   try {
     const response = await fetch(input.imageUrl);
@@ -561,10 +565,12 @@ async function loadReferenceImageBuffer(input: {
 async function buildIllustrationConditioningSheet(input: {
   visualReferences?: CharacterVisualReference[];
   continuityReferences?: ContinuityVisualReference[];
+  locationReferences?: LocationVisualReference[];
 }): Promise<{
   image: Buffer;
   visualReferences: CharacterVisualReference[];
   continuityReferences: ContinuityVisualReference[];
+  locationReferences: LocationVisualReference[];
 } | null> {
   const selectedCharacters = (input.visualReferences ?? [])
     .filter((reference) => reference.imageUrl)
@@ -572,10 +578,17 @@ async function buildIllustrationConditioningSheet(input: {
   const selectedContinuity = (input.continuityReferences ?? [])
     .filter((reference) => reference.imageUrl)
     .slice(0, MAX_CONTINUITY_REFERENCES_PER_IMAGE);
+  const selectedLocations = (input.locationReferences ?? [])
+    .filter((reference) => reference.imageUrl)
+    .slice(0, MAX_LOCATION_REFERENCES_PER_IMAGE);
   const selected: ImageConditionReference[] = [
     ...selectedCharacters.map((reference) => ({
       ...reference,
       kind: "character" as const,
+    })),
+    ...selectedLocations.map((reference) => ({
+      ...reference,
+      kind: "location" as const,
     })),
     ...selectedContinuity.map((reference) => ({
       ...reference,
@@ -655,12 +668,27 @@ async function buildIllustrationConditioningSheet(input: {
         source: item.reference.source,
         sequence: item.reference.sequence,
       })),
+    locationReferences: usable
+      .filter(
+        (
+          item
+        ): item is {
+          reference: LocationVisualReference & { kind: "location" };
+          image: Buffer;
+        } => item.reference.kind === "location"
+      )
+      .map((item) => ({
+        id: item.reference.id,
+        label: item.reference.label,
+        imageUrl: item.reference.imageUrl,
+      })),
   };
 }
 
 function buildVisualReferencePrompt(input: {
   visualReferences?: CharacterVisualReference[];
   continuityReferences?: ContinuityVisualReference[];
+  locationReferences?: LocationVisualReference[];
 }): string {
   const referenceList = (input.visualReferences ?? [])
     .map((reference, index) => {
@@ -679,6 +707,9 @@ function buildVisualReferencePrompt(input: {
   const continuityList = (input.continuityReferences ?? [])
     .map((reference, index) => `${index + 1}. ${reference.label}`)
     .join(" ");
+  const locationList = (input.locationReferences ?? [])
+    .map((reference) => reference.label)
+    .join(" ");
 
   return fitPromptSegments(
     [
@@ -687,6 +718,16 @@ function buildVisualReferencePrompt(input: {
           referenceList ? `Attached character reference sheet order: ${referenceList}` : "",
           referenceList
             ? `Attached character reference sheet order: ${clampPromptText(referenceList, 900)}`
+            : "",
+        ],
+      },
+      {
+        variants: [
+          locationList
+            ? `Attached setting reference photo (${locationList}): match its room layout, furniture, and colours for the background only; draw the characters from their own reference images, not from this photo.`
+            : "",
+          locationList
+            ? `Attached setting reference photo (${locationList}): match its layout and colours for the background only.`
             : "",
         ],
       },
@@ -812,10 +853,12 @@ async function buildOpenAIImageEditBody(input: {
   size: "1024x1024";
   visualReferences?: CharacterVisualReference[];
   continuityReferences?: ContinuityVisualReference[];
+  locationReferences?: LocationVisualReference[];
 }): Promise<FormData> {
   const sheet = await buildIllustrationConditioningSheet({
     visualReferences: input.visualReferences,
     continuityReferences: input.continuityReferences,
+    locationReferences: input.locationReferences,
   });
   if (!sheet) {
     throw new AppError("book.reference_image_unavailable", {
@@ -840,6 +883,7 @@ async function buildOpenAIImageEditBody(input: {
       buildVisualReferencePrompt({
         visualReferences: sheet.visualReferences,
         continuityReferences: sheet.continuityReferences,
+        locationReferences: sheet.locationReferences,
       }),
       input.prompt,
     ]
@@ -954,6 +998,7 @@ async function generateOpenAIImage(input: {
   size: "1024x1024";
   visualReferences?: CharacterVisualReference[];
   continuityReferences?: ContinuityVisualReference[];
+  locationReferences?: LocationVisualReference[];
 }): Promise<Buffer> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -971,7 +1016,9 @@ async function generateOpenAIImage(input: {
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
       const useConditioningReferences = Boolean(
-        input.visualReferences?.length || input.continuityReferences?.length
+        input.visualReferences?.length ||
+          input.continuityReferences?.length ||
+          input.locationReferences?.length
       );
       const body = useConditioningReferences
         ? await buildOpenAIImageEditBody({
@@ -980,6 +1027,7 @@ async function generateOpenAIImage(input: {
             size: input.size,
             visualReferences: input.visualReferences,
             continuityReferences: input.continuityReferences,
+            locationReferences: input.locationReferences,
           })
         : JSON.stringify({
             model,
@@ -1063,14 +1111,20 @@ async function generateBaseImage(input: {
   prompt: string;
   visualReferences?: CharacterVisualReference[];
   continuityReferences?: ContinuityVisualReference[];
+  locationReferences?: LocationVisualReference[];
 }): Promise<Buffer> {
-  if (input.visualReferences?.length || input.continuityReferences?.length) {
+  if (
+    input.visualReferences?.length ||
+    input.continuityReferences?.length ||
+    input.locationReferences?.length
+  ) {
     try {
       return await generateOpenAIImage({
         prompt: input.prompt,
         size: BOOK_SPEC.coverIllustrationOpenAISize,
         visualReferences: input.visualReferences,
         continuityReferences: input.continuityReferences,
+        locationReferences: input.locationReferences,
       });
     } catch (error) {
       if (!(error instanceof AppError)) throw error;
@@ -1092,6 +1146,7 @@ async function generateAndUpscale(input: {
   prompt: string;
   visualReferences?: CharacterVisualReference[];
   continuityReferences?: ContinuityVisualReference[];
+  locationReferences?: LocationVisualReference[];
 }): Promise<Buffer> {
   const png = await generateBaseImage(input);
   await assertUsableGeneratedImage(png);
@@ -1901,6 +1956,11 @@ export async function generateSpreadPageIllustration(input: {
     spread,
     selectedCharacterReferences: spreadVisualReferences,
   });
+  const locationReference = resolveSpreadLocationReference(
+    project.locationBible,
+    spread
+  );
+  const locationReferences = locationReference ? [locationReference] : undefined;
   const buildQa = (options: {
     provider: "openai" | "placeholder";
     pageTextOmitted?: boolean;
@@ -1926,6 +1986,7 @@ export async function generateSpreadPageIllustration(input: {
         prompt,
         visualReferences: spreadVisualReferences,
         continuityReferences,
+        locationReferences,
       });
     } catch (err) {
       if (!(err instanceof UnusableGeneratedImageError)) throw err;
@@ -1936,6 +1997,7 @@ export async function generateSpreadPageIllustration(input: {
         prompt,
         visualReferences: spreadVisualReferences,
         continuityReferences,
+        locationReferences,
       });
     }
     const { url, webUrl } = await storeWithWeb(upscaled);
@@ -1959,6 +2021,7 @@ export async function generateSpreadPageIllustration(input: {
         prompt: fallbackPrompt,
         visualReferences: spreadVisualReferences,
         continuityReferences,
+        locationReferences,
       });
       const { url, webUrl } = await storeWithWeb(upscaled);
       return {

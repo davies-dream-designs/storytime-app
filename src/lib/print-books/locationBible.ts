@@ -3,6 +3,7 @@ import type { Story } from "@/types";
 import type {
   BookSpread,
   LocationBible,
+  LocationVisualReference,
   SceneLocation,
 } from "@/types/printBook";
 
@@ -55,15 +56,17 @@ ${summarizeStoryPages(story)}
 
 Do this:
 1. Identify the DISTINCT physical places in the story. Merge places that are the same real location even if described with different words, and — this is important — if the story leaves a place and later returns to it (e.g. home → outside → home), that is ONE location reused, not two.
-2. For each location, write a canonical, reusable description an illustrator can redraw identically on every page set there: the room/place itself, the fixed furniture and props and roughly where they sit relative to each other, wall/window features, floor, and a single consistent light source with the direction its shadows fall.
-3. Assign EVERY page number to exactly one location id.
+2. Name each location SPECIFICALLY as a broad place plus, where it matters, the sub-area inside it. Use "place" for the broad location (e.g. "House", "Grandma's House", "Playground", "Car", "Market") and "area" for the specific room/spot inside it (e.g. "Nursery", "Kitchen", "Lounge"). Different rooms of the same building are DIFFERENT locations (House (Nursery) vs House (Kitchen)); leave "area" empty for places with no meaningful sub-area (e.g. Playground, Car).
+3. For each location, write a canonical, reusable description an illustrator can redraw identically on every page set there: the room/place itself, the fixed furniture and props and roughly where they sit relative to each other, wall/window features, floor, and a single consistent light source with the direction its shadows fall.
+4. Assign EVERY page number to exactly one location id.
 
 Return ONLY valid JSON with this exact shape:
 {
   "locations": [
     {
       "id": "short_snake_case_id",
-      "name": "human readable name",
+      "place": "broad place, e.g. Grandma's House",
+      "area": "sub-area inside it, e.g. Lounge (empty string if none)",
       "summary": "canonical description of the place",
       "fixedElements": ["specific furniture/prop and its rough position"],
       "lighting": "the one light source and the direction shadows fall",
@@ -75,12 +78,19 @@ Return ONLY valid JSON with this exact shape:
 }
 
 Requirements:
-- Prefer FEW locations; only split when the place genuinely changes.
+- Prefer FEW locations; only split when the place genuinely changes (a different building, or a different room/area within one).
 - Reuse the same id whenever the story returns to a place already described.
 - fixedElements must be concrete (e.g. "wooden slatted cot to the right of the window", "wall night-light with switch above the cot"), not vague.
 - lighting must name a direction so shadows do not flip sides between pages.
 - Every page number from the list above must appear in pageLocations, mapped to an id that exists in locations.
 - Keep each field concise but specific.`;
+}
+
+function composeLocationName(place: string, area?: string): string {
+  const cleanPlace = place.trim();
+  const cleanArea = (area ?? "").trim();
+  if (cleanPlace && cleanArea) return `${cleanPlace} (${cleanArea})`;
+  return cleanPlace || cleanArea || "Location";
 }
 
 function coerceStringArray(value: unknown): string[] {
@@ -110,10 +120,17 @@ function parseLocationBible(raw: string): LocationBible {
 
   const locations: SceneLocation[] = Array.isArray(obj.locations)
     ? (obj.locations as Record<string, unknown>[]).map((loc, index) => {
-        const name =
-          typeof loc.name === "string" && loc.name.trim()
-            ? loc.name.trim()
-            : `Location ${index + 1}`;
+        const place =
+          typeof loc.place === "string" && loc.place.trim()
+            ? loc.place.trim()
+            : typeof loc.name === "string" && loc.name.trim()
+              ? loc.name.trim()
+              : `Location ${index + 1}`;
+        const area =
+          typeof loc.area === "string" && loc.area.trim()
+            ? loc.area.trim()
+            : undefined;
+        const name = composeLocationName(place, area);
         const id =
           typeof loc.id === "string" && loc.id.trim()
             ? slugify(loc.id)
@@ -121,6 +138,8 @@ function parseLocationBible(raw: string): LocationBible {
         return {
           id,
           name,
+          place,
+          area,
           summary: typeof loc.summary === "string" ? loc.summary.trim() : "",
           fixedElements: coerceStringArray(loc.fixedElements),
           lighting: typeof loc.lighting === "string" ? loc.lighting.trim() : "",
@@ -171,6 +190,7 @@ function normalizeLocationBible(
       {
         id: "main_setting",
         name: "Main setting",
+        place: "Main setting",
         summary: story.premise || story.title,
         fixedElements: [],
         lighting: "",
@@ -322,6 +342,17 @@ export function buildLocationDirection(
   parts.push(
     `Setting (keep this location identical on every page set here — "${location.name}"): ${summary}`
   );
+  const notes = location.notes?.trim();
+  if (notes) {
+    parts.push(
+      `Ground-truth from the family about this real place (authoritative — follow it over any conflicting detail above): ${clampPreview(notes, compact ? 220 : 400)}.`
+    );
+  }
+  if (location.referenceImageUrl) {
+    parts.push(
+      `A reference photo of this place is attached; match its layout, furniture, and colours.`
+    );
+  }
   if (location.fixedElements.length > 0) {
     const els = location.fixedElements.join("; ");
     parts.push(
@@ -342,4 +373,22 @@ export function buildLocationDirection(
     "Vary the camera angle and composition for visual interest, but the room, furniture, props, their positions, and the light source must stay the same as other pages in this location."
   );
   return parts.join(" ");
+}
+
+/**
+ * If the spread's resolved location has a parent-supplied reference photo,
+ * return it as a conditioning reference so it can be tiled into the
+ * illustration reference sheet.
+ */
+export function resolveSpreadLocationReference(
+  bible: LocationBible | undefined,
+  spread: Pick<BookSpread, "locationId">
+): LocationVisualReference | undefined {
+  const location = resolveSpreadLocation(bible, spread);
+  if (!location?.referenceImageUrl) return undefined;
+  return {
+    id: `location:${location.id}`,
+    label: `Location photo — ${location.name}`,
+    imageUrl: location.referenceImageUrl,
+  };
 }

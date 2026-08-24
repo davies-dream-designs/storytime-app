@@ -6,6 +6,7 @@ import type {
   LocationVisualReference,
   SceneLocation,
 } from "@/types/printBook";
+import { composeLocationName } from "./locationNames";
 
 let client: Anthropic | undefined;
 
@@ -84,13 +85,6 @@ Requirements:
 - lighting must name a direction so shadows do not flip sides between pages.
 - Every page number from the list above must appear in pageLocations, mapped to an id that exists in locations.
 - Keep each field concise but specific.`;
-}
-
-function composeLocationName(place: string, area?: string): string {
-  const cleanPlace = place.trim();
-  const cleanArea = (area ?? "").trim();
-  if (cleanPlace && cleanArea) return `${cleanPlace} (${cleanArea})`;
-  return cleanPlace || cleanArea || "Location";
 }
 
 function coerceStringArray(value: unknown): string[] {

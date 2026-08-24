@@ -397,6 +397,29 @@ export const publicStoryReports = pgTable(
   ]
 );
 
+export const locationFixtures = pgTable(
+  "location_fixtures",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    place: text("place").notNull(),
+    area: text("area"),
+    summary: text("summary"),
+    notes: text("notes"),
+    referenceImageUrl: text("reference_image_url"),
+    fixedElements: jsonb("fixed_elements")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    doNotChange: jsonb("do_not_change").$type<string[]>().notNull().default([]),
+    lighting: text("lighting"),
+    palette: text("palette"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [index("location_fixtures_user_id_idx").on(t.userId)]
+);
+
 export const publicStoryModerationEvents = pgTable(
   "public_story_moderation_events",
   {

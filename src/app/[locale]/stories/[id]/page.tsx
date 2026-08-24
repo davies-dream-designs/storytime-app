@@ -141,6 +141,18 @@ export default async function StoryPage({
         buildContext.referenceSnapshotKey
   );
 
+  // Rendered above the reader while the book is still building (so progress is
+  // visible without scrolling) and below the reader once it's ready.
+  const bookStatusPanel = existingBook ? (
+    <BookStatusPanel
+      initialProject={existingBook}
+      initialIsReady={isBookReady}
+      initialReferencesAreStale={initialReferencesAreStale}
+      initialReferenceImageCount={buildContext?.visualReferences.length ?? 0}
+      isAdmin={isAdmin}
+    />
+  ) : null;
+
   return (
     <>
       <Nav />
@@ -202,17 +214,6 @@ export default async function StoryPage({
             </Link>
             {isReady ? (
               <>
-                {!existingBook ? (
-                  <CreatePrintBookButton
-                    storyId={id}
-                    credits={illustrationEstimate.credits}
-                    pageCount={estimatedPageCount}
-                    illustrationCount={estimatedIllustrationCount}
-                    userCredits={userCredits}
-                    isAdmin={isAdmin}
-                    compact
-                  />
-                ) : null}
                 {hasShareableIllustratedBook ? (
                   <ShareButton storyId={id} />
                 ) : null}
@@ -276,14 +277,20 @@ export default async function StoryPage({
               }).format(new Date(fileRetention.availableUntil))}
             </p>
           ) : null}
+        </div>
 
-          {/* Estimate info - shown when no book yet */}
-          {isReady && !existingBook && (
-            <div className="mt-3 max-w-md rounded-2xl border border-star-200 bg-star-50 px-4 py-3 text-sm text-night-600">
-              <p className="font-bold text-night-800">
-                {tBooks("estimateTitle")}
-              </p>
-              <p className="mt-1">
+        {/* Illustrate CTA - prominent, above the reader so the next step is
+            obvious without scrolling past the whole story */}
+        {isReady && !existingBook ? (
+          <div className="mb-8 rounded-2xl border border-star-200 bg-gradient-to-br from-star-50 to-lilac-50 p-5 sm:flex sm:items-center sm:justify-between sm:gap-6">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <Icon name="sparkle" className="h-5 w-5 text-star-500" />
+                <p className="font-display text-lg font-bold text-night-800">
+                  {tBooks("estimateTitle")}
+                </p>
+              </div>
+              <p className="mt-1 text-sm text-night-600">
                 {tBooks("estimateBody", {
                   credits: illustrationEstimate.credits,
                   pages: estimatedPageCount,
@@ -291,8 +298,18 @@ export default async function StoryPage({
                 })}
               </p>
             </div>
-          )}
-        </div>
+            <div className="mt-4 shrink-0 sm:mt-0">
+              <CreatePrintBookButton
+                storyId={id}
+                credits={illustrationEstimate.credits}
+                pageCount={estimatedPageCount}
+                illustrationCount={estimatedIllustrationCount}
+                userCredits={userCredits}
+                isAdmin={isAdmin}
+              />
+            </div>
+          </div>
+        ) : null}
 
         {/* Download success / cancel banners */}
         {query.download_success ? (
@@ -454,6 +471,12 @@ export default async function StoryPage({
           </section>
         ) : null}
 
+        {/* While building, surface the illustration progress ABOVE the reader
+            so users see it without scrolling past the whole story. */}
+        {existingBook && !isBookReady ? (
+          <div className="mb-8">{bookStatusPanel}</div>
+        ) : null}
+
         {/* Reader - illustrated when book ready, text-only otherwise */}
         {isBookReady && existingBook && existingBook.spreads.length > 0 ? (
           <section className="mb-8">
@@ -463,19 +486,10 @@ export default async function StoryPage({
           <StoryReader story={story} />
         )}
 
-        {/* Book status panel - shown during build AND when ready (for export actions + artwork redo) */}
-        {existingBook ? (
-          <div className="mt-8">
-            <BookStatusPanel
-              initialProject={existingBook}
-              initialIsReady={isBookReady}
-              initialReferencesAreStale={initialReferencesAreStale}
-              initialReferenceImageCount={
-                buildContext?.visualReferences.length ?? 0
-              }
-              isAdmin={isAdmin}
-            />
-          </div>
+        {/* Once ready, the panel sits below the illustrated reader (for export
+            actions + artwork redo). */}
+        {existingBook && isBookReady ? (
+          <div className="mt-8">{bookStatusPanel}</div>
         ) : null}
 
         {isReady && story.publicReviewStatus === "rejected" ? (

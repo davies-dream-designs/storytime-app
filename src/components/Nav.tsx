@@ -132,8 +132,8 @@ export default function Nav() {
           Storycot
         </Link>
 
-        {/* Desktop nav */}
-        <div className="hidden sm:flex items-center gap-1">
+        {/* Desktop nav (collapsed into the hamburger drawer at all widths) */}
+        <div className="hidden items-center gap-1">
           {isSignedIn ? (
             <>
               {desktopAuthedLinks.map(renderDesktopLink)}
@@ -183,8 +183,8 @@ export default function Nav() {
           )}
         </div>
 
-        {/* Mobile: avatar + hamburger */}
-        <div className="flex sm:hidden items-center gap-3">
+        {/* Collapsed bar: language + auth + hamburger (all widths) */}
+        <div className="flex items-center gap-3">
           <LanguageSwitcher />
           {isSignedIn ? (
             <>
@@ -248,9 +248,9 @@ export default function Nav() {
         </div>
       </nav>
 
-      {/* Mobile drawer */}
+      {/* Drawer (all widths) */}
       {open && (
-        <div className="sm:hidden border-t border-night-100 bg-parchment/95 backdrop-blur px-4 py-3 flex flex-col gap-1">
+        <div className="border-t border-night-100 bg-parchment/95 backdrop-blur px-4 py-3 flex flex-col gap-1">
           {isSignedIn ? (
             <>
               {mobileLinks

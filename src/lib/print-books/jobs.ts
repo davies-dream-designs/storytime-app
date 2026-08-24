@@ -92,16 +92,21 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
         characters: context.characters,
         storyPeople: context.storyPeople,
       }),
-      generateLocationBible({ story: context.story }).catch((err) => {
-        // A missing location bible degrades to today's behaviour; never fail the
-        // whole build over the continuity enhancement.
-        console.warn(
-          `Location bible generation failed (${
-            err instanceof Error ? err.message : "unknown error"
-          }) - continuing without it.`
-        );
-        return undefined;
-      }),
+      // Reuse a location bible the parent already prepared (with their notes and
+      // reference photos) so their ground-truth is not discarded; only generate
+      // one when none exists yet.
+      project.locationBible?.locations.length
+        ? Promise.resolve(project.locationBible)
+        : generateLocationBible({ story: context.story }).catch((err) => {
+            // A missing location bible degrades to today's behaviour; never fail
+            // the whole build over the continuity enhancement.
+            console.warn(
+              `Location bible generation failed (${
+                err instanceof Error ? err.message : "unknown error"
+              }) - continuing without it.`
+            );
+            return undefined;
+          }),
     ]);
 
     const spreads = composePrintBookSpreads({

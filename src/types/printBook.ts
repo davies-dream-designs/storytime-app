@@ -99,12 +99,28 @@ export interface CharacterBible {
 
 export interface SceneLocation {
   id: string;
+  /** Human-readable label, e.g. "Grandma's House (Lounge)". */
   name: string;
+  /** The broad place, e.g. "Grandma's House", "Playground", "Car". */
+  place: string;
+  /** The specific sub-area within the place, e.g. "Lounge", "Nursery". */
+  area?: string;
   summary: string;
   fixedElements: string[];
   lighting: string;
   palette: string;
   doNotChange: string[];
+  /**
+   * Optional parent-supplied ground-truth about this place. Treated as
+   * authoritative over the AI-inferred description when present.
+   */
+  notes?: string;
+  /**
+   * Optional parent-supplied reference photo of this place. When present it is
+   * added to the illustration conditioning sheet so the drawn setting matches
+   * the real location.
+   */
+  referenceImageUrl?: string;
 }
 
 export interface LocationBible {
@@ -143,6 +159,12 @@ export interface ContinuityVisualReference {
   imageUrl: string;
   source: "cover" | "spread";
   sequence?: number;
+}
+
+export interface LocationVisualReference {
+  id: string;
+  label: string;
+  imageUrl: string;
 }
 
 export interface IllustrationGenerationMetadata {

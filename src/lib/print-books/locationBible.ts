@@ -434,7 +434,7 @@ export function buildLocationDirection(
   }
   if (location.establishingImageUrl || location.referenceImageUrl) {
     parts.push(
-      `An established rendering of this place is attached; match its layout, furniture, colours, and the orientation each object faces.`
+      `An established rendering of this place is attached and authoritative; match its exact room layout, doors, windows, bed types, furniture positions, colours, and the orientation each object faces. Do not invent, remove, resize, or relocate structural features or furniture shown in the reference.`
     );
   }
   if (location.fixedElements.length > 0) {

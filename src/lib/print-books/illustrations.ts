@@ -201,6 +201,48 @@ function getCoverSpread(spreads: BookSpread[]): BookSpread | undefined {
   );
 }
 
+function getLocationReferenceImageUrl(
+  location: SceneLocation
+): string | undefined {
+  return location.establishingImageUrl ?? location.referenceImageUrl;
+}
+
+function getPrimaryCoverLocation(input: {
+  project: Pick<BookProject, "locationBible">;
+  coverSpread?: BookSpread;
+}): SceneLocation | undefined {
+  const bible = input.project.locationBible;
+  if (!bible?.locations.length) return undefined;
+
+  const spreadLocation = input.coverSpread
+    ? resolveSpreadLocation(bible, input.coverSpread)
+    : undefined;
+  if (spreadLocation) return spreadLocation;
+
+  const usageCount = new Map<string, number>();
+  for (const locationId of Object.values(bible.pageLocations)) {
+    usageCount.set(locationId, (usageCount.get(locationId) ?? 0) + 1);
+  }
+
+  return [...bible.locations]
+    .filter((location) => getLocationReferenceImageUrl(location))
+    .sort(
+      (a, b) => (usageCount.get(b.id) ?? 0) - (usageCount.get(a.id) ?? 0)
+    )[0];
+}
+
+function buildLocationVisualReference(
+  location: SceneLocation | undefined
+): LocationVisualReference | undefined {
+  if (!location) return undefined;
+  const imageUrl = getLocationReferenceImageUrl(location);
+  if (!imageUrl) return undefined;
+  return {
+    id: `location:${location.id}`,
+    label: `Established view of ${location.name} — exact room layout, doors, windows, furniture, bed types, colours, and object orientation are authoritative`,
+    imageUrl,
+  };
+}
 
 const OPENAI_IMAGE_PROMPT_MAX_CHARS = 32000;
 const OPENAI_IMAGE_REFERENCE_PROMPT_BUDGET = 3500;
@@ -292,10 +334,14 @@ export function buildCoverIllustrationPrompt(input: {
   profile: ChildProfile;
   characterBible: CharacterBible;
   coverSpread?: BookSpread;
+  coverLocation?: SceneLocation;
   continuityReferences?: ContinuityVisualReference[];
   omitSceneDetails?: boolean;
 }): string {
-  const { story, profile, characterBible, coverSpread } = input;
+  const { story, profile, characterBible, coverSpread, coverLocation } = input;
+  const coverLocationDirection = coverLocation
+    ? `Cover setting source of truth: use ${coverLocation.name}. ${buildLocationDirection(coverLocation)} The attached setting reference is authoritative; do not invent extra doors, windows, bed shapes, cot/bed types, furniture, or structural details that are not in that reference.`
+    : "";
   const continuityReferenceLabels = (input.continuityReferences ?? [])
     .map((reference) => reference.label)
     .filter(Boolean)
@@ -328,6 +374,14 @@ export function buildCoverIllustrationPrompt(input: {
             ? [
                 `Attached interior page art (${continuityReferenceLabels}) is the source of truth for each character's clothing, footwear, hair, and colours - match it, but not its pose, crop, or background.`,
                 `Match each character's clothing and look to the attached interior page art (${continuityReferenceLabels}).`,
+              ]
+            : [""],
+        },
+        {
+          variants: coverLocationDirection
+            ? [
+                coverLocationDirection,
+                `Use the attached setting reference for ${coverLocation?.name}: keep the exact room structure, window/door placement, bed/cot types, furniture layout, colours, and object orientation.`,
               ]
             : [""],
         },
@@ -376,6 +430,14 @@ export function buildCoverIllustrationPrompt(input: {
           ? [
               `Approved interior page art is attached as a reference (${continuityReferenceLabels}). This interior page is the source of truth for each character's actual clothing and overall look on the cover: match the same outfit (for example the same overalls, dress, or jumper), footwear, hairstyle, and colours the characters wear in that interior page, so the cover clearly belongs to the same book. Do not copy that page's exact pose, camera angle, crop, or background - only its established character look and clothing.`,
               `Attached interior page art (${continuityReferenceLabels}) is the source of truth for each character's clothing and look on the cover: match the same outfit, footwear, hair, and colours from that page, but not its pose, crop, or background.`,
+            ]
+          : [""],
+      },
+      {
+        variants: coverLocationDirection
+          ? [
+              coverLocationDirection,
+              `Use the attached setting reference for ${coverLocation?.name}: keep exact doors, windows, bed/cot types, furniture positions, colours, and object orientation; do not add a door, window, cot, or bed that is not present in the reference.`,
             ]
           : [""],
       },
@@ -606,9 +668,7 @@ async function buildIllustrationConditioningSheet(input: {
     }))
   );
   const usable = loaded.filter(
-    (
-      item
-    ): item is { reference: ImageConditionReference; image: Buffer } =>
+    (item): item is { reference: ImageConditionReference; image: Buffer } =>
       Boolean(item.image)
   );
   if (usable.length === 0) return null;
@@ -717,7 +777,9 @@ function buildVisualReferencePrompt(input: {
     [
       {
         variants: [
-          referenceList ? `Attached character reference sheet order: ${referenceList}` : "",
+          referenceList
+            ? `Attached character reference sheet order: ${referenceList}`
+            : "",
           referenceList
             ? `Attached character reference sheet order: ${clampPromptText(referenceList, 900)}`
             : "",
@@ -726,10 +788,10 @@ function buildVisualReferencePrompt(input: {
       {
         variants: [
           locationList
-            ? `Attached setting reference photo (${locationList}): match its room layout, furniture, and colours for the background only; draw the characters from their own reference images, not from this photo.`
+            ? `Attached setting reference image (${locationList}) is the authoritative setting blueprint. Match its exact room layout, doors, windows, bed types, furniture positions, colours, and object orientation for the background; do not invent, remove, or move doors/windows/beds. Draw characters from their own references, not from this setting image.`
             : "",
           locationList
-            ? `Attached setting reference photo (${locationList}): match its layout and colours for the background only.`
+            ? `Attached setting reference image (${locationList}) is authoritative: keep the same doors, windows, bed types, furniture positions, colours, and object orientation.`
             : "",
         ],
       },
@@ -1019,8 +1081,8 @@ async function generateOpenAIImage(input: {
     for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
       const useConditioningReferences = Boolean(
         input.visualReferences?.length ||
-          input.continuityReferences?.length ||
-          input.locationReferences?.length
+        input.continuityReferences?.length ||
+        input.locationReferences?.length
       );
       const body = useConditioningReferences
         ? await buildOpenAIImageEditBody({
@@ -1218,11 +1280,23 @@ export async function generateLocationEstablishingImages(input: {
 function sanitizePageMomentForImagePrompt(value: string): string {
   return value
     .replace(/\s+/g, " ")
-    .replace(/\b(bare\s+(?:little\s+)?toes?|bare\s+feet|feet|toes?)\b/gi, "shoes")
-    .replace(/\b(warm\s+mud|muddy\s+skin|mud\s+on\s+(?:their|his|her)\s+body)\b/gi, "soft ground")
-    .replace(/\b(naked|nude|undressed|underwear|nappy|diaper)\b/gi, "fully clothed")
+    .replace(
+      /\b(bare\s+(?:little\s+)?toes?|bare\s+feet|feet|toes?)\b/gi,
+      "shoes"
+    )
+    .replace(
+      /\b(warm\s+mud|muddy\s+skin|mud\s+on\s+(?:their|his|her)\s+body)\b/gi,
+      "soft ground"
+    )
+    .replace(
+      /\b(naked|nude|undressed|underwear|nappy|diaper)\b/gi,
+      "fully clothed"
+    )
     .replace(/\b(bath|bathing|toilet|potty)\b/gi, "bedtime room")
-    .replace(/\b(injured|injury|blood|weapon|knife|gun|drowning|restraint|restrained)\b/gi, "safe")
+    .replace(
+      /\b(injured|injury|blood|weapon|knife|gun|drowning|restraint|restrained)\b/gi,
+      "safe"
+    )
     .slice(0, 420)
     .trim();
 }
@@ -1339,15 +1413,17 @@ function tokenizeNormalizedText(value: string): string[] {
   );
 }
 
-function getReferenceSearchTerms(reference: CharacterVisualReference): string[] {
+function getReferenceSearchTerms(
+  reference: CharacterVisualReference
+): string[] {
   const terms = [normalizeReferenceSearchText(reference.name)];
-  const relationship = normalizeReferenceSearchText(reference.relationship ?? "");
+  const relationship = normalizeReferenceSearchText(
+    reference.relationship ?? ""
+  );
   if (relationship) {
     terms.push(relationship);
     terms.push(
-      ...(RELATIONSHIP_REFERENCE_HINTS[
-        relationship.replace(/\s+/g, "_")
-      ] ?? [])
+      ...(RELATIONSHIP_REFERENCE_HINTS[relationship.replace(/\s+/g, "_")] ?? [])
     );
   }
   return Array.from(new Set(terms.filter(Boolean)));
@@ -1376,7 +1452,8 @@ function scoreReferenceForSpread(input: {
   companionHintPresent: boolean;
   nonMainReferenceCount: number;
 }): number {
-  const { reference, haystack, recentCharacterIds, companionHintPresent } = input;
+  const { reference, haystack, recentCharacterIds, companionHintPresent } =
+    input;
   let score = 0;
   for (const term of getReferenceSearchTerms(reference)) {
     if (!term) continue;
@@ -1448,10 +1525,13 @@ function isPlaceholderReferenceImageUrl(url?: string): boolean {
   return lower.startsWith("data:image/svg") || lower.endsWith(".svg");
 }
 
-function getContinuityKeywordScore(current: BookSpread, candidate: BookSpread): number {
-  const currentKeywords = tokenizeNormalizedText(buildSpreadReferenceHaystack(current)).filter(
-    (keyword) => !CONTINUITY_KEYWORD_STOPWORDS.has(keyword)
-  );
+function getContinuityKeywordScore(
+  current: BookSpread,
+  candidate: BookSpread
+): number {
+  const currentKeywords = tokenizeNormalizedText(
+    buildSpreadReferenceHaystack(current)
+  ).filter((keyword) => !CONTINUITY_KEYWORD_STOPWORDS.has(keyword));
   if (currentKeywords.length === 0) return 0;
   const candidateKeywords = new Set(
     tokenizeNormalizedText(buildSpreadReferenceHaystack(candidate)).filter(
@@ -1485,13 +1565,27 @@ export function scoreContinuitySpread(input: {
     input.candidate.locationId === input.spread.locationId
       ? 30
       : 0;
-  const keywordScore = getContinuityKeywordScore(input.spread, input.candidate) * 6;
-  if (sharedCharacterScore === 0 && sharedLocationScore === 0 && keywordScore === 0) {
+  const keywordScore =
+    getContinuityKeywordScore(input.spread, input.candidate) * 6;
+  if (
+    sharedCharacterScore === 0 &&
+    sharedLocationScore === 0 &&
+    keywordScore === 0
+  ) {
     return 0;
   }
-  const recencyScore = Math.max(0, 12 - (input.spread.sequence - input.candidate.sequence));
+  const recencyScore = Math.max(
+    0,
+    12 - (input.spread.sequence - input.candidate.sequence)
+  );
   const qaScore = candidateCharacterIds.size > 0 ? 4 : 0;
-  return sharedCharacterScore + sharedLocationScore + keywordScore + recencyScore + qaScore;
+  return (
+    sharedCharacterScore +
+    sharedLocationScore +
+    keywordScore +
+    recencyScore +
+    qaScore
+  );
 }
 
 function selectContinuityVisualReferences(input: {
@@ -1502,7 +1596,9 @@ function selectContinuityVisualReferences(input: {
   const selectedCharacterIds = new Set(
     input.selectedCharacterReferences.map((reference) => reference.id)
   );
-  const continuityCandidates: Array<ContinuityVisualReference & { score: number }> = [];
+  const continuityCandidates: Array<
+    ContinuityVisualReference & { score: number }
+  > = [];
   const { project, spread } = input;
 
   if (!isPlaceholderReferenceImageUrl(project.assets.coverImageUrl)) {
@@ -1522,7 +1618,9 @@ function selectContinuityVisualReferences(input: {
       candidate.sequence > 1 &&
       candidate.title !== "Cover" &&
       !isPlaceholderReferenceImageUrl(
-        candidate.leftPageImageUrl ?? candidate.imageUrl ?? candidate.thumbnailUrl
+        candidate.leftPageImageUrl ??
+          candidate.imageUrl ??
+          candidate.thumbnailUrl
       )
   );
 
@@ -1576,7 +1674,9 @@ function buildIllustrationQaMetadata(input: {
     provider: input.provider,
     generatedAt: new Date().toISOString(),
     referenceSnapshotKey: input.referenceSnapshotKey,
-    characterReferenceIds: input.characterReferences.map((reference) => reference.id),
+    characterReferenceIds: input.characterReferences.map(
+      (reference) => reference.id
+    ),
     characterReferenceNames: input.characterReferences.map(
       (reference) => reference.name
     ),
@@ -1627,7 +1727,9 @@ function buildPageIllustrationPrompt(input: {
   // keeps a companion drawn only once the story has introduced it.
   const cumulativeSceneText = buildSpreadReferenceHaystack(spread);
   const spreadLocation = resolveSpreadLocation(project.locationBible, spread);
-  const latestReferenceContext = buildLatestReferenceContext(input.visualReferences);
+  const latestReferenceContext = buildLatestReferenceContext(
+    input.visualReferences
+  );
   const compactLatestReferenceContext = buildLatestReferenceContext(
     input.visualReferences,
     true
@@ -1832,7 +1934,19 @@ export async function generateCoverIllustration(input: {
   provider: "openai" | "placeholder";
 }> {
   const coverSpread = getCoverSpread(input.project.spreads);
-  const prompt = buildCoverIllustrationPrompt({ ...input, coverSpread });
+  const coverLocation = getPrimaryCoverLocation({
+    project: input.project,
+    coverSpread,
+  });
+  const locationReference = buildLocationVisualReference(coverLocation);
+  const locationReferences = locationReference
+    ? [locationReference]
+    : undefined;
+  const prompt = buildCoverIllustrationPrompt({
+    ...input,
+    coverSpread,
+    coverLocation,
+  });
 
   if (isGeneratedIllustrationConfigured()) {
     try {
@@ -1842,6 +1956,7 @@ export async function generateCoverIllustration(input: {
           prompt,
           visualReferences: input.visualReferences,
           continuityReferences: input.continuityReferences,
+          locationReferences,
         });
       } catch (err) {
         if (!(err instanceof UnusableGeneratedImageError)) throw err;
@@ -1850,6 +1965,7 @@ export async function generateCoverIllustration(input: {
           prompt,
           visualReferences: input.visualReferences,
           continuityReferences: input.continuityReferences,
+          locationReferences,
         });
       }
 
@@ -1890,6 +2006,7 @@ export async function generateCoverIllustration(input: {
       );
       const fallbackPrompt = buildCoverIllustrationPrompt({
         ...input,
+        coverLocation,
         omitSceneDetails: true,
       });
       try {
@@ -1897,6 +2014,7 @@ export async function generateCoverIllustration(input: {
           prompt: fallbackPrompt,
           visualReferences: input.visualReferences,
           continuityReferences: input.continuityReferences,
+          locationReferences,
         });
         const [coverImageUrl, coverWebImageUrl] = await Promise.all([
           storeBookAsset({
@@ -2037,7 +2155,9 @@ export async function generateSpreadPageIllustration(input: {
     project.locationBible,
     spread
   );
-  const locationReferences = locationReference ? [locationReference] : undefined;
+  const locationReferences = locationReference
+    ? [locationReference]
+    : undefined;
   const buildQa = (options: {
     provider: "openai" | "placeholder";
     pageTextOmitted?: boolean;
@@ -2078,7 +2198,12 @@ export async function generateSpreadPageIllustration(input: {
       });
     }
     const { url, webUrl } = await storeWithWeb(upscaled);
-    return { url, webUrl, provider: "openai", qa: buildQa({ provider: "openai" }) };
+    return {
+      url,
+      webUrl,
+      provider: "openai",
+      qa: buildQa({ provider: "openai" }),
+    };
   } catch (err) {
     if (
       !(err instanceof ModerationBlockedError) &&

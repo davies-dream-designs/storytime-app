@@ -206,6 +206,7 @@ describe("generateCoverIllustration", () => {
           label: "Approved spread 2",
           imageUrl: "https://example.com/books/x/spreads/2.png",
           source: "spread",
+
           sequence: 2,
         },
       ],
@@ -217,6 +218,105 @@ describe("generateCoverIllustration", () => {
       /source of truth for each character's actual clothing/
     );
     expect(prompt).toMatch(/Do not copy that page's exact pose/);
+  });
+
+  it("attaches the primary saved location reference to cover generation", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    vi.doMock("@/lib/print-books/storage", () => ({
+      storeBookAsset: mockStoreBookAsset,
+      isBookAssetStorageConfigured: () => true,
+    }));
+
+    vi.doMock("sharp", () => {
+      const instance = {
+        resize: vi.fn().mockReturnThis(),
+        composite: vi.fn().mockReturnThis(),
+        removeAlpha: vi.fn().mockReturnThis(),
+        raw: vi.fn().mockReturnThis(),
+        png: vi.fn().mockReturnThis(),
+        jpeg: vi.fn().mockReturnThis(),
+        rotate: vi.fn().mockReturnThis(),
+        toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
+          options?.resolveWithObject
+            ? Promise.resolve({
+                data: Buffer.from([128, 128, 128, 180, 180, 180]),
+                info: { channels: 3 },
+              })
+            : Promise.resolve(Buffer.from("upscaled-png"))
+        ),
+      };
+      const sharpFn = vi.fn(() => instance);
+      const sharpMock = Object.assign(sharpFn, {
+        kernel: { lanczos3: "lanczos3" },
+      });
+      return { default: sharpMock };
+    });
+
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      void init;
+      if (String(url).startsWith("https://assets.example.com/")) {
+        return {
+          ok: true,
+          arrayBuffer: async () => Buffer.from("reference").buffer,
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          data: [{ b64_json: Buffer.from("image").toString("base64") }],
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mockStoreBookAsset.mockResolvedValue("https://example.com/cover.png");
+
+    vi.resetModules();
+    const { generateCoverIllustration } =
+      await import("@/lib/print-books/illustrations");
+
+    const result = await generateCoverIllustration({
+      project: {
+        ...createProject(),
+        locationBible: {
+          locations: [
+            {
+              id: "nursery",
+              name: "Levi's bedroom",
+              place: "Home",
+              area: "Bedroom",
+              summary: "A bedroom with a cot and a Kura single bed.",
+              fixedElements: [
+                "window on the right beside Levi's cot",
+                "IKEA Kura single bed for Bailey",
+              ],
+              lighting: "soft lamp light from the right",
+              palette: "cream, timber, and soft blue",
+              doNotChange: ["no window on the left", "no extra door"],
+              establishingImageUrl: "https://assets.example.com/nursery.png",
+            },
+          ],
+          pageLocations: { 1: "nursery", 2: "nursery" },
+        },
+      },
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+    });
+
+    expect(result.provider).toBe("openai");
+    const editCall = fetchMock.mock.calls.find((call) =>
+      String(call[0]).includes("/images/edits")
+    );
+    expect(editCall).toBeTruthy();
+    const body = editCall?.[1]?.body as FormData;
+    expect(body.get("prompt")).toContain("Attached setting reference image");
+    expect(body.get("prompt")).toContain("no window on the left");
+    expect(body.get("prompt")).toContain("IKEA Kura single bed");
+
+    vi.unstubAllGlobals();
+    vi.doUnmock("sharp");
+    vi.doUnmock("@/lib/print-books/storage");
   });
 
   it("omits the interior-page continuity clause when no page art is attached", async () => {
@@ -348,7 +448,9 @@ describe("generateCoverIllustration", () => {
     const requestBody = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body);
     expect(requestBody.prompt).toContain("A gentle pond scene");
     expect(requestBody.prompt).toContain("Story moment constraints");
-    expect(requestBody.prompt).toContain("Bailey stood at the edge of the water");
+    expect(requestBody.prompt).toContain(
+      "Bailey stood at the edge of the water"
+    );
     expect(requestBody.prompt).toContain(
       "The little fish peeked out from under a lily pad"
     );
@@ -432,8 +534,12 @@ describe("generateCoverIllustration", () => {
 
     const requestBody = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body);
     expect(requestBody.prompt).toContain("Preserve scene state exactly");
-    expect(requestBody.prompt).toContain("who is holding or not holding each object");
-    expect(requestBody.prompt).toContain("red book was still on the kitchen table");
+    expect(requestBody.prompt).toContain(
+      "who is holding or not holding each object"
+    );
+    expect(requestBody.prompt).toContain(
+      "red book was still on the kitchen table"
+    );
     expect(requestBody.prompt).toContain("Piggy was under the chair");
     expect(requestBody.prompt).toContain("Mum held the little yellow cup");
     expect(requestBody.prompt).toContain(
@@ -553,7 +659,9 @@ describe("generateCoverIllustration", () => {
     expect(body.get("prompt")).toContain("Latest profile/reference overrides");
     expect(body.get("prompt")).toContain("Identity colour lock");
     expect(body.get("prompt")).toContain("grey hair tied in a neat man bun");
-    expect(body.get("prompt")).toContain("grey-brown shoulder-length wavy hair");
+    expect(body.get("prompt")).toContain(
+      "grey-brown shoulder-length wavy hair"
+    );
     expect(body.get("prompt")).toContain("very large plus-size body build");
     expect(body.get("prompt")).toContain(
       "Latest edited profile/reference text controls changeable visual traits"
@@ -639,9 +747,8 @@ describe("generateCoverIllustration", () => {
     const { generateSpreadPageIllustration } =
       await import("@/lib/print-books/illustrations");
 
-    const hugeText = "very detailed continuity note about Bailey and Piggy ".repeat(
-      320
-    );
+    const hugeText =
+      "very detailed continuity note about Bailey and Piggy ".repeat(320);
     const bible: CharacterBible = {
       ...createCharacterBible(),
       childAppearance: `${createCharacterBible().childAppearance} ${hugeText}`,
@@ -669,7 +776,8 @@ describe("generateCoverIllustration", () => {
       title: "Puddles",
       leftPageText:
         "Mila and Glenpa took Piggy everywhere with Bailey. Bailey, Glenpa, and Piggy splashed past big puddles and little puddles while Mumma and Dad watched.",
-      rightPageText: "Piggy stayed close beside Mila and Glenpa on the wobbly path.",
+      rightPageText:
+        "Piggy stayed close beside Mila and Glenpa on the wobbly path.",
       sceneBrief: hugeText,
       illustrationPrompt: hugeText,
     };
@@ -717,7 +825,6 @@ describe("generateCoverIllustration", () => {
     vi.doUnmock("sharp");
     vi.doUnmock("@/lib/print-books/storage");
   });
-
 
   it("filters visual references down to the spread's relevant cast", async () => {
     process.env.OPENAI_API_KEY = "test-key";
@@ -807,7 +914,8 @@ describe("generateCoverIllustration", () => {
           role: "family_friend_pet",
           relationship: "grandparent",
           imageUrl: "https://assets.example.com/glenpa.jpg",
-          appearance: "Warm smile, dark-framed glasses, grey hair in a neat bun.",
+          appearance:
+            "Warm smile, dark-framed glasses, grey hair in a neat bun.",
         },
         {
           id: "person:poppy",
@@ -935,7 +1043,8 @@ describe("generateCoverIllustration", () => {
       leftPageText: "Together they watched the lanterns sway overhead.",
       rightPageText: "Their footsteps stayed slow and calm.",
       sceneBrief: "A gentle lantern-bench moment continues with the same pair.",
-      illustrationPrompt: "A calm lantern scene with the same companion beside Mila.",
+      illustrationPrompt:
+        "A calm lantern scene with the same companion beside Mila.",
     };
 
     await generateSpreadPageIllustration({
@@ -957,7 +1066,8 @@ describe("generateCoverIllustration", () => {
           role: "family_friend_pet",
           relationship: "grandparent",
           imageUrl: "https://assets.example.com/glenpa.jpg",
-          appearance: "Warm smile, dark-framed glasses, grey hair in a neat bun.",
+          appearance:
+            "Warm smile, dark-framed glasses, grey hair in a neat bun.",
         },
         {
           id: "person:poppy",
@@ -985,8 +1095,6 @@ describe("generateCoverIllustration", () => {
     vi.doUnmock("sharp");
     vi.doUnmock("@/lib/print-books/storage");
   });
-
-
 
   it("uses approved cover and prior spread art as continuity references and records QA metadata", async () => {
     process.env.OPENAI_API_KEY = "test-key";
@@ -1082,8 +1190,10 @@ describe("generateCoverIllustration", () => {
       title: "Lantern Walk",
       leftPageText: "Mila and Glenpa walked under the lantern glow.",
       rightPageText: "The silver lantern swung softly beside them.",
-      sceneBrief: "Mila and Glenpa share a lantern walk in the same moonlit garden.",
-      illustrationPrompt: "Mila and Glenpa walking together under lantern light.",
+      sceneBrief:
+        "Mila and Glenpa share a lantern walk in the same moonlit garden.",
+      illustrationPrompt:
+        "Mila and Glenpa walking together under lantern light.",
     };
 
     const result = await generateSpreadIllustration({
@@ -1105,7 +1215,8 @@ describe("generateCoverIllustration", () => {
           role: "family_friend_pet",
           relationship: "grandparent",
           imageUrl: "https://assets.example.com/glenpa.jpg",
-          appearance: "Warm smile, dark-framed glasses, grey hair in a neat bun.",
+          appearance:
+            "Warm smile, dark-framed glasses, grey hair in a neat bun.",
         },
       ],
       referenceSnapshotKey: "profile|profile-1|snapshot",
@@ -1223,7 +1334,8 @@ describe("generateCoverIllustration", () => {
           leftPageText: "Mila and Glenpa followed the garden lantern path.",
           rightPageText: "",
           sceneBrief: "Mila and Glenpa share a garden lantern walk.",
-          illustrationPrompt: "Mila and Glenpa with the silver lantern in the garden.",
+          illustrationPrompt:
+            "Mila and Glenpa with the silver lantern in the garden.",
           leftPageImageUrl: "https://assets.example.com/spread-2.png",
           leftPageQa: {
             provider: "openai",
@@ -1269,7 +1381,8 @@ describe("generateCoverIllustration", () => {
       leftPageText: "Mila and Glenpa walked beneath the lantern glow.",
       rightPageText: "The silver lantern swung softly beside them.",
       sceneBrief: "Mila and Glenpa return to the moonlit garden path.",
-      illustrationPrompt: "Mila and Glenpa walking together under lantern light.",
+      illustrationPrompt:
+        "Mila and Glenpa walking together under lantern light.",
     };
 
     const result = await generateSpreadIllustration({
@@ -1291,7 +1404,8 @@ describe("generateCoverIllustration", () => {
           role: "family_friend_pet",
           relationship: "grandparent",
           imageUrl: "https://assets.example.com/glenpa.jpg",
-          appearance: "Warm smile, dark-framed glasses, grey hair in a neat bun.",
+          appearance:
+            "Warm smile, dark-framed glasses, grey hair in a neat bun.",
           isStale: true,
         },
         {
@@ -1579,9 +1693,8 @@ describe("scoreContinuitySpread", () => {
   }
 
   it("scores a prior same-location spread even with no shared characters", async () => {
-    const { scoreContinuitySpread } = await import(
-      "@/lib/print-books/illustrations"
-    );
+    const { scoreContinuitySpread } =
+      await import("@/lib/print-books/illustrations");
     const score = scoreContinuitySpread({
       spread: spread({ sequence: 5, locationId: "bedroom" }),
       candidate: spread({ sequence: 2, locationId: "bedroom" }),
@@ -1591,9 +1704,8 @@ describe("scoreContinuitySpread", () => {
   });
 
   it("does not add the location bonus for a different location", async () => {
-    const { scoreContinuitySpread } = await import(
-      "@/lib/print-books/illustrations"
-    );
+    const { scoreContinuitySpread } =
+      await import("@/lib/print-books/illustrations");
     const same = scoreContinuitySpread({
       spread: spread({ sequence: 5, locationId: "bedroom" }),
       candidate: spread({ sequence: 4, locationId: "bedroom" }),

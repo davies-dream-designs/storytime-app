@@ -100,8 +100,12 @@ export async function regenerateProjectArt(input: {
       const seed = seedResult.spread;
       const seedImage = seed.leftPageImageError
         ? undefined
-        : seed.leftPageImageUrl ?? seed.imageUrl;
-      if (seedImage && seedImage.includes("/spreads/") && seedImage.endsWith(".png")) {
+        : (seed.leftPageImageUrl ?? seed.imageUrl);
+      if (
+        seedImage &&
+        seedImage.includes("/spreads/") &&
+        seedImage.endsWith(".png")
+      ) {
         continuityReferences = [
           {
             id: `spread:${seed.id}`,
@@ -120,11 +124,10 @@ export async function regenerateProjectArt(input: {
       story: input.story,
       profile: input.profile,
       characterBible: input.characterBible,
-      // Avatar portraits are drawn in a neutral plain top; as image references
-      // they override the outfit text and pull the cover back to that top. When
-      // we have an interior seed page (correct story outfits), condition on it
-      // alone; only fall back to avatars when no seed reference is available.
-      visualReferences: continuityReferences ? undefined : input.visualReferences,
+      // Keep real character portraits attached for identity (especially family
+      // members that may not appear in the seed page). The cover prompt and
+      // continuity art remain the source of truth for outfits.
+      visualReferences: input.visualReferences,
       continuityReferences,
     });
 

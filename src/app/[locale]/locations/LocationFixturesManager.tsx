@@ -57,22 +57,30 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [cameraPhotos, setCameraPhotos] = useState<File[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
 
+  function clearCameraPhotos() {
+    setCameraPhotos([]);
+  }
+
   function startAdd() {
     setError(null);
+    clearCameraPhotos();
     setForm({ ...emptyForm });
   }
 
   function startEdit(fixture: LocationFixture) {
     setError(null);
+    clearCameraPhotos();
     setForm(fixtureToForm(fixture));
   }
 
   function closeForm() {
     setForm(null);
     setError(null);
+    clearCameraPhotos();
   }
 
   async function persistForm(currentForm: FormState): Promise<LocationFixture> {
@@ -151,12 +159,12 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
     }
   }
 
-  async function uploadPhotos(selected: File[]) {
-    if (!form) return;
-    if (selected.length === 0) return;
+  async function uploadPhotos(selected: File[]): Promise<boolean> {
+    if (!form) return false;
+    if (selected.length === 0) return false;
     if (selected.length > MAX_LOCATION_PHOTOS) {
       setError(`Please choose up to ${MAX_LOCATION_PHOTOS} photos at a time.`);
-      return;
+      return false;
     }
     setUploading(true);
     setSaving(true);
@@ -199,12 +207,35 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
           f.id === fixtureId ? { ...f, establishingImageUrl } : f
         )
       );
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
+      return false;
     } finally {
       setUploading(false);
       setSaving(false);
     }
+  }
+
+  function appendCameraPhotos(selected: File[]) {
+    if (selected.length === 0) return;
+    const remainingSlots = MAX_LOCATION_PHOTOS - cameraPhotos.length;
+    if (remainingSlots <= 0) {
+      setError(`You already have ${MAX_LOCATION_PHOTOS} photos ready.`);
+      return;
+    }
+    const accepted = selected.slice(0, remainingSlots);
+    setCameraPhotos((prev) => [...prev, ...accepted]);
+    setError(
+      selected.length > remainingSlots
+        ? `Added ${accepted.length} photo${accepted.length === 1 ? "" : "s"}. You can use up to ${MAX_LOCATION_PHOTOS} photos.`
+        : null
+    );
+  }
+
+  async function uploadCameraPhotos() {
+    const uploaded = await uploadPhotos(cameraPhotos);
+    if (uploaded) clearCameraPhotos();
   }
 
   return (
@@ -402,27 +433,72 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                   </label>
                   <label
                     className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-night-200 px-3 py-1.5 text-sm font-bold text-night-700 ${
-                      uploading || saving || !form.place.trim()
+                      uploading ||
+                      saving ||
+                      !form.place.trim() ||
+                      cameraPhotos.length >= MAX_LOCATION_PHOTOS
                         ? "pointer-events-none opacity-60"
                         : "hover:bg-night-50"
                     }`}
                   >
                     <Icon name="image" />
-                    Take photo
+                    {cameraPhotos.length > 0
+                      ? "Take another photo"
+                      : "Take photo"}
                     <input
                       type="file"
                       accept="image/*"
                       capture="environment"
                       className="sr-only"
-                      disabled={uploading || saving || !form.place.trim()}
+                      disabled={
+                        uploading ||
+                        saving ||
+                        !form.place.trim() ||
+                        cameraPhotos.length >= MAX_LOCATION_PHOTOS
+                      }
                       onChange={(e) => {
                         const files = Array.from(e.target.files ?? []);
-                        if (files.length > 0) void uploadPhotos(files);
+                        appendCameraPhotos(files);
                         e.target.value = "";
                       }}
                     />
                   </label>
                 </div>
+                {cameraPhotos.length > 0 ? (
+                  <div className="mt-3 rounded-2xl border border-sky-100 bg-sky-50/70 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-bold text-sky-800">
+                        {cameraPhotos.length} of {MAX_LOCATION_PHOTOS} camera
+                        photo{cameraPhotos.length === 1 ? "" : "s"} ready
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="compact"
+                          onClick={() => void uploadCameraPhotos()}
+                          disabled={uploading || saving || !form.place.trim()}
+                        >
+                          {uploading
+                            ? "Drawing…"
+                            : `Draw from ${cameraPhotos.length} photo${
+                                cameraPhotos.length === 1 ? "" : "s"
+                              }`}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="compact"
+                          onClick={clearCameraPhotos}
+                          disabled={uploading || saving}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="mt-1 text-xs text-sky-700/75">
+                      Take another angle before drawing if you want the layout,
+                      window, doors, and furniture positions to be clearer.
+                    </p>
+                  </div>
+                ) : null}
                 {!form.id ? (
                   <p className="mt-1 text-xs text-night-400">
                     {form.place.trim()

@@ -127,6 +127,13 @@
       "when": 1787622874708,
       "tag": "0017_story_location_hint",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1787628167556,
+      "tag": "0018_marvelous_prowler",
+      "breakpoints": true
     }
   ]
 }

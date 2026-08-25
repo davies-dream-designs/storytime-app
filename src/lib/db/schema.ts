@@ -84,6 +84,10 @@ export const stories = pgTable(
     notes: text("notes").notNull().default(""),
     locationHint: text("location_hint"),
     locationFixtureId: text("location_fixture_id"),
+    locationFixtureIds: text("location_fixture_ids")
+      .array()
+      .notNull()
+      .default([]),
     storyPreset: text("story_preset").$type<StoryPreset>(),
     storyPersonIds: text("story_person_ids").array().notNull().default([]),
     ipPolicy: jsonb("ip_policy").$type<StoryIpPolicy>(),

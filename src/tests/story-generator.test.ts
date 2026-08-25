@@ -111,10 +111,10 @@ describe("buildStoryPrompt", () => {
     });
 
     expect(prompt).toContain(
-      "Special place to work into the story at some point"
+      "Special places to work into the story at natural moments"
     );
     expect(prompt).toContain("Grandma's House (Lounge)");
-    expect(prompt).toContain("soft hint, not the only setting");
+    expect(prompt).toContain("soft hints, not the only settings");
   });
 
   it("does not include saved characters that look like protected source material", () => {
@@ -281,7 +281,7 @@ describe("generateSuggestions", () => {
       "Don't suggest stories similar to these recent ones: The Moon Pond"
     );
     expect(prompt).toContain(
-      "Optional special place to work into at least one idea: Grandma's House (Lounge)"
+      "Optional special places to work into at least one idea when natural: Grandma's House (Lounge)"
     );
     expect(prompt).toContain(
       "make at least one idea naturally include that place"

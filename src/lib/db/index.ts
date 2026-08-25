@@ -123,6 +123,11 @@ function rowToStory(row: StoryRow): Story {
     notes: row.notes,
     locationHint: row.locationHint ?? undefined,
     locationFixtureId: row.locationFixtureId ?? undefined,
+    locationFixtureIds: row.locationFixtureIds?.length
+      ? row.locationFixtureIds
+      : row.locationFixtureId
+        ? [row.locationFixtureId]
+        : [],
     storyPreset: row.storyPreset ?? undefined,
     storyPersonIds: row.storyPersonIds ?? [],
     ipPolicy: row.ipPolicy ?? undefined,
@@ -155,6 +160,7 @@ function storyToRow(s: Story) {
     notes: s.notes,
     locationHint: s.locationHint ?? null,
     locationFixtureId: s.locationFixtureId ?? null,
+    locationFixtureIds: s.locationFixtureIds ?? [],
     storyPreset: s.storyPreset ?? null,
     storyPersonIds: s.storyPersonIds ?? [],
     ipPolicy: s.ipPolicy ?? null,

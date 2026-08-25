@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import {
-  applyPreferredFixtureToLocationBible,
+  applyPreferredFixturesToLocationBible,
   generateLocationBible,
 } from "@/lib/print-books/locationBible";
+import { getStoryLocationFixtures } from "@/lib/storyLocationFixtures";
 
 /**
  * Generate (once) the location bible for a fresh book so the parent can review
@@ -32,22 +33,17 @@ export async function POST(
     return NextResponse.json({ error: "Story not found" }, { status: 404 });
   }
 
-  const selectedLocationFixture = story.locationFixtureId
-    ? await db.locationFixtures.getById(story.locationFixtureId)
-    : undefined;
-  const preferredFixture =
-    selectedLocationFixture?.userId === userId
-      ? selectedLocationFixture
-      : undefined;
-  const reviewRequired = !preferredFixture;
+  const preferredFixtures = await getStoryLocationFixtures({ story, userId });
+  const reviewRequired = preferredFixtures.length === 0;
 
   if (project.locationBible?.locations.length) {
-    const locationBible = preferredFixture
-      ? applyPreferredFixtureToLocationBible(
-          project.locationBible,
-          preferredFixture
-        )
-      : project.locationBible;
+    const locationBible =
+      preferredFixtures.length > 0
+        ? applyPreferredFixturesToLocationBible(
+            project.locationBible,
+            preferredFixtures
+          )
+        : project.locationBible;
     if (locationBible !== project.locationBible) {
       await db.bookProjects.update(id, { locationBible });
     }
@@ -59,7 +55,7 @@ export async function POST(
 
   const locationBible = await generateLocationBible({
     story,
-    preferredFixture,
+    preferredFixtures,
   });
   const updated = await db.bookProjects.update(id, { locationBible });
   return NextResponse.json({

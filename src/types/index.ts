@@ -177,6 +177,7 @@ export interface Story {
   notes: string;
   locationHint?: string;
   locationFixtureId?: string;
+  locationFixtureIds?: string[];
   storyPreset?: StoryPreset;
   storyPersonIds?: string[];
   ipPolicy?: StoryIpPolicy;

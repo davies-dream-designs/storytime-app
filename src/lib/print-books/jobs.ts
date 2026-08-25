@@ -8,9 +8,10 @@ import {
 } from "@/lib/print-books/characterBible";
 import { composePrintBookSpreads } from "@/lib/print-books/composer";
 import {
-  applyPreferredFixtureToLocationBible,
+  applyPreferredFixturesToLocationBible,
   generateLocationBible,
 } from "@/lib/print-books/locationBible";
+import { getStoryLocationFixtures } from "@/lib/storyLocationFixtures";
 import {
   applySpreadIllustration,
   generateLocationEstablishingImages,
@@ -89,9 +90,10 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
     !project.characterBible ||
     !project.spreads.length
   ) {
-    const preferredLocationFixture = context.story.locationFixtureId
-      ? await db.locationFixtures.getById(context.story.locationFixtureId)
-      : undefined;
+    const preferredLocationFixtures = await getStoryLocationFixtures({
+      story: context.story,
+      userId: project.userId,
+    });
 
     const [characterBible, locationBible] = await Promise.all([
       generateCharacterBible({
@@ -105,19 +107,14 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
       // one when none exists yet.
       project.locationBible?.locations.length
         ? Promise.resolve(
-            applyPreferredFixtureToLocationBible(
+            applyPreferredFixturesToLocationBible(
               project.locationBible,
-              preferredLocationFixture?.userId === project.userId
-                ? preferredLocationFixture
-                : undefined
+              preferredLocationFixtures
             )
           )
         : generateLocationBible({
             story: context.story,
-            preferredFixture:
-              preferredLocationFixture?.userId === project.userId
-                ? preferredLocationFixture
-                : undefined,
+            preferredFixtures: preferredLocationFixtures,
           }).catch((err) => {
             // A missing location bible degrades to today's behaviour; never fail
             // the whole build over the continuity enhancement.

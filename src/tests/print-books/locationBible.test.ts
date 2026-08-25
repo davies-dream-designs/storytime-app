@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyPreferredFixturesToLocationBible,
   buildLocationDirection,
   resolveSpreadLocation,
   resolveSpreadLocationReference,
   stampSpreadLocations,
 } from "@/lib/print-books/locationBible";
 import type { Story } from "@/types";
-import type { BookSpread, LocationBible, SceneLocation } from "@/types/printBook";
+import type {
+  BookSpread,
+  LocationBible,
+  LocationFixture,
+  SceneLocation,
+} from "@/types/printBook";
 
 const bedroom: SceneLocation = {
   id: "bedroom",
@@ -60,6 +66,7 @@ function createStory(): Story {
     id: "story-1",
     userId: "user-1",
     title: "Levi's Bedtime",
+
     profileId: "profile-1",
     profileName: "Levi",
     wordCount: 60,
@@ -83,6 +90,20 @@ function createStory(): Story {
         illustrationPrompt: "Levi back in his cot",
       },
     ],
+  };
+}
+
+function createFixture(
+  partial: Partial<LocationFixture> & { id: string; place: string }
+): LocationFixture {
+  return {
+    userId: "user-1",
+    area: undefined,
+    fixedElements: [],
+    doNotChange: [],
+    createdAt: "2026-07-15T00:00:00.000Z",
+    updatedAt: "2026-07-15T00:00:00.000Z",
+    ...partial,
   };
 }
 
@@ -268,9 +289,7 @@ describe("parent-supplied location details", () => {
     const ref = resolveSpreadLocationReference(bothBible, {
       locationId: "bedroom",
     });
-    expect(ref?.imageUrl).toBe(
-      "https://cdn.example/bedroom-establishing.png"
-    );
+    expect(ref?.imageUrl).toBe("https://cdn.example/bedroom-establishing.png");
   });
 
   it("describes an attached establishing rendering in the direction text", () => {
@@ -281,5 +300,67 @@ describe("parent-supplied location details", () => {
     const direction = buildLocationDirection(withEstablishing);
     expect(direction).toContain("established rendering");
     expect(direction).toContain("orientation");
+  });
+
+  it("applies multiple preferred fixtures to distinct matching locations", () => {
+    const lounge: SceneLocation = {
+      id: "grandmas_lounge",
+      name: "Grandma's House (Lounge)",
+      place: "Grandma's House",
+      area: "Lounge",
+      summary: "AI lounge.",
+      fixedElements: [],
+      lighting: "",
+      palette: "",
+      doNotChange: [],
+    };
+    const kitchen: SceneLocation = {
+      id: "grandmas_kitchen",
+      name: "Grandma's House (Kitchen)",
+      place: "Grandma's House",
+      area: "Kitchen",
+      summary: "AI kitchen.",
+      fixedElements: [],
+      lighting: "",
+      palette: "",
+      doNotChange: [],
+    };
+    const updated = applyPreferredFixturesToLocationBible(
+      {
+        locations: [lounge, kitchen],
+        pageLocations: { 1: lounge.id, 2: kitchen.id },
+      },
+      [
+        createFixture({
+          id: "fixture-lounge",
+          place: "Grandma's House",
+          area: "Lounge",
+          notes: "Green sofa under the window.",
+          establishingImageUrl: "https://cdn.example/lounge.png",
+          fixedElements: ["green sofa"],
+        }),
+        createFixture({
+          id: "fixture-kitchen",
+          place: "Grandma's House",
+          area: "Kitchen",
+          notes: "Yellow tiles beside the breakfast bench.",
+          establishingImageUrl: "https://cdn.example/kitchen.png",
+          fixedElements: ["yellow tiles"],
+        }),
+      ]
+    );
+
+    expect(updated.locations).toEqual([
+      expect.objectContaining({
+        id: lounge.id,
+        notes: "Green sofa under the window.",
+        establishingImageUrl: "https://cdn.example/lounge.png",
+      }),
+      expect.objectContaining({
+        id: kitchen.id,
+        notes: "Yellow tiles beside the breakfast bench.",
+        establishingImageUrl: "https://cdn.example/kitchen.png",
+      }),
+    ]);
   });
 });

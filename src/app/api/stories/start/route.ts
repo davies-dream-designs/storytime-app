@@ -7,7 +7,11 @@ import {
   assessStoryIdeaIp,
   profileIpErrorResponse,
 } from "@/lib/ipGuardrails";
-import { locationFixtureName } from "@/lib/print-books/locationFixtures";
+import {
+  buildStoryLocationHint,
+  normalizeStoryLocationFixtureIds,
+  resolveRequestedLocationFixtures,
+} from "@/lib/storyLocationFixtures";
 import { STORY_CREDIT_COST } from "@/lib/pricing";
 import {
   storyIdeaSafetyErrorResponse,
@@ -32,6 +36,7 @@ export async function POST(req: NextRequest) {
     notes,
     locationHint: rawLocationHint,
     locationFixtureId: rawLocationFixtureId,
+    locationFixtureIds: rawLocationFixtureIds,
     storyPreset,
     locale,
     storyPersonIds,
@@ -42,13 +47,17 @@ export async function POST(req: NextRequest) {
     notes?: string;
     locationHint?: string;
     locationFixtureId?: string;
+    locationFixtureIds?: unknown[];
     storyPreset?: StoryPreset;
     locale?: string;
     storyPersonIds?: string[];
   };
 
-  const locationHint = sanitizeText(rawLocationHint, 160);
-  const locationFixtureId = sanitizeText(rawLocationFixtureId, 120);
+  const locationHint = sanitizeText(rawLocationHint, 500);
+  const locationFixtureIds = normalizeStoryLocationFixtureIds({
+    locationFixtureId: rawLocationFixtureId,
+    locationFixtureIds: rawLocationFixtureIds,
+  });
 
   const safety = validateStoryIdeaSafety({ theme, premise, notes });
   if (!safety.ok) {
@@ -68,15 +77,16 @@ export async function POST(req: NextRequest) {
     profile,
     characters,
     selectedStoryPeople,
-    selectedLocationFixture,
+    selectedLocationFixturesResult,
   ] = await Promise.all([
     clerkClient().then((client) => client.users.getUser(userId)),
     db.profiles.getById(profileId),
     db.characters.getByProfileId(profileId),
     getSelectedStoryPeople({ userId, profileId, storyPersonIds }),
-    locationFixtureId
-      ? db.locationFixtures.getById(locationFixtureId)
-      : Promise.resolve(undefined),
+    resolveRequestedLocationFixtures({
+      userId,
+      fixtureIds: locationFixtureIds,
+    }),
   ]);
 
   const isAdmin = user.privateMetadata.isAdmin === true;
@@ -93,13 +103,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  if (selectedLocationFixture && selectedLocationFixture.userId !== userId) {
+  if (selectedLocationFixturesResult.invalidIds.length > 0) {
     return NextResponse.json({ error: "Location not found" }, { status: 404 });
   }
+  const selectedLocationFixtures = selectedLocationFixturesResult.fixtures;
 
-  const resolvedLocationHint = selectedLocationFixture
-    ? locationFixtureName(selectedLocationFixture)
-    : locationHint || undefined;
+  const resolvedLocationHint = buildStoryLocationHint({
+    fixtures: selectedLocationFixtures,
+    customLocationHint: locationHint,
+  });
 
   const profileIpPolicy = assessProfileIp({
     ...profile,
@@ -133,7 +145,8 @@ export async function POST(req: NextRequest) {
     premise: ipPolicy.originalizedPremise ?? premise,
     notes: ipPolicy.originalizedNotes ?? notes ?? "",
     locationHint: resolvedLocationHint,
-    locationFixtureId: selectedLocationFixture?.id,
+    locationFixtureId: selectedLocationFixtures[0]?.id,
+    locationFixtureIds: selectedLocationFixtures.map((fixture) => fixture.id),
     storyPreset: storyPreset ?? "preschool-story",
     storyPersonIds: selectedStoryPeople.map((person) => person.id),
     ipPolicy,

@@ -83,7 +83,9 @@ function createStory(overrides: Partial<Story> = {}): Story {
   };
 }
 
-function createFixture(): LocationFixture {
+function createFixture(
+  overrides: Partial<LocationFixture> = {}
+): LocationFixture {
   return {
     id: "fixture-1",
     userId: "user-1",
@@ -98,6 +100,7 @@ function createFixture(): LocationFixture {
     palette: "greens and golds",
     createdAt: "2026-07-15T00:00:00.000Z",
     updatedAt: "2026-07-15T00:00:00.000Z",
+    ...overrides,
   };
 }
 
@@ -155,7 +158,45 @@ describe("POST /api/books/[id]/locations/prepare", () => {
     expect(await res.json()).toMatchObject({ reviewRequired: false });
     expect(mockGenerateLocationBible).toHaveBeenCalledWith({
       story,
-      preferredFixture: fixture,
+      preferredFixtures: [fixture],
+    });
+  });
+
+  it("passes multiple builder-selected saved locations into bible generation", async () => {
+    const lounge = createFixture();
+    const garden = createFixture({
+      id: "fixture-2",
+      place: "Grandma's House",
+      area: "Garden",
+      summary: "A garden with a lemon tree.",
+      notes: "Lemon tree beside the path.",
+      establishingImageUrl: "https://cdn.example/grandma-garden.png",
+      fixedElements: ["lemon tree beside the path"],
+      doNotChange: ["tree placement"],
+    });
+    const story = createStory({
+      locationFixtureId: lounge.id,
+      locationFixtureIds: [lounge.id, garden.id],
+    });
+    mockDb.stories.getById.mockResolvedValue(story);
+    mockDb.locationFixtures.getById.mockImplementation(async (id: string) =>
+      id === lounge.id ? lounge : id === garden.id ? garden : undefined
+    );
+
+    const { POST } =
+      await import("@/app/api/books/[id]/locations/prepare/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/books/book-1/locations/prepare", {
+        method: "POST",
+      }),
+      { params: Promise.resolve({ id: "book-1" }) }
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ reviewRequired: false });
+    expect(mockGenerateLocationBible).toHaveBeenCalledWith({
+      story,
+      preferredFixtures: [lounge, garden],
     });
   });
 
@@ -173,7 +214,7 @@ describe("POST /api/books/[id]/locations/prepare", () => {
     expect(await res.json()).toMatchObject({ reviewRequired: true });
     expect(mockGenerateLocationBible).toHaveBeenCalledWith({
       story: expect.objectContaining({ id: "story-1" }),
-      preferredFixture: undefined,
+      preferredFixtures: [],
     });
   });
 

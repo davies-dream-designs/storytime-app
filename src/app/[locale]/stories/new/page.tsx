@@ -62,6 +62,7 @@ const FALLBACK_THEME_OPTIONS = [
 const CHILD_CAST_ID_PREFIX = "child:";
 const MAX_SUPPORTING_CAST = 3;
 const MAX_VISIBLE_SUGGESTIONS = 9;
+const MAX_STORY_LOCATIONS = 5;
 
 function buildChildCastId(profileId: string): string {
   return `${CHILD_CAST_ID_PREFIX}${profileId}`;
@@ -184,8 +185,9 @@ function GenerateForm() {
   const [selectedTheme, setSelectedTheme] = useState("calm bedtime");
   const [storyPeople, setStoryPeople] = useState<StoryPerson[]>([]);
   const [savedLocations, setSavedLocations] = useState<LocationFixture[]>([]);
-  const [selectedLocationFixtureId, setSelectedLocationFixtureId] =
-    useState("");
+  const [selectedLocationFixtureIds, setSelectedLocationFixtureIds] = useState<
+    string[]
+  >([]);
   const [customLocationHint, setCustomLocationHint] = useState("");
   const [selectedStoryPersonIds, setSelectedStoryPersonIds] = useState<
     string[]
@@ -348,20 +350,20 @@ function GenerateForm() {
     }
   }
 
-  function selectSavedLocation(locationFixtureId: string) {
-    setSelectedLocationFixtureId(locationFixtureId);
-    if (locationFixtureId) {
-      setCustomLocationHint("");
-    }
+  function toggleSavedLocation(locationFixtureId: string) {
+    setSelectedLocationFixtureIds((current) =>
+      current.includes(locationFixtureId)
+        ? current.filter((id) => id !== locationFixtureId)
+        : current.length >= MAX_STORY_LOCATIONS
+          ? current
+          : [...current, locationFixtureId]
+    );
     setSuggestions([]);
     setSelectedSuggestion(null);
   }
 
   function updateCustomLocationHint(nextValue: string) {
     setCustomLocationHint(nextValue);
-    if (nextValue.trim()) {
-      setSelectedLocationFixtureId("");
-    }
     setSuggestions([]);
     setSelectedSuggestion(null);
   }
@@ -402,7 +404,10 @@ function GenerateForm() {
             premise: selectedSuggestion.premise,
             notes,
             locationHint: resolvedLocationHint || undefined,
-            locationFixtureId: selectedLocationFixture?.id,
+            locationFixtureId: selectedLocationFixtures[0]?.id,
+            locationFixtureIds: selectedLocationFixtures.map(
+              (fixture) => fixture.id
+            ),
             storyPreset,
             storyPersonIds: selectedStoryPersonIds,
             locale,
@@ -413,7 +418,10 @@ function GenerateForm() {
             premise,
             notes,
             locationHint: resolvedLocationHint || undefined,
-            locationFixtureId: selectedLocationFixture?.id,
+            locationFixtureId: selectedLocationFixtures[0]?.id,
+            locationFixtureIds: selectedLocationFixtures.map(
+              (fixture) => fixture.id
+            ),
             storyPreset,
             storyPersonIds: selectedStoryPersonIds,
             locale,
@@ -516,12 +524,15 @@ function GenerateForm() {
     ...selectedStoryPeople.map((person) => person.name),
   ].filter(Boolean);
   const selectedCastLabel = selectedCastNames.join(", ");
-  const selectedLocationFixture = savedLocations.find(
-    (fixture) => fixture.id === selectedLocationFixtureId
-  );
-  const resolvedLocationHint = selectedLocationFixture
-    ? locationFixtureLabel(selectedLocationFixture)
-    : customLocationHint.trim();
+  const selectedLocationFixtures = selectedLocationFixtureIds
+    .map((id) => savedLocations.find((fixture) => fixture.id === id))
+    .filter((fixture): fixture is LocationFixture => Boolean(fixture));
+  const resolvedLocationHint = [
+    ...selectedLocationFixtures.map(locationFixtureLabel),
+    customLocationHint.trim(),
+  ]
+    .filter(Boolean)
+    .join("; ");
 
   function toggleStoryPerson(id: string) {
     setSelectedStoryPersonIds((current) =>
@@ -782,9 +793,9 @@ function GenerateForm() {
                       Special Place (Optional)
                     </p>
                     <p className="mt-1 text-sm leading-6 text-night-500">
-                      Pick one of your saved locations or type a one-off place.
-                      Storycot will weave it into part of the story without
-                      forcing every page to stay there.
+                      Pick one or more saved locations, or type a one-off place.
+                      Storycot will weave them into natural parts of the story
+                      without forcing every page to stay there.
                     </p>
                   </div>
                   <Link
@@ -803,31 +814,84 @@ function GenerateForm() {
                 <div className="mt-4 space-y-4">
                   <div>
                     <label className={formStyles.subLabel}>
-                      Saved location
+                      Saved locations
                     </label>
-                    <select
-                      value={selectedLocationFixtureId}
-                      onChange={(event) =>
-                        selectSavedLocation(event.target.value)
-                      }
-                      className={formStyles.select}
-                    >
-                      <option value="">No saved location</option>
-                      {savedLocations.map((fixture) => (
-                        <option key={fixture.id} value={fixture.id}>
-                          {locationFixtureLabel(fixture)}
-                        </option>
-                      ))}
-                    </select>
+                    {savedLocations.length > 0 ? (
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        {savedLocations.map((fixture) => {
+                          const selected = selectedLocationFixtureIds.includes(
+                            fixture.id
+                          );
+                          const disabled =
+                            !selected &&
+                            selectedLocationFixtureIds.length >=
+                              MAX_STORY_LOCATIONS;
+                          return (
+                            <button
+                              key={fixture.id}
+                              type="button"
+                              onClick={() => toggleSavedLocation(fixture.id)}
+                              disabled={disabled}
+                              className={`rounded-2xl border p-3 text-left transition ${
+                                selected
+                                  ? "border-star-400 bg-star-50 shadow-sm"
+                                  : "border-night-100 bg-white/75 hover:border-star-200"
+                              } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
+                            >
+                              <div className="flex gap-3">
+                                {fixture.establishingImageUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={fixture.establishingImageUrl}
+                                    alt={locationFixtureLabel(fixture)}
+                                    className="h-14 w-14 shrink-0 rounded-xl object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-xl">
+                                    📍
+                                  </div>
+                                )}
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span
+                                      className={`h-4 w-4 rounded border ${
+                                        selected
+                                          ? "border-star-500 bg-star-400"
+                                          : "border-night-300 bg-white"
+                                      }`}
+                                    />
+                                    <p className="truncate font-bold text-night-800">
+                                      {locationFixtureLabel(fixture)}
+                                    </p>
+                                  </div>
+                                  <p className="mt-1 line-clamp-2 text-xs leading-5 text-night-500">
+                                    {fixture.summary ||
+                                      fixture.notes ||
+                                      "Saved location ready to reuse."}
+                                  </p>
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="mt-2 rounded-xl bg-night-50 p-3 text-sm text-night-500">
+                        No saved locations yet. Add bedrooms, lounges, gardens,
+                        or other familiar places from the Locations page.
+                      </p>
+                    )}
                     <p className="mt-2 text-xs text-night-400">
-                      Choose a saved room/place if you want the book builder to
-                      reuse that exact illustration bible later.
+                      Choose up to {MAX_STORY_LOCATIONS} saved rooms/places.
+                      Storycot will map each selected area into the book&apos;s
+                      Location Bible and reuse its saved illustration where the
+                      story visits it.
                     </p>
                   </div>
 
                   <div>
                     <label className={formStyles.subLabel}>
-                      Or type a place
+                      Optional one-off place
                     </label>
                     <input
                       value={customLocationHint}
@@ -839,27 +903,20 @@ function GenerateForm() {
                     />
                   </div>
 
-                  {selectedLocationFixture ? (
+                  {selectedLocationFixtures.length > 0 ? (
                     <div className="rounded-2xl border border-star-200 bg-star-50 p-3">
-                      <div className="flex items-start gap-3">
-                        {selectedLocationFixture.establishingImageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={selectedLocationFixture.establishingImageUrl}
-                            alt={locationFixtureLabel(selectedLocationFixture)}
-                            className="h-16 w-16 rounded-xl object-cover"
-                          />
-                        ) : null}
-                        <div className="min-w-0">
-                          <p className="font-bold text-night-800">
-                            {locationFixtureLabel(selectedLocationFixture)}
-                          </p>
-                          <p className="mt-1 text-sm text-night-500">
-                            {selectedLocationFixture.summary ||
-                              selectedLocationFixture.notes ||
-                              "Saved location ready to reuse in this story."}
-                          </p>
-                        </div>
+                      <p className="mb-2 text-xs font-bold uppercase tracking-wide text-night-500">
+                        Selected story places
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedLocationFixtures.map((fixture) => (
+                          <span
+                            key={fixture.id}
+                            className="rounded-full bg-white px-3 py-1 text-xs font-bold text-night-700 shadow-sm"
+                          >
+                            {locationFixtureLabel(fixture)}
+                          </span>
+                        ))}
                       </div>
                     </div>
                   ) : null}
@@ -884,7 +941,7 @@ function GenerateForm() {
                     </span>
                     {resolvedLocationHint ? (
                       <span className="rounded-full bg-sky-100 px-3 py-1 text-sky-700">
-                        Place: {resolvedLocationHint}
+                        Places: {resolvedLocationHint}
                       </span>
                     ) : null}
                   </div>
@@ -912,7 +969,7 @@ function GenerateForm() {
                 <div className="space-y-2">
                   <p className="text-xs text-night-400">
                     {selectedCastLabel
-                      ? `Ideas will be based on ${selectedCastLabel}, "${selectedTheme}", and ${resolvedLocationHint ? `a visit to ${resolvedLocationHint}` : "your selected story details"}.`
+                      ? `Ideas will be based on ${selectedCastLabel}, "${selectedTheme}", and ${resolvedLocationHint ? `visits to ${resolvedLocationHint}` : "your selected story details"}.`
                       : t("getIdeasHint")}
                   </p>
                   <button
@@ -940,7 +997,7 @@ function GenerateForm() {
               <span className="font-bold text-night-700">{selectedTheme}</span>{" "}
               theme
               {resolvedLocationHint
-                ? `, and a visit to ${resolvedLocationHint}`
+                ? `, and visits to ${resolvedLocationHint}`
                 : ""}
               .
             </p>

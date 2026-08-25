@@ -272,7 +272,7 @@ Stay grounded and true to this premise. Include every element the premise names 
 
   const notesSection = notes ? `\n\nExtra details to include: ${notes}` : "";
   const locationSection = locationHint
-    ? `\n\nSpecial place to work into the story at some point (this is a soft hint, not the only setting): ${locationHint}`
+    ? `\n\nSpecial places to work into the story at natural moments (soft hints, not the only settings): ${locationHint}. If multiple places are listed, let the story move between them only when it fits the premise; do not force every page to one place.`
     : "";
 
   const avoidSection =
@@ -660,7 +660,7 @@ export async function generateSuggestions(
           .join("\n")}`
       : "";
   const locationSection = options.locationHint?.trim()
-    ? `\nOptional special place to work into at least one idea: ${options.locationHint.trim()}`
+    ? `\nOptional special places to work into at least one idea when natural: ${options.locationHint.trim()}`
     : "";
 
   const prompt = `You are a creative children's story idea generator.

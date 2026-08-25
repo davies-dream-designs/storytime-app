@@ -48,23 +48,30 @@ function summarizeStoryPages(story: Story): string {
     .join("\n");
 }
 
-function buildPreferredFixtureSection(fixture?: LocationFixture): string {
-  if (!fixture) return "";
+function buildPreferredFixtureSection(
+  fixtures: LocationFixture[] = []
+): string {
+  if (fixtures.length === 0) return "";
 
-  return `\n\nParent-selected saved place to respect if the story visits it:
-- Name: ${locationFixtureName(fixture)}
+  return `\n\nParent-selected saved places to respect if the story visits them:
+${fixtures
+  .map(
+    (fixture, index) => `
+${index + 1}. ${locationFixtureName(fixture)}
 - Summary: ${fixture.summary || "Not provided"}
 - Notes: ${fixture.notes || "Not provided"}
 - Fixed elements: ${fixture.fixedElements.join(", ") || "None provided"}
 - Lighting: ${fixture.lighting || "Not provided"}
-- Do not change: ${fixture.doNotChange.join(", ") || "None provided"}
+- Do not change: ${fixture.doNotChange.join(", ") || "None provided"}`
+  )
+  .join("\n")}
 
-If the story clearly visits this saved place, reuse its exact place/area naming and keep those family-supplied details authoritative.`;
+If the story clearly visits any saved place above, reuse its exact place/area naming and keep those family-supplied details authoritative. Different rooms/areas from the saved list should remain distinct locations.`;
 }
 
 function buildLocationBiblePrompt(
   story: Story,
-  preferredFixture?: LocationFixture
+  preferredFixtures: LocationFixture[] = []
 ): string {
   return `You are preparing a LOCATION BIBLE for a children's print-ready picture book.
 
@@ -73,7 +80,7 @@ The illustrator draws each page separately, so without a shared setting guide th
 Story:
 - Title: ${story.title}
 - Theme: ${story.theme || "gentle bedtime adventure"}
-- Premise: ${story.premise || "Not provided"}${buildPreferredFixtureSection(preferredFixture)}
+- Premise: ${story.premise || "Not provided"}${buildPreferredFixtureSection(preferredFixtures)}
 
 Pages (in order):
 ${summarizeStoryPages(story)}
@@ -229,41 +236,65 @@ function normalizeLocationBible(
   return { locations, pageLocations };
 }
 
+export function applyPreferredFixturesToLocationBible(
+  bible: LocationBible,
+  preferredFixtures: LocationFixture[] = []
+): LocationBible {
+  if (preferredFixtures.length === 0) return bible;
+
+  let locations = bible.locations;
+  const usedLocationIds = new Set<string>();
+  let changed = false;
+
+  for (const fixture of preferredFixtures) {
+    let bestLocation: SceneLocation | undefined;
+    let bestScore = 0;
+    for (const location of locations) {
+      if (usedLocationIds.has(location.id)) continue;
+      const score = locationSimilarity(location, fixture);
+      if (score > bestScore) {
+        bestScore = score;
+        bestLocation = location;
+      }
+    }
+
+    if (!bestLocation || bestScore < 0.6) continue;
+
+    usedLocationIds.add(bestLocation.id);
+    changed = true;
+    locations = locations.map((location) =>
+      location.id === bestLocation.id
+        ? applyFixtureToLocation(location, fixture)
+        : location
+    );
+  }
+
+  return changed ? { ...bible, locations } : bible;
+}
+
 export function applyPreferredFixtureToLocationBible(
   bible: LocationBible,
   preferredFixture?: LocationFixture
 ): LocationBible {
-  if (!preferredFixture) return bible;
-
-  let bestLocation: SceneLocation | undefined;
-  let bestScore = 0;
-  for (const location of bible.locations) {
-    const score = locationSimilarity(location, preferredFixture);
-    if (score > bestScore) {
-      bestScore = score;
-      bestLocation = location;
-    }
-  }
-
-  if (!bestLocation || bestScore < 0.6) {
-    return bible;
-  }
-
-  return {
-    ...bible,
-    locations: bible.locations.map((location) =>
-      location.id === bestLocation.id
-        ? applyFixtureToLocation(location, preferredFixture)
-        : location
-    ),
-  };
+  return applyPreferredFixturesToLocationBible(
+    bible,
+    preferredFixture ? [preferredFixture] : []
+  );
 }
 
 export async function generateLocationBible(input: {
   story: Story;
   preferredFixture?: LocationFixture;
+  preferredFixtures?: LocationFixture[];
 }): Promise<LocationBible> {
-  const prompt = buildLocationBiblePrompt(input.story, input.preferredFixture);
+  const preferredFixtures = [
+    ...(input.preferredFixture ? [input.preferredFixture] : []),
+    ...(input.preferredFixtures ?? []),
+  ].filter(
+    (fixture, index, fixtures) =>
+      fixtures.findIndex((candidate) => candidate.id === fixture.id) === index
+  );
+  const prompt = buildLocationBiblePrompt(input.story, preferredFixtures);
 
   const attempt = async (): Promise<LocationBible> => {
     const message = await getClient().messages.create({
@@ -274,12 +305,12 @@ export async function generateLocationBible(input: {
     const content = message.content[0];
     if (content.type !== "text")
       throw new Error("Unexpected response type from AI");
-    return applyPreferredFixtureToLocationBible(
+    return applyPreferredFixturesToLocationBible(
       normalizeLocationBible(
         parseLocationBible(content.text.trim()),
         input.story
       ),
-      input.preferredFixture
+      preferredFixtures
     );
   };
 

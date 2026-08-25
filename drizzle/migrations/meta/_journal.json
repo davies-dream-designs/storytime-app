@@ -120,6 +120,13 @@
       "when": 1787582915830,
       "tag": "0016_location_establishing_image",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1787622874708,
+      "tag": "0017_story_location_hint",
+      "breakpoints": true
     }
   ]
 }

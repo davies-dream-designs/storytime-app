@@ -1,37 +1,55 @@
-import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
+import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { kv } from "@vercel/kv";
 import { db } from "@/lib/db";
-import { STORY_CREDIT_COST } from "@/lib/pricing";
-import {
-  storyIdeaSafetyErrorResponse,
-  validateStoryIdeaSafety,
-} from "@/lib/storySafety";
 import {
   assessGeneratedStoryIp,
   assessProfileIp,
   assessStoryIdeaIp,
   profileIpErrorResponse,
 } from "@/lib/ipGuardrails";
+import { locationFixtureName } from "@/lib/print-books/locationFixtures";
+import { STORY_CREDIT_COST } from "@/lib/pricing";
+import {
+  storyIdeaSafetyErrorResponse,
+  validateStoryIdeaSafety,
+} from "@/lib/storySafety";
 import { generateStory, StoryGenerationError } from "@/lib/storyGenerator";
 import { getSelectedStoryPeople } from "@/lib/storyPeopleSelection";
 import type { Story } from "@/types";
+
+function sanitizeText(value: unknown, maxLength = 200): string {
+  return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
+}
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { profileId, theme, premise, notes, locale, storyPersonIds } =
-    (await req.json()) as {
-      profileId: string;
-      theme?: string;
-      premise?: string;
-      notes?: string;
-      locale?: string;
-      storyPersonIds?: string[];
-    };
+  const {
+    profileId,
+    theme,
+    premise,
+    notes,
+    locationHint: rawLocationHint,
+    locationFixtureId: rawLocationFixtureId,
+    locale,
+    storyPersonIds,
+  } = (await req.json()) as {
+    profileId: string;
+    theme?: string;
+    premise?: string;
+    notes?: string;
+    locationHint?: string;
+    locationFixtureId?: string;
+    locale?: string;
+    storyPersonIds?: string[];
+  };
+
+  const locationHint = sanitizeText(rawLocationHint, 160);
+  const locationFixtureId = sanitizeText(rawLocationFixtureId, 120);
 
   const safety = validateStoryIdeaSafety({ theme, premise, notes });
   if (!safety.ok) {
@@ -70,10 +88,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const [characters, recentStories] = await Promise.all([
-    db.characters.getByProfileId(profileId),
-    db.stories.getByProfileId(profileId),
-  ]);
+  const [characters, recentStories, selectedLocationFixture] =
+    await Promise.all([
+      db.characters.getByProfileId(profileId),
+      db.stories.getByProfileId(profileId),
+      locationFixtureId
+        ? db.locationFixtures.getById(locationFixtureId)
+        : Promise.resolve(undefined),
+    ]);
   const safeCharacters = characters.filter((c) => c.userId === userId);
   const selectedStoryPeople = await getSelectedStoryPeople({
     userId,
@@ -90,6 +112,14 @@ export async function POST(req: NextRequest) {
       status: 400,
     });
   }
+
+  if (selectedLocationFixture && selectedLocationFixture.userId !== userId) {
+    return NextResponse.json({ error: "Location not found" }, { status: 404 });
+  }
+
+  const resolvedLocationHint = selectedLocationFixture
+    ? locationFixtureName(selectedLocationFixture)
+    : locationHint || undefined;
 
   const ipPolicy = assessStoryIdeaIp({ theme, premise, notes });
 
@@ -108,6 +138,7 @@ export async function POST(req: NextRequest) {
       theme: theme ?? "a gentle adventure",
       premise: ipPolicy.originalizedPremise ?? premise,
       notes: ipPolicy.originalizedNotes ?? notes ?? "",
+      locationHint: resolvedLocationHint,
       recentTitles,
       locale,
     });
@@ -134,6 +165,8 @@ export async function POST(req: NextRequest) {
     theme: theme ?? "a gentle adventure",
     premise: ipPolicy.originalizedPremise ?? premise,
     notes: ipPolicy.originalizedNotes ?? notes ?? "",
+    locationHint: resolvedLocationHint,
+    locationFixtureId: selectedLocationFixture?.id,
     storyPersonIds: selectedStoryPeople.map((person) => person.id),
     ipPolicy,
     createdAt: new Date().toISOString(),

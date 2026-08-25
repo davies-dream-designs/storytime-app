@@ -86,6 +86,10 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
     !project.characterBible ||
     !project.spreads.length
   ) {
+    const preferredLocationFixture = context.story.locationFixtureId
+      ? await db.locationFixtures.getById(context.story.locationFixtureId)
+      : undefined;
+
     const [characterBible, locationBible] = await Promise.all([
       generateCharacterBible({
         profile: context.profile,
@@ -98,7 +102,13 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
       // one when none exists yet.
       project.locationBible?.locations.length
         ? Promise.resolve(project.locationBible)
-        : generateLocationBible({ story: context.story }).catch((err) => {
+        : generateLocationBible({
+            story: context.story,
+            preferredFixture:
+              preferredLocationFixture?.userId === project.userId
+                ? preferredLocationFixture
+                : undefined,
+          }).catch((err) => {
             // A missing location bible degrades to today's behaviour; never fail
             // the whole build over the continuity enhancement.
             console.warn(

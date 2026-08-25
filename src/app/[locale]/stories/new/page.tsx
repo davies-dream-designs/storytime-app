@@ -28,6 +28,7 @@ import {
   getAgeInMonths,
 } from "@/types";
 import { assessStoryIdeaIp } from "@/lib/ipGuardrails";
+import type { LocationFixture } from "@/types/printBook";
 
 const THEME_EMOJIS: Record<string, string> = {
   kindness: "💛",
@@ -92,6 +93,10 @@ function childProfileToCastPerson(profile: ChildProfile): StoryPerson {
     createdAt: profile.createdAt,
     updatedAt: profile.createdAt,
   };
+}
+
+function locationFixtureLabel(fixture: LocationFixture): string {
+  return fixture.area ? `${fixture.place} (${fixture.area})` : fixture.place;
 }
 
 const SAFETY_ERRORS: Record<
@@ -178,6 +183,10 @@ function GenerateForm() {
     useState<StorySuggestion | null>(null);
   const [selectedTheme, setSelectedTheme] = useState("calm bedtime");
   const [storyPeople, setStoryPeople] = useState<StoryPerson[]>([]);
+  const [savedLocations, setSavedLocations] = useState<LocationFixture[]>([]);
+  const [selectedLocationFixtureId, setSelectedLocationFixtureId] =
+    useState("");
+  const [customLocationHint, setCustomLocationHint] = useState("");
   const [selectedStoryPersonIds, setSelectedStoryPersonIds] = useState<
     string[]
   >([]);
@@ -240,6 +249,13 @@ function GenerateForm() {
   }, []);
 
   useEffect(() => {
+    fetch("/api/location-fixtures")
+      .then((r) => (r.ok ? (r.json() as Promise<LocationFixture[]>) : []))
+      .then((fixtures) => setSavedLocations(fixtures))
+      .catch(() => setSavedLocations([]));
+  }, []);
+
+  useEffect(() => {
     if (!profileId) {
       setStoryPeople([]);
       setSelectedStoryPersonIds([]);
@@ -285,6 +301,7 @@ function GenerateForm() {
           fresh,
           theme: selectedTheme,
           storyPersonIds: selectedStoryPersonIds,
+          locationHint: resolvedLocationHint || undefined,
         }),
       });
       const data = await res.json();
@@ -295,8 +312,9 @@ function GenerateForm() {
         setSuggestions((current) => {
           if (!fresh) return nextSuggestions.slice(0, MAX_VISIBLE_SUGGESTIONS);
           const seen = new Set(
-            current.map((suggestion) =>
-              `${suggestion.title.trim()}|${suggestion.premise.trim()}`
+            current.map(
+              (suggestion) =>
+                `${suggestion.title.trim()}|${suggestion.premise.trim()}`
             )
           );
           const uniqueNew = nextSuggestions.filter((suggestion) => {
@@ -328,6 +346,24 @@ function GenerateForm() {
         getDefaultPreset(getAge(profile), getAgeInMonths(profile))
       );
     }
+  }
+
+  function selectSavedLocation(locationFixtureId: string) {
+    setSelectedLocationFixtureId(locationFixtureId);
+    if (locationFixtureId) {
+      setCustomLocationHint("");
+    }
+    setSuggestions([]);
+    setSelectedSuggestion(null);
+  }
+
+  function updateCustomLocationHint(nextValue: string) {
+    setCustomLocationHint(nextValue);
+    if (nextValue.trim()) {
+      setSelectedLocationFixtureId("");
+    }
+    setSuggestions([]);
+    setSelectedSuggestion(null);
   }
 
   function buildBuilderPremise() {
@@ -365,6 +401,8 @@ function GenerateForm() {
             theme: selectedTheme,
             premise: selectedSuggestion.premise,
             notes,
+            locationHint: resolvedLocationHint || undefined,
+            locationFixtureId: selectedLocationFixture?.id,
             storyPreset,
             storyPersonIds: selectedStoryPersonIds,
             locale,
@@ -374,6 +412,8 @@ function GenerateForm() {
             theme: selectedTheme,
             premise,
             notes,
+            locationHint: resolvedLocationHint || undefined,
+            locationFixtureId: selectedLocationFixture?.id,
             storyPreset,
             storyPersonIds: selectedStoryPersonIds,
             locale,
@@ -458,7 +498,8 @@ function GenerateForm() {
   }
 
   const showIdeas = suggestions.length > 0 || loadingSuggestions;
-  const readyToGenerate = profileId && (selectedSuggestion || builderIdea.trim());
+  const readyToGenerate =
+    profileId && (selectedSuggestion || builderIdea.trim());
   const outOfCredits =
     creditInfo !== null && !creditInfo.isAdmin && creditInfo.credits < 1;
   const canGetMoreIdeas =
@@ -475,6 +516,12 @@ function GenerateForm() {
     ...selectedStoryPeople.map((person) => person.name),
   ].filter(Boolean);
   const selectedCastLabel = selectedCastNames.join(", ");
+  const selectedLocationFixture = savedLocations.find(
+    (fixture) => fixture.id === selectedLocationFixtureId
+  );
+  const resolvedLocationHint = selectedLocationFixture
+    ? locationFixtureLabel(selectedLocationFixture)
+    : customLocationHint.trim();
 
   function toggleStoryPerson(id: string) {
     setSelectedStoryPersonIds((current) =>
@@ -491,461 +538,569 @@ function GenerateForm() {
   return (
     <>
       <div className="space-y-8">
-      <div>
-        <p className="mb-3 text-sm font-bold uppercase tracking-wide text-night-400">
-          {t("stepWho")}
-        </p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {profiles.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => selectProfile(p.id)}
-              className={choiceCardClassName(
-                profileId === p.id,
-                "flex items-center gap-3 rounded-xl p-4 text-left"
-              )}
-            >
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-star-300 to-moon-300 font-display font-bold text-night-800">
-                {p.name[0].toUpperCase()}
-              </div>
+        <div>
+          <p className="mb-3 text-sm font-bold uppercase tracking-wide text-night-400">
+            {t("stepWho")}
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {profiles.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => selectProfile(p.id)}
+                className={choiceCardClassName(
+                  profileId === p.id,
+                  "flex items-center gap-3 rounded-xl p-4 text-left"
+                )}
+              >
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-star-300 to-moon-300 font-display font-bold text-night-800">
+                  {p.name[0].toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-bold text-night-800">{p.name}</p>
+                  <p className="text-xs text-night-400">
+                    {t("ageLabel", { age: p.age })}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {profileId && (
+            <div className="mt-5 space-y-4">
               <div>
-                <p className="font-bold text-night-800">{p.name}</p>
-                <p className="text-xs text-night-400">
-                  {t("ageLabel", { age: p.age })}
+                <p className="mb-2 text-sm font-bold uppercase tracking-wide text-night-400">
+                  {t("storyPresetLabel")}
                 </p>
+                <div className="space-y-2">
+                  {STORY_PRESETS.map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setStoryPreset(key)}
+                      className={choiceCardClassName(
+                        storyPreset === key,
+                        "w-full p-3.5 text-left"
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-display font-bold text-night-800 text-sm">
+                            {t(`storyPreset.${key}.label`)}
+                          </p>
+                          <p className="mt-0.5 text-xs text-night-400">
+                            {t(`storyPreset.${key}.desc`)}
+                          </p>
+                        </div>
+                        <span className="flex-shrink-0 rounded-full bg-night-100 px-2.5 py-1 text-xs font-semibold text-night-500">
+                          {t(`storyPreset.${key}.ageRange`)}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </button>
-          ))}
+
+              <div>
+                <p className="mb-2 text-sm font-bold uppercase tracking-wide text-night-400">
+                  {t("themeLabel")}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {themeOptions.map((theme) => (
+                    <button
+                      key={theme}
+                      type="button"
+                      onClick={() => {
+                        setSelectedTheme(theme);
+                        setSuggestions([]);
+                        setSelectedSuggestion(null);
+                      }}
+                      className={`rounded-full px-3 py-1.5 text-sm font-bold transition ${
+                        selectedTheme === theme
+                          ? "bg-night-700 text-moon-200"
+                          : "bg-white text-night-600 hover:bg-night-50"
+                      }`}
+                    >
+                      {theme}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-night-100 bg-white/70 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="font-display font-bold text-night-800">
+                      Who&rsquo;s In This Story?
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-night-500">
+                      {selectedProfile?.name} is always included. Choose up to{" "}
+                      {MAX_SUPPORTING_CAST} extra people, pets, or children.
+                    </p>
+                  </div>
+                  <Link
+                    href="/family"
+                    className={buttonClassName({
+                      variant: "secondary",
+                      size: "compact",
+                      className: "shrink-0",
+                    })}
+                  >
+                    <Icon name="profile" />
+                    Manage
+                  </Link>
+                </div>
+
+                {selectedProfile ? (
+                  <div className="mt-4 rounded-xl border-2 border-night-700 bg-night-700 p-3 text-moon-100">
+                    <div className="flex items-center gap-3">
+                      {selectedProfile.avatarImageUrl ? (
+                        <span
+                          className="h-11 w-11 shrink-0 rounded-full bg-cover bg-center ring-2 ring-moon-200"
+                          style={{
+                            backgroundImage: `url("${selectedProfile.avatarImageUrl}")`,
+                          }}
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-moon-200 font-display font-bold text-night-800">
+                          {selectedProfile.name[0]?.toUpperCase()}
+                        </span>
+                      )}
+                      <span className="min-w-0">
+                        <span className="block text-xs font-bold uppercase tracking-wide text-moon-300">
+                          Main Child
+                        </span>
+                        <span className="block truncate font-display text-lg font-bold">
+                          {selectedProfile.name}
+                        </span>
+                        <span className="block text-xs font-semibold text-moon-300">
+                          Always included
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
+
+                {loadingStoryPeople ? (
+                  <p className="mt-3 text-sm text-night-400">
+                    Loading family and friends...
+                  </p>
+                ) : castPeople.length > 0 ? (
+                  <>
+                    <div className="mt-4 flex items-center justify-between gap-3 text-xs font-bold uppercase tracking-wide text-night-400">
+                      <span>Supporting Cast</span>
+                      <span>
+                        {selectedStoryPersonIds.length}/{MAX_SUPPORTING_CAST}
+                      </span>
+                    </div>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      {castPeople.map((person) => {
+                        const selected = selectedStoryPersonIds.includes(
+                          person.id
+                        );
+                        const disabled =
+                          !selected &&
+                          selectedStoryPersonIds.length >= MAX_SUPPORTING_CAST;
+                        const isChildProfile =
+                          person.id.startsWith(CHILD_CAST_ID_PREFIX);
+                        return (
+                          <button
+                            key={person.id}
+                            type="button"
+                            onClick={() => toggleStoryPerson(person.id)}
+                            disabled={disabled}
+                            className={`${choiceCardClassName(
+                              selected,
+                              "flex min-h-20 items-center gap-3 rounded-xl p-3 text-left"
+                            )} disabled:cursor-not-allowed disabled:opacity-45`}
+                          >
+                            {person.avatarImageUrl ? (
+                              <span
+                                className="h-10 w-10 shrink-0 rounded-full bg-cover bg-center"
+                                style={{
+                                  backgroundImage: `url("${person.avatarImageUrl}")`,
+                                }}
+                                aria-hidden="true"
+                              />
+                            ) : (
+                              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-moon-100 font-display font-bold text-night-700">
+                                {person.name[0]?.toUpperCase()}
+                              </span>
+                            )}
+                            <span className="min-w-0">
+                              <span className="block truncate font-bold text-night-800">
+                                {person.name}
+                              </span>
+                              <span className="block text-xs capitalize text-night-400">
+                                {isChildProfile
+                                  ? "Child profile"
+                                  : getStoryPersonRelationshipLabel(person)}
+                              </span>
+                              {selected ? (
+                                <span className="mt-1 inline-block rounded-full bg-star-100 px-2 py-0.5 text-[11px] font-bold text-star-700">
+                                  Selected
+                                </span>
+                              ) : null}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <div className="mt-4 rounded-xl border border-dashed border-night-200 bg-white px-4 py-3">
+                    <p className="text-sm font-bold text-night-700">
+                      No Family & Friends yet
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-night-500">
+                      Add family members, friends, or pets once and reuse them
+                      across children.
+                    </p>
+                  </div>
+                )}
+
+                {selectedStoryPeople.length > 0 ? (
+                  <p className="mt-3 text-xs font-semibold text-night-400">
+                    Extra cast selected:{" "}
+                    {selectedStoryPeople
+                      .map((person) => person.name)
+                      .join(", ")}
+                  </p>
+                ) : castPeople.length > 0 ? (
+                  <p className="mt-3 text-xs font-semibold text-night-400">
+                    No extra cast selected. The story will focus on{" "}
+                    {selectedProfile?.name}.
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="rounded-2xl border border-night-100 bg-white/70 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="font-display font-bold text-night-800">
+                      Special Place (Optional)
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-night-500">
+                      Pick one of your saved locations or type a one-off place.
+                      Storycot will weave it into part of the story without
+                      forcing every page to stay there.
+                    </p>
+                  </div>
+                  <Link
+                    href="/locations"
+                    className={buttonClassName({
+                      variant: "secondary",
+                      size: "compact",
+                      className: "shrink-0",
+                    })}
+                  >
+                    <Icon name="dashboard" />
+                    Manage
+                  </Link>
+                </div>
+
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <label className={formStyles.subLabel}>
+                      Saved location
+                    </label>
+                    <select
+                      value={selectedLocationFixtureId}
+                      onChange={(event) =>
+                        selectSavedLocation(event.target.value)
+                      }
+                      className={formStyles.select}
+                    >
+                      <option value="">No saved location</option>
+                      {savedLocations.map((fixture) => (
+                        <option key={fixture.id} value={fixture.id}>
+                          {locationFixtureLabel(fixture)}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-2 text-xs text-night-400">
+                      Choose a saved room/place if you want the book builder to
+                      reuse that exact illustration bible later.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className={formStyles.subLabel}>
+                      Or type a place
+                    </label>
+                    <input
+                      value={customLocationHint}
+                      onChange={(event) =>
+                        updateCustomLocationHint(event.target.value)
+                      }
+                      placeholder="e.g. Grandma's lounge, the cubby house, or our local beach"
+                      className={formStyles.field}
+                    />
+                  </div>
+
+                  {selectedLocationFixture ? (
+                    <div className="rounded-2xl border border-star-200 bg-star-50 p-3">
+                      <div className="flex items-start gap-3">
+                        {selectedLocationFixture.establishingImageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={selectedLocationFixture.establishingImageUrl}
+                            alt={locationFixtureLabel(selectedLocationFixture)}
+                            className="h-16 w-16 rounded-xl object-cover"
+                          />
+                        ) : null}
+                        <div className="min-w-0">
+                          <p className="font-bold text-night-800">
+                            {locationFixtureLabel(selectedLocationFixture)}
+                          </p>
+                          <p className="mt-1 text-sm text-night-500">
+                            {selectedLocationFixture.summary ||
+                              selectedLocationFixture.notes ||
+                              "Saved location ready to reuse in this story."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-night-100 bg-white/70 p-4">
+                <div>
+                  <p className="font-display font-bold text-night-800">
+                    Write A Story Idea
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-night-500">
+                    Use this if you already know the plot. Otherwise, get ideas
+                    using the selected cast and theme.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold uppercase tracking-wide">
+                    <span className="rounded-full bg-moon-100 px-3 py-1 text-night-600">
+                      Cast: {selectedCastLabel || selectedProfile?.name}
+                    </span>
+                    <span className="rounded-full bg-star-100 px-3 py-1 text-night-700">
+                      Theme: {selectedTheme}
+                    </span>
+                    {resolvedLocationHint ? (
+                      <span className="rounded-full bg-sky-100 px-3 py-1 text-sky-700">
+                        Place: {resolvedLocationHint}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <label className={formStyles.subLabel}>Story Idea</label>
+                    <textarea
+                      value={builderIdea}
+                      onChange={(event) => {
+                        setBuilderIdea(event.target.value);
+                        setSelectedSuggestion(null);
+                      }}
+                      rows={3}
+                      placeholder={t("storyIdeaPlaceholder", {
+                        name: selectedProfile?.name ?? "Bailey",
+                      })}
+                      className={formStyles.textarea}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {!showIdeas && (
+                <div className="space-y-2">
+                  <p className="text-xs text-night-400">
+                    {selectedCastLabel
+                      ? `Ideas will be based on ${selectedCastLabel}, "${selectedTheme}", and ${resolvedLocationHint ? `a visit to ${resolvedLocationHint}` : "your selected story details"}.`
+                      : t("getIdeasHint")}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => fetchSuggestions(profileId)}
+                    className="w-full rounded-xl border-2 border-dashed border-night-300 py-3 text-sm font-bold text-night-600 transition hover:border-star-400 hover:text-star-600"
+                  >
+                    {selectedCastLabel
+                      ? `Get 3 Ideas For This Cast`
+                      : t("getIdeas", { name: selectedProfile?.name ?? "" })}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {profileId && (
-          <div className="mt-5 space-y-4">
-            <div>
-              <p className="mb-2 text-sm font-bold uppercase tracking-wide text-night-400">
-                {t("storyPresetLabel")}
-              </p>
-              <div className="space-y-2">
-                {STORY_PRESETS.map((key) => (
+        {showIdeas && (
+          <div>
+            <p className="mb-3 text-sm font-bold uppercase tracking-wide text-night-400">
+              {t("stepChoose")}
+            </p>
+            <p className="mb-3 text-sm leading-6 text-night-500">
+              These ideas use {selectedCastLabel || selectedProfile?.name}, the{" "}
+              <span className="font-bold text-night-700">{selectedTheme}</span>{" "}
+              theme
+              {resolvedLocationHint
+                ? `, and a visit to ${resolvedLocationHint}`
+                : ""}
+              .
+            </p>
+            {loadingSuggestions && suggestions.length === 0 ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="h-24 animate-pulse rounded-2xl bg-night-100"
+                  />
+                ))}
+                <p className="text-center text-sm text-night-400">
+                  {t("loadingSuggestions", {
+                    name: selectedProfile?.name ?? "",
+                  })}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {suggestions.map((s, i) => (
                   <button
-                    key={key}
+                    key={i}
                     type="button"
-                    onClick={() => setStoryPreset(key)}
+                    onClick={() => setSelectedSuggestion(s)}
                     className={choiceCardClassName(
-                      storyPreset === key,
-                      "w-full p-3.5 text-left"
+                      selectedSuggestion === s,
+                      "w-full p-4 text-left"
                     )}
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="font-display font-bold text-night-800 text-sm">
-                          {t(`storyPreset.${key}.label`)}
-                        </p>
-                        <p className="mt-0.5 text-xs text-night-400">
-                          {t(`storyPreset.${key}.desc`)}
-                        </p>
-                      </div>
-                      <span className="flex-shrink-0 rounded-full bg-night-100 px-2.5 py-1 text-xs font-semibold text-night-500">
-                        {t(`storyPreset.${key}.ageRange`)}
+                    <div className="flex items-start gap-3">
+                      <span className="mt-0.5 text-2xl">
+                        {THEME_EMOJIS[s.theme] ?? "🌙"}
                       </span>
+                      <div>
+                        <p className="font-display font-bold text-night-800">
+                          {s.title}
+                        </p>
+                        <p className="mt-1 text-sm text-night-500">
+                          {s.premise}
+                        </p>
+                        <span className="mt-2 inline-block rounded-full bg-night-100 px-2.5 py-0.5 text-xs font-bold text-night-500">
+                          {t("themeBadge", { theme: s.theme || selectedTheme })}
+                        </span>
+                      </div>
                     </div>
                   </button>
                 ))}
-              </div>
-            </div>
 
-            <div>
-              <p className="mb-2 text-sm font-bold uppercase tracking-wide text-night-400">
-                {t("themeLabel")}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {themeOptions.map((theme) => (
+                {loadingSuggestions ? (
+                  <div className="rounded-2xl border border-dashed border-night-200 bg-white/70 p-4 text-center text-sm font-bold text-night-400">
+                    Finding more different ideas...
+                  </div>
+                ) : null}
+
+                <p className="text-xs text-night-400">{t("suggestionsNote")}</p>
+                {canGetMoreIdeas ? (
                   <button
-                    key={theme}
                     type="button"
-                    onClick={() => {
-                      setSelectedTheme(theme);
-                      setSuggestions([]);
-                      setSelectedSuggestion(null);
-                    }}
-                    className={`rounded-full px-3 py-1.5 text-sm font-bold transition ${
-                      selectedTheme === theme
-                        ? "bg-night-700 text-moon-200"
-                        : "bg-white text-night-600 hover:bg-night-50"
-                    }`}
+                    onClick={() => fetchSuggestions(profileId, true)}
+                    disabled={loadingSuggestions}
+                    className="w-full rounded-xl border border-night-200 bg-white py-3 text-sm font-bold text-night-600 transition hover:bg-night-50"
                   >
-                    {theme}
+                    {t("getMoreIdeas")}
                   </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-night-100 bg-white/70 p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="font-display font-bold text-night-800">
-                    Who&rsquo;s In This Story?
-                  </p>
-                  <p className="mt-1 text-sm leading-6 text-night-500">
-                    {selectedProfile?.name} is always included. Choose up to{" "}
-                    {MAX_SUPPORTING_CAST} extra people, pets, or children.
-                  </p>
-                </div>
-                <Link
-                  href="/family"
-                  className={buttonClassName({
-                    variant: "secondary",
-                    size: "compact",
-                    className: "shrink-0",
-                  })}
-                >
-                  <Icon name="profile" />
-                  Manage
-                </Link>
-              </div>
-
-              {selectedProfile ? (
-                <div className="mt-4 rounded-xl border-2 border-night-700 bg-night-700 p-3 text-moon-100">
-                  <div className="flex items-center gap-3">
-                    {selectedProfile.avatarImageUrl ? (
-                      <span
-                        className="h-11 w-11 shrink-0 rounded-full bg-cover bg-center ring-2 ring-moon-200"
-                        style={{
-                          backgroundImage: `url("${selectedProfile.avatarImageUrl}")`,
-                        }}
-                        aria-hidden="true"
-                      />
-                    ) : (
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-moon-200 font-display font-bold text-night-800">
-                        {selectedProfile.name[0]?.toUpperCase()}
-                      </span>
-                    )}
-                    <span className="min-w-0">
-                      <span className="block text-xs font-bold uppercase tracking-wide text-moon-300">
-                        Main Child
-                      </span>
-                      <span className="block truncate font-display text-lg font-bold">
-                        {selectedProfile.name}
-                      </span>
-                      <span className="block text-xs font-semibold text-moon-300">
-                        Always included
-                      </span>
-                    </span>
-                  </div>
-                </div>
-              ) : null}
-
-              {loadingStoryPeople ? (
-                <p className="mt-3 text-sm text-night-400">
-                  Loading family and friends...
-                </p>
-              ) : castPeople.length > 0 ? (
-                <>
-                  <div className="mt-4 flex items-center justify-between gap-3 text-xs font-bold uppercase tracking-wide text-night-400">
-                    <span>Supporting Cast</span>
-                    <span>
-                      {selectedStoryPersonIds.length}/{MAX_SUPPORTING_CAST}
-                    </span>
-                  </div>
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                    {castPeople.map((person) => {
-                      const selected = selectedStoryPersonIds.includes(
-                        person.id
-                      );
-                      const disabled =
-                        !selected &&
-                        selectedStoryPersonIds.length >= MAX_SUPPORTING_CAST;
-                      const isChildProfile =
-                        person.id.startsWith(CHILD_CAST_ID_PREFIX);
-                      return (
-                        <button
-                          key={person.id}
-                          type="button"
-                          onClick={() => toggleStoryPerson(person.id)}
-                          disabled={disabled}
-                          className={`${choiceCardClassName(
-                            selected,
-                            "flex min-h-20 items-center gap-3 rounded-xl p-3 text-left"
-                          )} disabled:cursor-not-allowed disabled:opacity-45`}
-                        >
-                          {person.avatarImageUrl ? (
-                            <span
-                              className="h-10 w-10 shrink-0 rounded-full bg-cover bg-center"
-                              style={{
-                                backgroundImage: `url("${person.avatarImageUrl}")`,
-                              }}
-                              aria-hidden="true"
-                            />
-                          ) : (
-                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-moon-100 font-display font-bold text-night-700">
-                              {person.name[0]?.toUpperCase()}
-                            </span>
-                          )}
-                          <span className="min-w-0">
-                            <span className="block truncate font-bold text-night-800">
-                              {person.name}
-                            </span>
-                            <span className="block text-xs capitalize text-night-400">
-                              {isChildProfile
-                                ? "Child profile"
-                                : getStoryPersonRelationshipLabel(person)}
-                            </span>
-                            {selected ? (
-                              <span className="mt-1 inline-block rounded-full bg-star-100 px-2 py-0.5 text-[11px] font-bold text-star-700">
-                                Selected
-                              </span>
-                            ) : null}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
-              ) : (
-                <div className="mt-4 rounded-xl border border-dashed border-night-200 bg-white px-4 py-3">
-                  <p className="text-sm font-bold text-night-700">
-                    No Family & Friends yet
-                  </p>
-                  <p className="mt-1 text-sm leading-6 text-night-500">
-                    Add family members, friends, or pets once and reuse them
-                    across children.
-                  </p>
-                </div>
-              )}
-
-              {selectedStoryPeople.length > 0 ? (
-                <p className="mt-3 text-xs font-semibold text-night-400">
-                  Extra cast selected:{" "}
-                  {selectedStoryPeople.map((person) => person.name).join(", ")}
-                </p>
-              ) : castPeople.length > 0 ? (
-                <p className="mt-3 text-xs font-semibold text-night-400">
-                  No extra cast selected. The story will focus on{" "}
-                  {selectedProfile?.name}.
-                </p>
-              ) : null}
-            </div>
-
-            <div className="rounded-2xl border border-night-100 bg-white/70 p-4">
-              <div>
-                <p className="font-display font-bold text-night-800">
-                  Write A Story Idea
-                </p>
-                <p className="mt-1 text-sm leading-6 text-night-500">
-                  Use this if you already know the plot. Otherwise, get ideas
-                  using the selected cast and theme.
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold uppercase tracking-wide">
-                  <span className="rounded-full bg-moon-100 px-3 py-1 text-night-600">
-                    Cast: {selectedCastLabel || selectedProfile?.name}
-                  </span>
-                  <span className="rounded-full bg-star-100 px-3 py-1 text-night-700">
-                    Theme: {selectedTheme}
-                  </span>
-                </div>
-              </div>
-              <div className="mt-3 space-y-3">
-                <div>
-                  <label className={formStyles.subLabel}>Story Idea</label>
-                  <textarea
-                    value={builderIdea}
-                    onChange={(event) => {
-                      setBuilderIdea(event.target.value);
-                      setSelectedSuggestion(null);
-                    }}
-                    rows={3}
-                    placeholder={t("storyIdeaPlaceholder", {
-                      name: selectedProfile?.name ?? "Bailey",
-                    })}
-                    className={formStyles.textarea}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {!showIdeas && (
-              <div className="space-y-2">
-                <p className="text-xs text-night-400">
-                  {selectedCastLabel
-                    ? `Ideas will be based on ${selectedCastLabel} and "${selectedTheme}".`
-                    : t("getIdeasHint")}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => fetchSuggestions(profileId)}
-                  className="w-full rounded-xl border-2 border-dashed border-night-300 py-3 text-sm font-bold text-night-600 transition hover:border-star-400 hover:text-star-600"
-                >
-                  {selectedCastLabel
-                    ? `Get 3 Ideas For This Cast`
-                    : t("getIdeas", { name: selectedProfile?.name ?? "" })}
-                </button>
+                ) : null}
               </div>
             )}
           </div>
         )}
-      </div>
 
-      {showIdeas && (
-        <div>
-          <p className="mb-3 text-sm font-bold uppercase tracking-wide text-night-400">
-            {t("stepChoose")}
-          </p>
-          <p className="mb-3 text-sm leading-6 text-night-500">
-            These ideas use {selectedCastLabel || selectedProfile?.name} and the{" "}
-            <span className="font-bold text-night-700">{selectedTheme}</span>{" "}
-            theme.
-          </p>
-          {loadingSuggestions && suggestions.length === 0 ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="h-24 animate-pulse rounded-2xl bg-night-100"
-                />
-              ))}
-              <p className="text-center text-sm text-night-400">
-                {t("loadingSuggestions", { name: selectedProfile?.name ?? "" })}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {suggestions.map((s, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setSelectedSuggestion(s)}
-                  className={choiceCardClassName(
-                    selectedSuggestion === s,
-                    "w-full p-4 text-left"
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="mt-0.5 text-2xl">
-                      {THEME_EMOJIS[s.theme] ?? "🌙"}
-                    </span>
-                    <div>
-                      <p className="font-display font-bold text-night-800">
-                        {s.title}
-                      </p>
-                      <p className="mt-1 text-sm text-night-500">{s.premise}</p>
-                      <span className="mt-2 inline-block rounded-full bg-night-100 px-2.5 py-0.5 text-xs font-bold text-night-500">
-                        {t("themeBadge", { theme: s.theme || selectedTheme })}
-                      </span>
-                    </div>
-                  </div>
-                </button>
-              ))}
-
-              {loadingSuggestions ? (
-                <div className="rounded-2xl border border-dashed border-night-200 bg-white/70 p-4 text-center text-sm font-bold text-night-400">
-                  Finding more different ideas...
-                </div>
-              ) : null}
-
-              <p className="text-xs text-night-400">{t("suggestionsNote")}</p>
-              {canGetMoreIdeas ? (
-                <button
-                  type="button"
-                  onClick={() => fetchSuggestions(profileId, true)}
-                  disabled={loadingSuggestions}
-                  className="w-full rounded-xl border border-night-200 bg-white py-3 text-sm font-bold text-night-600 transition hover:bg-night-50"
-                >
-                  {t("getMoreIdeas")}
-                </button>
-              ) : null}
-            </div>
-          )}
-        </div>
-      )}
-
-      {profileId && (
-        <>
-          <div>
-            <label className={formStyles.label}>{t("notesLabel")}</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              placeholder={t("notesPlaceholder", {
-                name: selectedProfile?.name ?? "",
-              })}
-              className={formStyles.textarea}
-            />
-          </div>
-
-          {ipPolicyPreview.riskLevel === "originalized" ? (
-            <div className="rounded-2xl border border-star-200 bg-star-50 px-4 py-3 text-sm leading-6 text-night-700">
-              <p className="font-bold text-night-800">
-                We’ll make this an original Storycot version
-              </p>
-              <p className="mt-1">
-                For downloads and Australian print ordering, Storycot avoids
-                protected characters, brands, logos, celebrities, and
-                recognisable source worlds. We’ll keep the broad feeling of the
-                idea but use new original characters and settings.
-              </p>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-night-100 bg-white/70 px-4 py-3 text-sm leading-6 text-night-500">
-              <p className="font-bold text-night-700">
-                Original stories can be printed
-              </p>
-              <p className="mt-1">
-                Printed hardcovers are only available for stories made from
-                original characters, settings, images, and story details that
-                you have the right to use.
-              </p>
-            </div>
-          )}
-
-          {error && <StoryErrorCard category={errorCategory} message={error} />}
-
-          {outOfCredits ? (
-            <div className="rounded-2xl border border-blush-200 bg-blush-50 px-5 py-4 text-sm text-blush-700">
-              <p className="font-display font-bold">{t("noCreditsTitle")}</p>
-              <p className="mt-1">{t("noCreditsBody")}</p>
-              <Link
-                href="/account"
-                className={buttonClassName({
-                  size: "compact",
-                  className: "mt-3",
+        {profileId && (
+          <>
+            <div>
+              <label className={formStyles.label}>{t("notesLabel")}</label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+                placeholder={t("notesPlaceholder", {
+                  name: selectedProfile?.name ?? "",
                 })}
-              >
-                <Icon name="account" />
-                {t("topUpCredits")}
-              </Link>
+                className={formStyles.textarea}
+              />
             </div>
-          ) : readyToGenerate ? (
-            <div className="space-y-3">
-              <p className="rounded-2xl border border-night-100 bg-white/70 px-4 py-3 text-center text-sm font-bold text-night-600">
-                {t("creditNotice")}
-              </p>
-              <Button
-                onClick={handleGenerate}
-                disabled={generating}
-                fullWidth
-                size="large"
-                className="font-display"
-              >
-                {generating ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Icon name="sparkle" className="h-4 w-4 animate-spin" />
-                    {t("generating")}
-                  </span>
-                ) : (
-                  t("generateButton2")
-                )}
-              </Button>
-            </div>
-          ) : null}
 
-          {generating && (
-            <p className="text-center text-sm text-night-400">
-              {t("generatingSub")}
-            </p>
-          )}
-        </>
-      )}
+            {ipPolicyPreview.riskLevel === "originalized" ? (
+              <div className="rounded-2xl border border-star-200 bg-star-50 px-4 py-3 text-sm leading-6 text-night-700">
+                <p className="font-bold text-night-800">
+                  We’ll make this an original Storycot version
+                </p>
+                <p className="mt-1">
+                  For downloads and Australian print ordering, Storycot avoids
+                  protected characters, brands, logos, celebrities, and
+                  recognisable source worlds. We’ll keep the broad feeling of
+                  the idea but use new original characters and settings.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-night-100 bg-white/70 px-4 py-3 text-sm leading-6 text-night-500">
+                <p className="font-bold text-night-700">
+                  Original stories can be printed
+                </p>
+                <p className="mt-1">
+                  Printed hardcovers are only available for stories made from
+                  original characters, settings, images, and story details that
+                  you have the right to use.
+                </p>
+              </div>
+            )}
+
+            {error && (
+              <StoryErrorCard category={errorCategory} message={error} />
+            )}
+
+            {outOfCredits ? (
+              <div className="rounded-2xl border border-blush-200 bg-blush-50 px-5 py-4 text-sm text-blush-700">
+                <p className="font-display font-bold">{t("noCreditsTitle")}</p>
+                <p className="mt-1">{t("noCreditsBody")}</p>
+                <Link
+                  href="/account"
+                  className={buttonClassName({
+                    size: "compact",
+                    className: "mt-3",
+                  })}
+                >
+                  <Icon name="account" />
+                  {t("topUpCredits")}
+                </Link>
+              </div>
+            ) : readyToGenerate ? (
+              <div className="space-y-3">
+                <p className="rounded-2xl border border-night-100 bg-white/70 px-4 py-3 text-center text-sm font-bold text-night-600">
+                  {t("creditNotice")}
+                </p>
+                <Button
+                  onClick={handleGenerate}
+                  disabled={generating}
+                  fullWidth
+                  size="large"
+                  className="font-display"
+                >
+                  {generating ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Icon name="sparkle" className="h-4 w-4 animate-spin" />
+                      {t("generating")}
+                    </span>
+                  ) : (
+                    t("generateButton2")
+                  )}
+                </Button>
+              </div>
+            ) : null}
+
+            {generating && (
+              <p className="text-center text-sm text-night-400">
+                {t("generatingSub")}
+              </p>
+            )}
+          </>
+        )}
       </div>
       <ConfirmDialog />
     </>

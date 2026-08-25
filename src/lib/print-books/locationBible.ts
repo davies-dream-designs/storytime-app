@@ -3,10 +3,16 @@ import type { Story } from "@/types";
 import type {
   BookSpread,
   LocationBible,
+  LocationFixture,
   LocationVisualReference,
   SceneLocation,
 } from "@/types/printBook";
 import { composeLocationName } from "./locationNames";
+import {
+  applyFixtureToLocation,
+  locationFixtureName,
+  locationSimilarity,
+} from "./locationFixtures";
 
 let client: Anthropic | undefined;
 
@@ -42,7 +48,24 @@ function summarizeStoryPages(story: Story): string {
     .join("\n");
 }
 
-function buildLocationBiblePrompt(story: Story): string {
+function buildPreferredFixtureSection(fixture?: LocationFixture): string {
+  if (!fixture) return "";
+
+  return `\n\nParent-selected saved place to respect if the story visits it:
+- Name: ${locationFixtureName(fixture)}
+- Summary: ${fixture.summary || "Not provided"}
+- Notes: ${fixture.notes || "Not provided"}
+- Fixed elements: ${fixture.fixedElements.join(", ") || "None provided"}
+- Lighting: ${fixture.lighting || "Not provided"}
+- Do not change: ${fixture.doNotChange.join(", ") || "None provided"}
+
+If the story clearly visits this saved place, reuse its exact place/area naming and keep those family-supplied details authoritative.`;
+}
+
+function buildLocationBiblePrompt(
+  story: Story,
+  preferredFixture?: LocationFixture
+): string {
   return `You are preparing a LOCATION BIBLE for a children's print-ready picture book.
 
 The illustrator draws each page separately, so without a shared setting guide the background, furniture, props, and lighting drift between pages (a cot changes shape, a night-light disappears, a lamp jumps sides). Your job is to lock the setting so every page in the SAME place is drawn the same way, while still allowing the story to move between different places.
@@ -50,7 +73,7 @@ The illustrator draws each page separately, so without a shared setting guide th
 Story:
 - Title: ${story.title}
 - Theme: ${story.theme || "gentle bedtime adventure"}
-- Premise: ${story.premise || "Not provided"}
+- Premise: ${story.premise || "Not provided"}${buildPreferredFixtureSection(preferredFixture)}
 
 Pages (in order):
 ${summarizeStoryPages(story)}
@@ -206,10 +229,41 @@ function normalizeLocationBible(
   return { locations, pageLocations };
 }
 
+export function applyPreferredFixtureToLocationBible(
+  bible: LocationBible,
+  preferredFixture?: LocationFixture
+): LocationBible {
+  if (!preferredFixture) return bible;
+
+  let bestLocation: SceneLocation | undefined;
+  let bestScore = 0;
+  for (const location of bible.locations) {
+    const score = locationSimilarity(location, preferredFixture);
+    if (score > bestScore) {
+      bestScore = score;
+      bestLocation = location;
+    }
+  }
+
+  if (!bestLocation || bestScore < 0.6) {
+    return bible;
+  }
+
+  return {
+    ...bible,
+    locations: bible.locations.map((location) =>
+      location.id === bestLocation.id
+        ? applyFixtureToLocation(location, preferredFixture)
+        : location
+    ),
+  };
+}
+
 export async function generateLocationBible(input: {
   story: Story;
+  preferredFixture?: LocationFixture;
 }): Promise<LocationBible> {
-  const prompt = buildLocationBiblePrompt(input.story);
+  const prompt = buildLocationBiblePrompt(input.story, input.preferredFixture);
 
   const attempt = async (): Promise<LocationBible> => {
     const message = await getClient().messages.create({
@@ -220,9 +274,12 @@ export async function generateLocationBible(input: {
     const content = message.content[0];
     if (content.type !== "text")
       throw new Error("Unexpected response type from AI");
-    return normalizeLocationBible(
-      parseLocationBible(content.text.trim()),
-      input.story
+    return applyPreferredFixtureToLocationBible(
+      normalizeLocationBible(
+        parseLocationBible(content.text.trim()),
+        input.story
+      ),
+      input.preferredFixture
     );
   };
 
@@ -239,10 +296,43 @@ export async function generateLocationBible(input: {
 }
 
 const STOP_WORDS = new Set([
-  "the", "a", "an", "and", "or", "but", "of", "to", "in", "on", "at", "was",
-  "were", "is", "are", "it", "its", "he", "she", "they", "them", "his", "her",
-  "with", "for", "up", "down", "so", "not", "that", "this", "then", "there",
-  "very", "little", "big", "one",
+  "the",
+  "a",
+  "an",
+  "and",
+  "or",
+  "but",
+  "of",
+  "to",
+  "in",
+  "on",
+  "at",
+  "was",
+  "were",
+  "is",
+  "are",
+  "it",
+  "its",
+  "he",
+  "she",
+  "they",
+  "them",
+  "his",
+  "her",
+  "with",
+  "for",
+  "up",
+  "down",
+  "so",
+  "not",
+  "that",
+  "this",
+  "then",
+  "there",
+  "very",
+  "little",
+  "big",
+  "one",
 ]);
 
 function tokenize(text: string): Set<string> {

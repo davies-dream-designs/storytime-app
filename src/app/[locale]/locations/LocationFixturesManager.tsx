@@ -75,46 +75,56 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
     setError(null);
   }
 
+  async function persistForm(currentForm: FormState): Promise<LocationFixture> {
+    if (!currentForm.place.trim()) {
+      throw new Error("Please give the place a name.");
+    }
+
+    const payload = {
+      place: currentForm.place.trim(),
+      area: currentForm.area.trim() || undefined,
+      summary: currentForm.summary.trim() || undefined,
+      notes: currentForm.notes.trim() || undefined,
+      lighting: currentForm.lighting.trim() || undefined,
+    };
+    const res = await fetch(
+      currentForm.id
+        ? `/api/location-fixtures/${currentForm.id}`
+        : "/api/location-fixtures",
+      {
+        method: currentForm.id ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }
+    );
+    if (!res.ok) {
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      throw new Error(data?.error ?? "Could not save this place.");
+    }
+
+    const saved = (await res.json()) as LocationFixture;
+    setFixtures((prev) => {
+      const without = prev.filter((f) => f.id !== saved.id);
+      return [saved, ...without].sort((a, b) =>
+        fixtureLabel(a).localeCompare(fixtureLabel(b))
+      );
+    });
+    return saved;
+  }
+
   async function save() {
     if (!form) return;
-    if (!form.place.trim()) {
-      setError("Please give the place a name.");
-      return;
-    }
     setSaving(true);
     setError(null);
     try {
-      const payload = {
-        place: form.place.trim(),
-        area: form.area.trim() || undefined,
-        summary: form.summary.trim() || undefined,
-        notes: form.notes.trim() || undefined,
-        lighting: form.lighting.trim() || undefined,
-      };
-      const res = await fetch(
-        form.id ? `/api/location-fixtures/${form.id}` : "/api/location-fixtures",
-        {
-          method: form.id ? "PUT" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
-      );
-      if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(data?.error ?? "Could not save this place.");
-      }
-      const saved = (await res.json()) as LocationFixture;
-      setFixtures((prev) => {
-        const without = prev.filter((f) => f.id !== saved.id);
-        return [saved, ...without].sort((a, b) =>
-          fixtureLabel(a).localeCompare(fixtureLabel(b))
-        );
-      });
+      await persistForm(form);
       closeForm();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save this place.");
+      setError(
+        err instanceof Error ? err.message : "Could not save this place."
+      );
     } finally {
       setSaving(false);
     }
@@ -142,27 +152,32 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
   }
 
   async function uploadPhotos(selected: File[]) {
-    if (!form?.id) {
-      setError("Save the place first, then add photos.");
-      return;
-    }
+    if (!form) return;
     if (selected.length === 0) return;
     if (selected.length > MAX_LOCATION_PHOTOS) {
-      setError(
-        `Please choose up to ${MAX_LOCATION_PHOTOS} photos at a time.`
-      );
+      setError(`Please choose up to ${MAX_LOCATION_PHOTOS} photos at a time.`);
       return;
     }
     setUploading(true);
+    setSaving(true);
     setError(null);
     try {
+      const savedFixture = form.id ? undefined : await persistForm(form);
+      const fixtureId = form.id ?? savedFixture?.id;
+      if (!fixtureId) {
+        throw new Error("Could not save this place before uploading photos.");
+      }
+      if (savedFixture) {
+        setForm(fixtureToForm(savedFixture));
+      }
+
       const files = await Promise.all(
         selected.map((file) => compressImageForUpload(file))
       );
       const body = new FormData();
       for (const file of files) body.append("photos", file);
       body.append("photoConsent", "yes");
-      const res = await fetch(`/api/location-fixtures/${form.id}/photo`, {
+      const res = await fetch(`/api/location-fixtures/${fixtureId}/photo`, {
         method: "POST",
         body,
       });
@@ -176,16 +191,19 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
         );
       }
       const establishingImageUrl = data.establishingImageUrl;
-      setForm((prev) => (prev ? { ...prev, establishingImageUrl } : prev));
+      setForm((prev) =>
+        prev ? { ...prev, id: fixtureId, establishingImageUrl } : prev
+      );
       setFixtures((prev) =>
         prev.map((f) =>
-          f.id === form.id ? { ...f, establishingImageUrl } : f
+          f.id === fixtureId ? { ...f, establishingImageUrl } : f
         )
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       setUploading(false);
+      setSaving(false);
     }
   }
 
@@ -202,8 +220,8 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
         <div className="rounded-2xl border border-dashed border-night-200 p-10 text-center">
           <p className="font-bold text-night-700">No saved locations yet</p>
           <p className="mt-1 text-sm text-night-500">
-            Save real places you use often — a bedroom, Grandma&apos;s house, the
-            car — with notes and a photo, and reuse them across every book.
+            Save real places you use often — a bedroom, Grandma&apos;s house,
+            the car — with notes and a photo, and reuse them across every book.
           </p>
         </div>
       ) : (
@@ -343,8 +361,8 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                 <p className="mt-0.5 text-xs text-night-400">
                   Add up to {MAX_LOCATION_PHOTOS} photos from different angles —
                   we draw one storybook picture of the space to keep it
-                  consistent, then discard your photos. We keep the illustration,
-                  not your photos.
+                  consistent, then discard your photos. We keep the
+                  illustration, not your photos.
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-3">
                   {form.establishingImageUrl ? (
@@ -357,7 +375,7 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                   ) : null}
                   <label
                     className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-night-200 px-3 py-1.5 text-sm font-bold text-night-700 ${
-                      uploading || !form.id
+                      uploading || saving || !form.place.trim()
                         ? "pointer-events-none opacity-60"
                         : "hover:bg-night-50"
                     }`}
@@ -374,7 +392,7 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                       multiple
                       accept="image/jpeg,image/png,image/webp"
                       className="sr-only"
-                      disabled={uploading || !form.id}
+                      disabled={uploading || saving || !form.place.trim()}
                       onChange={(e) => {
                         const files = Array.from(e.target.files ?? []);
                         if (files.length > 0) void uploadPhotos(files);
@@ -384,7 +402,7 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                   </label>
                   <label
                     className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-night-200 px-3 py-1.5 text-sm font-bold text-night-700 ${
-                      uploading || !form.id
+                      uploading || saving || !form.place.trim()
                         ? "pointer-events-none opacity-60"
                         : "hover:bg-night-50"
                     }`}
@@ -396,7 +414,7 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                       accept="image/*"
                       capture="environment"
                       className="sr-only"
-                      disabled={uploading || !form.id}
+                      disabled={uploading || saving || !form.place.trim()}
                       onChange={(e) => {
                         const files = Array.from(e.target.files ?? []);
                         if (files.length > 0) void uploadPhotos(files);
@@ -407,7 +425,9 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                 </div>
                 {!form.id ? (
                   <p className="mt-1 text-xs text-night-400">
-                    Save the place first to add photos.
+                    {form.place.trim()
+                      ? "We'll save this place automatically before uploading the photos."
+                      : "Add a place name first, then photos can be attached automatically."}
                   </p>
                 ) : null}
               </div>

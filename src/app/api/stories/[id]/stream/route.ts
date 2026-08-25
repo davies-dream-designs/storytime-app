@@ -135,6 +135,7 @@ export async function POST(
             theme: story.theme,
             premise: story.premise,
             notes: story.notes,
+            locationHint: story.locationHint,
             storyPreset: story.storyPreset,
             recentTitles,
             locale,

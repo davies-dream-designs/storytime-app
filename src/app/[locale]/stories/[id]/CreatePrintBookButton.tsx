@@ -81,9 +81,9 @@ export default function CreatePrintBookButton({
       // details before illustrations are drawn. If this degrades (e.g. the
       // location model hiccups), fall through to building directly.
       const prepared = await prepareLocations(project.id);
-      if (prepared.length > 0) {
+      if (prepared.reviewRequired && prepared.locations.length > 0) {
         setPendingProjectId(project.id);
-        setLocations(prepared);
+        setLocations(prepared.locations);
         setLoading(false);
         return;
       }
@@ -95,18 +95,24 @@ export default function CreatePrintBookButton({
     }
   }
 
-  async function prepareLocations(projectId: string): Promise<SceneLocation[]> {
+  async function prepareLocations(
+    projectId: string
+  ): Promise<{ locations: SceneLocation[]; reviewRequired: boolean }> {
     try {
       const res = await fetch(`/api/books/${projectId}/locations/prepare`, {
         method: "POST",
       });
-      if (!res.ok) return [];
+      if (!res.ok) return { locations: [], reviewRequired: false };
       const data = (await res.json().catch(() => null)) as {
         locationBible?: { locations?: SceneLocation[] };
+        reviewRequired?: boolean;
       } | null;
-      return data?.locationBible?.locations ?? [];
+      return {
+        locations: data?.locationBible?.locations ?? [],
+        reviewRequired: data?.reviewRequired ?? true,
+      };
     } catch {
-      return [];
+      return { locations: [], reviewRequired: false };
     }
   }
 
@@ -198,8 +204,8 @@ export default function CreatePrintBookButton({
           <div className="mb-3 max-w-md rounded-2xl border border-blush-200 bg-blush-100 px-4 py-3 text-sm">
             <p className="font-bold text-blush-700">Not enough credits</p>
             <p className="mt-1 text-blush-600">
-              You have {userCredits} credit{userCredits === 1 ? "" : "s"} -
-              this book costs {credits}. Top up to unlock illustrations.
+              You have {userCredits} credit{userCredits === 1 ? "" : "s"} - this
+              book costs {credits}. Top up to unlock illustrations.
             </p>
           </div>
           <Link href="/account" className="storycot-btn storycot-btn-primary">

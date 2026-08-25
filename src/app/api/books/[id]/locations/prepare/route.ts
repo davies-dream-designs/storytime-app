@@ -24,16 +24,34 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  if (project.locationBible?.locations.length) {
-    return NextResponse.json({ locationBible: project.locationBible });
-  }
-
   const story = await db.stories.getById(project.sourceStoryId);
   if (!story || story.userId !== userId) {
     return NextResponse.json({ error: "Story not found" }, { status: 404 });
   }
 
-  const locationBible = await generateLocationBible({ story });
+  const selectedLocationFixture = story.locationFixtureId
+    ? await db.locationFixtures.getById(story.locationFixtureId)
+    : undefined;
+  const preferredFixture =
+    selectedLocationFixture?.userId === userId
+      ? selectedLocationFixture
+      : undefined;
+  const reviewRequired = !preferredFixture;
+
+  if (project.locationBible?.locations.length) {
+    return NextResponse.json({
+      locationBible: project.locationBible,
+      reviewRequired,
+    });
+  }
+
+  const locationBible = await generateLocationBible({
+    story,
+    preferredFixture,
+  });
   const updated = await db.bookProjects.update(id, { locationBible });
-  return NextResponse.json({ locationBible: updated?.locationBible ?? locationBible });
+  return NextResponse.json({
+    locationBible: updated?.locationBible ?? locationBible,
+    reviewRequired,
+  });
 }

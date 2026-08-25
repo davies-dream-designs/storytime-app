@@ -99,6 +99,24 @@ describe("buildStoryPrompt", () => {
     expect(prompt).toContain("Gender/pronouns: girl; use she/her");
   });
 
+  it("adds an optional special place without forcing the whole story there", () => {
+    const prompt = buildStoryPrompt({
+      profile: createProfile(),
+      characters: [],
+      theme: "kindness",
+      notes: "",
+      locationHint: "Grandma's House (Lounge)",
+      storyPreset: "moonlit-adventures",
+      locale: "en",
+    });
+
+    expect(prompt).toContain(
+      "Special places to work into the story at natural moments"
+    );
+    expect(prompt).toContain("Grandma's House (Lounge)");
+    expect(prompt).toContain("soft hints, not the only settings");
+  });
+
   it("does not include saved characters that look like protected source material", () => {
     const characters: Character[] = [
       {
@@ -238,6 +256,7 @@ describe("generateSuggestions", () => {
     await expect(
       generateSuggestions(createProfile(), ["The Moon Pond"], "en", {
         selectedTheme: "listening",
+        locationHint: "Grandma's House (Lounge)",
         previousSuggestions: [
           {
             title: "The Garden Rocket",
@@ -260,6 +279,12 @@ describe("generateSuggestions", () => {
     expect(prompt).toContain("The Garden Rocket");
     expect(prompt).toContain(
       "Don't suggest stories similar to these recent ones: The Moon Pond"
+    );
+    expect(prompt).toContain(
+      "Optional special places to work into at least one idea when natural: Grandma's House (Lounge)"
+    );
+    expect(prompt).toContain(
+      "make at least one idea naturally include that place"
     );
   });
 

@@ -168,6 +168,7 @@ export default function BookStatusPanel({
   const [repairingArt, setRepairingArt] = useState(false);
   const [regeneratingExports, setRegeneratingExports] = useState(false);
   const [rebuildingReferences, setRebuildingReferences] = useState(false);
+  const [rebuildingBibles, setRebuildingBibles] = useState(false);
   const [referencesAreStale, setReferencesAreStale] = useState(
     initialReferencesAreStale
   );
@@ -531,6 +532,22 @@ export default function BookStatusPanel({
     setRebuildingReferences(false);
   }
 
+  async function handleRebuildBibles() {
+    setRebuildingBibles(true);
+    const res = await fetch(`/api/admin/books/${project.id}/rebuild`, {
+      method: "POST",
+      credentials: "same-origin",
+    });
+    if (res.ok) {
+      const { project: next } = (await res.json()) as { project: BookProject };
+      setProject(next);
+      setReferencesAreStale(false);
+      setPollUntil(Date.now() + 20_000);
+      router.refresh();
+    }
+    setRebuildingBibles(false);
+  }
+
   const failedImageTargets = getFailedImageTargets(spreadPreviews);
   const hasLocallyResolvedImageFailure =
     hasResolvedImageFailure(project) ||
@@ -555,6 +572,32 @@ export default function BookStatusPanel({
     : project.billing?.credits
       ? `This starts a full illustrated rebuild and uses ${project.billing.credits} credits.`
       : "This starts a full illustrated rebuild and uses the normal illustrated-book credit cost.";
+
+  // Admin-only "rebuild bibles" control. Rendered in both the ready-state
+  // branch and the main return so it is reachable on finished books too.
+  const renderRebuildBibles = () =>
+    isAdmin && !activeJobStatus ? (
+      <div className="mt-6 rounded-2xl border border-dashed border-night-200 bg-night-50 p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
+        <div>
+          <p className="text-sm font-bold text-night-700">
+            Admin: rebuild bibles
+          </p>
+          <p className="mt-1 text-sm text-night-500">
+            Regenerates the character and location bibles from scratch, then
+            runs a full illustrated rebuild. Use this to apply bible
+            improvements to an existing book. {fullRebuildCreditCopy}
+          </p>
+        </div>
+        <Button
+          variant="secondary"
+          onClick={handleRebuildBibles}
+          disabled={rebuildingBibles}
+          className="mt-4 sm:mt-0"
+        >
+          {rebuildingBibles ? "Rebuilding..." : "Rebuild bibles"}
+        </Button>
+      </div>
+    ) : null;
   const progress = getBookProjectProgress(displayProject);
   const stageLabel = getBookProjectDisplayStageLabel(displayProject);
   const isActiveBuild =
@@ -708,6 +751,8 @@ export default function BookStatusPanel({
             Edit artwork / exports
           </Button>
         </section>
+
+        {renderRebuildBibles()}
 
         {readyToolsOpen ? (
           <div
@@ -1668,6 +1713,8 @@ export default function BookStatusPanel({
           </div>
         </div>
       ) : null}
+
+      {renderRebuildBibles()}
 
       {hasMixedArt ? (
         <div className="mt-6 rounded-2xl border border-moon-200 bg-moon-100 p-4">

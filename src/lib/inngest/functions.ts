@@ -2,6 +2,10 @@ import type { InngestFunction } from "inngest";
 import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
 import { db } from "@/lib/db";
 import { processBookBuildJob } from "@/lib/print-books/jobs";
+import {
+  processLocationEstablishingJob,
+  type LocationEstablishingJobData,
+} from "@/lib/print-books/locationEstablishingJobs";
 
 // Hard stop so a wedged pipeline can never loop forever inside one invocation.
 // A full 16-spread build advances well under this many stages.
@@ -71,4 +75,22 @@ export const buildBook = inngest.createFunction(
   }
 );
 
-export const inngestFunctions: InngestFunction.Any[] = [buildBook];
+export const generateLocationEstablishing = inngest.createFunction(
+  {
+    id: "generate-location-establishing",
+    concurrency: [{ limit: 4 }, { limit: 1, key: "event.data.userId" }],
+    retries: 1,
+    triggers: [{ event: INNGEST_EVENTS.locationEstablishingRequested }],
+  },
+  async ({ event, step }) => {
+    const data = event.data as LocationEstablishingJobData;
+    return step.run("generate-location-establishing", async () => {
+      return processLocationEstablishingJob(data);
+    });
+  }
+);
+
+export const inngestFunctions: InngestFunction.Any[] = [
+  buildBook,
+  generateLocationEstablishing,
+];

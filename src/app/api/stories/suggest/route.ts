@@ -12,6 +12,10 @@ import type { StorySuggestion } from "@/types";
 const CACHE_TTL_SECONDS = 60 * 60 * 24; // 24 hours
 const MAX_CACHED_SUGGESTIONS = 9;
 
+function sanitizeText(value: unknown, maxLength = 160): string {
+  return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
+}
+
 function normalizeTheme(theme?: string) {
   return (theme ?? "calm bedtime").trim().toLowerCase();
 }
@@ -31,19 +35,26 @@ function buildCastCacheKeyPart(storyPersonIds: unknown) {
   return ids.length > 0 ? ids.join(",") : "none";
 }
 
+function buildLocationCacheKeyPart(locationHint: string) {
+  return locationHint
+    ? locationHint.toLowerCase().replace(/[^a-z0-9]+/g, "-")
+    : "none";
+}
+
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { profileId, locale, fresh, theme, storyPersonIds } =
+  const { profileId, locale, fresh, theme, storyPersonIds, locationHint } =
     (await req.json()) as {
-    profileId: string;
-    locale?: string;
-    fresh?: boolean;
-    theme?: string;
-    storyPersonIds?: string[];
-  };
+      profileId: string;
+      locale?: string;
+      fresh?: boolean;
+      theme?: string;
+      storyPersonIds?: string[];
+      locationHint?: string;
+    };
   if (!profileId)
     return NextResponse.json(
       { error: "profileId is required" },
@@ -64,7 +75,11 @@ export async function POST(req: NextRequest) {
 
   const selectedTheme = normalizeTheme(theme || profile.lessons?.[0]);
   const castCacheKeyPart = buildCastCacheKeyPart(storyPersonIds);
-  const cacheKey = `suggestions:${profileId}:${locale ?? "en"}:${selectedTheme}:${castCacheKeyPart}`;
+  const normalizedLocationHint = sanitizeText(locationHint, 160);
+  const locationCacheKeyPart = buildLocationCacheKeyPart(
+    normalizedLocationHint
+  );
+  const cacheKey = `suggestions:${profileId}:${locale ?? "en"}:${selectedTheme}:${castCacheKeyPart}:${locationCacheKeyPart}`;
   const cached = (await kv.get<StorySuggestion[]>(cacheKey)) ?? [];
   if (!fresh) {
     if (cached.length > 0) return NextResponse.json(cached);
@@ -83,11 +98,17 @@ export async function POST(req: NextRequest) {
     storyPersonIds,
   });
 
-  const suggestions = await generateSuggestions(profile, recentStories, locale, {
-    selectedTheme,
-    previousSuggestions: cached,
-    storyPeople: selectedStoryPeople,
-  });
+  const suggestions = await generateSuggestions(
+    profile,
+    recentStories,
+    locale,
+    {
+      selectedTheme,
+      previousSuggestions: cached,
+      storyPeople: selectedStoryPeople,
+      locationHint: normalizedLocationHint || undefined,
+    }
+  );
   const accumulated = uniqueSuggestions([...cached, ...suggestions]).slice(
     0,
     MAX_CACHED_SUGGESTIONS

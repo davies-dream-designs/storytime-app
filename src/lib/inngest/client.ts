@@ -1,4 +1,4 @@
-import { Inngest } from 'inngest'
+import { Inngest } from "inngest";
 
 /**
  * Shared Inngest client for the print-book pipeline.
@@ -9,12 +9,13 @@ import { Inngest } from 'inngest'
  * pipeline for how functions are registered.
  */
 export const inngest = new Inngest({
-  id: 'storycot',
+  id: "storycot",
   // Signing key + event key are read from INNGEST_SIGNING_KEY / INNGEST_EVENT_KEY
   // in the environment by the SDK. Locally, the Inngest dev server needs neither.
-})
+});
 
 /** Event names emitted into Inngest. Keep these centralised and typed. */
 export const INNGEST_EVENTS = {
-  bookBuildRequested: 'storycot/book.build.requested',
-} as const
+  bookBuildRequested: "storycot/book.build.requested",
+  locationEstablishingRequested: "storycot/location.establishing.requested",
+} as const;

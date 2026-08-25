@@ -24,6 +24,8 @@ export type BookProjectStatus =
 
 export type BookBuildMode = "full" | "art" | "exports" | "finalize";
 export type BookBuildJobStatus = "queued" | "running" | "completed" | "failed";
+export type LocationEstablishingStatus =
+  "queued" | "running" | "ready" | "failed";
 
 export type BookArtMode = "placeholder" | "generated" | "mixed";
 
@@ -97,6 +99,80 @@ export interface CharacterBible {
   lockedCharacterRules?: LockedCharacterRule[];
 }
 
+export interface SceneLocation {
+  id: string;
+  /** Human-readable label, e.g. "Grandma's House (Lounge)". */
+  name: string;
+  /** The broad place, e.g. "Grandma's House", "Playground", "Car". */
+  place: string;
+  /** The specific sub-area within the place, e.g. "Lounge", "Nursery". */
+  area?: string;
+  summary: string;
+  fixedElements: string[];
+  lighting: string;
+  palette: string;
+  doNotChange: string[];
+  /**
+   * Optional parent-supplied ground-truth about this place. Treated as
+   * authoritative over the AI-inferred description when present.
+   */
+  notes?: string;
+  /**
+   * Legacy: a raw parent-supplied reference photo. Locations now draw an
+   * establishing illustration from uploaded photos (see `establishingImageUrl`)
+   * and discard the raw photo, so this is only read as a fallback for places
+   * saved before that change.
+   */
+  referenceImageUrl?: string;
+  /**
+   * The canonical "establishing" illustration of this place. Drawn either from
+   * parent photos (uploaded on the Locations page, then discarded) or, for
+   * places with no photo, generated once at build time from the description. It
+   * anchors every spread set here so the room and each fixed object keep the
+   * same layout and orientation across pages.
+   */
+  establishingImageUrl?: string;
+  establishingImageStatus?: LocationEstablishingStatus;
+  establishingImageError?: string;
+  establishingImageJobId?: string;
+}
+
+export interface LocationBible {
+  locations: SceneLocation[];
+  /**
+   * Maps a story page number (from the source story) to a location id in
+   * `locations`. Pages that revisit an earlier place point at the same id so
+   * the setting is redrawn consistently (e.g. home → outside → home).
+   */
+  pageLocations: Record<number, string>;
+}
+
+/**
+ * A reusable, per-account saved location. Lets a parent describe a real place
+ * once (notes + reference photo) and reuse it across every book, instead of
+ * re-entering it each time. Shares the visual fields of `SceneLocation` so a
+ * fixture can seed a location in a new book's bible.
+ */
+export interface LocationFixture {
+  id: string;
+  userId: string;
+  place: string;
+  area?: string;
+  summary?: string;
+  notes?: string;
+  referenceImageUrl?: string;
+  establishingImageUrl?: string;
+  establishingImageStatus?: LocationEstablishingStatus;
+  establishingImageError?: string;
+  establishingImageJobId?: string;
+  fixedElements: string[];
+  doNotChange: string[];
+  lighting?: string;
+  palette?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface LockedCharacterRule {
   id: string;
   name: string;
@@ -125,6 +201,12 @@ export interface ContinuityVisualReference {
   sequence?: number;
 }
 
+export interface LocationVisualReference {
+  id: string;
+  label: string;
+  imageUrl: string;
+}
+
 export interface IllustrationGenerationMetadata {
   provider: "openai" | "placeholder";
   generatedAt: string;
@@ -150,6 +232,8 @@ export interface BookSpread {
   rightPageText: string;
   sceneBrief: string;
   illustrationPrompt: string;
+  /** Location id (from the project's LocationBible) this spread is set in. */
+  locationId?: string;
   imageUrl?: string;
   leftPageImageUrl?: string;
   leftPageWebImageUrl?: string;
@@ -337,6 +421,7 @@ export interface BookProject {
   totalSpreads: number;
   currentStageLabel: string;
   characterBible?: CharacterBible;
+  locationBible?: LocationBible;
   beats: Beat[];
   spreads: BookSpread[];
   assets: BookAsset;

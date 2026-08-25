@@ -175,6 +175,9 @@ export interface Story {
   theme: string;
   premise?: string;
   notes: string;
+  locationHint?: string;
+  locationFixtureId?: string;
+  locationFixtureIds?: string[];
   storyPreset?: StoryPreset;
   storyPersonIds?: string[];
   ipPolicy?: StoryIpPolicy;

@@ -147,6 +147,7 @@ interface GenerateStoryInput {
   theme: string;
   premise?: string;
   notes: string;
+  locationHint?: string;
   storyPreset?: StoryPreset;
   recentTitles?: string[];
   locale?: string;
@@ -229,6 +230,7 @@ export function buildStoryPrompt(input: GenerateStoryInput): string {
     theme,
     premise,
     notes,
+    locationHint,
     storyPreset,
     recentTitles,
     locale,
@@ -269,6 +271,9 @@ Stay grounded and true to this premise. Include every element the premise names 
     : "";
 
   const notesSection = notes ? `\n\nExtra details to include: ${notes}` : "";
+  const locationSection = locationHint
+    ? `\n\nSpecial places to work into the story at natural moments (soft hints, not the only settings): ${locationHint}. If multiple places are listed, let the story move between them only when it fits the premise; do not force every page to one place.`
+    : "";
 
   const avoidSection =
     recentTitles && recentTitles.length > 0
@@ -283,7 +288,7 @@ Child: ${profile.name}, age ${getAge(profile)}
 ${buildGenderPromptLine(profile)}
 - Appearance reference: ${buildChildCanonicalAppearanceContext(profile) || "No structured appearance details provided."}
 - Theme/lesson: ${theme || "a gentle adventure"}
-${familySection}${characterSection}${premiseSection}${notesSection}${avoidSection}
+${familySection}${characterSection}${premiseSection}${locationSection}${notesSection}${avoidSection}
 
 Write the story in ${language}. Write a warm, age-appropriate bedtime story that:
 1. Features ${profile.name} as the main character
@@ -618,6 +623,7 @@ export async function generateSuggestions(
     selectedTheme?: string;
     previousSuggestions?: StorySuggestion[];
     storyPeople?: StoryPerson[];
+    locationHint?: string;
   } = {}
 ): Promise<StorySuggestion[]> {
   const language = LOCALE_LANGUAGE[locale ?? "en"] ?? "English";
@@ -653,6 +659,9 @@ export async function generateSuggestions(
           )
           .join("\n")}`
       : "";
+  const locationSection = options.locationHint?.trim()
+    ? `\nOptional special places to work into at least one idea when natural: ${options.locationHint.trim()}`
+    : "";
 
   const prompt = `You are a creative children's story idea generator.
 
@@ -667,6 +676,7 @@ ${buildGenderPromptLine(profile)}
 - Themes they like: ${(profile.lessons ?? []).join(", ") || "adventure, kindness"}
 Selected theme for this batch: ${selectedTheme}
 ${familySection}
+${locationSection}
 ${avoidSection}
 ${previousIdeasSection}
 
@@ -677,6 +687,7 @@ Each should:
 - Avoid repeating any profile element, setting, problem, or ending from the already-shown ideas
 - Have a fresh, specific premise - not generic ("goes on an adventure")
 - If selected family/friends/pets/other child profiles are listed, make at least one idea naturally include one or more of them by name. Do not invent named parents, grandparents, siblings, friends, or pets that are not listed.
+- If an optional special place is provided, make at least one idea naturally include that place without forcing the whole story to stay there.
 - Be warm and cosy, suitable for bedtime
 - Feel genuinely different from each other in setting, tone, and focus
 

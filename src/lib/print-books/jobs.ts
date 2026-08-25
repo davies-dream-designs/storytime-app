@@ -8,7 +8,13 @@ import {
 } from "@/lib/print-books/characterBible";
 import { composePrintBookSpreads } from "@/lib/print-books/composer";
 import {
+  applyPreferredFixturesToLocationBible,
+  generateLocationBible,
+} from "@/lib/print-books/locationBible";
+import { getStoryLocationFixtures } from "@/lib/storyLocationFixtures";
+import {
   applySpreadIllustration,
+  generateLocationEstablishingImages,
   generateSpreadPageIllustration,
   isGeneratedIllustrationConfigured,
 } from "@/lib/print-books/illustrations";
@@ -84,12 +90,51 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
     !project.characterBible ||
     !project.spreads.length
   ) {
-    const characterBible = await generateCharacterBible({
-      profile: context.profile,
+    const preferredLocationFixtures = await getStoryLocationFixtures({
       story: context.story,
-      characters: context.characters,
-      storyPeople: context.storyPeople,
+      userId: project.userId,
     });
+
+    const [characterBible, locationBible] = await Promise.all([
+      generateCharacterBible({
+        profile: context.profile,
+        story: context.story,
+        characters: context.characters,
+        storyPeople: context.storyPeople,
+      }),
+      // Reuse a location bible the parent already prepared (with their notes and
+      // reference photos) so their ground-truth is not discarded; only generate
+      // one when none exists yet.
+      project.locationBible?.locations.length
+        ? Promise.resolve(
+            applyPreferredFixturesToLocationBible(
+              project.locationBible,
+              preferredLocationFixtures
+            )
+          )
+        : generateLocationBible({
+            story: context.story,
+            preferredFixtures: preferredLocationFixtures,
+          }).catch((err) => {
+            // A missing location bible degrades to today's behaviour; never fail
+            // the whole build over the continuity enhancement.
+            console.warn(
+              `Location bible generation failed (${
+                err instanceof Error ? err.message : "unknown error"
+              }) - continuing without it.`
+            );
+            return undefined;
+          }),
+    ]);
+
+    // Give each location a canonical establishing image so every spread set
+    // there anchors to the same room layout and object orientation. Runs once,
+    // before any spread is drawn; failures are non-fatal (fall back to text).
+    const locationBibleWithEstablishing =
+      await generateLocationEstablishingImages({
+        project,
+        locationBible,
+      });
 
     const spreads = composePrintBookSpreads({
       bookProjectId: project.id,
@@ -98,12 +143,14 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
       ageBand: project.ageBand,
       beats: project.beats,
       characterBible,
+      locationBible: locationBibleWithEstablishing,
     });
 
     return db.bookProjects.update(project.id, {
       status: "illustrating",
       currentStageLabel: getBookProjectStageLabel("illustrating"),
       characterBible,
+      locationBible: locationBibleWithEstablishing,
       spreads,
       completedSpreads: 0,
       totalSpreads: spreads.length,

@@ -1,0 +1,1 @@
+ALTER TABLE "stories" ADD COLUMN "location_fixture_ids" text[] DEFAULT '{}' NOT NULL;

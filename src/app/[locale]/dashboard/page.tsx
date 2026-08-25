@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { auth } from "@clerk/nextjs/server";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
@@ -15,18 +16,21 @@ import { getStoryThemeName } from "@/lib/storyTheme";
 
 export default async function Dashboard() {
   const { userId } = await auth();
-  const [t, tHome, profiles, storiesRaw, storyPeople] = await Promise.all([
-    getTranslations("dashboard"),
-    getTranslations("home"),
-    db.profiles.getByUserId(userId!),
-    db.stories.getByUserId(userId!),
-    db.storyPeople.getByUserId(userId!),
-  ]);
+  const [t, tHome, profiles, storiesRaw, storyPeople, locationFixtures] =
+    await Promise.all([
+      getTranslations("dashboard"),
+      getTranslations("home"),
+      db.profiles.getByUserId(userId!),
+      db.stories.getByUserId(userId!),
+      db.storyPeople.getByUserId(userId!),
+      db.locationFixtures.getByUserId(userId!),
+    ]);
   const themeNames = tHome.raw("themes") as Record<string, string>;
   const stories = storiesRaw.sort((a, b) =>
     a.createdAt > b.createdAt ? -1 : 1
   );
   const recentStories = stories.slice(0, 3);
+  const recentLocations = locationFixtures.slice(0, 4);
 
   return (
     <>
@@ -42,7 +46,7 @@ export default async function Dashboard() {
           profilesCount={profiles.length}
         />
 
-        <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {[
             {
               label: t("statProfiles"),
@@ -61,6 +65,12 @@ export default async function Dashboard() {
               value: storyPeople.length,
               icon: "profile",
               href: "/family",
+            },
+            {
+              label: "Locations",
+              value: locationFixtures.length,
+              icon: "image",
+              href: "/locations",
             },
             {
               label: t("statLastStory"),
@@ -128,7 +138,104 @@ export default async function Dashboard() {
               <p className="text-sm text-night-400">{t("familySub")}</p>
             </div>
           </Link>
+          <Link
+            href="/locations"
+            className="flex items-center gap-4 rounded-2xl border border-sky-100 bg-sky-50 px-6 py-5 text-sky-700 transition hover:border-sky-200 hover:bg-white hover:shadow-sm"
+          >
+            <Icon name="image" className="h-7 w-7" />
+            <div>
+              <p className="font-display text-lg font-bold">
+                Add Saved Locations
+              </p>
+              <p className="text-sm text-sky-700/70">
+                Bedrooms, lounges, gardens, and real places.
+              </p>
+            </div>
+          </Link>
         </div>
+
+        <section className="mb-10">
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <div>
+              <h2 className="font-display text-2xl font-bold text-night-800">
+                Saved Locations
+              </h2>
+              <p className="mt-1 text-sm text-night-500">
+                Reusable real rooms and places for consistent book
+                illustrations.
+              </p>
+            </div>
+            <Link
+              href="/locations"
+              className="text-sm font-bold text-star-500 hover:text-star-600"
+            >
+              Manage →
+            </Link>
+          </div>
+
+          {recentLocations.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {recentLocations.map((location) => {
+                const imageUrl =
+                  location.establishingImageUrl ?? location.referenceImageUrl;
+                const label = location.area
+                  ? `${location.place} (${location.area})`
+                  : location.place;
+                return (
+                  <Link
+                    key={location.id}
+                    href="/locations"
+                    className="group overflow-hidden rounded-2xl border border-night-100 bg-white shadow-sm transition hover:border-star-200 hover:shadow-md"
+                  >
+                    <div className="relative aspect-square bg-sky-50">
+                      {imageUrl ? (
+                        <Image
+                          src={imageUrl}
+                          alt={label}
+                          fill
+                          sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+                          className="object-cover transition duration-300 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-4xl">
+                          📍
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <p className="line-clamp-1 font-display text-lg font-bold text-night-800">
+                        {label}
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-sm leading-5 text-night-500">
+                        {location.summary ||
+                          location.notes ||
+                          "Ready to reuse in illustrated stories."}
+                      </p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-3xl border-2 border-dashed border-sky-200 bg-sky-50/60 p-8 text-center">
+              <Icon name="image" className="mx-auto h-10 w-10 text-sky-500" />
+              <h3 className="mt-4 font-display text-xl font-bold text-night-800">
+                Add real places once, reuse them in every book
+              </h3>
+              <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-night-500">
+                Save bedrooms, lounges, gardens, Grandma&apos;s house, or any
+                familiar place. Storycot can use their generated illustrations
+                as references so backgrounds stay more consistent.
+              </p>
+              <Link
+                href="/locations"
+                className={buttonClassName({ className: "mt-5" })}
+              >
+                Add a location
+              </Link>
+            </div>
+          )}
+        </section>
 
         {recentStories.length > 0 && (
           <section>

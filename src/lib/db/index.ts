@@ -26,6 +26,7 @@ import type {
   BookAsset,
   PrintBookOrder,
   PrintOrderRecord,
+  LocationFixture,
 } from "@/types/printBook";
 import type { GiftOrder } from "@/types/gift";
 import type { ErrorEventRecord, ErrorEventFilters } from "@/lib/errors";
@@ -44,6 +45,7 @@ type CharacterRow = typeof schema.characters.$inferSelect;
 type StoryPersonRow = typeof schema.storyPeople.$inferSelect;
 type StoryPersonProfileRow = typeof schema.storyPersonProfiles.$inferSelect;
 type BookProjectRow = typeof schema.bookProjects.$inferSelect;
+type LocationFixtureRow = typeof schema.locationFixtures.$inferSelect;
 type BookBuildJobRow = typeof schema.bookBuildJobs.$inferSelect;
 type GiftOrderRow = typeof schema.giftOrders.$inferSelect;
 type PrintOrderRow = typeof schema.printOrders.$inferSelect;
@@ -119,6 +121,13 @@ function rowToStory(row: StoryRow): Story {
     theme: row.theme,
     premise: row.premise ?? undefined,
     notes: row.notes,
+    locationHint: row.locationHint ?? undefined,
+    locationFixtureId: row.locationFixtureId ?? undefined,
+    locationFixtureIds: row.locationFixtureIds?.length
+      ? row.locationFixtureIds
+      : row.locationFixtureId
+        ? [row.locationFixtureId]
+        : [],
     storyPreset: row.storyPreset ?? undefined,
     storyPersonIds: row.storyPersonIds ?? [],
     ipPolicy: row.ipPolicy ?? undefined,
@@ -149,6 +158,9 @@ function storyToRow(s: Story) {
     theme: s.theme,
     premise: s.premise ?? null,
     notes: s.notes,
+    locationHint: s.locationHint ?? null,
+    locationFixtureId: s.locationFixtureId ?? null,
+    locationFixtureIds: s.locationFixtureIds ?? [],
     storyPreset: s.storyPreset ?? null,
     storyPersonIds: s.storyPersonIds ?? [],
     ipPolicy: s.ipPolicy ?? null,
@@ -219,6 +231,50 @@ function storyPersonToRow(person: StoryPerson) {
   };
 }
 
+function rowToLocationFixture(row: LocationFixtureRow): LocationFixture {
+  return {
+    id: row.id,
+    userId: row.userId,
+    place: row.place,
+    area: row.area ?? undefined,
+    summary: row.summary ?? undefined,
+    notes: row.notes ?? undefined,
+    referenceImageUrl: row.referenceImageUrl ?? undefined,
+    establishingImageUrl: row.establishingImageUrl ?? undefined,
+    establishingImageStatus: row.establishingImageStatus ?? undefined,
+    establishingImageError: row.establishingImageError ?? undefined,
+    establishingImageJobId: row.establishingImageJobId ?? undefined,
+    fixedElements: row.fixedElements ?? [],
+    doNotChange: row.doNotChange ?? [],
+    lighting: row.lighting ?? undefined,
+    palette: row.palette ?? undefined,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function locationFixtureToRow(fixture: LocationFixture) {
+  return {
+    id: fixture.id,
+    userId: fixture.userId,
+    place: fixture.place,
+    area: fixture.area ?? null,
+    summary: fixture.summary ?? null,
+    notes: fixture.notes ?? null,
+    referenceImageUrl: fixture.referenceImageUrl ?? null,
+    establishingImageUrl: fixture.establishingImageUrl ?? null,
+    establishingImageStatus: fixture.establishingImageStatus ?? null,
+    establishingImageError: fixture.establishingImageError ?? null,
+    establishingImageJobId: fixture.establishingImageJobId ?? null,
+    fixedElements: fixture.fixedElements,
+    doNotChange: fixture.doNotChange,
+    lighting: fixture.lighting ?? null,
+    palette: fixture.palette ?? null,
+    createdAt: fixture.createdAt,
+    updatedAt: fixture.updatedAt,
+  };
+}
+
 function profileIdsByPersonId(
   links: StoryPersonProfileRow[]
 ): Map<string, string[]> {
@@ -273,6 +329,7 @@ function rowToBookProject(row: BookProjectRow): BookProject {
     totalSpreads: row.totalSpreads,
     currentStageLabel: row.currentStageLabel,
     characterBible: row.characterBible ?? undefined,
+    locationBible: row.locationBible ?? undefined,
     beats: (row.beats as BookProject["beats"]) ?? [],
     spreads: (row.spreads as BookProject["spreads"]) ?? [],
     assets: row.assets as BookProject["assets"],
@@ -305,6 +362,7 @@ function bookProjectToRow(p: BookProject) {
     totalSpreads: p.totalSpreads,
     currentStageLabel: p.currentStageLabel,
     characterBible: p.characterBible ?? null,
+    locationBible: p.locationBible ?? null,
     beats: p.beats,
     spreads: p.spreads,
     assets: p.assets,
@@ -845,6 +903,57 @@ export const db = {
         .delete(schema.characters)
         .where(eq(schema.characters.id, id))
         .returning({ id: schema.characters.id });
+      return result.length > 0;
+    },
+  },
+
+  locationFixtures: {
+    async getByUserId(userId: string): Promise<LocationFixture[]> {
+      const rows = await getClient()
+        .select()
+        .from(schema.locationFixtures)
+        .where(eq(schema.locationFixtures.userId, userId))
+        .orderBy(desc(schema.locationFixtures.updatedAt));
+      return rows.map(rowToLocationFixture);
+    },
+    async getById(id: string): Promise<LocationFixture | undefined> {
+      const rows = await getClient()
+        .select()
+        .from(schema.locationFixtures)
+        .where(eq(schema.locationFixtures.id, id));
+      const row = rows[0];
+      return row ? rowToLocationFixture(row) : undefined;
+    },
+    async create(fixture: LocationFixture): Promise<void> {
+      await getClient()
+        .insert(schema.locationFixtures)
+        .values(locationFixtureToRow(fixture));
+    },
+    async update(
+      id: string,
+      updates: Partial<LocationFixture>
+    ): Promise<LocationFixture | undefined> {
+      const current = await this.getById(id);
+      if (!current) return undefined;
+      const next: LocationFixture = {
+        ...current,
+        ...updates,
+        id: current.id,
+        userId: current.userId,
+        createdAt: current.createdAt,
+        updatedAt: new Date().toISOString(),
+      };
+      await getClient()
+        .update(schema.locationFixtures)
+        .set(locationFixtureToRow(next))
+        .where(eq(schema.locationFixtures.id, id));
+      return next;
+    },
+    async delete(id: string): Promise<boolean> {
+      const result = await getClient()
+        .delete(schema.locationFixtures)
+        .where(eq(schema.locationFixtures.id, id))
+        .returning({ id: schema.locationFixtures.id });
       return result.length > 0;
     },
   },

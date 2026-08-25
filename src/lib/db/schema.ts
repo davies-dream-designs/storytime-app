@@ -29,6 +29,7 @@ import type {
   PrintBookOrder,
   PrintOrderRecord,
   CharacterBible,
+  LocationBible,
   BookProjectStatus,
   BookBuildMode,
   BookBuildJobStatus,
@@ -81,6 +82,12 @@ export const stories = pgTable(
     theme: text("theme").notNull(),
     premise: text("premise"),
     notes: text("notes").notNull().default(""),
+    locationHint: text("location_hint"),
+    locationFixtureId: text("location_fixture_id"),
+    locationFixtureIds: text("location_fixture_ids")
+      .array()
+      .notNull()
+      .default([]),
     storyPreset: text("story_preset").$type<StoryPreset>(),
     storyPersonIds: text("story_person_ids").array().notNull().default([]),
     ipPolicy: jsonb("ip_policy").$type<StoryIpPolicy>(),
@@ -196,6 +203,7 @@ export const bookProjects = pgTable(
     totalSpreads: integer("total_spreads").notNull(),
     currentStageLabel: text("current_stage_label").notNull(),
     characterBible: jsonb("character_bible").$type<CharacterBible>(),
+    locationBible: jsonb("location_bible").$type<LocationBible>(),
     beats: jsonb("beats").$type<Beat[]>().notNull().default([]),
     spreads: jsonb("spreads").$type<BookSpread[]>().notNull().default([]),
     assets: jsonb("assets").$type<BookAsset>().notNull(),
@@ -393,6 +401,35 @@ export const publicStoryReports = pgTable(
     index("public_story_reports_story_status_idx").on(t.storyId, t.status),
     index("public_story_reports_status_idx").on(t.status),
   ]
+);
+
+export const locationFixtures = pgTable(
+  "location_fixtures",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    place: text("place").notNull(),
+    area: text("area"),
+    summary: text("summary"),
+    notes: text("notes"),
+    referenceImageUrl: text("reference_image_url"),
+    establishingImageUrl: text("establishing_image_url"),
+    establishingImageStatus: text("establishing_image_status").$type<
+      "queued" | "running" | "ready" | "failed"
+    >(),
+    establishingImageError: text("establishing_image_error"),
+    establishingImageJobId: text("establishing_image_job_id"),
+    fixedElements: jsonb("fixed_elements")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    doNotChange: jsonb("do_not_change").$type<string[]>().notNull().default([]),
+    lighting: text("lighting"),
+    palette: text("palette"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [index("location_fixtures_user_id_idx").on(t.userId)]
 );
 
 export const publicStoryModerationEvents = pgTable(

@@ -125,6 +125,12 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
 
   async function save() {
     if (!form) return;
+    if (cameraPhotos.length > 0) {
+      const uploaded = await uploadPhotos(cameraPhotos);
+      if (uploaded) closeForm();
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
@@ -171,14 +177,9 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
     setSaving(true);
     setError(null);
     try {
-      const savedFixture = form.id ? undefined : await persistForm(form);
-      const fixtureId = form.id ?? savedFixture?.id;
-      if (!fixtureId) {
-        throw new Error("Could not save this place before uploading photos.");
-      }
-      if (savedFixture) {
-        setForm(fixtureToForm(savedFixture));
-      }
+      const savedFixture = await persistForm(form);
+      const fixtureId = savedFixture.id;
+      setForm(fixtureToForm(savedFixture));
 
       const files = await Promise.all(
         selected.map((file) => compressImageForUpload(file))
@@ -192,6 +193,7 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
       });
       const data = (await res.json().catch(() => null)) as {
         establishingImageUrl?: string;
+        fixture?: LocationFixture;
         error?: string;
       } | null;
       if (!res.ok || !data?.establishingImageUrl) {
@@ -199,15 +201,20 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
           data?.error ?? "Couldn't draw this place. Please try again."
         );
       }
-      const establishingImageUrl = data.establishingImageUrl;
-      setForm((prev) =>
-        prev ? { ...prev, id: fixtureId, establishingImageUrl } : prev
-      );
-      setFixtures((prev) =>
-        prev.map((f) =>
-          f.id === fixtureId ? { ...f, establishingImageUrl } : f
-        )
-      );
+      const finalFixture =
+        data.fixture ??
+        ({
+          ...savedFixture,
+          establishingImageUrl: data.establishingImageUrl,
+          referenceImageUrl: undefined,
+        } satisfies LocationFixture);
+      setForm(fixtureToForm(finalFixture));
+      setFixtures((prev) => {
+        const without = prev.filter((f) => f.id !== finalFixture.id);
+        return [finalFixture, ...without].sort((a, b) =>
+          fixtureLabel(a).localeCompare(fixtureLabel(b))
+        );
+      });
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
@@ -535,7 +542,13 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                 Cancel
               </Button>
               <Button onClick={save} disabled={saving || uploading}>
-                {saving ? "Saving…" : "Save location"}
+                {saving || uploading
+                  ? "Saving…"
+                  : cameraPhotos.length > 0
+                    ? `Save & draw from ${cameraPhotos.length} photo${
+                        cameraPhotos.length === 1 ? "" : "s"
+                      }`
+                    : "Save location"}
               </Button>
             </div>
           </div>

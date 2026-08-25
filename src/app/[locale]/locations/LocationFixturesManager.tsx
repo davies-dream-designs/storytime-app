@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRef, useState } from "react";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
@@ -263,15 +264,16 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
               className="flex gap-4 rounded-2xl border border-night-100 p-4"
             >
               {fixture.establishingImageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <Image
                   src={fixture.establishingImageUrl}
                   alt={`Illustration of ${fixtureLabel(fixture)}`}
-                  className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                  width={112}
+                  height={112}
+                  className="h-28 w-28 shrink-0 rounded-xl object-cover shadow-sm"
                 />
               ) : (
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-night-50 text-night-300">
-                  <Icon name="image" />
+                <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-xl bg-night-50 text-night-300">
+                  <Icon name="image" className="h-8 w-8" />
                 </div>
               )}
               <div className="min-w-0 flex-1">
@@ -319,7 +321,7 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
           aria-modal="true"
           aria-labelledby="location-form-title"
         >
-          <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white shadow-xl">
+          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white shadow-xl">
             <div className="border-b border-night-100 p-5">
               <h2
                 id="location-form-title"
@@ -395,15 +397,24 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                   consistent, then discard your photos. We keep the
                   illustration, not your photos.
                 </p>
-                <div className="mt-2 flex flex-wrap items-center gap-3">
-                  {form.establishingImageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                {form.establishingImageUrl ? (
+                  <div className="mt-3 overflow-hidden rounded-2xl border border-night-100 bg-night-50 shadow-sm">
+                    <Image
                       src={form.establishingImageUrl}
                       alt="Illustration of this place"
-                      className="h-14 w-14 rounded-lg object-cover"
+                      width={720}
+                      height={720}
+                      sizes="(min-width: 640px) 32rem, 100vw"
+                      className="aspect-square w-full object-cover"
                     />
-                  ) : null}
+                    <div className="border-t border-night-100 bg-white px-3 py-2">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-night-400">
+                        Current illustration preview
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+                <div className="mt-3 flex flex-wrap items-center gap-3">
                   <label
                     className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-night-200 px-3 py-1.5 text-sm font-bold text-night-700 ${
                       uploading || saving || !form.place.trim()

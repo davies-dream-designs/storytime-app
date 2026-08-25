@@ -342,11 +342,7 @@ export function buildLocationDirection(
       `Ground-truth from the family about this real place (authoritative — follow it over any conflicting detail above): ${clampPreview(notes, compact ? 220 : 400)}.`
     );
   }
-  if (location.referenceImageUrl) {
-    parts.push(
-      `A reference photo of this place is attached; match its layout, furniture, and colours.`
-    );
-  } else if (location.establishingImageUrl) {
+  if (location.establishingImageUrl || location.referenceImageUrl) {
     parts.push(
       `An established rendering of this place is attached; match its layout, furniture, colours, and the orientation each object faces.`
     );
@@ -387,16 +383,14 @@ export function resolveSpreadLocationReference(
 ): LocationVisualReference | undefined {
   const location = resolveSpreadLocation(bible, spread);
   if (!location) return undefined;
-  // A parent-supplied photo is stronger ground truth than a generated
-  // establishing view, so it wins when both are present.
-  const imageUrl = location.referenceImageUrl ?? location.establishingImageUrl;
+  // The establishing illustration is the canonical anchor for a location.
+  // `referenceImageUrl` is only a legacy fallback for any raw photo saved before
+  // locations switched to the drawn-establishing model.
+  const imageUrl = location.establishingImageUrl ?? location.referenceImageUrl;
   if (!imageUrl) return undefined;
-  const label = location.referenceImageUrl
-    ? `Location photo — ${location.name}`
-    : `Established view of ${location.name} — keep this room, furniture, and object orientation identical`;
   return {
     id: `location:${location.id}`,
-    label,
+    label: `Established view of ${location.name} — keep this room, furniture, and object orientation identical`,
     imageUrl,
   };
 }

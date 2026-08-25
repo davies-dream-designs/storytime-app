@@ -210,32 +210,8 @@ describe("parent-supplied location details", () => {
     expect(direction).not.toContain("Ground-truth from the family");
   });
 
-  it("resolves a location reference photo for a stamped spread", () => {
-    const photoBible: LocationBible = {
-      locations: [
-        { ...bedroom, referenceImageUrl: "https://cdn.example/nursery.jpg" },
-        garden,
-      ],
-      pageLocations: bible.pageLocations,
-    };
-    const ref = resolveSpreadLocationReference(photoBible, {
-      locationId: "bedroom",
-    });
-    expect(ref).toEqual({
-      id: "location:bedroom",
-      label: "Location photo — Levi's bedroom",
-      imageUrl: "https://cdn.example/nursery.jpg",
-    });
-  });
-
-  it("returns no reference photo when the location has none", () => {
-    expect(
-      resolveSpreadLocationReference(bible, { locationId: "bedroom" })
-    ).toBeUndefined();
-  });
-
-  it("falls back to a generated establishing image when there is no photo", () => {
-    const establishingBible: LocationBible = {
+  it("resolves the establishing illustration for a stamped spread", () => {
+    const drawnBible: LocationBible = {
       locations: [
         {
           ...bedroom,
@@ -245,16 +221,39 @@ describe("parent-supplied location details", () => {
       ],
       pageLocations: bible.pageLocations,
     };
-    const ref = resolveSpreadLocationReference(establishingBible, {
+    const ref = resolveSpreadLocationReference(drawnBible, {
       locationId: "bedroom",
     });
-    expect(ref?.imageUrl).toBe(
-      "https://cdn.example/bedroom-establishing.png"
-    );
+    expect(ref).toEqual({
+      id: "location:bedroom",
+      label:
+        "Established view of Levi's bedroom — keep this room, furniture, and object orientation identical",
+      imageUrl: "https://cdn.example/bedroom-establishing.png",
+    });
+  });
+
+  it("returns no reference photo when the location has none", () => {
+    expect(
+      resolveSpreadLocationReference(bible, { locationId: "bedroom" })
+    ).toBeUndefined();
+  });
+
+  it("uses a legacy raw photo only when no establishing illustration exists", () => {
+    const legacyBible: LocationBible = {
+      locations: [
+        { ...bedroom, referenceImageUrl: "https://cdn.example/nursery.jpg" },
+        garden,
+      ],
+      pageLocations: bible.pageLocations,
+    };
+    const ref = resolveSpreadLocationReference(legacyBible, {
+      locationId: "bedroom",
+    });
+    expect(ref?.imageUrl).toBe("https://cdn.example/nursery.jpg");
     expect(ref?.label).toContain("Established view");
   });
 
-  it("prefers a parent photo over a generated establishing image", () => {
+  it("prefers the establishing illustration over a legacy raw photo", () => {
     const bothBible: LocationBible = {
       locations: [
         {
@@ -269,8 +268,9 @@ describe("parent-supplied location details", () => {
     const ref = resolveSpreadLocationReference(bothBible, {
       locationId: "bedroom",
     });
-    expect(ref?.imageUrl).toBe("https://cdn.example/nursery.jpg");
-    expect(ref?.label).toContain("Location photo");
+    expect(ref?.imageUrl).toBe(
+      "https://cdn.example/bedroom-establishing.png"
+    );
   });
 
   it("describes an attached establishing rendering in the direction text", () => {

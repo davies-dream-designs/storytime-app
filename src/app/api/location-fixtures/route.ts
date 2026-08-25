@@ -47,6 +47,8 @@ export async function POST(req: NextRequest) {
     summary: sanitizeText(body.summary) || undefined,
     notes: sanitizeText(body.notes, 1200) || undefined,
     referenceImageUrl: sanitizeText(body.referenceImageUrl, 600) || undefined,
+    establishingImageUrl:
+      sanitizeText(body.establishingImageUrl, 600) || undefined,
     fixedElements: sanitizeStringArray(body.fixedElements),
     doNotChange: sanitizeStringArray(body.doNotChange),
     lighting: sanitizeText(body.lighting, 200) || undefined,

@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import sharp from "sharp";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { storeBookAsset } from "@/lib/print-books/storage";
+import { generateLocationEstablishingFromPhotos } from "@/lib/print-books/locationEstablishing";
 import { validateStoryPersonPhoto } from "@/lib/storyPeopleAvatars";
 
-/** Upload/replace a reusable location fixture's reference photo. */
+const MAX_PHOTOS = 5;
+
+/**
+ * Generate a reusable establishing illustration for a location fixture from one
+ * or more uploaded photos. The photos are used to draw the illustration, then
+ * discarded — only the generated illustration is persisted (same model as
+ * story-people avatars). Locations accept multiple angles.
+ */
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -22,36 +28,52 @@ export async function POST(
   }
 
   const form = await req.formData();
-  const photo = form.get("photo");
-  if (!(photo instanceof File)) {
-    return NextResponse.json({ error: "photo is required" }, { status: 400 });
-  }
   if (form.get("photoConsent") !== "yes") {
     return NextResponse.json(
       { error: "Photo consent is required." },
       { status: 400 }
     );
   }
-  const validationError = validateStoryPersonPhoto(photo);
-  if (validationError) {
-    return NextResponse.json({ error: validationError }, { status: 400 });
+
+  const photos = form
+    .getAll("photos")
+    .filter((entry): entry is File => entry instanceof File);
+  if (photos.length === 0) {
+    return NextResponse.json(
+      { error: "At least one photo is required" },
+      { status: 400 }
+    );
+  }
+  if (photos.length > MAX_PHOTOS) {
+    return NextResponse.json(
+      { error: `Please upload at most ${MAX_PHOTOS} photos.` },
+      { status: 400 }
+    );
+  }
+  for (const photo of photos) {
+    const validationError = validateStoryPersonPhoto(photo);
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
+    }
   }
 
-  const source = Buffer.from(await photo.arrayBuffer());
-  const webImage = await sharp(source)
-    .rotate()
-    .resize(1024, 1024, { fit: "inside", withoutEnlargement: true })
-    .jpeg({ quality: 82 })
-    .toBuffer();
-
-  const referenceImageUrl = await storeBookAsset({
-    pathname: `location-fixtures/${userId}/${id}-${Date.now()}.jpg`,
-    body: webImage,
-    contentType: "image/jpeg",
-  });
-
-  const updated = await db.locationFixtures.update(id, { referenceImageUrl });
-  return NextResponse.json({ referenceImageUrl, fixture: updated });
+  try {
+    const { establishingImageUrl } =
+      await generateLocationEstablishingFromPhotos({
+        location: fixture,
+        files: photos,
+        pathnamePrefix: `location-fixtures/${userId}/${id}`,
+      });
+    const updated = await db.locationFixtures.update(id, {
+      establishingImageUrl,
+      referenceImageUrl: undefined,
+    });
+    return NextResponse.json({ establishingImageUrl, fixture: updated });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Generation failed";
+    const status = /insufficient credits/i.test(message) ? 402 : 502;
+    return NextResponse.json({ error: message }, { status });
+  }
 }
 
 export async function DELETE(
@@ -70,6 +92,7 @@ export async function DELETE(
   }
 
   const updated = await db.locationFixtures.update(id, {
+    establishingImageUrl: undefined,
     referenceImageUrl: undefined,
   });
   return NextResponse.json({ fixture: updated });

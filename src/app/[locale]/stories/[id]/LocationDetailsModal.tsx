@@ -34,8 +34,8 @@ export default function LocationDetailsModal({
   const [photos, setPhotos] = useState<Record<string, string>>(() =>
     Object.fromEntries(
       locations
-        .filter((l) => l.referenceImageUrl)
-        .map((l) => [l.id, l.referenceImageUrl as string])
+        .filter((l) => l.establishingImageUrl ?? l.referenceImageUrl)
+        .map((l) => [l.id, (l.establishingImageUrl ?? l.referenceImageUrl)!])
     )
   );
   const [uploadingId, setUploadingId] = useState<string | null>(null);
@@ -76,10 +76,11 @@ export default function LocationDetailsModal({
     if (fixture.notes) {
       setNotes((prev) => ({ ...prev, [locationId]: fixture.notes as string }));
     }
-    if (fixture.referenceImageUrl) {
+    const fixtureImage = fixture.establishingImageUrl ?? fixture.referenceImageUrl;
+    if (fixtureImage) {
       setPhotos((prev) => ({
         ...prev,
-        [locationId]: fixture.referenceImageUrl as string,
+        [locationId]: fixtureImage,
       }));
     }
     setDismissedSuggestions((prev) => new Set(prev).add(locationId));
@@ -98,7 +99,7 @@ export default function LocationDetailsModal({
           area: location.area,
           summary: location.summary,
           notes: note || undefined,
-          referenceImageUrl: photo || undefined,
+          establishingImageUrl: photo || undefined,
         }),
       });
       if (res.ok) {
@@ -111,25 +112,31 @@ export default function LocationDetailsModal({
     }
   }
 
-  async function uploadPhoto(locationId: string, file: File) {
+  async function uploadPhotos(locationId: string, files: File[]) {
+    if (files.length === 0) return;
     setUploadingId(locationId);
     setUploadError(null);
     try {
       const form = new FormData();
-      form.append("photo", file);
+      for (const file of files) form.append("photos", file);
       form.append("photoConsent", "yes");
       const res = await fetch(
         `/api/books/${projectId}/locations/${locationId}/photo`,
         { method: "POST", body: form }
       );
       const data = (await res.json().catch(() => null)) as {
-        referenceImageUrl?: string;
+        establishingImageUrl?: string;
         error?: string;
       } | null;
-      if (!res.ok || !data?.referenceImageUrl) {
-        throw new Error(data?.error ?? "Upload failed. Please try again.");
+      if (!res.ok || !data?.establishingImageUrl) {
+        throw new Error(
+          data?.error ?? "Couldn't draw this place. Please try again."
+        );
       }
-      setPhotos((prev) => ({ ...prev, [locationId]: data.referenceImageUrl! }));
+      setPhotos((prev) => ({
+        ...prev,
+        [locationId]: data.establishingImageUrl!,
+      }));
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
@@ -170,9 +177,10 @@ export default function LocationDetailsModal({
             Add real-life details (optional)
           </h2>
           <p className="mt-1 text-sm text-night-500">
-            We spotted these places in your story. Add a quick note or a photo of
-            the real place and we&apos;ll match the illustrations to it. Skip any
-            you like — this is completely optional.
+            We spotted these places in your story. Add a quick note, or a few
+            photos of the real place from different angles — we&apos;ll draw one
+            storybook picture of it to keep it consistent, then discard your
+            photos. Skip any you like — this is completely optional.
           </p>
         </div>
 
@@ -248,11 +256,12 @@ export default function LocationDetailsModal({
                       fileInputs.current[location.id] = el;
                     }}
                     type="file"
+                    multiple
                     accept="image/jpeg,image/png,image/webp"
                     className="hidden"
                     onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) void uploadPhoto(location.id, file);
+                      const files = Array.from(e.target.files ?? []);
+                      if (files.length > 0) void uploadPhotos(location.id, files);
                       e.target.value = "";
                     }}
                   />
@@ -261,7 +270,7 @@ export default function LocationDetailsModal({
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={photos[location.id]}
-                        alt={`Reference for ${location.name}`}
+                        alt={`Illustration of ${location.name}`}
                         className="h-14 w-14 rounded-lg object-cover"
                       />
                       <Button
@@ -270,7 +279,7 @@ export default function LocationDetailsModal({
                         onClick={() => removePhoto(location.id)}
                         disabled={uploadingId === location.id}
                       >
-                        Remove photo
+                        Remove
                       </Button>
                     </>
                   ) : (
@@ -282,8 +291,8 @@ export default function LocationDetailsModal({
                     >
                       <Icon name="image" />
                       {uploadingId === location.id
-                        ? "Uploading…"
-                        : "Add photo"}
+                        ? "Drawing…"
+                        : "Add photos"}
                     </Button>
                   )}
                   {(notes[location.id] ?? "").trim() || photos[location.id] ? (

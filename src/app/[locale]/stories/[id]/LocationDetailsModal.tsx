@@ -14,7 +14,10 @@ type Props = {
   locations: SceneLocation[];
   submitting: boolean;
   onCancel: () => void;
-  onConfirm: (notes: Record<string, string>) => void;
+  onConfirm: (details: {
+    notes: Record<string, string>;
+    establishingImageUrls: Record<string, string>;
+  }) => void;
 };
 
 /**
@@ -78,7 +81,8 @@ export default function LocationDetailsModal({
     if (fixture.notes) {
       setNotes((prev) => ({ ...prev, [locationId]: fixture.notes as string }));
     }
-    const fixtureImage = fixture.establishingImageUrl ?? fixture.referenceImageUrl;
+    const fixtureImage =
+      fixture.establishingImageUrl ?? fixture.referenceImageUrl;
     if (fixtureImage) {
       setPhotos((prev) => ({
         ...prev,
@@ -362,7 +366,7 @@ export default function LocationDetailsModal({
             Cancel
           </Button>
           <Button
-            onClick={() => onConfirm(notes)}
+            onClick={() => onConfirm({ notes, establishingImageUrls: photos })}
             disabled={submitting || Boolean(uploadingId)}
           >
             {submitting ? "Creating…" : "Create book"}

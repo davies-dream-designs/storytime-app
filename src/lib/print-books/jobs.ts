@@ -7,7 +7,10 @@ import {
   generateCharacterBible,
 } from "@/lib/print-books/characterBible";
 import { composePrintBookSpreads } from "@/lib/print-books/composer";
-import { generateLocationBible } from "@/lib/print-books/locationBible";
+import {
+  applyPreferredFixtureToLocationBible,
+  generateLocationBible,
+} from "@/lib/print-books/locationBible";
 import {
   applySpreadIllustration,
   generateLocationEstablishingImages,
@@ -101,7 +104,14 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
       // reference photos) so their ground-truth is not discarded; only generate
       // one when none exists yet.
       project.locationBible?.locations.length
-        ? Promise.resolve(project.locationBible)
+        ? Promise.resolve(
+            applyPreferredFixtureToLocationBible(
+              project.locationBible,
+              preferredLocationFixture?.userId === project.userId
+                ? preferredLocationFixture
+                : undefined
+            )
+          )
         : generateLocationBible({
             story: context.story,
             preferredFixture:

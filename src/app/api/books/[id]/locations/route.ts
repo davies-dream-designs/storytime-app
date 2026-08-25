@@ -3,9 +3,10 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 
 /**
- * Save parent-supplied ground-truth notes onto the book's location bible.
- * Body: { notes: Record<locationId, string> }. Only known location ids are
- * updated; blank notes clear the field.
+ * Save parent-supplied ground-truth notes and selected saved-location
+ * establishing illustrations onto the book's location bible.
+ * Body: { notes?: Record<locationId, string>, establishingImageUrls?: Record<locationId, string> }.
+ * Only known location ids are updated; blank notes clear the field.
  */
 export async function PATCH(
   req: NextRequest,
@@ -30,14 +31,24 @@ export async function PATCH(
 
   const body = (await req.json().catch(() => null)) as {
     notes?: Record<string, unknown>;
+    establishingImageUrls?: Record<string, unknown>;
   } | null;
   const notes = body?.notes ?? {};
+  const establishingImageUrls = body?.establishingImageUrls ?? {};
 
   const locations = project.locationBible.locations.map((location) => {
-    if (!(location.id in notes)) return location;
-    const value = notes[location.id];
-    const note = typeof value === "string" ? value.trim() : "";
-    return { ...location, notes: note || undefined };
+    const next = { ...location };
+    if (location.id in notes) {
+      const value = notes[location.id];
+      const note = typeof value === "string" ? value.trim() : "";
+      next.notes = note || undefined;
+    }
+    if (location.id in establishingImageUrls) {
+      const value = establishingImageUrls[location.id];
+      const url = typeof value === "string" ? value.trim() : "";
+      if (url) next.establishingImageUrl = url;
+    }
+    return next;
   });
 
   const updated = await db.bookProjects.update(id, {

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { generateLocationBible } from "@/lib/print-books/locationBible";
+import {
+  applyPreferredFixtureToLocationBible,
+  generateLocationBible,
+} from "@/lib/print-books/locationBible";
 
 /**
  * Generate (once) the location bible for a fresh book so the parent can review
@@ -39,8 +42,17 @@ export async function POST(
   const reviewRequired = !preferredFixture;
 
   if (project.locationBible?.locations.length) {
+    const locationBible = preferredFixture
+      ? applyPreferredFixtureToLocationBible(
+          project.locationBible,
+          preferredFixture
+        )
+      : project.locationBible;
+    if (locationBible !== project.locationBible) {
+      await db.bookProjects.update(id, { locationBible });
+    }
     return NextResponse.json({
-      locationBible: project.locationBible,
+      locationBible,
       reviewRequired,
     });
   }

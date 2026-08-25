@@ -116,15 +116,25 @@ export default function CreatePrintBookButton({
     }
   }
 
-  async function runBuild(projectId: string, notes?: Record<string, string>) {
+  async function runBuild(
+    projectId: string,
+    locationDetails?: {
+      notes?: Record<string, string>;
+      establishingImageUrls?: Record<string, string>;
+    }
+  ) {
     setLoading(true);
     setError(null);
     try {
-      if (notes && Object.keys(notes).length > 0) {
+      if (
+        locationDetails &&
+        (Object.keys(locationDetails.notes ?? {}).length > 0 ||
+          Object.keys(locationDetails.establishingImageUrls ?? {}).length > 0)
+      ) {
         await fetch(`/api/books/${projectId}/locations`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ notes }),
+          body: JSON.stringify(locationDetails),
         });
       }
 
@@ -163,8 +173,8 @@ export default function CreatePrintBookButton({
           setPendingProjectId(null);
           setLoading(false);
         }}
-        onConfirm={(notes) => {
-          if (pendingProjectId) void runBuild(pendingProjectId, notes);
+        onConfirm={(details) => {
+          if (pendingProjectId) void runBuild(pendingProjectId, details);
         }}
       />
     ) : null;

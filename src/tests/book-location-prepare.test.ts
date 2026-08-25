@@ -33,9 +33,15 @@ vi.mock("@/lib/db", () => ({
   db: mockDb,
 }));
 
-vi.mock("@/lib/print-books/locationBible", () => ({
-  generateLocationBible: mockGenerateLocationBible,
-}));
+vi.mock("@/lib/print-books/locationBible", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/lib/print-books/locationBible")
+  >("@/lib/print-books/locationBible");
+  return {
+    ...actual,
+    generateLocationBible: mockGenerateLocationBible,
+  };
+});
 
 function createProject(overrides: Partial<BookProject> = {}): BookProject {
   return {
@@ -169,5 +175,61 @@ describe("POST /api/books/[id]/locations/prepare", () => {
       story: expect.objectContaining({ id: "story-1" }),
       preferredFixture: undefined,
     });
+  });
+
+  it("applies the saved location illustration to an already-prepared bible", async () => {
+    const fixture = createFixture();
+    mockDb.stories.getById.mockResolvedValue(
+      createStory({ locationFixtureId: fixture.id })
+    );
+    mockDb.locationFixtures.getById.mockResolvedValue(fixture);
+    mockDb.bookProjects.getById.mockResolvedValue(
+      createProject({
+        locationBible: {
+          locations: [
+            {
+              id: "grandmas_lounge",
+              name: "Grandma's House (Lounge)",
+              place: "Grandma's House",
+              area: "Lounge",
+              summary: "AI-inferred lounge.",
+              fixedElements: [],
+              lighting: "",
+              palette: "",
+              doNotChange: [],
+            },
+          ],
+          pageLocations: { 1: "grandmas_lounge" },
+        },
+      })
+    );
+
+    const { POST } =
+      await import("@/app/api/books/[id]/locations/prepare/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/books/book-1/locations/prepare", {
+        method: "POST",
+      }),
+      { params: Promise.resolve({ id: "book-1" }) }
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.reviewRequired).toBe(false);
+    expect(body.locationBible.locations[0].establishingImageUrl).toBe(
+      fixture.establishingImageUrl
+    );
+    expect(mockDb.bookProjects.update).toHaveBeenCalledWith("book-1", {
+      locationBible: expect.objectContaining({
+        locations: [
+          expect.objectContaining({
+            id: "grandmas_lounge",
+            establishingImageUrl: fixture.establishingImageUrl,
+            notes: fixture.notes,
+          }),
+        ],
+      }),
+    });
+    expect(mockGenerateLocationBible).not.toHaveBeenCalled();
   });
 });

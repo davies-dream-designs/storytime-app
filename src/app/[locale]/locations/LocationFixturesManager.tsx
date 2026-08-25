@@ -199,8 +199,7 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
   async function save() {
     if (!form) return;
     if (cameraPhotos.length > 0) {
-      const uploaded = await uploadPhotos(cameraPhotos);
-      if (uploaded) closeForm();
+      await uploadPhotos(cameraPhotos, { closeAfterQueued: true });
       return;
     }
 
@@ -239,7 +238,10 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
     }
   }
 
-  async function uploadPhotos(selected: File[]): Promise<boolean> {
+  async function uploadPhotos(
+    selected: File[],
+    options?: { closeAfterQueued?: boolean }
+  ): Promise<boolean> {
     if (!form) return false;
     if (selected.length === 0) return false;
     if (selected.length > MAX_LOCATION_PHOTOS) {
@@ -282,6 +284,9 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
           establishingImageJobId: data.jobId,
         } satisfies LocationFixture);
       upsertFixture(queuedFixture);
+      if (options?.closeAfterQueued) {
+        closeForm();
+      }
       if (isPendingLocationImage(data.status)) {
         void pollLocationPhotoJob(fixtureId, data.jobId).catch(() => undefined);
       }

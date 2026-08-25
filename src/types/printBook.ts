@@ -116,16 +116,18 @@ export interface SceneLocation {
    */
   notes?: string;
   /**
-   * Optional parent-supplied reference photo of this place. When present it is
-   * added to the illustration conditioning sheet so the drawn setting matches
-   * the real location.
+   * Legacy: a raw parent-supplied reference photo. Locations now draw an
+   * establishing illustration from uploaded photos (see `establishingImageUrl`)
+   * and discard the raw photo, so this is only read as a fallback for places
+   * saved before that change.
    */
   referenceImageUrl?: string;
   /**
-   * An AI-generated "establishing" view of this place, produced once (at build
-   * time) for locations that have no parent photo. It anchors every spread set
-   * here so fixed objects keep their orientation across pages. A parent-supplied
-   * `referenceImageUrl` always takes precedence over this.
+   * The canonical "establishing" illustration of this place. Drawn either from
+   * parent photos (uploaded on the Locations page, then discarded) or, for
+   * places with no photo, generated once at build time from the description. It
+   * anchors every spread set here so the room and each fixed object keep the
+   * same layout and orientation across pages.
    */
   establishingImageUrl?: string;
 }

@@ -16,7 +16,7 @@ type FormState = {
   summary: string;
   notes: string;
   lighting: string;
-  referenceImageUrl?: string;
+  establishingImageUrl?: string;
 };
 
 const emptyForm: FormState = {
@@ -35,7 +35,7 @@ function fixtureToForm(fixture: LocationFixture): FormState {
     summary: fixture.summary ?? "",
     notes: fixture.notes ?? "",
     lighting: fixture.lighting ?? "",
-    referenceImageUrl: fixture.referenceImageUrl,
+    establishingImageUrl: fixture.establishingImageUrl,
   };
 }
 
@@ -87,7 +87,6 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
         summary: form.summary.trim() || undefined,
         notes: form.notes.trim() || undefined,
         lighting: form.lighting.trim() || undefined,
-        referenceImageUrl: form.referenceImageUrl || undefined,
       };
       const res = await fetch(
         form.id ? `/api/location-fixtures/${form.id}` : "/api/location-fixtures",
@@ -139,36 +138,36 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
     }
   }
 
-  async function uploadPhoto(file: File) {
+  async function uploadPhotos(files: File[]) {
     if (!form?.id) {
-      setError("Save the place first, then add a photo.");
+      setError("Save the place first, then add photos.");
       return;
     }
+    if (files.length === 0) return;
     setUploading(true);
     setError(null);
     try {
       const body = new FormData();
-      body.append("photo", file);
+      for (const file of files) body.append("photos", file);
       body.append("photoConsent", "yes");
       const res = await fetch(`/api/location-fixtures/${form.id}/photo`, {
         method: "POST",
         body,
       });
       const data = (await res.json().catch(() => null)) as {
-        referenceImageUrl?: string;
+        establishingImageUrl?: string;
         error?: string;
       } | null;
-      if (!res.ok || !data?.referenceImageUrl) {
-        throw new Error(data?.error ?? "Upload failed. Please try again.");
+      if (!res.ok || !data?.establishingImageUrl) {
+        throw new Error(
+          data?.error ?? "Couldn't draw this place. Please try again."
+        );
       }
-      setForm((prev) =>
-        prev ? { ...prev, referenceImageUrl: data.referenceImageUrl } : prev
-      );
+      const establishingImageUrl = data.establishingImageUrl;
+      setForm((prev) => (prev ? { ...prev, establishingImageUrl } : prev));
       setFixtures((prev) =>
         prev.map((f) =>
-          f.id === form.id
-            ? { ...f, referenceImageUrl: data.referenceImageUrl }
-            : f
+          f.id === form.id ? { ...f, establishingImageUrl } : f
         )
       );
     } catch (err) {
@@ -202,11 +201,11 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
               key={fixture.id}
               className="flex gap-4 rounded-2xl border border-night-100 p-4"
             >
-              {fixture.referenceImageUrl ? (
+              {fixture.establishingImageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={fixture.referenceImageUrl}
-                  alt={`Reference for ${fixtureLabel(fixture)}`}
+                  src={fixture.establishingImageUrl}
+                  alt={`Illustration of ${fixtureLabel(fixture)}`}
                   className="h-16 w-16 shrink-0 rounded-lg object-cover"
                 />
               ) : (
@@ -327,25 +326,31 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
 
               <div>
                 <p className="text-sm font-bold text-night-700">
-                  Reference photo (optional)
+                  Illustration of this place (optional)
+                </p>
+                <p className="mt-0.5 text-xs text-night-400">
+                  Add a few photos from different angles — we draw one storybook
+                  picture of the space to keep it consistent, then discard your
+                  photos. We keep the illustration, not your photos.
                 </p>
                 <input
                   ref={fileInput}
                   type="file"
+                  multiple
                   accept="image/jpeg,image/png,image/webp"
                   className="hidden"
                   onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) void uploadPhoto(file);
+                    const files = Array.from(e.target.files ?? []);
+                    if (files.length > 0) void uploadPhotos(files);
                     e.target.value = "";
                   }}
                 />
                 <div className="mt-2 flex items-center gap-3">
-                  {form.referenceImageUrl ? (
+                  {form.establishingImageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={form.referenceImageUrl}
-                      alt="Reference"
+                      src={form.establishingImageUrl}
+                      alt="Illustration of this place"
                       className="h-14 w-14 rounded-lg object-cover"
                     />
                   ) : null}
@@ -357,15 +362,15 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                   >
                     <Icon name="image" />
                     {uploading
-                      ? "Uploading…"
-                      : form.referenceImageUrl
-                        ? "Replace photo"
-                        : "Add photo"}
+                      ? "Drawing…"
+                      : form.establishingImageUrl
+                        ? "Redraw from new photos"
+                        : "Add photos"}
                   </Button>
                 </div>
                 {!form.id ? (
                   <p className="mt-1 text-xs text-night-400">
-                    Save the place first to add a photo.
+                    Save the place first to add photos.
                   </p>
                 ) : null}
               </div>

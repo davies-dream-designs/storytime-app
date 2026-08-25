@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import sharp from "sharp";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { storeBookAsset } from "@/lib/print-books/storage";
+import { generateLocationEstablishingFromPhotos } from "@/lib/print-books/locationEstablishing";
 import { validateStoryPersonPhoto } from "@/lib/storyPeopleAvatars";
 
+const MAX_PHOTOS = 5;
+
 /**
- * Upload a parent's reference photo for one location in the book's location
- * bible. Multipart body: `photo` (File) + `photoConsent` = "yes". The photo is
- * normalised and stored, and its URL is written to the location's
- * `referenceImageUrl` so it is added to the illustration conditioning sheet.
+ * Generate an establishing illustration for one location in the book's location
+ * bible from one or more parent photos. Multipart body: `photos` (Files) +
+ * `photoConsent` = "yes". The photos are used to draw the illustration, then
+ * discarded — only the generated illustration is stored, and its URL is written
+ * to the location's `establishingImageUrl` so it anchors every spread there.
  */
 export async function POST(
   req: NextRequest,
@@ -32,42 +34,58 @@ export async function POST(
   }
 
   const form = await req.formData();
-  const photo = form.get("photo");
-  if (!(photo instanceof File)) {
-    return NextResponse.json({ error: "photo is required" }, { status: 400 });
-  }
   if (form.get("photoConsent") !== "yes") {
     return NextResponse.json(
       { error: "Photo consent is required." },
       { status: 400 }
     );
   }
-  const validationError = validateStoryPersonPhoto(photo);
-  if (validationError) {
-    return NextResponse.json({ error: validationError }, { status: 400 });
+
+  const photos = form
+    .getAll("photos")
+    .filter((entry): entry is File => entry instanceof File);
+  if (photos.length === 0) {
+    return NextResponse.json(
+      { error: "At least one photo is required" },
+      { status: 400 }
+    );
+  }
+  if (photos.length > MAX_PHOTOS) {
+    return NextResponse.json(
+      { error: `Please upload at most ${MAX_PHOTOS} photos.` },
+      { status: 400 }
+    );
+  }
+  for (const photo of photos) {
+    const validationError = validateStoryPersonPhoto(photo);
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
+    }
   }
 
-  const source = Buffer.from(await photo.arrayBuffer());
-  const webImage = await sharp(source)
-    .rotate()
-    .resize(1024, 1024, { fit: "inside", withoutEnlargement: true })
-    .jpeg({ quality: 82 })
-    .toBuffer();
-
-  const referenceImageUrl = await storeBookAsset({
-    pathname: `book-locations/${userId}/${project.id}/${locationId}-${Date.now()}.jpg`,
-    body: webImage,
-    contentType: "image/jpeg",
-  });
+  let establishingImageUrl: string;
+  try {
+    ({ establishingImageUrl } = await generateLocationEstablishingFromPhotos({
+      location,
+      files: photos,
+      pathnamePrefix: `book-locations/${userId}/${project.id}/${locationId}`,
+    }));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Generation failed";
+    const status = /insufficient credits/i.test(message) ? 402 : 502;
+    return NextResponse.json({ error: message }, { status });
+  }
 
   const locations = bible.locations.map((loc) =>
-    loc.id === locationId ? { ...loc, referenceImageUrl } : loc
+    loc.id === locationId
+      ? { ...loc, establishingImageUrl, referenceImageUrl: undefined }
+      : loc
   );
   const updated = await db.bookProjects.update(id, {
     locationBible: { ...bible, locations },
   });
   return NextResponse.json({
-    referenceImageUrl,
+    establishingImageUrl,
     locationBible: updated?.locationBible,
   });
 }
@@ -93,7 +111,9 @@ export async function DELETE(
   }
 
   const locations = bible.locations.map((loc) =>
-    loc.id === locationId ? { ...loc, referenceImageUrl: undefined } : loc
+    loc.id === locationId
+      ? { ...loc, establishingImageUrl: undefined, referenceImageUrl: undefined }
+      : loc
   );
   const updated = await db.bookProjects.update(id, {
     locationBible: { ...bible, locations },

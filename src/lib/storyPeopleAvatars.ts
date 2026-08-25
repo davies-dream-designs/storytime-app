@@ -274,7 +274,7 @@ export function buildChildProfileDescriptionAvatarPrompt(
     .join(" ");
 }
 
-async function normalizeUploadForOpenAI(file: File): Promise<Buffer> {
+export async function normalizeUploadForOpenAI(file: File): Promise<Buffer> {
   const input = Buffer.from(await file.arrayBuffer());
   return sharp(input)
     .rotate()
@@ -320,7 +320,7 @@ async function generateImageFromText(prompt: string): Promise<Buffer> {
   return Buffer.from(base64, "base64");
 }
 
-async function generateEditedImage(input: {
+export async function generateEditedImage(input: {
   image: Buffer;
   prompt: string;
 }): Promise<Buffer> {

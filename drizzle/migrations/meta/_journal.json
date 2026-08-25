@@ -134,6 +134,13 @@
       "when": 1787628167556,
       "tag": "0018_marvelous_prowler",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1787654282265,
+      "tag": "0019_location_establishing_status",
+      "breakpoints": true
     }
   ]
 }

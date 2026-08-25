@@ -24,6 +24,8 @@ export type BookProjectStatus =
 
 export type BookBuildMode = "full" | "art" | "exports" | "finalize";
 export type BookBuildJobStatus = "queued" | "running" | "completed" | "failed";
+export type LocationEstablishingStatus =
+  "queued" | "running" | "ready" | "failed";
 
 export type BookArtMode = "placeholder" | "generated" | "mixed";
 
@@ -130,6 +132,9 @@ export interface SceneLocation {
    * same layout and orientation across pages.
    */
   establishingImageUrl?: string;
+  establishingImageStatus?: LocationEstablishingStatus;
+  establishingImageError?: string;
+  establishingImageJobId?: string;
 }
 
 export interface LocationBible {
@@ -157,6 +162,9 @@ export interface LocationFixture {
   notes?: string;
   referenceImageUrl?: string;
   establishingImageUrl?: string;
+  establishingImageStatus?: LocationEstablishingStatus;
+  establishingImageError?: string;
+  establishingImageJobId?: string;
   fixedElements: string[];
   doNotChange: string[];
   lighting?: string;

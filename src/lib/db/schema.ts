@@ -414,6 +414,11 @@ export const locationFixtures = pgTable(
     notes: text("notes"),
     referenceImageUrl: text("reference_image_url"),
     establishingImageUrl: text("establishing_image_url"),
+    establishingImageStatus: text("establishing_image_status").$type<
+      "queued" | "running" | "ready" | "failed"
+    >(),
+    establishingImageError: text("establishing_image_error"),
+    establishingImageJobId: text("establishing_image_job_id"),
     fixedElements: jsonb("fixed_elements")
       .$type<string[]>()
       .notNull()

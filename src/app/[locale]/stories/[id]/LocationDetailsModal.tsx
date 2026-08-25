@@ -9,6 +9,24 @@ import { compressImageForUpload } from "@/lib/client/compressImage";
 
 const MAX_LOCATION_PHOTOS = 5;
 
+type BookLocationPhotoResponse = {
+  jobId?: string;
+  status?: SceneLocation["establishingImageStatus"];
+  establishingImageUrl?: string;
+  location?: SceneLocation;
+  error?: string;
+};
+
+function isPendingLocationImage(
+  status?: SceneLocation["establishingImageStatus"]
+): boolean {
+  return status === "queued" || status === "running";
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 type Props = {
   projectId: string;
   locations: SceneLocation[];
@@ -118,6 +136,47 @@ export default function LocationDetailsModal({
     }
   }
 
+  async function pollLocationPhotoJob(
+    locationId: string,
+    jobId?: string
+  ): Promise<string> {
+    for (let attempt = 0; attempt < 90; attempt += 1) {
+      await wait(attempt === 0 ? 900 : 2000);
+      const res = await fetch(
+        `/api/books/${projectId}/locations/${locationId}/photo`,
+        { cache: "no-store" }
+      );
+      const data = (await res
+        .json()
+        .catch(() => null)) as BookLocationPhotoResponse | null;
+      if (!res.ok || !data) {
+        throw new Error(data?.error ?? "Couldn't check drawing progress.");
+      }
+      if (jobId && data.location?.establishingImageJobId !== jobId) {
+        if (data.location?.establishingImageUrl) {
+          return data.location.establishingImageUrl;
+        }
+        throw new Error("A newer drawing was started for this location.");
+      }
+      if (
+        data.status === "failed" ||
+        data.location?.establishingImageStatus === "failed"
+      ) {
+        throw new Error(
+          data.error ??
+            data.location?.establishingImageError ??
+            "Couldn't draw this place. Please try again."
+        );
+      }
+      if (data.establishingImageUrl && !isPendingLocationImage(data.status)) {
+        return data.establishingImageUrl;
+      }
+    }
+    throw new Error(
+      "This location is still drawing in the background. You can come back shortly."
+    );
+  }
+
   async function uploadPhotos(locationId: string, selected: File[]) {
     if (selected.length === 0) return;
     if (selected.length > MAX_LOCATION_PHOTOS) {
@@ -139,18 +198,23 @@ export default function LocationDetailsModal({
         `/api/books/${projectId}/locations/${locationId}/photo`,
         { method: "POST", body: form }
       );
-      const data = (await res.json().catch(() => null)) as {
-        establishingImageUrl?: string;
-        error?: string;
-      } | null;
-      if (!res.ok || !data?.establishingImageUrl) {
+      const data = (await res
+        .json()
+        .catch(() => null)) as BookLocationPhotoResponse | null;
+      if (!res.ok || !data) {
         throw new Error(
           data?.error ?? "Couldn't draw this place. Please try again."
         );
       }
+      const establishingImageUrl = isPendingLocationImage(data.status)
+        ? await pollLocationPhotoJob(locationId, data.jobId)
+        : (data.establishingImageUrl ?? data.location?.establishingImageUrl);
+      if (!establishingImageUrl) {
+        throw new Error("Couldn't draw this place. Please try again.");
+      }
       setPhotos((prev) => ({
         ...prev,
-        [locationId]: data.establishingImageUrl!,
+        [locationId]: establishingImageUrl,
       }));
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed.");

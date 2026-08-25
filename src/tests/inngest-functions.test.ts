@@ -1,16 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BookBuildJob } from "@/types/printBook";
 
-const { mockCreateFunction, mockGetJobById, mockProcessBookBuildJob } =
-  vi.hoisted(() => ({
-    mockCreateFunction: vi.fn(() => ({ id: "build-book" })),
-    mockGetJobById: vi.fn(),
-    mockProcessBookBuildJob: vi.fn(),
-  }));
+const {
+  mockCreateFunction,
+  mockGetJobById,
+  mockProcessBookBuildJob,
+  mockProcessLocationEstablishingJob,
+} = vi.hoisted(() => ({
+  mockCreateFunction: vi.fn(() => ({ id: "inngest-function" })),
+  mockGetJobById: vi.fn(),
+  mockProcessBookBuildJob: vi.fn(),
+  mockProcessLocationEstablishingJob: vi.fn(),
+}));
 
 vi.mock("@/lib/inngest/client", () => ({
   inngest: { createFunction: mockCreateFunction },
-  INNGEST_EVENTS: { bookBuildRequested: "storycot/book.build.requested" },
+  INNGEST_EVENTS: {
+    bookBuildRequested: "storycot/book.build.requested",
+    locationEstablishingRequested: "storycot/location.establishing.requested",
+  },
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -23,6 +31,10 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/print-books/jobs", () => ({
   processBookBuildJob: mockProcessBookBuildJob,
+}));
+
+vi.mock("@/lib/print-books/locationEstablishingJobs", () => ({
+  processLocationEstablishingJob: mockProcessLocationEstablishingJob,
 }));
 
 function createJob(status: BookBuildJob["status"] = "queued"): BookBuildJob {
@@ -49,9 +61,8 @@ describe("advanceBookBuildEventStep", () => {
   it("treats missing jobs as stale Inngest events", async () => {
     mockGetJobById.mockResolvedValue(undefined);
 
-    const { advanceBookBuildEventStep } = await import(
-      "@/lib/inngest/functions"
-    );
+    const { advanceBookBuildEventStep } =
+      await import("@/lib/inngest/functions");
 
     await expect(advanceBookBuildEventStep("missing-job")).resolves.toEqual({
       shouldContinue: false,
@@ -64,9 +75,8 @@ describe("advanceBookBuildEventStep", () => {
     mockGetJobById.mockResolvedValue(createJob());
     mockProcessBookBuildJob.mockRejectedValue(new Error("Job not found"));
 
-    const { advanceBookBuildEventStep } = await import(
-      "@/lib/inngest/functions"
-    );
+    const { advanceBookBuildEventStep } =
+      await import("@/lib/inngest/functions");
 
     await expect(advanceBookBuildEventStep("job-1")).resolves.toEqual({
       shouldContinue: false,
@@ -78,9 +88,8 @@ describe("advanceBookBuildEventStep", () => {
     mockGetJobById.mockResolvedValue(createJob());
     mockProcessBookBuildJob.mockRejectedValue(new Error("PDF render failed"));
 
-    const { advanceBookBuildEventStep } = await import(
-      "@/lib/inngest/functions"
-    );
+    const { advanceBookBuildEventStep } =
+      await import("@/lib/inngest/functions");
 
     await expect(advanceBookBuildEventStep("job-1")).rejects.toThrow(
       "PDF render failed"

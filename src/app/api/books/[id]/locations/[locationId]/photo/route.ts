@@ -1,10 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { generateLocationEstablishingFromPhotos } from "@/lib/print-books/locationEstablishing";
+import { enqueueLocationEstablishingJob } from "@/lib/print-books/locationEstablishingJobs";
 import { validateStoryPersonPhoto } from "@/lib/storyPeopleAvatars";
 
 const MAX_PHOTOS = 5;
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string; locationId: string }> }
+) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id, locationId } = await params;
+  const project = await db.bookProjects.getById(id);
+  if (!project || project.userId !== userId) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  const location = project.locationBible?.locations.find(
+    (loc) => loc.id === locationId
+  );
+  if (!location) {
+    return NextResponse.json({ error: "Location not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    location,
+    locationBible: project.locationBible,
+    status:
+      location.establishingImageStatus ??
+      (location.establishingImageUrl ? "ready" : undefined),
+    establishingImageUrl: location.establishingImageUrl,
+    error: location.establishingImageError,
+    jobId: location.establishingImageJobId,
+  });
+}
 
 /**
  * Generate an establishing illustration for one location in the book's location
@@ -63,31 +96,31 @@ export async function POST(
     }
   }
 
-  let establishingImageUrl: string;
   try {
-    ({ establishingImageUrl } = await generateLocationEstablishingFromPhotos({
-      location,
+    const { jobId } = await enqueueLocationEstablishingJob({
+      userId,
+      target: { kind: "book_location", projectId: project.id, locationId },
       files: photos,
-      pathnamePrefix: `book-locations/${userId}/${project.id}/${locationId}`,
-    }));
+      targetLabel: "book-location",
+    });
+    const queuedProject = await db.bookProjects.getById(id);
+    const queuedLocation = queuedProject?.locationBible?.locations.find(
+      (loc) => loc.id === locationId
+    );
+    return NextResponse.json(
+      {
+        jobId,
+        status: queuedLocation?.establishingImageStatus ?? "queued",
+        location: queuedLocation,
+        locationBible: queuedProject?.locationBible,
+      },
+      { status: 202 }
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Generation failed";
     const status = /insufficient credits/i.test(message) ? 402 : 502;
     return NextResponse.json({ error: message }, { status });
   }
-
-  const locations = bible.locations.map((loc) =>
-    loc.id === locationId
-      ? { ...loc, establishingImageUrl, referenceImageUrl: undefined }
-      : loc
-  );
-  const updated = await db.bookProjects.update(id, {
-    locationBible: { ...bible, locations },
-  });
-  return NextResponse.json({
-    establishingImageUrl,
-    locationBible: updated?.locationBible,
-  });
 }
 
 /** Remove a location's reference photo. */
@@ -112,7 +145,14 @@ export async function DELETE(
 
   const locations = bible.locations.map((loc) =>
     loc.id === locationId
-      ? { ...loc, establishingImageUrl: undefined, referenceImageUrl: undefined }
+      ? {
+          ...loc,
+          establishingImageUrl: undefined,
+          referenceImageUrl: undefined,
+          establishingImageStatus: undefined,
+          establishingImageError: undefined,
+          establishingImageJobId: undefined,
+        }
       : loc
   );
   const updated = await db.bookProjects.update(id, {

@@ -21,6 +21,9 @@ type FormState = {
   notes: string;
   lighting: string;
   establishingImageUrl?: string;
+  establishingImageStatus?: LocationFixture["establishingImageStatus"];
+  establishingImageError?: string;
+  establishingImageJobId?: string;
 };
 
 const emptyForm: FormState = {
@@ -31,6 +34,24 @@ const emptyForm: FormState = {
   lighting: "",
 };
 
+type LocationPhotoJobResponse = {
+  jobId?: string;
+  status?: LocationFixture["establishingImageStatus"];
+  establishingImageUrl?: string;
+  fixture?: LocationFixture;
+  error?: string;
+};
+
+function isPendingLocationImage(
+  status?: LocationFixture["establishingImageStatus"]
+): boolean {
+  return status === "queued" || status === "running";
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function fixtureToForm(fixture: LocationFixture): FormState {
   return {
     id: fixture.id,
@@ -40,6 +61,9 @@ function fixtureToForm(fixture: LocationFixture): FormState {
     notes: fixture.notes ?? "",
     lighting: fixture.lighting ?? "",
     establishingImageUrl: fixture.establishingImageUrl,
+    establishingImageStatus: fixture.establishingImageStatus,
+    establishingImageError: fixture.establishingImageError,
+    establishingImageJobId: fixture.establishingImageJobId,
   };
 }
 
@@ -114,13 +138,62 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
     }
 
     const saved = (await res.json()) as LocationFixture;
+    upsertFixture(saved);
+    return saved;
+  }
+
+  function upsertFixture(fixture: LocationFixture) {
     setFixtures((prev) => {
-      const without = prev.filter((f) => f.id !== saved.id);
-      return [saved, ...without].sort((a, b) =>
+      const without = prev.filter((f) => f.id !== fixture.id);
+      return [fixture, ...without].sort((a, b) =>
         fixtureLabel(a).localeCompare(fixtureLabel(b))
       );
     });
-    return saved;
+    setForm((prev) =>
+      prev?.id === fixture.id ? { ...prev, ...fixtureToForm(fixture) } : prev
+    );
+  }
+
+  async function pollLocationPhotoJob(
+    fixtureId: string,
+    jobId?: string
+  ): Promise<LocationFixture> {
+    for (let attempt = 0; attempt < 90; attempt += 1) {
+      await wait(attempt === 0 ? 900 : 2000);
+      const res = await fetch(`/api/location-fixtures/${fixtureId}/photo`, {
+        cache: "no-store",
+      });
+      const data = (await res
+        .json()
+        .catch(() => null)) as LocationPhotoJobResponse | null;
+      if (!res.ok || !data?.fixture) {
+        throw new Error(data?.error ?? "Couldn't check drawing progress.");
+      }
+      if (jobId && data.fixture.establishingImageJobId !== jobId) {
+        if (data.fixture.establishingImageUrl) return data.fixture;
+        throw new Error("A newer drawing was started for this location.");
+      }
+      upsertFixture(data.fixture);
+      if (
+        data.status === "failed" ||
+        data.fixture.establishingImageStatus === "failed"
+      ) {
+        throw new Error(
+          data.error ??
+            data.fixture.establishingImageError ??
+            "Couldn't draw this place. Please try again."
+        );
+      }
+      if (
+        data.fixture.establishingImageUrl &&
+        !isPendingLocationImage(data.status)
+      ) {
+        return data.fixture;
+      }
+    }
+    throw new Error(
+      "This location is still drawing in the background. You can close this and check back shortly."
+    );
   }
 
   async function save() {
@@ -191,30 +264,27 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
         method: "POST",
         body,
       });
-      const data = (await res.json().catch(() => null)) as {
-        establishingImageUrl?: string;
-        fixture?: LocationFixture;
-        error?: string;
-      } | null;
-      if (!res.ok || !data?.establishingImageUrl) {
+      const data = (await res
+        .json()
+        .catch(() => null)) as LocationPhotoJobResponse | null;
+      if (!res.ok || !data) {
         throw new Error(
           data?.error ?? "Couldn't draw this place. Please try again."
         );
       }
-      const finalFixture =
-        data.fixture ??
-        ({
-          ...savedFixture,
-          establishingImageUrl: data.establishingImageUrl,
-          referenceImageUrl: undefined,
-        } satisfies LocationFixture);
-      setForm(fixtureToForm(finalFixture));
-      setFixtures((prev) => {
-        const without = prev.filter((f) => f.id !== finalFixture.id);
-        return [finalFixture, ...without].sort((a, b) =>
-          fixtureLabel(a).localeCompare(fixtureLabel(b))
-        );
-      });
+      if (data.fixture) upsertFixture(data.fixture);
+      const finalFixture = isPendingLocationImage(data.status)
+        ? await pollLocationPhotoJob(fixtureId, data.jobId)
+        : (data.fixture ??
+          ({
+            ...savedFixture,
+            establishingImageUrl: data.establishingImageUrl,
+            referenceImageUrl: undefined,
+            establishingImageStatus: data.establishingImageUrl
+              ? "ready"
+              : undefined,
+          } satisfies LocationFixture));
+      upsertFixture(finalFixture);
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
@@ -279,8 +349,13 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                   className="h-28 w-28 shrink-0 rounded-xl object-cover shadow-sm"
                 />
               ) : (
-                <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-xl bg-night-50 text-night-300">
+                <div className="flex h-28 w-28 shrink-0 flex-col items-center justify-center rounded-xl bg-night-50 text-night-300">
                   <Icon name="image" className="h-8 w-8" />
+                  {isPendingLocationImage(fixture.establishingImageStatus) ? (
+                    <span className="mt-1 text-[10px] font-bold uppercase tracking-wide text-night-400">
+                      Drawing…
+                    </span>
+                  ) : null}
                 </div>
               )}
               <div className="min-w-0 flex-1">
@@ -295,6 +370,16 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                 {fixture.notes ? (
                   <p className="mt-1 line-clamp-2 text-xs text-night-400">
                     {fixture.notes}
+                  </p>
+                ) : null}
+                {isPendingLocationImage(fixture.establishingImageStatus) ? (
+                  <p className="mt-1 text-xs font-bold text-star-600">
+                    Drawing this location in the background — safe to leave this
+                    page.
+                  </p>
+                ) : fixture.establishingImageStatus === "failed" ? (
+                  <p className="mt-1 text-xs font-bold text-blush-600">
+                    Drawing failed. Edit and try uploading the photos again.
                   </p>
                 ) : null}
                 <div className="mt-2 flex gap-2">
@@ -421,6 +506,20 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                     </div>
                   </div>
                 ) : null}
+                {isPendingLocationImage(form.establishingImageStatus) ? (
+                  <p className="mt-3 rounded-xl bg-star-50 px-3 py-2 text-xs font-bold text-star-700">
+                    Drawing is running in the background. You can close this
+                    window or leave the page; the illustration will appear when
+                    it finishes.
+                  </p>
+                ) : form.establishingImageStatus === "failed" ? (
+                  <p className="mt-3 rounded-xl bg-blush-50 px-3 py-2 text-xs font-bold text-blush-700">
+                    Drawing failed:{" "}
+                    {form.establishingImageError ??
+                      "Please try uploading the photos again."}
+                  </p>
+                ) : null}
+
                 <div className="mt-3 flex flex-wrap items-center gap-3">
                   <label
                     className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-night-200 px-3 py-1.5 text-sm font-bold text-night-700 ${

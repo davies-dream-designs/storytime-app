@@ -1,10 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { generateLocationEstablishingFromPhotos } from "@/lib/print-books/locationEstablishing";
+import { enqueueLocationEstablishingJob } from "@/lib/print-books/locationEstablishingJobs";
 import { validateStoryPersonPhoto } from "@/lib/storyPeopleAvatars";
 
 const MAX_PHOTOS = 5;
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const fixture = await db.locationFixtures.getById(id);
+  if (!fixture || fixture.userId !== userId) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    fixture,
+    status:
+      fixture.establishingImageStatus ??
+      (fixture.establishingImageUrl ? "ready" : undefined),
+    establishingImageUrl: fixture.establishingImageUrl,
+    error: fixture.establishingImageError,
+    jobId: fixture.establishingImageJobId,
+  });
+}
 
 /**
  * Generate a reusable establishing illustration for a location fixture from one
@@ -58,17 +84,21 @@ export async function POST(
   }
 
   try {
-    const { establishingImageUrl } =
-      await generateLocationEstablishingFromPhotos({
-        location: fixture,
-        files: photos,
-        pathnamePrefix: `location-fixtures/${userId}/${id}`,
-      });
-    const updated = await db.locationFixtures.update(id, {
-      establishingImageUrl,
-      referenceImageUrl: undefined,
+    const { jobId } = await enqueueLocationEstablishingJob({
+      userId,
+      target: { kind: "location_fixture", fixtureId: id },
+      files: photos,
+      targetLabel: "fixture",
     });
-    return NextResponse.json({ establishingImageUrl, fixture: updated });
+    const queued = await db.locationFixtures.getById(id);
+    return NextResponse.json(
+      {
+        jobId,
+        status: queued?.establishingImageStatus ?? "queued",
+        fixture: queued,
+      },
+      { status: 202 }
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Generation failed";
     const status = /insufficient credits/i.test(message) ? 402 : 502;
@@ -94,6 +124,9 @@ export async function DELETE(
   const updated = await db.locationFixtures.update(id, {
     establishingImageUrl: undefined,
     referenceImageUrl: undefined,
+    establishingImageStatus: undefined,
+    establishingImageError: undefined,
+    establishingImageJobId: undefined,
   });
   return NextResponse.json({ fixture: updated });
 }

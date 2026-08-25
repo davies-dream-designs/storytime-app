@@ -64,6 +64,16 @@ export default function LocationDetailsModal({
   );
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [drawingLocationIds, setDrawingLocationIds] = useState<Set<string>>(
+    () =>
+      new Set(
+        locations
+          .filter((location) =>
+            isPendingLocationImage(location.establishingImageStatus)
+          )
+          .map((location) => location.id)
+      )
+  );
 
   const [fixtures, setFixtures] = useState<LocationFixture[]>([]);
   const [savedLocationIds, setSavedLocationIds] = useState<Set<string>>(
@@ -206,16 +216,33 @@ export default function LocationDetailsModal({
           data?.error ?? "Couldn't draw this place. Please try again."
         );
       }
-      const establishingImageUrl = isPendingLocationImage(data.status)
-        ? await pollLocationPhotoJob(locationId, data.jobId)
-        : (data.establishingImageUrl ?? data.location?.establishingImageUrl);
-      if (!establishingImageUrl) {
-        throw new Error("Couldn't draw this place. Please try again.");
+      const establishingImageUrl =
+        data.establishingImageUrl ?? data.location?.establishingImageUrl;
+      if (establishingImageUrl) {
+        setPhotos((prev) => ({
+          ...prev,
+          [locationId]: establishingImageUrl,
+        }));
       }
-      setPhotos((prev) => ({
-        ...prev,
-        [locationId]: establishingImageUrl,
-      }));
+      if (isPendingLocationImage(data.status)) {
+        setDrawingLocationIds((prev) => new Set(prev).add(locationId));
+        void pollLocationPhotoJob(locationId, data.jobId)
+          .then((url) => {
+            setPhotos((prev) => ({ ...prev, [locationId]: url }));
+            setDrawingLocationIds((prev) => {
+              const next = new Set(prev);
+              next.delete(locationId);
+              return next;
+            });
+          })
+          .catch(() => {
+            setDrawingLocationIds((prev) => {
+              const next = new Set(prev);
+              next.delete(locationId);
+              return next;
+            });
+          });
+      }
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
@@ -357,9 +384,9 @@ export default function LocationDetailsModal({
                   >
                     <Icon name="image" />
                     {uploadingId === location.id
-                      ? "Drawing…"
+                      ? "Starting…"
                       : photos[location.id]
-                        ? "Redraw from photos"
+                        ? "Start redraw"
                         : "Upload photos"}
                     <input
                       type="file"
@@ -409,6 +436,12 @@ export default function LocationDetailsModal({
                         ? "Saved to library ✓"
                         : "Save to library"}
                     </Button>
+                  ) : null}
+                  {drawingLocationIds.has(location.id) ? (
+                    <p className="mt-2 w-full rounded-xl bg-star-50 px-3 py-2 text-xs font-bold text-star-700">
+                      Drawing is running in the background. You can keep adding
+                      details or create the book; you do not need to wait here.
+                    </p>
                   ) : null}
                 </div>
               </li>

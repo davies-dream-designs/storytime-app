@@ -272,19 +272,19 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
           data?.error ?? "Couldn't draw this place. Please try again."
         );
       }
-      if (data.fixture) upsertFixture(data.fixture);
-      const finalFixture = isPendingLocationImage(data.status)
-        ? await pollLocationPhotoJob(fixtureId, data.jobId)
-        : (data.fixture ??
-          ({
-            ...savedFixture,
-            establishingImageUrl: data.establishingImageUrl,
-            referenceImageUrl: undefined,
-            establishingImageStatus: data.establishingImageUrl
-              ? "ready"
-              : undefined,
-          } satisfies LocationFixture));
-      upsertFixture(finalFixture);
+      const queuedFixture =
+        data.fixture ??
+        ({
+          ...savedFixture,
+          establishingImageUrl: data.establishingImageUrl,
+          referenceImageUrl: undefined,
+          establishingImageStatus: data.status,
+          establishingImageJobId: data.jobId,
+        } satisfies LocationFixture);
+      upsertFixture(queuedFixture);
+      if (isPendingLocationImage(data.status)) {
+        void pollLocationPhotoJob(fixtureId, data.jobId).catch(() => undefined);
+      }
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
@@ -508,9 +508,9 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                 ) : null}
                 {isPendingLocationImage(form.establishingImageStatus) ? (
                   <p className="mt-3 rounded-xl bg-star-50 px-3 py-2 text-xs font-bold text-star-700">
-                    Drawing is running in the background. You can close this
-                    window or leave the page; the illustration will appear when
-                    it finishes.
+                    Drawing is running in the background now. Tap Done or close
+                    this window — you do not need to wait here. The illustration
+                    will appear on this page when it finishes.
                   </p>
                 ) : form.establishingImageStatus === "failed" ? (
                   <p className="mt-3 rounded-xl bg-blush-50 px-3 py-2 text-xs font-bold text-blush-700">
@@ -530,9 +530,9 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                   >
                     <Icon name="image" />
                     {uploading
-                      ? "Drawing…"
+                      ? "Starting…"
                       : form.establishingImageUrl
-                        ? "Redraw from photos"
+                        ? "Start redraw"
                         : "Upload photos"}
                     <input
                       ref={fileInput}
@@ -595,10 +595,10 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                           disabled={uploading || saving || !form.place.trim()}
                         >
                           {uploading
-                            ? "Drawing…"
-                            : `Draw from ${cameraPhotos.length} photo${
-                                cameraPhotos.length === 1 ? "" : "s"
-                              }`}
+                            ? "Starting…"
+                            : `Start background drawing from ${
+                                cameraPhotos.length
+                              } photo${cameraPhotos.length === 1 ? "" : "s"}`}
                         </Button>
                         <Button
                           variant="secondary"
@@ -638,16 +638,20 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                 onClick={closeForm}
                 disabled={saving || uploading}
               >
-                Cancel
+                {isPendingLocationImage(form.establishingImageStatus)
+                  ? "Close"
+                  : "Cancel"}
               </Button>
               <Button onClick={save} disabled={saving || uploading}>
                 {saving || uploading
-                  ? "Saving…"
+                  ? "Starting…"
                   : cameraPhotos.length > 0
-                    ? `Save & draw from ${cameraPhotos.length} photo${
-                        cameraPhotos.length === 1 ? "" : "s"
-                      }`
-                    : "Save location"}
+                    ? `Save & start drawing in background from ${
+                        cameraPhotos.length
+                      } photo${cameraPhotos.length === 1 ? "" : "s"}`
+                    : isPendingLocationImage(form.establishingImageStatus)
+                      ? "Done"
+                      : "Save location"}
               </Button>
             </div>
           </div>

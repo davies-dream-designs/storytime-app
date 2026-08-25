@@ -86,6 +86,23 @@ describe("buildEstablishingPromptFromPhotos", () => {
       "This rule applies while generating the saved location illustration itself"
     );
   });
+
+  it("supports saved locations with no optional summary", () => {
+    const fixture = makeFixture();
+    fixture.place = "Home";
+    fixture.area = "Kitchen";
+    fixture.summary = undefined;
+    fixture.notes =
+      "Window above the sink, range hood above the oven, microwave in the left far corner.";
+
+    const prompt = buildEstablishingPromptFromPhotos(fixture, [
+      "A kitchen with a sink, oven, microwave, and fridge.",
+    ]);
+
+    expect(prompt).toContain("Home (Kitchen)");
+    expect(prompt).toContain("Window above the sink");
+    expect(prompt).not.toContain("undefined");
+  });
 });
 
 describe("generateLocationEstablishingFromPhotos", () => {

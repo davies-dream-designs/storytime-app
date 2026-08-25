@@ -91,7 +91,7 @@ export async function storeBookAsset(input: {
     contentType,
     ...(blobConfig.kind === "token"
       ? { token: blobConfig.token }
-      : { storeId: blobConfig.storeId, token: blobConfig.oidcToken }),
+      : { storeId: blobConfig.storeId, oidcToken: blobConfig.oidcToken }),
   });
 
   return blob.url;
@@ -116,7 +116,7 @@ export async function findBookAsset(pathname: string): Promise<string | null> {
 function getBlobCommandOptions(blobConfig: Exclude<ResolvedBlobConfig, null>) {
   return blobConfig.kind === "token"
     ? { token: blobConfig.token }
-    : { storeId: blobConfig.storeId, token: blobConfig.oidcToken };
+    : { storeId: blobConfig.storeId, oidcToken: blobConfig.oidcToken };
 }
 
 function isDeletableBookBlobUrl(value?: string): value is string {
@@ -156,7 +156,9 @@ export function collectBookAssetUrls(project: BookProject): string[] {
   return Array.from(urls);
 }
 
-export function collectBookDownloadableAssetUrls(project: BookProject): string[] {
+export function collectBookDownloadableAssetUrls(
+  project: BookProject
+): string[] {
   const urls = new Set<string>();
   const retainedUrls = new Set([project.assets.coverImageUrl]);
   const add = (value?: string) => {

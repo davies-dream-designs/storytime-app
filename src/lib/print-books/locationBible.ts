@@ -21,8 +21,8 @@ function getClient(): Anthropic {
   return client;
 }
 
-function clampPreview(value: string, maxChars: number): string {
-  const clean = value.replace(/\s+/g, " ").trim();
+function clampPreview(value: string | undefined, maxChars: number): string {
+  const clean = (value ?? "").replace(/\s+/g, " ").trim();
   if (clean.length <= maxChars) return clean;
   return `${clean.slice(0, maxChars - 1).trimEnd()}…`;
 }
@@ -478,9 +478,12 @@ export function buildLocationDirection(
   if (!location) return "";
   const compact = options?.compact ?? false;
   const parts: string[] = [];
+  const label =
+    location.name ||
+    [location.place, location.area].filter(Boolean).join(" — ");
   const summary = clampPreview(location.summary, compact ? 220 : 480);
   parts.push(
-    `Setting (keep this location identical on every page set here — "${location.name}"): ${summary}`
+    `Setting (keep this location identical on every page set here — "${label || "this place"}"): ${summary || "Use the family-supplied notes and reference image as the source of truth."}`
   );
   const notes = location.notes?.trim();
   if (notes) {
@@ -497,8 +500,9 @@ export function buildLocationDirection(
       `An established rendering of this place is attached and authoritative; match its exact room layout, doors, windows, bed types, furniture positions, colours, and the orientation each object faces. Do not invent, remove, resize, or relocate structural features or furniture shown in the reference.`
     );
   }
-  if (location.fixedElements.length > 0) {
-    const els = location.fixedElements.join("; ");
+  const fixedElements = location.fixedElements ?? [];
+  if (fixedElements.length > 0) {
+    const els = fixedElements.join("; ");
     parts.push(
       `Fixed elements and positions (do not add, remove, resize, or move them between pages): ${clampPreview(els, compact ? 260 : 600)}.`
     );
@@ -511,9 +515,10 @@ export function buildLocationDirection(
       `Lighting and shadows (keep consistent): ${clampPreview(location.lighting, compact ? 140 : 260)}.`
     );
   }
-  if (!compact && location.doNotChange.length > 0) {
+  const doNotChange = location.doNotChange ?? [];
+  if (!compact && doNotChange.length > 0) {
     parts.push(
-      `Do not change here: ${clampPreview(location.doNotChange.join("; "), 260)}.`
+      `Do not change here: ${clampPreview(doNotChange.join("; "), 260)}.`
     );
   }
   parts.push(

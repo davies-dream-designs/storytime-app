@@ -21,13 +21,22 @@ type AppliedMigrationRow = {
 function makeStatementIdempotent(statement: string) {
   return statement
     .trim()
-    .replace(/^CREATE TABLE\s+/i, "CREATE TABLE IF NOT EXISTS ")
     .replace(
-      /^CREATE UNIQUE INDEX\s+/i,
+      /^CREATE TABLE\s+(?!IF\s+NOT\s+EXISTS\b)/i,
+      "CREATE TABLE IF NOT EXISTS "
+    )
+    .replace(
+      /^CREATE UNIQUE INDEX\s+(?!IF\s+NOT\s+EXISTS\b)/i,
       "CREATE UNIQUE INDEX IF NOT EXISTS "
     )
-    .replace(/^CREATE INDEX\s+/i, "CREATE INDEX IF NOT EXISTS ")
-    .replace(/\bADD COLUMN\s+/i, "ADD COLUMN IF NOT EXISTS ");
+    .replace(
+      /^CREATE INDEX\s+(?!IF\s+NOT\s+EXISTS\b)/i,
+      "CREATE INDEX IF NOT EXISTS "
+    )
+    .replace(
+      /\bADD COLUMN\s+(?!IF\s+NOT\s+EXISTS\b)/i,
+      "ADD COLUMN IF NOT EXISTS "
+    );
 }
 
 async function ensureMigrationLedger(client: ReturnType<typeof getClient>) {

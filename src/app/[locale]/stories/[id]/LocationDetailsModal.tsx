@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import type { LocationFixture, SceneLocation } from "@/types/printBook";
 import { suggestFixtureMatches } from "@/lib/print-books/locationFixtures";
+import { compressImageForUpload } from "@/lib/client/compressImage";
+
+const MAX_LOCATION_PHOTOS = 5;
 
 type Props = {
   projectId: string;
@@ -40,7 +43,6 @@ export default function LocationDetailsModal({
   );
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const [fixtures, setFixtures] = useState<LocationFixture[]>([]);
   const [savedLocationIds, setSavedLocationIds] = useState<Set<string>>(
@@ -112,11 +114,20 @@ export default function LocationDetailsModal({
     }
   }
 
-  async function uploadPhotos(locationId: string, files: File[]) {
-    if (files.length === 0) return;
+  async function uploadPhotos(locationId: string, selected: File[]) {
+    if (selected.length === 0) return;
+    if (selected.length > MAX_LOCATION_PHOTOS) {
+      setUploadError(
+        `Please choose up to ${MAX_LOCATION_PHOTOS} photos at a time.`
+      );
+      return;
+    }
     setUploadingId(locationId);
     setUploadError(null);
     try {
+      const files = await Promise.all(
+        selected.map((file) => compressImageForUpload(file))
+      );
       const form = new FormData();
       for (const file of files) form.append("photos", file);
       form.append("photoConsent", "yes");
@@ -250,21 +261,7 @@ export default function LocationDetailsModal({
                   rows={2}
                   className="mt-3 w-full rounded-xl border border-night-200 px-3 py-2 text-sm focus:border-star-300 focus:outline-none"
                 />
-                <div className="mt-3 flex items-center gap-3">
-                  <input
-                    ref={(el) => {
-                      fileInputs.current[location.id] = el;
-                    }}
-                    type="file"
-                    multiple
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files ?? []);
-                      if (files.length > 0) void uploadPhotos(location.id, files);
-                      e.target.value = "";
-                    }}
-                  />
+                <div className="mt-3 flex flex-wrap items-center gap-3">
                   {photos[location.id] ? (
                     <>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -282,19 +279,57 @@ export default function LocationDetailsModal({
                         Remove
                       </Button>
                     </>
-                  ) : (
-                    <Button
-                      variant="secondary"
-                      size="compact"
-                      onClick={() => fileInputs.current[location.id]?.click()}
+                  ) : null}
+                  <label
+                    className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-night-200 px-3 py-1.5 text-sm font-bold text-night-700 ${
+                      uploadingId === location.id
+                        ? "pointer-events-none opacity-60"
+                        : "hover:bg-night-50"
+                    }`}
+                  >
+                    <Icon name="image" />
+                    {uploadingId === location.id
+                      ? "Drawing…"
+                      : photos[location.id]
+                        ? "Redraw from photos"
+                        : "Upload photos"}
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/jpeg,image/png,image/webp"
+                      className="sr-only"
                       disabled={uploadingId === location.id}
-                    >
-                      <Icon name="image" />
-                      {uploadingId === location.id
-                        ? "Drawing…"
-                        : "Add photos"}
-                    </Button>
-                  )}
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        if (files.length > 0)
+                          void uploadPhotos(location.id, files);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                  <label
+                    className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-night-200 px-3 py-1.5 text-sm font-bold text-night-700 ${
+                      uploadingId === location.id
+                        ? "pointer-events-none opacity-60"
+                        : "hover:bg-night-50"
+                    }`}
+                  >
+                    <Icon name="image" />
+                    Take photo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="sr-only"
+                      disabled={uploadingId === location.id}
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        if (files.length > 0)
+                          void uploadPhotos(location.id, files);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
                   {(notes[location.id] ?? "").trim() || photos[location.id] ? (
                     <Button
                       variant="secondary"

@@ -5,7 +5,10 @@ import {
   normalizeUploadForOpenAI,
 } from "@/lib/storyPeopleAvatars";
 import { storeBookAsset } from "@/lib/print-books/storage";
-import { buildLocationDirection } from "@/lib/print-books/locationBible";
+import {
+  buildLocationDirection,
+  buildSleepFurnitureDirection,
+} from "@/lib/print-books/locationBible";
 import type { LocationFixture, SceneLocation } from "@/types/printBook";
 
 /**
@@ -19,15 +22,47 @@ import type { LocationFixture, SceneLocation } from "@/types/printBook";
 
 type LocationLike = Pick<
   SceneLocation | LocationFixture,
-  "fixedElements" | "lighting" | "palette" | "notes" | "summary"
-> & { name?: string; place?: string };
+  "fixedElements" | "doNotChange" | "lighting" | "palette" | "notes" | "summary"
+> & { name?: string; place?: string; area?: string };
 
 function displayName(location: LocationLike): string {
-  return (
-    location.name?.trim() ||
-    location.place?.trim() ||
-    "this place"
+  const base = location.name?.trim() || location.place?.trim() || "this place";
+  const area = location.area?.trim();
+  return area && !base.toLowerCase().includes(area.toLowerCase())
+    ? `${base} (${area})`
+    : base;
+}
+
+function compactList(values: Array<string | undefined>, maxLength: number) {
+  const text = values
+    .map((value) => value?.trim())
+    .filter(Boolean)
+    .join("; ");
+  return text.length <= maxLength
+    ? text
+    : `${text.slice(0, maxLength).trim()}…`;
+}
+
+function buildHardLayoutBlueprint(location: LocationLike): string {
+  const summary = location.summary?.trim();
+  const notes = location.notes?.trim();
+  const fixedElements = compactList(location.fixedElements ?? [], 900);
+  const doNotChange = compactList(location.doNotChange ?? [], 600);
+  const lighting = location.lighting?.trim();
+  const palette = location.palette?.trim();
+  const blueprint = compactList(
+    [
+      summary ? `summary: ${summary}` : undefined,
+      notes ? `family notes: ${notes}` : undefined,
+      fixedElements ? `fixed elements: ${fixedElements}` : undefined,
+      doNotChange ? `must not change: ${doNotChange}` : undefined,
+      lighting ? `lighting: ${lighting}` : undefined,
+      palette ? `colours: ${palette}` : undefined,
+    ],
+    1800
   );
+  if (!blueprint) return "";
+  return `AUTHORITATIVE FAMILY LAYOUT BLUEPRINT — highest priority, even over generic nursery/bedroom conventions and over any ambiguous photo analysis: ${blueprint}. Treat every comma-separated or sentence-level detail as a pass/fail checklist. Place every named object exactly where the family says it belongs; preserve left/right/centre, beside/next-to/under/above, window/door placement, furniture type, furniture size, colour, and facing direction. If a detail says a window is on the right next to a cot, draw the window on the right next to that cot. If a detail says a child's bed is on the left, draw that bed on the left. Do not replace, merge, mirror, resize, or reinterpret these objects for a prettier composition.`;
 }
 
 async function analyzeLocationPhoto(image: Buffer): Promise<string> {
@@ -51,7 +86,7 @@ async function analyzeLocationPhoto(image: Buffer): Promise<string> {
             },
             {
               type: "text",
-              text: `Describe only the physical layout of this place so it can be redrawn consistently in a children's picture book. State the main fixed furniture and large objects, their positions relative to each other and to the walls/room, and which way they face. Note windows, doors, and the dominant colours and lighting direction. Do not describe or identify any people, pets, faces, logos, text, brand marks, or franchise/toy characters. Do not mention the photo or camera. Return one concise paragraph of plain description.`,
+              text: `Describe only the physical layout of this place so it can be redrawn consistently in a children's picture book. State the main fixed furniture and large objects, their exact positions relative to each other and to the walls/room, and which way they face. Be very literal about sleep furniture: distinguish a normal child's bed, Kura-style bed, bunk bed, toddler bed, cot, crib, bassinet, and mattress; do not call every bed a crib. Note windows, doors, rugs, dressers, and the dominant colours and lighting direction, including left/right placement. Do not describe or identify any people, pets, faces, logos, text, brand marks, or franchise/toy characters. Do not mention the photo or camera. Return one concise paragraph of plain description.`,
             },
           ],
         },
@@ -68,20 +103,31 @@ async function analyzeLocationPhoto(image: Buffer): Promise<string> {
   }
 }
 
-function buildEstablishingPromptFromPhotos(
+export function buildEstablishingPromptFromPhotos(
   location: LocationLike,
   photoNotes: string[]
 ): string {
   const notes = photoNotes.filter(Boolean);
+  const hardBlueprint = buildHardLayoutBlueprint(location);
+  const sleepFurnitureDirection = buildSleepFurnitureDirection(
+    location as SceneLocation
+  );
   return [
-    `A children's picture-book establishing illustration of "${displayName(location)}" — the empty space with no people, pets, or characters.`,
-    "Draw the whole space in a neutral, eye-level, straight-on view so it can be the canonical reference for this location.",
-    notes.length
-      ? `Match this real layout captured from ${
-          notes.length > 1 ? `${notes.length} reference photos` : "a reference photo"
-        } (fuse them into one coherent room, keeping each object's position and the direction it faces): ${notes.join(" | ")}`
+    `A literal children's picture-book establishing illustration of "${displayName(location)}" — the empty space with no people, pets, or characters.`,
+    "Primary goal: create an accurate, reviewable setting reference, not a decorative nursery concept. Accuracy of layout and object identity is more important than charm or a convenient composition.",
+    hardBlueprint,
+    sleepFurnitureDirection
+      ? `${sleepFurnitureDirection} This rule applies while generating the saved location illustration itself, not only later book pages.`
       : "",
+    notes.length
+      ? `Use the attached source photo as the visual anchor, and match this real layout captured from ${
+          notes.length > 1
+            ? `${notes.length} reference photos`
+            : "a reference photo"
+        } (fuse them into one coherent room, keeping each object's position and the direction it faces): ${notes.join(" | ")}`
+      : "Use the attached source photo as the visual anchor. Keep the real furniture types, object positions, and window/door layout from the photo instead of inventing a generic room.",
     buildLocationDirection(location as SceneLocation),
+    "Use a neutral, eye-level, straight-on or very slight three-quarter view that shows the whole space clearly. Do not mirror the room. Do not invent extra windows, doors, beds, cots, dressers, wall art, lamps, rugs, or shelves. Do not hide important furniture behind curtains or crop it out.",
     "Soft, warm, storybook style. No text, no watermark, no people, no characters.",
   ]
     .filter(Boolean)

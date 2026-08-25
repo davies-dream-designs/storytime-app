@@ -121,6 +121,13 @@ export interface SceneLocation {
    * the real location.
    */
   referenceImageUrl?: string;
+  /**
+   * An AI-generated "establishing" view of this place, produced once (at build
+   * time) for locations that have no parent photo. It anchors every spread set
+   * here so fixed objects keep their orientation across pages. A parent-supplied
+   * `referenceImageUrl` always takes precedence over this.
+   */
+  establishingImageUrl?: string;
 }
 
 export interface LocationBible {
@@ -147,6 +154,7 @@ export interface LocationFixture {
   summary?: string;
   notes?: string;
   referenceImageUrl?: string;
+  establishingImageUrl?: string;
   fixedElements: string[];
   doNotChange: string[];
   lighting?: string;

@@ -407,6 +407,7 @@ export const locationFixtures = pgTable(
     summary: text("summary"),
     notes: text("notes"),
     referenceImageUrl: text("reference_image_url"),
+    establishingImageUrl: text("establishing_image_url"),
     fixedElements: jsonb("fixed_elements")
       .$type<string[]>()
       .notNull()

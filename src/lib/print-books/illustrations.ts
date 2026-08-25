@@ -8,7 +8,9 @@ import type {
   CharacterVisualReference,
   ContinuityVisualReference,
   IllustrationGenerationMetadata,
+  LocationBible,
   LocationVisualReference,
+  SceneLocation,
 } from "@/types/printBook";
 import { BOOK_SPEC } from "@/lib/print-books/bookConfig";
 import { buildIllustrationDirection } from "@/lib/print-books/characterBible";
@@ -1151,6 +1153,62 @@ async function generateAndUpscale(input: {
   const png = await generateBaseImage(input);
   await assertUsableGeneratedImage(png);
   return upscaleImageBuffer(png);
+}
+
+function buildEstablishingImagePrompt(location: SceneLocation): string {
+  return [
+    `A children's picture-book illustration establishing shot of "${location.name}" — an empty scene with no people or characters.`,
+    "Show the whole space clearly in a neutral, eye-level, straight-on view so it can be used as the canonical reference for this location.",
+    buildLocationDirection(location),
+    "Soft, warm, storybook style. No text, no watermark, no characters.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/**
+ * Generate a canonical "establishing" image once per location that has no
+ * reference image yet, so every spread set there can anchor to the same room
+ * layout and object orientation. Returns an updated LocationBible; failures for
+ * any single location are non-fatal and leave that location unchanged.
+ */
+export async function generateLocationEstablishingImages(input: {
+  project: Pick<BookProject, "id" | "userId">;
+  locationBible: LocationBible | undefined;
+}): Promise<LocationBible | undefined> {
+  const { locationBible, project } = input;
+  if (!locationBible?.locations.length) return locationBible;
+  if (!isBookAssetStorageConfigured() || !isOpenAIConfigured()) {
+    return locationBible;
+  }
+
+  const locations = await Promise.all(
+    locationBible.locations.map(async (location) => {
+      if (location.referenceImageUrl || location.establishingImageUrl) {
+        return location;
+      }
+      try {
+        const png = await generateAndUpscale({
+          prompt: buildEstablishingImagePrompt(location),
+        });
+        const establishingImageUrl = await storeBookAsset({
+          pathname: `book-locations/${project.userId}/${project.id}/${location.id}-establishing-${Date.now()}.png`,
+          body: png,
+          contentType: "image/png",
+        });
+        return { ...location, establishingImageUrl };
+      } catch (err) {
+        console.warn(
+          `Establishing image for location "${location.name}" failed (${
+            err instanceof Error ? err.message : "unknown error"
+          }) - continuing without it.`
+        );
+        return location;
+      }
+    })
+  );
+
+  return { ...locationBible, locations };
 }
 
 // ---------------------------------------------------------------------------

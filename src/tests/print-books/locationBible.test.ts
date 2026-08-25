@@ -233,4 +233,53 @@ describe("parent-supplied location details", () => {
       resolveSpreadLocationReference(bible, { locationId: "bedroom" })
     ).toBeUndefined();
   });
+
+  it("falls back to a generated establishing image when there is no photo", () => {
+    const establishingBible: LocationBible = {
+      locations: [
+        {
+          ...bedroom,
+          establishingImageUrl: "https://cdn.example/bedroom-establishing.png",
+        },
+        garden,
+      ],
+      pageLocations: bible.pageLocations,
+    };
+    const ref = resolveSpreadLocationReference(establishingBible, {
+      locationId: "bedroom",
+    });
+    expect(ref?.imageUrl).toBe(
+      "https://cdn.example/bedroom-establishing.png"
+    );
+    expect(ref?.label).toContain("Established view");
+  });
+
+  it("prefers a parent photo over a generated establishing image", () => {
+    const bothBible: LocationBible = {
+      locations: [
+        {
+          ...bedroom,
+          referenceImageUrl: "https://cdn.example/nursery.jpg",
+          establishingImageUrl: "https://cdn.example/bedroom-establishing.png",
+        },
+        garden,
+      ],
+      pageLocations: bible.pageLocations,
+    };
+    const ref = resolveSpreadLocationReference(bothBible, {
+      locationId: "bedroom",
+    });
+    expect(ref?.imageUrl).toBe("https://cdn.example/nursery.jpg");
+    expect(ref?.label).toContain("Location photo");
+  });
+
+  it("describes an attached establishing rendering in the direction text", () => {
+    const withEstablishing: SceneLocation = {
+      ...bedroom,
+      establishingImageUrl: "https://cdn.example/bedroom-establishing.png",
+    };
+    const direction = buildLocationDirection(withEstablishing);
+    expect(direction).toContain("established rendering");
+    expect(direction).toContain("orientation");
+  });
 });

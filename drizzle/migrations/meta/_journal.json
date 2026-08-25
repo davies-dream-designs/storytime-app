@@ -113,6 +113,13 @@
       "when": 1787565321223,
       "tag": "0015_location_fixtures",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1787582915830,
+      "tag": "0016_location_establishing_image",
+      "breakpoints": true
     }
   ]
 }

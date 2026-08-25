@@ -1607,3 +1607,79 @@ describe("scoreContinuitySpread", () => {
     expect(same).toBeGreaterThan(different);
   });
 });
+
+describe("generateLocationEstablishingImages", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+    delete process.env.IMAGE_PROVIDER;
+  });
+
+  const bibleWith = (
+    locations: Array<{
+      id: string;
+      referenceImageUrl?: string;
+      establishingImageUrl?: string;
+    }>
+  ) => ({
+    locations: locations.map((loc) => ({
+      id: loc.id,
+      name: loc.id,
+      place: loc.id,
+      summary: "",
+      fixedElements: [],
+      lighting: "",
+      palette: "",
+      doNotChange: [],
+      referenceImageUrl: loc.referenceImageUrl,
+      establishingImageUrl: loc.establishingImageUrl,
+    })),
+    pageLocations: {},
+  });
+
+  it("returns the bible unchanged when generation is not configured", async () => {
+    const { generateLocationEstablishingImages } =
+      await import("@/lib/print-books/illustrations");
+    const bible = bibleWith([{ id: "bedroom" }]);
+    const result = await generateLocationEstablishingImages({
+      project: { id: "book-1", userId: "user-1" },
+      locationBible: bible,
+    });
+    expect(result?.locations[0]?.establishingImageUrl).toBeUndefined();
+    expect(mockStoreBookAsset).not.toHaveBeenCalled();
+  });
+
+  it("passes through an undefined location bible", async () => {
+    const { generateLocationEstablishingImages } =
+      await import("@/lib/print-books/illustrations");
+    const result = await generateLocationEstablishingImages({
+      project: { id: "book-1", userId: "user-1" },
+      locationBible: undefined,
+    });
+    expect(result).toBeUndefined();
+  });
+
+  it("never overwrites a location that already has an image", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    process.env.BLOB_READ_WRITE_TOKEN = "test-token";
+    const { generateLocationEstablishingImages } =
+      await import("@/lib/print-books/illustrations");
+    const bible = bibleWith([
+      { id: "bedroom", referenceImageUrl: "https://cdn.example/photo.jpg" },
+      { id: "car", establishingImageUrl: "https://cdn.example/car.png" },
+    ]);
+    const result = await generateLocationEstablishingImages({
+      project: { id: "book-1", userId: "user-1" },
+      locationBible: bible,
+    });
+    expect(result?.locations[0]?.referenceImageUrl).toBe(
+      "https://cdn.example/photo.jpg"
+    );
+    expect(result?.locations[1]?.establishingImageUrl).toBe(
+      "https://cdn.example/car.png"
+    );
+    // Neither location needed a new asset stored.
+    expect(mockStoreBookAsset).not.toHaveBeenCalled();
+  });
+});

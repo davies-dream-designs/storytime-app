@@ -346,6 +346,10 @@ export function buildLocationDirection(
     parts.push(
       `A reference photo of this place is attached; match its layout, furniture, and colours.`
     );
+  } else if (location.establishingImageUrl) {
+    parts.push(
+      `An established rendering of this place is attached; match its layout, furniture, colours, and the orientation each object faces.`
+    );
   }
   if (location.fixedElements.length > 0) {
     const els = location.fixedElements.join("; ");
@@ -382,10 +386,17 @@ export function resolveSpreadLocationReference(
   spread: Pick<BookSpread, "locationId">
 ): LocationVisualReference | undefined {
   const location = resolveSpreadLocation(bible, spread);
-  if (!location?.referenceImageUrl) return undefined;
+  if (!location) return undefined;
+  // A parent-supplied photo is stronger ground truth than a generated
+  // establishing view, so it wins when both are present.
+  const imageUrl = location.referenceImageUrl ?? location.establishingImageUrl;
+  if (!imageUrl) return undefined;
+  const label = location.referenceImageUrl
+    ? `Location photo — ${location.name}`
+    : `Established view of ${location.name} — keep this room, furniture, and object orientation identical`;
   return {
     id: `location:${location.id}`,
-    label: `Location photo — ${location.name}`,
-    imageUrl: location.referenceImageUrl,
+    label,
+    imageUrl,
   };
 }

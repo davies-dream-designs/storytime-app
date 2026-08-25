@@ -99,6 +99,8 @@ export function applyFixtureToLocation(
     summary: fixture.summary || location.summary,
     notes: fixture.notes ?? location.notes,
     referenceImageUrl: fixture.referenceImageUrl ?? location.referenceImageUrl,
+    establishingImageUrl:
+      fixture.establishingImageUrl ?? location.establishingImageUrl,
     fixedElements: fixture.fixedElements.length
       ? fixture.fixedElements
       : location.fixedElements,

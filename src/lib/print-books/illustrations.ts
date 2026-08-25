@@ -16,6 +16,7 @@ import { BOOK_SPEC } from "@/lib/print-books/bookConfig";
 import { buildIllustrationDirection } from "@/lib/print-books/characterBible";
 import {
   buildLocationDirection,
+  buildSleepFurnitureDirection,
   resolveSpreadLocation,
   resolveSpreadLocationReference,
 } from "@/lib/print-books/locationBible";
@@ -237,9 +238,15 @@ function buildLocationVisualReference(
   if (!location) return undefined;
   const imageUrl = getLocationReferenceImageUrl(location);
   if (!imageUrl) return undefined;
+  const sleepFurnitureDirection = buildSleepFurnitureDirection(location);
   return {
     id: `location:${location.id}`,
-    label: `Established view of ${location.name} — exact room layout, doors, windows, furniture, bed types, colours, and object orientation are authoritative`,
+    label: [
+      `Established view of ${location.name} — exact room layout, doors, windows, furniture, bed types, colours, and object orientation are authoritative`,
+      sleepFurnitureDirection,
+    ]
+      .filter(Boolean)
+      .join(" "),
     imageUrl,
   };
 }

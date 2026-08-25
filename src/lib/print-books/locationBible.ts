@@ -446,6 +446,31 @@ export function resolveSpreadLocation(
  * The setting block injected into a page image prompt. Kept compact so it never
  * crowds out the character-identity instructions in the prompt budget.
  */
+function hasSleepFurniture(location: SceneLocation): boolean {
+  const source = [
+    location.name,
+    location.place,
+    location.area,
+    location.summary,
+    location.notes,
+    ...location.fixedElements,
+    ...location.doNotChange,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return /\b(bed|beds|bedroom|nursery|cot|crib|kura|bunk|mattress)\b/.test(
+    source
+  );
+}
+
+export function buildSleepFurnitureDirection(
+  location: SceneLocation | undefined
+): string {
+  if (!location || !hasSleepFurniture(location)) return "";
+  return "Sleep-furniture guardrail: preserve each bed/cot exactly as shown and described in this location. If the room has both an older child's bed and a baby cot/crib, keep them visually distinct: the older child's bed stays an open single/Kura-style bed and must not become a cot, crib, bassinet, oval cot, or enclosed rail crib; the baby cot/crib stays the separate baby cot. Do not add crib bars or wraparound rails to a normal bed, and do not merge the beds.";
+}
+
 export function buildLocationDirection(
   location: SceneLocation | undefined,
   options?: { compact?: boolean }
@@ -462,6 +487,10 @@ export function buildLocationDirection(
     parts.push(
       `Ground-truth from the family about this real place (authoritative — follow it over any conflicting detail above): ${clampPreview(notes, compact ? 220 : 400)}.`
     );
+  }
+  const sleepFurnitureDirection = buildSleepFurnitureDirection(location);
+  if (sleepFurnitureDirection) {
+    parts.push(sleepFurnitureDirection);
   }
   if (location.establishingImageUrl || location.referenceImageUrl) {
     parts.push(
@@ -509,9 +538,15 @@ export function resolveSpreadLocationReference(
   // locations switched to the drawn-establishing model.
   const imageUrl = location.establishingImageUrl ?? location.referenceImageUrl;
   if (!imageUrl) return undefined;
+  const sleepFurnitureDirection = buildSleepFurnitureDirection(location);
   return {
     id: `location:${location.id}`,
-    label: `Established view of ${location.name} — keep this room, furniture, and object orientation identical`,
+    label: [
+      `Established view of ${location.name} — keep this room, furniture, and object orientation identical`,
+      sleepFurnitureDirection,
+    ]
+      .filter(Boolean)
+      .join(" "),
     imageUrl,
   };
 }

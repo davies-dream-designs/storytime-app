@@ -143,6 +143,24 @@ describe("buildLocationDirection", () => {
     expect(text).toContain("shadows fall to the right");
   });
 
+  it("keeps older-child beds distinct from baby cots in bedroom prompts", () => {
+    const sharedBedroom: SceneLocation = {
+      ...bedroom,
+      summary:
+        "Bedroom with Bailey's IKEA Kura convertible single bed on the left and Levi's cot beside the right window.",
+      fixedElements: [
+        "Bailey's IKEA Kura convertible single bed on the left",
+        "Levi's separate baby cot beside the right window",
+      ],
+      doNotChange: ["Bailey's bed must not become a cot"],
+    };
+    const text = buildLocationDirection(sharedBedroom);
+    expect(text).toContain("Sleep-furniture guardrail");
+    expect(text).toContain("open single/Kura-style bed");
+    expect(text).toContain("must not become a cot");
+    expect(text).toContain("baby cot/crib stays the separate baby cot");
+  });
+
   it("compact variant is shorter than the full variant", () => {
     const full = buildLocationDirection(bedroom);
     const compact = buildLocationDirection(bedroom, { compact: true });
@@ -245,12 +263,16 @@ describe("parent-supplied location details", () => {
     const ref = resolveSpreadLocationReference(drawnBible, {
       locationId: "bedroom",
     });
-    expect(ref).toEqual({
-      id: "location:bedroom",
-      label:
-        "Established view of Levi's bedroom — keep this room, furniture, and object orientation identical",
-      imageUrl: "https://cdn.example/bedroom-establishing.png",
-    });
+    expect(ref).toEqual(
+      expect.objectContaining({
+        id: "location:bedroom",
+        imageUrl: "https://cdn.example/bedroom-establishing.png",
+      })
+    );
+    expect(ref?.label).toContain(
+      "Established view of Levi's bedroom — keep this room, furniture, and object orientation identical"
+    );
+    expect(ref?.label).toContain("Sleep-furniture guardrail");
   });
 
   it("returns no reference photo when the location has none", () => {

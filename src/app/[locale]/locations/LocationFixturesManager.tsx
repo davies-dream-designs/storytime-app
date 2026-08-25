@@ -3,7 +3,10 @@
 import { useRef, useState } from "react";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
+import { compressImageForUpload } from "@/lib/client/compressImage";
 import type { LocationFixture } from "@/types/printBook";
+
+const MAX_LOCATION_PHOTOS = 5;
 
 type Props = {
   initialFixtures: LocationFixture[];
@@ -138,15 +141,24 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
     }
   }
 
-  async function uploadPhotos(files: File[]) {
+  async function uploadPhotos(selected: File[]) {
     if (!form?.id) {
       setError("Save the place first, then add photos.");
       return;
     }
-    if (files.length === 0) return;
+    if (selected.length === 0) return;
+    if (selected.length > MAX_LOCATION_PHOTOS) {
+      setError(
+        `Please choose up to ${MAX_LOCATION_PHOTOS} photos at a time.`
+      );
+      return;
+    }
     setUploading(true);
     setError(null);
     try {
+      const files = await Promise.all(
+        selected.map((file) => compressImageForUpload(file))
+      );
       const body = new FormData();
       for (const file of files) body.append("photos", file);
       body.append("photoConsent", "yes");
@@ -329,23 +341,12 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                   Illustration of this place (optional)
                 </p>
                 <p className="mt-0.5 text-xs text-night-400">
-                  Add a few photos from different angles — we draw one storybook
-                  picture of the space to keep it consistent, then discard your
-                  photos. We keep the illustration, not your photos.
+                  Add up to {MAX_LOCATION_PHOTOS} photos from different angles —
+                  we draw one storybook picture of the space to keep it
+                  consistent, then discard your photos. We keep the illustration,
+                  not your photos.
                 </p>
-                <input
-                  ref={fileInput}
-                  type="file"
-                  multiple
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files ?? []);
-                    if (files.length > 0) void uploadPhotos(files);
-                    e.target.value = "";
-                  }}
-                />
-                <div className="mt-2 flex items-center gap-3">
+                <div className="mt-2 flex flex-wrap items-center gap-3">
                   {form.establishingImageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -354,19 +355,55 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                       className="h-14 w-14 rounded-lg object-cover"
                     />
                   ) : null}
-                  <Button
-                    variant="secondary"
-                    size="compact"
-                    onClick={() => fileInput.current?.click()}
-                    disabled={uploading || !form.id}
+                  <label
+                    className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-night-200 px-3 py-1.5 text-sm font-bold text-night-700 ${
+                      uploading || !form.id
+                        ? "pointer-events-none opacity-60"
+                        : "hover:bg-night-50"
+                    }`}
                   >
                     <Icon name="image" />
                     {uploading
                       ? "Drawing…"
                       : form.establishingImageUrl
-                        ? "Redraw from new photos"
-                        : "Add photos"}
-                  </Button>
+                        ? "Redraw from photos"
+                        : "Upload photos"}
+                    <input
+                      ref={fileInput}
+                      type="file"
+                      multiple
+                      accept="image/jpeg,image/png,image/webp"
+                      className="sr-only"
+                      disabled={uploading || !form.id}
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        if (files.length > 0) void uploadPhotos(files);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                  <label
+                    className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-night-200 px-3 py-1.5 text-sm font-bold text-night-700 ${
+                      uploading || !form.id
+                        ? "pointer-events-none opacity-60"
+                        : "hover:bg-night-50"
+                    }`}
+                  >
+                    <Icon name="image" />
+                    Take photo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="sr-only"
+                      disabled={uploading || !form.id}
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        if (files.length > 0) void uploadPhotos(files);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
                 </div>
                 {!form.id ? (
                   <p className="mt-1 text-xs text-night-400">

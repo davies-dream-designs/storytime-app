@@ -18,4 +18,5 @@ export const inngest = new Inngest({
 export const INNGEST_EVENTS = {
   bookBuildRequested: "storycot/book.build.requested",
   locationEstablishingRequested: "storycot/location.establishing.requested",
+  storyGenerationRequested: "storycot/story.generation.requested",
 } as const;

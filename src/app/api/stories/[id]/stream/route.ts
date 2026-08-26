@@ -1,18 +1,14 @@
 import { NextRequest } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
-import { kv } from "@vercel/kv";
 import { db } from "@/lib/db";
 import { STORY_CREDIT_COST } from "@/lib/pricing";
-import { StoryGenerationError, streamStory } from "@/lib/storyGenerator";
-import {
-  assessGeneratedStoryIp,
-  assessProfileIp,
-  profileIpErrorResponse,
-} from "@/lib/ipGuardrails";
 import { logEvent } from "@/lib/logEvent";
 import { storyRatelimit, checkRatelimit } from "@/lib/ratelimit";
-import { getSelectedStoryPeople } from "@/lib/storyPeopleSelection";
-import type { StoryPage } from "@/types";
+import {
+  runStoryGeneration,
+  readStorySnapshot,
+  type StorySnapshotState,
+} from "@/lib/stories/runGeneration";
 
 function sendEvent(
   controller: ReadableStreamDefaultController<Uint8Array>,
@@ -34,6 +30,49 @@ function safeClose(controller: ReadableStreamDefaultController<Uint8Array>) {
     controller.close();
   } catch {
     // Already closed.
+  }
+}
+
+function relaySnapshot(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  state: StorySnapshotState
+) {
+  if (state.stage) {
+    sendEvent(controller, "status", { status: state.stage });
+  }
+  if (state.pages.length > 0) {
+    sendEvent(controller, "snapshot", { pages: state.pages });
+  }
+}
+
+/**
+ * Observer path: another generator (a second tab or the durable Inngest job)
+ * already owns this story. Relay KV snapshots and poll the DB until the story
+ * reaches a terminal state, so this client still sees live progress and the
+ * final result without running a second generation.
+ */
+async function observeGeneration(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  storyId: string,
+  signal: AbortSignal
+) {
+  const deadline = Date.now() + 5 * 60 * 1000;
+  while (!signal.aborted && Date.now() < deadline) {
+    const snapshot = await readStorySnapshot(storyId);
+    if (snapshot) relaySnapshot(controller, snapshot);
+
+    const current = await db.stories.getById(storyId);
+    if (current?.status === "ready") {
+      sendEvent(controller, "complete", current);
+      return;
+    }
+    if (current?.status === "failed") {
+      sendEvent(controller, "error", {
+        error: current.generationError ?? "Story generation failed",
+      });
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1500));
   }
 }
 
@@ -78,7 +117,7 @@ export async function POST(
   const isAdmin = user.privateMetadata.isAdmin === true;
   const credits = (user.privateMetadata.credits as number | undefined) ?? 3;
 
-  if (!isAdmin && credits < STORY_CREDIT_COST) {
+  if (!isAdmin && credits < STORY_CREDIT_COST && !story.creditChargedAt) {
     await db.stories.update(id, {
       status: "failed",
       generationError: "You're out of credits. Visit your account to top up.",
@@ -86,129 +125,50 @@ export async function POST(
     return new Response("No credits remaining", { status: 402 });
   }
 
-  const profile = await db.profiles.getById(story.profileId);
-  if (!profile || profile.userId !== userId) {
-    await db.stories.update(id, {
-      status: "failed",
-      generationError: "Profile not found",
-    });
-    return new Response("Profile not found", { status: 404 });
-  }
-
   const locale = req.nextUrl.searchParams.get("locale") ?? undefined;
+
+  // Atomically claim this story so a second tab or the durable Inngest fallback
+  // never generates (and double-charges) in parallel. If the claim fails, this
+  // request becomes a read-only observer of the owning generator's progress.
+  const now = new Date();
+  const staleBefore = new Date(now.getTime() - 2 * 60 * 1000).toISOString();
+  const claimed = await db.stories.claimGeneration(
+    id,
+    `stream:${now.getTime()}`,
+    now.toISOString(),
+    staleBefore
+  );
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
-        sendEvent(controller, "status", { status: "starting" });
-
-        const [characters, recentStories] = await Promise.all([
-          db.characters.getByProfileId(story.profileId),
-          db.stories.getByProfileId(story.profileId),
-        ]);
-        const safeCharacters = characters.filter((c) => c.userId === userId);
-        const selectedStoryPeople = await getSelectedStoryPeople({
-          userId,
-          profileId: story.profileId,
-          storyPersonIds: story.storyPersonIds ?? [],
-        });
-        const profileIpPolicy = assessProfileIp({
-          ...profile,
-          characters: safeCharacters,
-          storyPeople: selectedStoryPeople,
-        });
-        if (profileIpPolicy.printAllowed === false) {
-          const response = profileIpErrorResponse(profileIpPolicy);
-          throw new Error(response.error);
+        if (!claimed) {
+          await observeGeneration(controller, id, req.signal);
+          safeClose(controller);
+          return;
         }
 
-        const recentTitles = recentStories
-          .filter((s) => s.userId === userId && s.id !== story.id)
-          .sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1))
-          .slice(0, 5)
-          .map((s) => s.title);
+        sendEvent(controller, "status", { status: "starting" });
+        const result = await runStoryGeneration(id, {
+          locale,
+          onSnapshot: (state) => relaySnapshot(controller, state),
+        });
 
-        const generated = await streamStory(
-          {
-            profile,
-            characters: safeCharacters,
-            storyPeople: selectedStoryPeople,
-            theme: story.theme,
-            premise: story.premise,
-            notes: story.notes,
-            locationHint: story.locationHint,
-            storyPreset: story.storyPreset,
-            recentTitles,
-            locale,
-          },
-          (textPages) => {
-            sendEvent(controller, "snapshot", {
-              pages: textPages.map((text, index): StoryPage => ({
-                pageNumber: index + 1,
-                text,
-                illustrationPrompt: "",
-              })),
-            });
-          },
-          (stage) => {
-            sendEvent(controller, "status", { status: stage });
-          }
-        );
-
-        const wordCount = generated.pages.reduce(
-          (acc, page) => acc + page.text.split(/\s+/).filter(Boolean).length,
-          0
-        );
-
-        const finalStory = {
-          ...story,
-          title: generated.title,
-          pages: generated.pages,
-          wordCount,
-          status: "ready",
-          generationError: undefined,
-        } as const;
-        const generatedIpPolicy = assessGeneratedStoryIp(finalStory);
-        const storyForStorage =
-          generatedIpPolicy.riskLevel === "restricted"
-            ? { ...finalStory, ipPolicy: generatedIpPolicy }
-            : finalStory;
-
-        const updated = await db.stories.update(id, storyForStorage);
-
-        await kv.del(`suggestions:${story.profileId}`);
-
-        if (!isAdmin) {
-          await client.users.updateUserMetadata(userId, {
-            privateMetadata: { credits: credits - STORY_CREDIT_COST },
+        if (result.status === "ready" && result.story) {
+          sendEvent(controller, "complete", result.story);
+        } else if (result.status === "failed") {
+          sendEvent(controller, "error", {
+            error: result.error ?? "Story generation failed",
           });
         }
-
-        sendEvent(controller, "complete", updated ?? storyForStorage);
         safeClose(controller);
       } catch (err) {
-        // If the client navigated away, the failure is just the disconnect.
-        // Don't corrupt the story record to "failed" - leave it as-is so a
-        // reload can recover, and skip the noisy error log/event.
+        // If the client navigated away, the durable Inngest fallback still owns
+        // completion, so don't surface a noisy error.
         if (req.signal.aborted) {
           safeClose(controller);
           return;
         }
-        const message =
-          err instanceof StoryGenerationError
-            ? err.message
-            : err instanceof Error
-              ? err.message
-              : "Story generation failed";
-        const technicalMessage =
-          err instanceof StoryGenerationError
-            ? err.technicalMessage
-            : err instanceof Error
-              ? err.message
-              : undefined;
-        await db.stories.update(id, {
-          status: "failed",
-          generationError: message,
-        });
         await logEvent({
           error: err,
           fallbackCode: "story.generation_failed",
@@ -217,13 +177,12 @@ export async function POST(
           entityType: "story",
           entityId: id,
           source: "story/stream",
-          context: {
-            theme: story.theme,
-            profileId: story.profileId,
-            technicalMessage,
-          },
+          context: { theme: story.theme, profileId: story.profileId },
         });
-        sendEvent(controller, "error", { error: message });
+        sendEvent(controller, "error", {
+          error:
+            err instanceof Error ? err.message : "Story generation failed",
+        });
         safeClose(controller);
       }
     },

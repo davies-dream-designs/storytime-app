@@ -14,6 +14,7 @@ export function createMemoryDb() {
   const bookBuildJobMap = new Map<string, BookBuildJob>();
   const printOrderMap = new Map<string, PrintOrderRecord>();
   const emailClaimSet = new Set<string>();
+  const processedWebhookEventSet = new Set<string>();
 
   const db = {
     _reset() {
@@ -25,6 +26,7 @@ export function createMemoryDb() {
       bookBuildJobMap.clear();
       printOrderMap.clear();
       emailClaimSet.clear();
+      processedWebhookEventSet.clear();
     },
 
     profiles: {
@@ -87,6 +89,26 @@ export function createMemoryDb() {
       async setShareToken(id: string, token: string): Promise<void> {
         const current = storyMap.get(id);
         if (current) storyMap.set(id, { ...current, shareToken: token });
+      },
+      async claimGeneration(
+        id: string,
+        jobId: string,
+        claimedAt: string,
+        staleBefore: string
+      ): Promise<Story | undefined> {
+        const current = storyMap.get(id);
+        if (!current || current.status !== "generating") return undefined;
+        const claimIsFresh =
+          current.generationClaimedAt != null &&
+          current.generationClaimedAt >= staleBefore;
+        if (claimIsFresh) return undefined;
+        const next = {
+          ...current,
+          generationJobId: jobId,
+          generationClaimedAt: claimedAt,
+        };
+        storyMap.set(id, next);
+        return next;
       },
       async delete(id: string): Promise<boolean> {
         if (!storyMap.has(id)) return false;
@@ -351,6 +373,17 @@ export function createMemoryDb() {
         };
         bookBuildJobMap.set(id, next);
         return next;
+      },
+    },
+
+    processedWebhookEvents: {
+      async claim(id: string): Promise<boolean> {
+        if (processedWebhookEventSet.has(id)) return false;
+        processedWebhookEventSet.add(id);
+        return true;
+      },
+      async release(id: string): Promise<void> {
+        processedWebhookEventSet.delete(id);
       },
     },
   };

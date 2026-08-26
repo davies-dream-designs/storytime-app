@@ -119,6 +119,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
+  // Idempotency: Stripe retries deliveries. Claim the event id once so credit
+  // top-ups, gift referrals, fulfillment submissions and emails never repeat on
+  // redelivery. If processing throws after claiming, we release the id so the
+  // retry can run again.
+  const claimed = await db.processedWebhookEvents.claim(event.id, "stripe");
+  if (!claimed) {
+    return NextResponse.json({ received: true, duplicate: true });
+  }
+
+  try {
+    return await handleStripeEvent(stripe, event);
+  } catch (err) {
+    await db.processedWebhookEvents.release(event.id).catch(() => undefined);
+    await logEvent({
+      error: err,
+      code: "webhook.processing_failed",
+      source: "stripe/webhook",
+      context: { eventId: event.id, eventType: event.type },
+    });
+    return NextResponse.json(
+      { error: "Webhook processing failed" },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleStripeEvent(stripe: Stripe, event: Stripe.Event) {
   if (event.type === "checkout.session.completed") {
     let session = event.data.object as Stripe.Checkout.Session;
     const checkoutType = session.metadata?.checkoutType ?? "credits";
@@ -362,6 +389,14 @@ export async function POST(req: NextRequest) {
       const productKey = session.metadata?.productKey;
       if (projectId && isPrintProductKey(productKey)) {
         const project = await db.bookProjects.getById(projectId);
+        // Defence in depth beyond the event ledger: never submit a second Lulu
+        // print job for a project that already has a submitted fulfillment.
+        const alreadySubmitted = Boolean(
+          project?.printOrder?.fulfillment?.externalOrderId
+        );
+        if (project && project.userId === userId && alreadySubmitted) {
+          return NextResponse.json({ received: true, alreadySubmitted: true });
+        }
         if (project && project.userId === userId) {
           const quote = quotePrintProduct(project, productKey);
           const quantity = Math.min(

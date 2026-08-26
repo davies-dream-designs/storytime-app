@@ -94,6 +94,9 @@ export const stories = pgTable(
     createdAt: text("created_at").notNull(),
     status: text("status").$type<"generating" | "ready" | "failed">(),
     generationError: text("generation_error"),
+    generationJobId: text("generation_job_id"),
+    generationClaimedAt: text("generation_claimed_at"),
+    creditChargedAt: text("credit_charged_at"),
     shareToken: text("share_token"),
     visibility: text("visibility")
       .$type<StoryVisibility>()
@@ -430,6 +433,16 @@ export const locationFixtures = pgTable(
     updatedAt: text("updated_at").notNull(),
   },
   (t) => [index("location_fixtures_user_id_idx").on(t.userId)]
+);
+
+export const processedWebhookEvents = pgTable(
+  "processed_webhook_events",
+  {
+    id: text("id").primaryKey(),
+    source: text("source").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [index("processed_webhook_events_source_idx").on(t.source)]
 );
 
 export const publicStoryModerationEvents = pgTable(

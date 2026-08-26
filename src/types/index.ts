@@ -184,6 +184,12 @@ export interface Story {
   createdAt: string;
   status?: "generating" | "ready" | "failed";
   generationError?: string;
+  /** Id of the durable Inngest job that owns this story's generation. */
+  generationJobId?: string;
+  /** When a generator last claimed this story; used to detect stale claims. */
+  generationClaimedAt?: string;
+  /** Set once the story-credit has been deducted, so retries never re-charge. */
+  creditChargedAt?: string;
   shareToken?: string;
   visibility?: StoryVisibility;
   publicReviewStatus?: PublicReviewStatus;

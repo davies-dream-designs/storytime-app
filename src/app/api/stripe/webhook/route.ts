@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { clerkClient } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { submitPrintFulfillment } from "@/lib/print-books/fulfillment";
 import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
 import {
   isPrintProductKey,
@@ -18,24 +17,12 @@ import {
   sendPrintOrderConfirmedEmail,
 } from "@/lib/email";
 import { logEvent } from "@/lib/logEvent";
-import type {
-  PrintBookOrder,
-  PrintFulfillment,
-  PrintOrderRecord,
-} from "@/types/printBook";
+import type { PrintBookOrder, PrintOrderRecord } from "@/types/printBook";
 
 function withoutStoredShipping(order: PrintBookOrder): PrintBookOrder {
   const safeOrder = { ...order };
   delete safeOrder.shipping;
   return safeOrder;
-}
-
-function withoutStoredFulfillmentPayload(
-  fulfillment: PrintFulfillment
-): PrintFulfillment {
-  const safeFulfillment = { ...fulfillment };
-  delete safeFulfillment.payload;
-  return safeFulfillment;
 }
 
 function centsToAud(value: number) {
@@ -332,7 +319,7 @@ async function handleStripeEvent(stripe: Stripe, event: Stripe.Event) {
           try {
             await inngest.send({
               name: INNGEST_EVENTS.printFulfillmentRequested,
-              data: { orderId: order.id },
+              data: { kind: "public", orderId: order.id },
             });
           } catch (err) {
             await logEvent({
@@ -435,15 +422,13 @@ async function handleStripeEvent(stripe: Stripe, event: Stripe.Event) {
             shipping: getPrintShippingAddress(session),
             paidAt: new Date().toISOString(),
           };
-          const fulfillment = await submitPrintFulfillment({
-            project,
-            order: printOrder,
-          });
+          // Persist the paid order without the shipping address (privacy) and
+          // without a fulfillment yet, then submit to Lulu durably in the
+          // background. The Lulu call is not made inline so a slow/failed
+          // provider can't time out the webhook or strand a paid order; the
+          // background job re-fetches shipping from Stripe on demand.
           await db.bookProjects.update(project.id, {
-            printOrder: {
-              ...withoutStoredShipping(printOrder),
-              fulfillment: withoutStoredFulfillmentPayload(fulfillment),
-            },
+            printOrder: withoutStoredShipping(printOrder),
             assets: {
               ...project.assets,
               ...(project.assets.digitalDownloadUnlockedAt
@@ -451,6 +436,25 @@ async function handleStripeEvent(stripe: Stripe, event: Stripe.Event) {
                 : { digitalDownloadUnlockedAt: new Date().toISOString() }),
             },
           });
+          try {
+            await inngest.send({
+              name: INNGEST_EVENTS.printFulfillmentRequested,
+              data: { kind: "owner", projectId: project.id },
+            });
+          } catch (err) {
+            await logEvent({
+              error: err,
+              code: "print.fulfillment_failed",
+              userId,
+              entityType: "book",
+              entityId: project.id,
+              source: "stripe/webhook",
+              context: {
+                phase: "enqueue_fulfillment",
+                checkoutSessionId: session.id,
+              },
+            });
+          }
 
           // Fire-and-forget - email failure must never break the webhook response.
           const customerEmail = printOrder.shipping?.email;

@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import {
+  assertImageRegenerationAffordable,
   chargeImageRegenerationCredit,
   captureIllustratedBookCredits,
-  refundImageRegenerationCredit,
   refundIllustratedBookCredits,
   reserveIllustratedBookCredits,
 } from "@/lib/credits";
 import { db } from "@/lib/db";
+import { logEvent } from "@/lib/logEvent";
 import { imageRatelimit, checkRatelimit } from "@/lib/ratelimit";
 import { regenerateBookSpreadPageImage } from "@/lib/print-books/jobs";
 import type { BookProject } from "@/types/printBook";
@@ -54,7 +55,7 @@ export async function POST(
   const rateLimitRes = await checkRatelimit(imageRatelimit, userId);
   if (rateLimitRes) return rateLimitRes;
 
-  let charged = false;
+  let isPaidRedoCharge = false;
   let reservedBookCharge = false;
   let billableProject: BookProject | null = null;
   try {
@@ -85,8 +86,10 @@ export async function POST(
       !isPlaceholderImageUrl(currentUrl);
 
     if (isPaidRedo) {
-      await chargeImageRegenerationCredit(userId);
-      charged = true;
+      // Fail fast, but only charge after the new image is persisted so a crash
+      // mid-render can't take a credit with no delivered image and no refund.
+      await assertImageRegenerationAffordable(userId);
+      isPaidRedoCharge = true;
     } else if (
       currentProject.billing?.status !== "reserved" &&
       currentProject.billing?.status !== "captured"
@@ -105,6 +108,22 @@ export async function POST(
     const project = await regenerateBookSpreadPageImage(regenerateInput);
     if (!project) throw new Error("Book project not found");
 
+    if (isPaidRedoCharge) {
+      // Image delivered; charging must not un-deliver it if this rare call fails.
+      try {
+        await chargeImageRegenerationCredit(userId);
+      } catch (err) {
+        await logEvent({
+          error: err,
+          code: "credits.post_charge_failed",
+          userId,
+          entityType: "book",
+          entityId: project.id,
+          source: "books/images/regenerate",
+        });
+      }
+    }
+
     if (project.billing?.status === "reserved" && project.status === "ready") {
       const capturedProject = await captureIllustratedBookCredits(project);
       return NextResponse.json(capturedProject);
@@ -112,7 +131,6 @@ export async function POST(
 
     return NextResponse.json(project);
   } catch (error) {
-    if (charged) await refundImageRegenerationCredit(userId);
     if (reservedBookCharge && billableProject) {
       await refundIllustratedBookCredits(billableProject);
     }

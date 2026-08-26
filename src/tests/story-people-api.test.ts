@@ -4,6 +4,7 @@ import type { ChildProfile, StoryPerson } from "@/types";
 
 const {
   mockAuth,
+  mockAssertReferenceRedoAffordable,
   mockChargeReferenceRedoCredit,
   mockCreateChildProfileAvatarFromDescription,
   mockCreateChildProfileAvatar,
@@ -13,8 +14,10 @@ const {
   mockRefundReferenceRedoCredit,
   mockRedoChildProfileAvatar,
   mockRedoStoryPersonAvatar,
+  mockLogEvent,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(async () => ({ userId: "user-1" })),
+  mockAssertReferenceRedoAffordable: vi.fn(),
   mockChargeReferenceRedoCredit: vi.fn(),
   mockCreateChildProfileAvatarFromDescription: vi.fn(),
   mockCreateChildProfileAvatar: vi.fn(),
@@ -23,6 +26,7 @@ const {
   mockRefundReferenceRedoCredit: vi.fn(),
   mockRedoChildProfileAvatar: vi.fn(),
   mockRedoStoryPersonAvatar: vi.fn(),
+  mockLogEvent: vi.fn(),
   mockDb: {
     profiles: {
       getByUserId: vi.fn(),
@@ -60,8 +64,13 @@ vi.mock("@/lib/storyPeopleAvatars", () => ({
 }));
 
 vi.mock("@/lib/credits", () => ({
+  assertReferenceRedoAffordable: mockAssertReferenceRedoAffordable,
   chargeReferenceRedoCredit: mockChargeReferenceRedoCredit,
   refundReferenceRedoCredit: mockRefundReferenceRedoCredit,
+}));
+
+vi.mock("@/lib/logEvent", () => ({
+  logEvent: mockLogEvent,
 }));
 
 const profiles: ChildProfile[] = [
@@ -100,6 +109,8 @@ describe("/api/story-people", () => {
       charged: true,
     });
     mockRefundReferenceRedoCredit.mockResolvedValue(undefined);
+    mockAssertReferenceRedoAffordable.mockResolvedValue(undefined);
+    mockLogEvent.mockResolvedValue(undefined);
     mockCreateChildProfileAvatar.mockResolvedValue({
       avatarImageUrl: "https://assets.example.com/child-avatar.jpg",
       appearanceSummary: "Warm child storybook reference.",
@@ -721,6 +732,36 @@ describe("/api/story-people", () => {
     expect(res.status).toBe(200);
     expect(mockChargeReferenceRedoCredit).toHaveBeenCalledWith("user-1");
     expect(mockCreateChildProfileAvatar).toHaveBeenCalled();
+  });
+
+  it("does not charge when avatar generation fails (crash-safe ordering)", async () => {
+    const profile: ChildProfile = {
+      ...profiles[0],
+      avatarImageUrl: "https://assets.example.com/existing.jpg",
+    };
+    mockDb.profiles.getById.mockResolvedValue(profile);
+    mockCreateChildProfileAvatar.mockRejectedValue(
+      new Error("image provider timed out")
+    );
+
+    const { POST } = await import("@/app/api/profiles/[id]/avatar/route");
+    const form = new FormData();
+    form.append(
+      "photo",
+      new File(["fake"], "mila.jpg", { type: "image/jpeg" })
+    );
+    form.append("photoConsent", "yes");
+    const req = { formData: async () => form } as NextRequest;
+
+    const res = await POST(req, {
+      params: Promise.resolve({ id: "profile-1" }),
+    });
+
+    expect(res.status).toBe(502);
+    // Affordability was checked up front, but the credit is only taken after a
+    // successful, persisted avatar — so a failed render never costs a credit.
+    expect(mockAssertReferenceRedoAffordable).toHaveBeenCalledWith("user-1");
+    expect(mockChargeReferenceRedoCredit).not.toHaveBeenCalled();
   });
 
   it("creates a child profile illustrated reference from profile details without a photo", async () => {

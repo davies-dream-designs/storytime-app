@@ -81,6 +81,23 @@ export async function redeemGiftCredits(
   return nextCredits;
 }
 
+/**
+ * Fail-fast affordability check used before running a (slow, killable) image
+ * generation so we never do the work for a user who can't pay. The actual
+ * charge happens only after the artifact is persisted, so a crash mid-render
+ * can't strand a paid credit with no artifact and no refund.
+ */
+export async function assertImageRegenerationAffordable(
+  userId: string
+): Promise<void> {
+  const { credits, isAdmin } = await getUserCredits(userId);
+  if (!isAdmin && credits < 1) {
+    throw new Error(
+      "Insufficient credits. Regenerating an image costs 1 credit."
+    );
+  }
+}
+
 export async function chargeImageRegenerationCredit(
   userId: string
 ): Promise<{ credits: number; isAdmin: boolean }> {
@@ -113,6 +130,18 @@ export async function refundImageRegenerationCredit(userId: string) {
   await client.users.updateUserMetadata(userId, {
     privateMetadata: { credits: currentCredits + 1 },
   });
+}
+
+/** See assertImageRegenerationAffordable: fail-fast before slow avatar work. */
+export async function assertReferenceRedoAffordable(
+  userId: string
+): Promise<void> {
+  const { credits, isAdmin } = await getUserCredits(userId);
+  if (!isAdmin && credits < REFERENCE_REDO_CREDIT_COST) {
+    throw new Error(
+      `Insufficient credits. Creating or redoing an illustrated reference costs ${REFERENCE_REDO_CREDIT_COST} credit.`
+    );
+  }
 }
 
 export async function chargeReferenceRedoCredit(

@@ -249,18 +249,16 @@ describe("Stripe checkout webhook", () => {
 
     expect(res.status).toBe(200);
     expect(mockRetrieveSession).toHaveBeenCalledWith("cs_test_123");
-    expect(mockSubmitPrintFulfillment).toHaveBeenCalledWith({
-      project: expect.objectContaining({ id: "book-1" }),
-      order: expect.objectContaining({
-        shipping: expect.objectContaining({
-          name: "Shipping Parent",
-          line1: "7 Shipping Lane",
-          city: "Melbourne",
-          postalCode: "3000",
-          countryCode: "AU",
-        }),
-      }),
+    // Owner fulfillment is deferred: the webhook enqueues the durable job and
+    // never submits to Lulu inline, nor persists the shipping address.
+    expect(mockSubmitPrintFulfillment).not.toHaveBeenCalled();
+    expect(mockInngestSend).toHaveBeenCalledWith({
+      name: "storycot/print.fulfillment.requested",
+      data: { kind: "owner", projectId: "book-1" },
     });
+    const persisted = mockDb.bookProjects.update.mock.calls[0]?.[1]
+      ?.printOrder as Record<string, unknown>;
+    expect(persisted).not.toHaveProperty("shipping");
   });
 
   it("reads shipping from collected_information when it is already in the event", async () => {
@@ -298,22 +296,18 @@ describe("Stripe checkout webhook", () => {
 
     expect(res.status).toBe(200);
     expect(mockRetrieveSession).not.toHaveBeenCalled();
-    expect(mockSubmitPrintFulfillment).toHaveBeenCalledWith({
-      project: expect.objectContaining({ id: "book-1" }),
-      order: expect.objectContaining({
-        billingCountry: "AU",
-        shipping: expect.objectContaining({
-          name: "Collected Parent",
-          line1: "2 Collected Ave",
-          city: "Brisbane",
-          postalCode: "4000",
-          countryCode: "AU",
-        }),
-      }),
+    expect(mockSubmitPrintFulfillment).not.toHaveBeenCalled();
+    expect(mockInngestSend).toHaveBeenCalledWith({
+      name: "storycot/print.fulfillment.requested",
+      data: { kind: "owner", projectId: "book-1" },
     });
+    const persisted = mockDb.bookProjects.update.mock.calls[0]?.[1]
+      ?.printOrder as Record<string, unknown>;
+    expect(persisted).not.toHaveProperty("shipping");
+    expect(persisted).toMatchObject({ billingCountry: "AU" });
   });
 
-  it("uses Stripe shipping for fulfillment while keeping stored checkout totals", async () => {
+  it("persists paid owner print order with stored totals and no shipping, then enqueues fulfillment", async () => {
     mockDb.bookProjects.getById.mockResolvedValue({
       ...createProject(),
       printOrder: {
@@ -347,24 +341,16 @@ describe("Stripe checkout webhook", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(mockSubmitPrintFulfillment).toHaveBeenCalledWith({
-      project: expect.objectContaining({ id: "book-1" }),
-      order: expect.objectContaining({
-        amountAud: 59.5,
-        subtotalAud: 44.35,
-        shippingAmountAud: 15.15,
-        shipping: expect.objectContaining({
-          name: "Buyer Parent",
-          line1: "1 Billing St",
-          city: "Sydney",
-          postalCode: "2000",
-        }),
-      }),
+    expect(mockSubmitPrintFulfillment).not.toHaveBeenCalled();
+    expect(mockInngestSend).toHaveBeenCalledWith({
+      name: "storycot/print.fulfillment.requested",
+      data: { kind: "owner", projectId: "book-1" },
     });
     const persistedPrintOrder = mockDb.bookProjects.update.mock.calls[0]?.[1]
       ?.printOrder as Record<string, unknown>;
     expect(persistedPrintOrder).not.toHaveProperty("shipping");
     expect(persistedPrintOrder).toMatchObject({
+      status: "paid",
       amountAud: 59.5,
       subtotalAud: 44.35,
       shippingAmountAud: 15.15,
@@ -530,7 +516,7 @@ describe("Stripe checkout webhook", () => {
     );
     expect(mockInngestSend).toHaveBeenCalledWith({
       name: "storycot/print.fulfillment.requested",
-      data: { orderId: "print-order-1" },
+      data: { kind: "public", orderId: "print-order-1" },
     });
     expect(mockDb.bookProjects.update).not.toHaveBeenCalled();
     expect(mockSendPrintOrderConfirmedEmail).toHaveBeenCalledWith(
@@ -635,7 +621,7 @@ describe("Stripe checkout webhook", () => {
   });
 
   it("releases the processed-event claim when handling throws so Stripe can retry", async () => {
-    mockSubmitPrintFulfillment.mockRejectedValue(new Error("lulu down"));
+    mockDb.bookProjects.update.mockRejectedValue(new Error("db write failed"));
     mockConstructEvent.mockReturnValue({
       id: "evt_fail_1",
       type: "checkout.session.completed",

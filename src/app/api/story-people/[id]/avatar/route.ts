@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import {
+  assertReferenceRedoAffordable,
   chargeReferenceRedoCredit,
-  refundReferenceRedoCredit,
 } from "@/lib/credits";
+import { logEvent } from "@/lib/logEvent";
 import { FREE_REFERENCE_AVATAR_LIMIT } from "@/lib/pricing";
 import {
   createStoryPersonAvatar,
@@ -12,6 +13,27 @@ import {
   redoStoryPersonAvatar,
 } from "@/lib/storyPeopleAvatars";
 import { getStoryPersonReferenceTraitHash } from "@/lib/characterReferenceContext";
+
+/**
+ * Charge only after the avatar is generated and persisted. If the process is
+ * killed during the (slow) image render, no credit is taken; affordability is
+ * pre-checked so we still fail fast for users who can't pay. A failure of this
+ * post-persist charge must not un-deliver the avatar the user already has.
+ */
+async function chargeForDeliveredAvatar(userId: string, entityId: string) {
+  try {
+    await chargeReferenceRedoCredit(userId);
+  } catch (err) {
+    await logEvent({
+      error: err,
+      code: "credits.post_charge_failed",
+      userId,
+      entityType: "story_person",
+      entityId,
+      source: "story-people/avatar",
+    });
+  }
+}
 
 export async function POST(
   req: NextRequest,
@@ -33,7 +55,6 @@ export async function POST(
       adjustment?: string;
       source?: "description";
     };
-    let charged = false;
     try {
       const isDescriptionCreate =
         payload.source === "description" && !person.avatarImageUrl;
@@ -43,10 +64,7 @@ export async function POST(
       const shouldCharge =
         !isDescriptionCreate ||
         existingReferenceCount >= FREE_REFERENCE_AVATAR_LIMIT;
-      if (shouldCharge) {
-        const charge = await chargeReferenceRedoCredit(userId);
-        charged = charge.charged;
-      }
+      if (shouldCharge) await assertReferenceRedoAffordable(userId);
       const avatar = isDescriptionCreate
         ? await createStoryPersonAvatarFromDescription({
             person,
@@ -69,9 +87,9 @@ export async function POST(
         avatarTraitHash: getStoryPersonReferenceTraitHash(nextPerson),
         avatarGeneratedAt: new Date().toISOString(),
       });
+      if (shouldCharge) await chargeForDeliveredAvatar(userId, id);
       return NextResponse.json(updated);
     } catch (err) {
-      if (charged) await refundReferenceRedoCredit(userId);
       const message =
         err instanceof Error
           ? err.message
@@ -104,7 +122,6 @@ export async function POST(
     .trim()
     .slice(0, 240);
   const isRedo = Boolean(person.avatarImageUrl);
-  let charged = false;
 
   try {
     const existingReferenceCount = isRedo
@@ -112,10 +129,7 @@ export async function POST(
       : await db.storyPeople.countAvatarReferencesByUserId(userId);
     const shouldCharge =
       isRedo || existingReferenceCount >= FREE_REFERENCE_AVATAR_LIMIT;
-    if (shouldCharge) {
-      const charge = await chargeReferenceRedoCredit(userId);
-      charged = charge.charged;
-    }
+    if (shouldCharge) await assertReferenceRedoAffordable(userId);
     const avatar = await createStoryPersonAvatar({
       person,
       file: photo,
@@ -134,9 +148,9 @@ export async function POST(
       avatarTraitHash: getStoryPersonReferenceTraitHash(nextPerson),
       avatarGeneratedAt: new Date().toISOString(),
     });
+    if (shouldCharge) await chargeForDeliveredAvatar(userId, id);
     return NextResponse.json(updated);
   } catch (err) {
-    if (charged) await refundReferenceRedoCredit(userId);
     const message =
       err instanceof Error
         ? err.message

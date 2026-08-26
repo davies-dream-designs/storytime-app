@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import {
+  assertReferenceRedoAffordable,
   chargeReferenceRedoCredit,
-  refundReferenceRedoCredit,
 } from "@/lib/credits";
+import { logEvent } from "@/lib/logEvent";
 import { FREE_REFERENCE_AVATAR_LIMIT } from "@/lib/pricing";
 import {
   createChildProfileAvatarFromDescription,
@@ -31,6 +32,22 @@ function mergeConsistencyNote(
   };
 }
 
+/** See story-people avatar route: charge only after the avatar is delivered. */
+async function chargeForDeliveredAvatar(userId: string, entityId: string) {
+  try {
+    await chargeReferenceRedoCredit(userId);
+  } catch (err) {
+    await logEvent({
+      error: err,
+      code: "credits.post_charge_failed",
+      userId,
+      entityType: "profile",
+      entityId,
+      source: "profiles/avatar",
+    });
+  }
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -51,7 +68,6 @@ export async function POST(
       adjustment?: string;
       source?: "description";
     };
-    let charged = false;
     try {
       const isDescriptionCreate =
         payload.source === "description" && !profile.avatarImageUrl;
@@ -61,10 +77,7 @@ export async function POST(
       const shouldCharge =
         !isDescriptionCreate ||
         existingReferenceCount >= FREE_REFERENCE_AVATAR_LIMIT;
-      if (shouldCharge) {
-        const charge = await chargeReferenceRedoCredit(userId);
-        charged = charge.charged;
-      }
+      if (shouldCharge) await assertReferenceRedoAffordable(userId);
       const avatar = isDescriptionCreate
         ? await createChildProfileAvatarFromDescription({
             profile,
@@ -91,9 +104,9 @@ export async function POST(
         avatarTraitHash: getChildProfileReferenceTraitHash(nextProfile),
         avatarGeneratedAt: new Date().toISOString(),
       });
+      if (shouldCharge) await chargeForDeliveredAvatar(userId, id);
       return NextResponse.json(updated);
     } catch (err) {
-      if (charged) await refundReferenceRedoCredit(userId);
       const message =
         err instanceof Error
           ? err.message
@@ -126,7 +139,6 @@ export async function POST(
     .trim()
     .slice(0, 240);
   const isRedo = Boolean(profile.avatarImageUrl);
-  let charged = false;
 
   try {
     const existingReferenceCount = isRedo
@@ -134,10 +146,7 @@ export async function POST(
       : await db.profiles.countAvatarReferencesByUserId(userId);
     const shouldCharge =
       isRedo || existingReferenceCount >= FREE_REFERENCE_AVATAR_LIMIT;
-    if (shouldCharge) {
-      const charge = await chargeReferenceRedoCredit(userId);
-      charged = charge.charged;
-    }
+    if (shouldCharge) await assertReferenceRedoAffordable(userId);
     const avatar = await createChildProfileAvatar({
       profile,
       file: photo,
@@ -160,9 +169,9 @@ export async function POST(
       avatarTraitHash: getChildProfileReferenceTraitHash(nextProfile),
       avatarGeneratedAt: new Date().toISOString(),
     });
+    if (shouldCharge) await chargeForDeliveredAvatar(userId, id);
     return NextResponse.json(updated);
   } catch (err) {
-    if (charged) await refundReferenceRedoCredit(userId);
     const message =
       err instanceof Error
         ? err.message

@@ -600,6 +600,18 @@ function createPlaceholderPageSvg(input: {
 const MAX_VISUAL_REFERENCES_PER_IMAGE = 6;
 const MAX_CONTINUITY_REFERENCES_PER_IMAGE = 3;
 const MAX_LOCATION_REFERENCES_PER_IMAGE = 1;
+// Each reference is drawn into a square cell on the conditioning sheet. 768px
+// (vs the old 384px) preserves enough facial detail for the image model to hold
+// a likeness across pages; the sheet PNG only feeds /v1/images/edits and is
+// independent of the 1024x1024 output size.
+const REFERENCE_CELL_SIZE = 768;
+const REFERENCE_SHEET_BACKGROUND = "#fff8ea";
+// Keyword-match thresholds for including a supporting character's reference on
+// a given spread. A strong match (name/relationship in the page text) always
+// qualifies; a weak match is only used as a last-resort single fallback so a
+// character who isn't in the scene is not forced into it.
+const SUPPORTING_CAST_STRONG_MATCH_SCORE = 20;
+const SUPPORTING_CAST_WEAK_MATCH_SCORE = 12;
 
 type ImageConditionReference =
   | ({ kind: "character" } & CharacterVisualReference)
@@ -615,11 +627,13 @@ async function loadReferenceImageBuffer(input: {
     const response = await fetch(input.imageUrl);
     if (!response.ok) return null;
     const source = Buffer.from(await response.arrayBuffer());
+    // "contain" (not "cover") so faces are never cropped out of the reference,
+    // and a larger cell so fine facial detail survives to the image model.
     return sharp(source)
       .rotate()
-      .resize(384, 384, {
-        fit: "cover",
-        position: "attention",
+      .resize(REFERENCE_CELL_SIZE, REFERENCE_CELL_SIZE, {
+        fit: "contain",
+        background: REFERENCE_SHEET_BACKGROUND,
       })
       .png({ compressionLevel: 8 })
       .toBuffer();
@@ -680,7 +694,7 @@ async function buildIllustrationConditioningSheet(input: {
   );
   if (usable.length === 0) return null;
 
-  const cellSize = 384;
+  const cellSize = REFERENCE_CELL_SIZE;
   const columns = Math.min(3, usable.length);
   const rows = Math.ceil(usable.length / columns);
   const image = await sharp({
@@ -688,7 +702,7 @@ async function buildIllustrationConditioningSheet(input: {
       width: columns * cellSize,
       height: rows * cellSize,
       channels: 3,
-      background: "#fff8ea",
+      background: REFERENCE_SHEET_BACKGROUND,
     },
   })
     .composite(
@@ -815,20 +829,20 @@ function buildVisualReferencePrompt(input: {
       {
         variants: [
           referenceList || continuityList
-            ? "Use the attached reference sheet only for likeness and continuity; do not copy its crop, plain background, portrait pose, or sheet layout."
+            ? "The attached reference sheet is the authoritative source for each character's face and identity: reproduce the same facial structure, proportions, and features so they are unmistakably the same person on every page. Reuse it only for likeness and continuity, not for its crop, plain background, portrait pose, or sheet layout."
             : "",
           referenceList || continuityList
-            ? "Use the attached reference sheet only for likeness and continuity; do not copy its crop, pose, or layout."
+            ? "Reference sheet is authoritative for each character's face and identity; keep them unmistakably the same person on every page. Do not copy its crop, pose, or layout."
             : "",
         ],
       },
       {
         variants: [
           referenceList
-            ? "When a selected child, family member, friend, or pet appears, match the reference image for identity only: recognisable face, skin tone, and familiar markings."
+            ? "When a selected child, family member, friend, or pet appears, they must clearly match their reference: the same recognisable face and facial features, skin tone, hair, and familiar markings, only re-posed and re-lit for the scene."
             : "",
           referenceList
-            ? "When a selected child, family member, friend, or pet appears, match the reference image for identity only."
+            ? "When a selected child, family member, friend, or pet appears, keep their reference face, skin tone, hair, and markings clearly recognisable."
             : "",
         ],
       },
@@ -1479,7 +1493,7 @@ function scoreReferenceForSpread(input: {
   return score;
 }
 
-function selectSpreadVisualReferences(input: {
+export function selectSpreadVisualReferences(input: {
   project: BookProject;
   spread: BookSpread;
   references?: CharacterVisualReference[];
@@ -1515,10 +1529,13 @@ function selectSpreadVisualReferences(input: {
     .sort((a, b) => b.score - a.score);
 
   const selected = scoredNonMain
-    .filter((entry) => entry.score >= 20)
+    .filter((entry) => entry.score >= SUPPORTING_CAST_STRONG_MATCH_SCORE)
     .map((entry) => entry.reference);
 
-  if (selected.length === 0 && scoredNonMain[0]?.score >= 12) {
+  if (
+    selected.length === 0 &&
+    scoredNonMain[0]?.score >= SUPPORTING_CAST_WEAK_MATCH_SCORE
+  ) {
     selected.push(scoredNonMain[0].reference);
   }
 
@@ -1585,12 +1602,17 @@ export function scoreContinuitySpread(input: {
     0,
     12 - (input.spread.sequence - input.candidate.sequence)
   );
+  // The first interior spread is drawn first and is the most canonical, least
+  // drifted page in the book. Bias toward it as a stable anchor so early
+  // likeness doesn't get out-voted by the most-recent (already drifting) pages.
+  const anchorScore = input.candidate.sequence === 2 ? 10 : 0;
   const qaScore = candidateCharacterIds.size > 0 ? 4 : 0;
   return (
     sharedCharacterScore +
     sharedLocationScore +
     keywordScore +
     recencyScore +
+    anchorScore +
     qaScore
   );
 }

@@ -1718,6 +1718,115 @@ describe("scoreContinuitySpread", () => {
     });
     expect(same).toBeGreaterThan(different);
   });
+
+  it("anchors on the canonical first interior spread over a more recent one", async () => {
+    const { scoreContinuitySpread } =
+      await import("@/lib/print-books/illustrations");
+    const firstInterior = scoreContinuitySpread({
+      spread: spread({ sequence: 5, locationId: "bedroom" }),
+      candidate: spread({ sequence: 2, locationId: "bedroom" }),
+      selectedCharacterIds: new Set(),
+    });
+    const recent = scoreContinuitySpread({
+      spread: spread({ sequence: 5, locationId: "bedroom" }),
+      candidate: spread({ sequence: 4, locationId: "bedroom" }),
+      selectedCharacterIds: new Set(),
+    });
+    expect(firstInterior).toBeGreaterThan(recent);
+  });
+});
+
+describe("selectSpreadVisualReferences", () => {
+  function makeSpread(
+    partial: Partial<BookProject["spreads"][number]>
+  ): BookProject["spreads"][number] {
+    return {
+      id: "s1",
+      sequence: 3,
+      title: "Page",
+      leftPageText: "The moon glowed softly over the quiet hills.",
+      rightPageText: "They watched the stars twinkle awake.",
+      ...partial,
+    } as BookProject["spreads"][number];
+  }
+
+  const project = { spreads: [] } as unknown as BookProject;
+
+  it("keeps a named supporting character present in the page text", async () => {
+    const { selectSpreadVisualReferences } = await import(
+      "@/lib/print-books/illustrations"
+    );
+    const references = [
+      {
+        id: "profile:1",
+        name: "Bailey",
+        role: "main_child" as const,
+        imageUrl: "https://example.com/bailey.png",
+      },
+      {
+        id: "person:2",
+        name: "Zephyrine",
+        role: "family_friend_pet" as const,
+        relationship: "friend",
+        imageUrl: "https://example.com/zephyrine.png",
+      },
+    ];
+
+    const selected = selectSpreadVisualReferences({
+      project,
+      spread: makeSpread({
+        leftPageText: "Bailey and Zephyrine watched the stars together.",
+      }),
+      references,
+    });
+
+    expect(selected.map((reference) => reference.id)).toContain("person:2");
+  });
+
+  it("does not force an unmentioned supporting character into the scene", async () => {
+    const { selectSpreadVisualReferences } = await import(
+      "@/lib/print-books/illustrations"
+    );
+    const selected = selectSpreadVisualReferences({
+      project,
+      spread: makeSpread({}),
+      references: [
+        {
+          id: "profile:1",
+          name: "Bailey",
+          role: "main_child" as const,
+          imageUrl: "https://example.com/bailey.png",
+        },
+        {
+          id: "person:2",
+          name: "Zephyrine",
+          role: "family_friend_pet" as const,
+          relationship: "friend",
+          imageUrl: "https://example.com/zephyrine.png",
+        },
+      ],
+    });
+    expect(selected.map((reference) => reference.id)).not.toContain("person:2");
+  });
+
+  it("always includes the main child", async () => {
+    const { selectSpreadVisualReferences } = await import(
+      "@/lib/print-books/illustrations"
+    );
+    const selected = selectSpreadVisualReferences({
+      project,
+      spread: makeSpread({}),
+      references: [
+        {
+          id: "profile:1",
+          name: "Bailey",
+          role: "main_child" as const,
+          imageUrl: "https://example.com/bailey.png",
+        },
+      ],
+    });
+    expect(selected.map((reference) => reference.id)).toEqual(["profile:1"]);
+  });
 });
 
 describe("generateLocationEstablishingImages", () => {

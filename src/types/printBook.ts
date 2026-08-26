@@ -26,6 +26,7 @@ export type BookBuildMode = "full" | "art" | "exports" | "finalize";
 export type BookBuildJobStatus = "queued" | "running" | "completed" | "failed";
 export type LocationEstablishingStatus =
   "queued" | "running" | "ready" | "failed";
+export type ImageGenerationStatus = "queued" | "running" | "ready" | "failed";
 
 export type BookArtMode = "placeholder" | "generated" | "mixed";
 
@@ -240,6 +241,14 @@ export interface BookSpread {
   rightPageImageUrl?: string;
   leftPageImageError?: string;
   rightPageImageError?: string;
+  leftPageImageStatus?: ImageGenerationStatus;
+  rightPageImageStatus?: ImageGenerationStatus;
+  leftPageImageJobId?: string;
+  rightPageImageJobId?: string;
+  leftPageImageAttemptKey?: string;
+  rightPageImageAttemptKey?: string;
+  leftPageImageUpdatedAt?: string;
+  rightPageImageUpdatedAt?: string;
   thumbnailUrl?: string;
   leftPageQa?: IllustrationGenerationMetadata;
   rightPageQa?: IllustrationGenerationMetadata;

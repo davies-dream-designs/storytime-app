@@ -22,6 +22,8 @@ export function sanitizeChildGender(value: unknown): ChildGender {
     : "not_specified";
 }
 
+export type AvatarGenerationStatus = "queued" | "running" | "ready" | "failed";
+
 export interface ChildProfile {
   id: string;
   userId: string;
@@ -34,6 +36,11 @@ export interface ChildProfile {
   appearanceSummary?: string;
   avatarTraitHash?: string;
   avatarGeneratedAt?: string;
+  avatarGenerationStatus?: AvatarGenerationStatus;
+  avatarGenerationError?: string;
+  avatarGenerationJobId?: string;
+  avatarGenerationAttemptKey?: string;
+  avatarGenerationUpdatedAt?: string;
   favouriteCharacters: string[];
   favouriteActivities: string[];
   favouriteAnimals: string[];
@@ -251,6 +258,11 @@ export interface StoryPerson {
   appearanceSummary?: string;
   avatarTraitHash?: string;
   avatarGeneratedAt?: string;
+  avatarGenerationStatus?: AvatarGenerationStatus;
+  avatarGenerationError?: string;
+  avatarGenerationJobId?: string;
+  avatarGenerationAttemptKey?: string;
+  avatarGenerationUpdatedAt?: string;
   availableToAllProfiles: boolean;
   profileIds: string[];
   createdAt: string;

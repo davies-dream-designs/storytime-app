@@ -53,6 +53,13 @@ export const profiles = pgTable(
     appearanceSummary: text("appearance_summary"),
     avatarTraitHash: text("avatar_trait_hash"),
     avatarGeneratedAt: text("avatar_generated_at"),
+    avatarGenerationStatus: text("avatar_generation_status").$type<
+      "queued" | "running" | "ready" | "failed"
+    >(),
+    avatarGenerationError: text("avatar_generation_error"),
+    avatarGenerationJobId: text("avatar_generation_job_id"),
+    avatarGenerationAttemptKey: text("avatar_generation_attempt_key"),
+    avatarGenerationUpdatedAt: text("avatar_generation_updated_at"),
     favouriteCharacters: text("favourite_characters")
       .array()
       .notNull()
@@ -144,6 +151,13 @@ export const storyPeople = pgTable(
     appearanceSummary: text("appearance_summary"),
     avatarTraitHash: text("avatar_trait_hash"),
     avatarGeneratedAt: text("avatar_generated_at"),
+    avatarGenerationStatus: text("avatar_generation_status").$type<
+      "queued" | "running" | "ready" | "failed"
+    >(),
+    avatarGenerationError: text("avatar_generation_error"),
+    avatarGenerationJobId: text("avatar_generation_job_id"),
+    avatarGenerationAttemptKey: text("avatar_generation_attempt_key"),
+    avatarGenerationUpdatedAt: text("avatar_generation_updated_at"),
     availableToAllProfiles: boolean("available_to_all_profiles")
       .notNull()
       .default(false),

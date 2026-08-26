@@ -78,6 +78,11 @@ function rowToProfile(row: ProfileRow): ChildProfile {
     appearanceSummary: row.appearanceSummary ?? undefined,
     avatarTraitHash: row.avatarTraitHash ?? undefined,
     avatarGeneratedAt: row.avatarGeneratedAt ?? undefined,
+    avatarGenerationStatus: row.avatarGenerationStatus ?? undefined,
+    avatarGenerationError: row.avatarGenerationError ?? undefined,
+    avatarGenerationJobId: row.avatarGenerationJobId ?? undefined,
+    avatarGenerationAttemptKey: row.avatarGenerationAttemptKey ?? undefined,
+    avatarGenerationUpdatedAt: row.avatarGenerationUpdatedAt ?? undefined,
     favouriteCharacters: row.favouriteCharacters ?? [],
     favouriteActivities: row.favouriteActivities ?? [],
     favouriteAnimals: row.favouriteAnimals ?? [],
@@ -100,6 +105,11 @@ function profileToRow(p: ChildProfile) {
     appearanceSummary: p.appearanceSummary ?? null,
     avatarTraitHash: p.avatarTraitHash ?? null,
     avatarGeneratedAt: p.avatarGeneratedAt ?? null,
+    avatarGenerationStatus: p.avatarGenerationStatus ?? null,
+    avatarGenerationError: p.avatarGenerationError ?? null,
+    avatarGenerationJobId: p.avatarGenerationJobId ?? null,
+    avatarGenerationAttemptKey: p.avatarGenerationAttemptKey ?? null,
+    avatarGenerationUpdatedAt: p.avatarGenerationUpdatedAt ?? null,
     favouriteCharacters: p.favouriteCharacters,
     favouriteActivities: p.favouriteActivities,
     favouriteAnimals: p.favouriteAnimals,
@@ -206,6 +216,11 @@ function rowToStoryPerson(
     appearanceSummary: row.appearanceSummary ?? undefined,
     avatarTraitHash: row.avatarTraitHash ?? undefined,
     avatarGeneratedAt: row.avatarGeneratedAt ?? undefined,
+    avatarGenerationStatus: row.avatarGenerationStatus ?? undefined,
+    avatarGenerationError: row.avatarGenerationError ?? undefined,
+    avatarGenerationJobId: row.avatarGenerationJobId ?? undefined,
+    avatarGenerationAttemptKey: row.avatarGenerationAttemptKey ?? undefined,
+    avatarGenerationUpdatedAt: row.avatarGenerationUpdatedAt ?? undefined,
     availableToAllProfiles: row.availableToAllProfiles,
     profileIds,
     createdAt: row.createdAt,
@@ -231,6 +246,11 @@ function storyPersonToRow(person: StoryPerson) {
     appearanceSummary: person.appearanceSummary ?? null,
     avatarTraitHash: person.avatarTraitHash ?? null,
     avatarGeneratedAt: person.avatarGeneratedAt ?? null,
+    avatarGenerationStatus: person.avatarGenerationStatus ?? null,
+    avatarGenerationError: person.avatarGenerationError ?? null,
+    avatarGenerationJobId: person.avatarGenerationJobId ?? null,
+    avatarGenerationAttemptKey: person.avatarGenerationAttemptKey ?? null,
+    avatarGenerationUpdatedAt: person.avatarGenerationUpdatedAt ?? null,
     availableToAllProfiles: person.availableToAllProfiles,
     createdAt: person.createdAt,
     updatedAt: person.updatedAt,
@@ -603,6 +623,101 @@ export const db = {
         .where(eq(schema.profiles.id, id));
       return rows[0] ? rowToProfile(rows[0]) : undefined;
     },
+    async markAvatarGeneration(
+      id: string,
+      updates: Pick<
+        ChildProfile,
+        | "avatarGenerationStatus"
+        | "avatarGenerationError"
+        | "avatarGenerationJobId"
+        | "avatarGenerationAttemptKey"
+        | "avatarGenerationUpdatedAt"
+      >
+    ): Promise<ChildProfile | undefined> {
+      const rows = await getClient()
+        .update(schema.profiles)
+        .set({
+          avatarGenerationStatus: updates.avatarGenerationStatus ?? null,
+          avatarGenerationError: updates.avatarGenerationError ?? null,
+          avatarGenerationJobId: updates.avatarGenerationJobId ?? null,
+          avatarGenerationAttemptKey: updates.avatarGenerationAttemptKey ?? null,
+          avatarGenerationUpdatedAt:
+            updates.avatarGenerationUpdatedAt ?? new Date().toISOString(),
+        })
+        .where(eq(schema.profiles.id, id))
+        .returning();
+      return rows[0] ? rowToProfile(rows[0]) : undefined;
+    },
+    async markAvatarGenerationIfCurrent(
+      id: string,
+      userId: string,
+      jobId: string,
+      updates: Pick<
+        ChildProfile,
+        | "avatarGenerationStatus"
+        | "avatarGenerationError"
+        | "avatarGenerationJobId"
+        | "avatarGenerationAttemptKey"
+        | "avatarGenerationUpdatedAt"
+      >
+    ): Promise<ChildProfile | undefined> {
+      const rows = await getClient()
+        .update(schema.profiles)
+        .set({
+          avatarGenerationStatus: updates.avatarGenerationStatus ?? null,
+          avatarGenerationError: updates.avatarGenerationError ?? null,
+          avatarGenerationJobId: updates.avatarGenerationJobId ?? null,
+          avatarGenerationAttemptKey: updates.avatarGenerationAttemptKey ?? null,
+          avatarGenerationUpdatedAt:
+            updates.avatarGenerationUpdatedAt ?? new Date().toISOString(),
+        })
+        .where(
+          and(
+            eq(schema.profiles.id, id),
+            eq(schema.profiles.userId, userId),
+            eq(schema.profiles.avatarGenerationJobId, jobId)
+          )
+        )
+        .returning();
+      return rows[0] ? rowToProfile(rows[0]) : undefined;
+    },
+    async completeAvatarGenerationIfCurrent(
+      id: string,
+      userId: string,
+      jobId: string,
+      updates: Pick<
+        ChildProfile,
+        | "avatarImageUrl"
+        | "appearanceSummary"
+        | "appearance"
+        | "avatarTraitHash"
+        | "avatarGeneratedAt"
+      >
+    ): Promise<ChildProfile | undefined> {
+      const now = new Date().toISOString();
+      const rows = await getClient()
+        .update(schema.profiles)
+        .set({
+          avatarImageUrl: updates.avatarImageUrl ?? null,
+          appearanceSummary: updates.appearanceSummary ?? null,
+          appearance: updates.appearance ?? null,
+          avatarTraitHash: updates.avatarTraitHash ?? null,
+          avatarGeneratedAt: updates.avatarGeneratedAt ?? now,
+          avatarGenerationStatus: "ready",
+          avatarGenerationError: null,
+          avatarGenerationJobId: null,
+          avatarGenerationUpdatedAt: now,
+        })
+        .where(
+          and(
+            eq(schema.profiles.id, id),
+            eq(schema.profiles.userId, userId),
+            eq(schema.profiles.avatarGenerationJobId, jobId)
+          )
+        )
+        .returning();
+      return rows[0] ? rowToProfile(rows[0]) : undefined;
+    },
     async create(profile: ChildProfile): Promise<void> {
       await getClient().insert(schema.profiles).values(profileToRow(profile));
     },
@@ -847,6 +962,116 @@ export const db = {
         row,
         links.map((link) => link.profileId)
       );
+    },
+    async markAvatarGeneration(
+      id: string,
+      updates: Pick<
+        StoryPerson,
+        | "avatarGenerationStatus"
+        | "avatarGenerationError"
+        | "avatarGenerationJobId"
+        | "avatarGenerationAttemptKey"
+        | "avatarGenerationUpdatedAt"
+      >
+    ): Promise<StoryPerson | undefined> {
+      const current = await this.getById(id);
+      if (!current) return undefined;
+      const now = new Date().toISOString();
+      const rows = await getClient()
+        .update(schema.storyPeople)
+        .set({
+          avatarGenerationStatus: updates.avatarGenerationStatus ?? null,
+          avatarGenerationError: updates.avatarGenerationError ?? null,
+          avatarGenerationJobId: updates.avatarGenerationJobId ?? null,
+          avatarGenerationAttemptKey: updates.avatarGenerationAttemptKey ?? null,
+          avatarGenerationUpdatedAt: updates.avatarGenerationUpdatedAt ?? now,
+          updatedAt: now,
+        })
+        .where(eq(schema.storyPeople.id, id))
+        .returning();
+      return rows[0]
+        ? rowToStoryPerson(rows[0], current.profileIds)
+        : undefined;
+    },
+    async markAvatarGenerationIfCurrent(
+      id: string,
+      userId: string,
+      jobId: string,
+      updates: Pick<
+        StoryPerson,
+        | "avatarGenerationStatus"
+        | "avatarGenerationError"
+        | "avatarGenerationJobId"
+        | "avatarGenerationAttemptKey"
+        | "avatarGenerationUpdatedAt"
+      >
+    ): Promise<StoryPerson | undefined> {
+      const current = await this.getById(id);
+      if (!current) return undefined;
+      const now = new Date().toISOString();
+      const rows = await getClient()
+        .update(schema.storyPeople)
+        .set({
+          avatarGenerationStatus: updates.avatarGenerationStatus ?? null,
+          avatarGenerationError: updates.avatarGenerationError ?? null,
+          avatarGenerationJobId: updates.avatarGenerationJobId ?? null,
+          avatarGenerationAttemptKey: updates.avatarGenerationAttemptKey ?? null,
+          avatarGenerationUpdatedAt: updates.avatarGenerationUpdatedAt ?? now,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(schema.storyPeople.id, id),
+            eq(schema.storyPeople.userId, userId),
+            eq(schema.storyPeople.avatarGenerationJobId, jobId)
+          )
+        )
+        .returning();
+      return rows[0]
+        ? rowToStoryPerson(rows[0], current.profileIds)
+        : undefined;
+    },
+    async completeAvatarGenerationIfCurrent(
+      id: string,
+      userId: string,
+      jobId: string,
+      updates: Pick<
+        StoryPerson,
+        | "avatarImageUrl"
+        | "appearanceSummary"
+        | "appearance"
+        | "avatarTraitHash"
+        | "avatarGeneratedAt"
+      >
+    ): Promise<StoryPerson | undefined> {
+      const current = await this.getById(id);
+      if (!current) return undefined;
+      const now = new Date().toISOString();
+      const rows = await getClient()
+        .update(schema.storyPeople)
+        .set({
+          avatarImageUrl: updates.avatarImageUrl ?? null,
+          appearanceSummary: updates.appearanceSummary ?? null,
+          appearance: updates.appearance ?? "",
+          avatarTraitHash: updates.avatarTraitHash ?? null,
+          avatarGeneratedAt: updates.avatarGeneratedAt ?? now,
+          avatarGenerationStatus: "ready",
+          avatarGenerationError: null,
+          avatarGenerationJobId: null,
+          avatarGenerationUpdatedAt: now,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(schema.storyPeople.id, id),
+            eq(schema.storyPeople.userId, userId),
+            eq(schema.storyPeople.avatarGenerationJobId, jobId)
+          )
+        )
+        .returning();
+      return rows[0]
+        ? rowToStoryPerson(rows[0], current.profileIds)
+        : undefined;
     },
     async create(person: StoryPerson): Promise<void> {
       await getClient()

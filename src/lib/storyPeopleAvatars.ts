@@ -9,7 +9,7 @@ import {
   getStoryPersonHeightLabel,
   getStoryPersonRelationshipLabel,
 } from "@/types";
-import { deleteBookAssetUrls, storeBookAsset } from "@/lib/print-books/storage";
+import { storeBookAsset } from "@/lib/print-books/storage";
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 const ALLOWED_CONTENT_TYPES = new Set([
@@ -476,17 +476,6 @@ export function buildStoryPersonAppearanceSummary(person: StoryPerson): string {
     .join(" ");
 }
 
-async function deletePreviousReference(url?: string) {
-  if (!url) return;
-  try {
-    await deleteBookAssetUrls([url]);
-  } catch (err) {
-    console.warn("Could not delete previous illustrated reference.", {
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
-}
-
 function buildAdjustedSummary(summary: string, adjustment?: string): string {
   const cleanSummary = summary.trim();
   const cleanAdjustment = adjustment?.trim();
@@ -572,7 +561,6 @@ export async function createStoryPersonAvatar(input: {
     contentType: "image/jpeg",
   });
 
-  await deletePreviousReference(input.person.avatarImageUrl);
 
   const appearance = input.person.appearance.trim() || analysis.appearance;
 
@@ -610,7 +598,6 @@ export async function createStoryPersonAvatarFromDescription(input: {
     contentType: "image/jpeg",
   });
 
-  await deletePreviousReference(input.person.avatarImageUrl);
   const nextAppearance =
     appearance || buildStoryPersonAppearanceSummary(input.person);
 
@@ -663,7 +650,6 @@ export async function redoStoryPersonAvatar(input: {
     contentType: "image/jpeg",
   });
 
-  await deletePreviousReference(input.person.avatarImageUrl);
   const appearance = buildAdjustedAppearance(
     input.person.appearance,
     adjustment
@@ -716,7 +702,6 @@ export async function createChildProfileAvatar(input: {
     contentType: "image/jpeg",
   });
 
-  await deletePreviousReference(input.profile.avatarImageUrl);
 
   return {
     avatarImageUrl,
@@ -753,7 +738,6 @@ export async function createChildProfileAvatarFromDescription(input: {
     contentType: "image/jpeg",
   });
 
-  await deletePreviousReference(input.profile.avatarImageUrl);
 
   return {
     avatarImageUrl,
@@ -812,7 +796,6 @@ export async function redoChildProfileAvatar(input: {
     contentType: "image/jpeg",
   });
 
-  await deletePreviousReference(input.profile.avatarImageUrl);
 
   return {
     avatarImageUrl,

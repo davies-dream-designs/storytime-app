@@ -1,39 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import {
-  assertReferenceRedoAffordable,
-  chargeReferenceRedoCredit,
-} from "@/lib/credits";
-import { logEvent } from "@/lib/logEvent";
-import { FREE_REFERENCE_AVATAR_LIMIT } from "@/lib/pricing";
-import {
-  createStoryPersonAvatar,
-  createStoryPersonAvatarFromDescription,
-  redoStoryPersonAvatar,
-} from "@/lib/storyPeopleAvatars";
-import { getStoryPersonReferenceTraitHash } from "@/lib/characterReferenceContext";
-
-/**
- * Charge only after the avatar is generated and persisted. If the process is
- * killed during the (slow) image render, no credit is taken; affordability is
- * pre-checked so we still fail fast for users who can't pay. A failure of this
- * post-persist charge must not un-deliver the avatar the user already has.
- */
-async function chargeForDeliveredAvatar(userId: string, entityId: string) {
-  try {
-    await chargeReferenceRedoCredit(userId);
-  } catch (err) {
-    await logEvent({
-      error: err,
-      code: "credits.post_charge_failed",
-      userId,
-      entityType: "story_person",
-      entityId,
-      source: "story-people/avatar",
-    });
-  }
-}
+import { enqueueStoryPersonAvatarGeneration } from "@/lib/avatarGenerationJobs";
 
 export async function POST(
   req: NextRequest,
@@ -49,116 +17,62 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  const attemptKey = req.headers.get("Idempotency-Key");
   const contentType = req.headers?.get("content-type") ?? "";
-  if (contentType.includes("application/json")) {
-    const payload = (await req.json().catch(() => ({}))) as {
-      adjustment?: string;
-      source?: "description";
-    };
-    try {
-      const isDescriptionCreate =
-        payload.source === "description" && !person.avatarImageUrl;
-      const existingReferenceCount = isDescriptionCreate
-        ? await db.storyPeople.countAvatarReferencesByUserId(userId)
-        : FREE_REFERENCE_AVATAR_LIMIT;
-      const shouldCharge =
-        !isDescriptionCreate ||
-        existingReferenceCount >= FREE_REFERENCE_AVATAR_LIMIT;
-      if (shouldCharge) await assertReferenceRedoAffordable(userId);
-      const avatar = isDescriptionCreate
-        ? await createStoryPersonAvatarFromDescription({
-            person,
-            adjustment: payload.adjustment ?? "",
-          })
-        : await redoStoryPersonAvatar({
-            person,
-            adjustment: payload.adjustment ?? "",
-          });
-      const nextPerson = {
-        ...person,
-        avatarImageUrl: avatar.avatarImageUrl,
-        appearance: avatar.appearance,
-        appearanceSummary: avatar.appearanceSummary,
-      };
-      const updated = await db.storyPeople.update(id, {
-        avatarImageUrl: avatar.avatarImageUrl,
-        appearance: avatar.appearance,
-        appearanceSummary: avatar.appearanceSummary,
-        avatarTraitHash: getStoryPersonReferenceTraitHash(nextPerson),
-        avatarGeneratedAt: new Date().toISOString(),
-      });
-      if (shouldCharge) await chargeForDeliveredAvatar(userId, id);
-      return NextResponse.json(updated);
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Could not redo the illustrated reference.";
-      return NextResponse.json(
-        { error: message },
-        { status: /insufficient credits/i.test(message) ? 402 : 502 }
-      );
-    }
-  }
-
-  const formData = await req.formData();
-  const photo = formData.get("photo");
-  if (!(photo instanceof File)) {
-    return NextResponse.json(
-      { error: "Please upload a photo." },
-      { status: 400 }
-    );
-  }
-  if (formData.get("photoConsent") !== "yes") {
-    return NextResponse.json(
-      {
-        error:
-          "Please confirm you have permission to use this photo and understand it will be used once to create an illustrated reference.",
-      },
-      { status: 400 }
-    );
-  }
-  const adjustment = String(formData.get("adjustment") ?? "")
-    .trim()
-    .slice(0, 240);
-  const isRedo = Boolean(person.avatarImageUrl);
 
   try {
-    const existingReferenceCount = isRedo
-      ? FREE_REFERENCE_AVATAR_LIMIT
-      : await db.storyPeople.countAvatarReferencesByUserId(userId);
-    const shouldCharge =
-      isRedo || existingReferenceCount >= FREE_REFERENCE_AVATAR_LIMIT;
-    if (shouldCharge) await assertReferenceRedoAffordable(userId);
-    const avatar = await createStoryPersonAvatar({
+    if (contentType.includes("application/json")) {
+      const payload = (await req.json().catch(() => ({}))) as {
+        adjustment?: string;
+        source?: "description";
+        attemptKey?: string;
+      };
+      const source =
+        payload.source === "description" && !person.avatarImageUrl
+          ? "description"
+          : "redo";
+      const result = await enqueueStoryPersonAvatarGeneration({
+        person,
+        source,
+        adjustment: payload.adjustment ?? "",
+        attemptKey: payload.attemptKey ?? attemptKey,
+      });
+      return NextResponse.json(result, { status: result.existing ? 200 : 202 });
+    }
+
+    const formData = await req.formData();
+    const photo = formData.get("photo");
+    if (!(photo instanceof File)) {
+      return NextResponse.json(
+        { error: "Please upload a photo." },
+        { status: 400 }
+      );
+    }
+    if (formData.get("photoConsent") !== "yes") {
+      return NextResponse.json(
+        {
+          error:
+            "Please confirm you have permission to use this photo and understand it will be used once to create an illustrated reference.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const result = await enqueueStoryPersonAvatarGeneration({
       person,
+      source: "photo",
       file: photo,
-      adjustment,
+      adjustment: String(formData.get("adjustment") ?? ""),
+      attemptKey: String(formData.get("attemptKey") ?? "") || attemptKey,
     });
-    const nextPerson = {
-      ...person,
-      avatarImageUrl: avatar.avatarImageUrl,
-      appearance: avatar.appearance,
-      appearanceSummary: avatar.appearanceSummary,
-    };
-    const updated = await db.storyPeople.update(id, {
-      avatarImageUrl: avatar.avatarImageUrl,
-      appearance: avatar.appearance,
-      appearanceSummary: avatar.appearanceSummary,
-      avatarTraitHash: getStoryPersonReferenceTraitHash(nextPerson),
-      avatarGeneratedAt: new Date().toISOString(),
-    });
-    if (shouldCharge) await chargeForDeliveredAvatar(userId, id);
-    return NextResponse.json(updated);
+    return NextResponse.json(result, { status: result.existing ? 200 : 202 });
   } catch (err) {
     const message =
       err instanceof Error
         ? err.message
-        : "Could not create the illustrated reference.";
+        : "Could not start the illustrated reference.";
     return NextResponse.json(
-      {
-        error: message,
-      },
+      { error: message },
       { status: /insufficient credits/i.test(message) ? 402 : 502 }
     );
   }

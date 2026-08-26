@@ -16,10 +16,31 @@ type PendingPhoto = {
   adjustment: string;
 };
 
+type AvatarJobResponse = {
+  jobId: string;
+  status: "queued" | "running";
+  attemptKey: string;
+  existing?: boolean;
+};
+
 function isChildProfile(
-  value: ChildProfile | { error?: string }
+  value: ChildProfile | AvatarJobResponse | { error?: string }
 ): value is ChildProfile {
   return "id" in value;
+}
+
+function isAvatarJobResponse(
+  value: ChildProfile | AvatarJobResponse | { error?: string }
+): value is AvatarJobResponse {
+  return "jobId" in value && "status" in value;
+}
+
+function isActiveAvatarStatus(status?: string) {
+  return status === "queued" || status === "running";
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 export default function ChildProfileReference({
@@ -50,6 +71,43 @@ export default function ChildProfileReference({
       })
       .catch(() => {});
   }, []);
+
+  async function waitForAvatarJob(jobId: string): Promise<ChildProfile> {
+    for (let attempt = 0; attempt < 45; attempt += 1) {
+      const res = await fetch(`/api/profiles/${profile.id}`, {
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+      if (res.ok) {
+        const next = (await res.json()) as ChildProfile;
+        if (next.avatarGenerationStatus === "failed") {
+          throw new Error(
+            next.avatarGenerationError || "Could not create the child reference."
+          );
+        }
+        if (
+          !isActiveAvatarStatus(next.avatarGenerationStatus) ||
+          next.avatarGenerationJobId !== jobId
+        ) {
+          return next;
+        }
+      }
+      await delay(2000);
+    }
+    throw new Error(
+      "The reference is still drawing in the background. Refresh this page in a moment."
+    );
+  }
+
+  async function resolveAvatarResponse(
+    data: ChildProfile | AvatarJobResponse | { error?: string },
+    fallback: string
+  ): Promise<ChildProfile> {
+    if (isChildProfile(data)) return data;
+    if (isAvatarJobResponse(data)) return waitForAvatarJob(data.jobId);
+    throw new Error(data.error || fallback);
+  }
+
 
   const createReferenceCost =
     profile.avatarImageUrl || referenceCount >= 2 ? 1 : 0;
@@ -114,14 +172,22 @@ export default function ChildProfileReference({
         method: "POST",
         body: formData,
       });
-      const data = (await res.json()) as ChildProfile | { error?: string };
-      if (!res.ok || !isChildProfile(data)) {
-        const message = isChildProfile(data)
-          ? "Could not create the child reference"
-          : data.error;
-        throw new Error(message ?? "Could not create the child reference");
+      const data = (await res.json()) as
+        | ChildProfile
+        | AvatarJobResponse
+        | { error?: string };
+      if (!res.ok) {
+        throw new Error(
+          isChildProfile(data) || isAvatarJobResponse(data)
+            ? "Could not create the child reference"
+            : data.error || "Could not create the child reference"
+        );
       }
-      setProfile(data);
+      const nextProfile = await resolveAvatarResponse(
+        data,
+        "Could not create the child reference"
+      );
+      setProfile(nextProfile);
       if (!isRedo) setReferenceCount((current) => current + 1);
       window.dispatchEvent(new Event("storycot:credits-updated"));
       clearStagedPhoto();
@@ -160,15 +226,22 @@ export default function ChildProfileReference({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ adjustment }),
       });
-      const data = (await res.json()) as ChildProfile | { error?: string };
-      if (!res.ok || !isChildProfile(data)) {
+      const data = (await res.json()) as
+        | ChildProfile
+        | AvatarJobResponse
+        | { error?: string };
+      if (!res.ok) {
         throw new Error(
-          isChildProfile(data)
+          isChildProfile(data) || isAvatarJobResponse(data)
             ? "Could not redo the child reference"
             : data.error || "Could not redo the child reference"
         );
       }
-      setProfile(data);
+      const nextProfile = await resolveAvatarResponse(
+        data,
+        "Could not redo the child reference"
+      );
+      setProfile(nextProfile);
       setRedoNote("");
       setShowRedo(false);
       window.dispatchEvent(new Event("storycot:credits-updated"));
@@ -203,15 +276,22 @@ export default function ChildProfileReference({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ source: "description" }),
       });
-      const data = (await res.json()) as ChildProfile | { error?: string };
-      if (!res.ok || !isChildProfile(data)) {
+      const data = (await res.json()) as
+        | ChildProfile
+        | AvatarJobResponse
+        | { error?: string };
+      if (!res.ok) {
         throw new Error(
-          isChildProfile(data)
+          isChildProfile(data) || isAvatarJobResponse(data)
             ? "Could not create the child reference"
             : data.error || "Could not create the child reference"
         );
       }
-      setProfile(data);
+      const nextProfile = await resolveAvatarResponse(
+        data,
+        "Could not create the child reference"
+      );
+      setProfile(nextProfile);
       setReferenceCount((current) => current + 1);
       window.dispatchEvent(new Event("storycot:credits-updated"));
     } catch (err) {

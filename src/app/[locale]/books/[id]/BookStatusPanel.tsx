@@ -55,6 +55,22 @@ type BookStatusPayload = Pick<
   referenceImageCount?: number;
 };
 
+type ImageJobResponse = {
+  jobId: string;
+  status: "queued" | "running";
+  attemptKey: string;
+  existing?: boolean;
+};
+
+function isImageJobResponse(value: unknown): value is ImageJobResponse {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "jobId" in value &&
+    "status" in value
+  );
+}
+
 function isTerminal(status: BookProject["status"]): boolean {
   return status === "ready" || status === "failed";
 }
@@ -434,18 +450,23 @@ export default function BookStatusPanel({
     const next = await res.json();
 
     if (res.ok) {
-      const nextProject = next as BookProject;
-      setProject(nextProject);
-      setPollUntil(Date.now() + 20_000);
-      const previews = getSpreadPreviews(nextProject);
-      setSpreadPreviews(previews);
-      const nextPreview = previews.find(
-        (preview) => preview.id === image.spreadId
-      );
-      const nextUrl = getArtworkUrl(nextPreview, image.side);
-      if (nextUrl) setExpandedImage({ ...image, url: nextUrl });
-      window.dispatchEvent(new CustomEvent("storycot:credits-updated"));
-      router.refresh();
+      if (isImageJobResponse(next)) {
+        setPollUntil(Date.now() + 120_000);
+        router.refresh();
+      } else {
+        const nextProject = next as BookProject;
+        setProject(nextProject);
+        setPollUntil(Date.now() + 20_000);
+        const previews = getSpreadPreviews(nextProject);
+        setSpreadPreviews(previews);
+        const nextPreview = previews.find(
+          (preview) => preview.id === image.spreadId
+        );
+        const nextUrl = getArtworkUrl(nextPreview, image.side);
+        if (nextUrl) setExpandedImage({ ...image, url: nextUrl });
+        window.dispatchEvent(new CustomEvent("storycot:credits-updated"));
+        router.refresh();
+      }
     } else {
       setImageError(
         res.status === 401
@@ -811,7 +832,11 @@ export default function BookStatusPanel({
                     {artworkPreviews.map(
                       ({ preview, side, url, error }, index) => {
                         const key = `${preview.id}:${side}`;
-                        const isRegenerating = regeneratingImage === key;
+                        const sideStatus = side === "left" ? preview.leftPageImageStatus : preview.rightPageImageStatus;
+                        const isRegenerating =
+                          regeneratingImage === key ||
+                          sideStatus === "queued" ||
+                          sideStatus === "running";
                         const canRegenerate =
                           !activeJobStatus &&
                           preview.title !== "Cover" &&
@@ -865,6 +890,7 @@ export default function BookStatusPanel({
                                   }
                                   disabled={
                                     Boolean(regeneratingImage) ||
+                                    isRegenerating ||
                                     Boolean(activeJobStatus)
                                   }
                                   className="w-full rounded-full bg-white px-1 py-0.5 text-xs font-bold text-night-600 shadow-sm disabled:opacity-50"
@@ -1118,7 +1144,11 @@ export default function BookStatusPanel({
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
             {artworkPreviews.map(({ preview, side, url, error }, index) => {
               const key = `${preview.id}:${side}`;
-              const isRegenerating = regeneratingImage === key;
+              const sideStatus = side === "left" ? preview.leftPageImageStatus : preview.rightPageImageStatus;
+              const isRegenerating =
+                regeneratingImage === key ||
+                sideStatus === "queued" ||
+                sideStatus === "running";
               const canRegenerate =
                 !activeJobStatus &&
                 preview.title !== "Cover" &&
@@ -1171,7 +1201,7 @@ export default function BookStatusPanel({
                           })
                         }
                         disabled={
-                          Boolean(regeneratingImage) || Boolean(activeJobStatus)
+                          Boolean(regeneratingImage) || isRegenerating || Boolean(activeJobStatus)
                         }
                         className="w-full rounded-full bg-white px-1 py-0.5 text-xs font-bold text-night-600 shadow-sm disabled:opacity-50"
                       >
@@ -1348,7 +1378,14 @@ export default function BookStatusPanel({
             const artwork = artworkPreviews[readerIndex];
             if (!artwork) return null;
             const imgKey = `${artwork.preview.id}:${artwork.side}`;
-            const isRegeneratingThis = regeneratingImage === imgKey;
+            const artSideStatus =
+              artwork.side === "left"
+                ? artwork.preview.leftPageImageStatus
+                : artwork.preview.rightPageImageStatus;
+            const isRegeneratingThis =
+              regeneratingImage === imgKey ||
+              artSideStatus === "queued" ||
+              artSideStatus === "running";
             const isFreeRetry = !artwork.url || Boolean(artwork.error);
             const canRegenerate =
               !isActiveBuild &&
@@ -1458,7 +1495,7 @@ export default function BookStatusPanel({
                           })
                         }
                         disabled={
-                          Boolean(regeneratingImage) || Boolean(activeJobStatus)
+                          Boolean(regeneratingImage) || isRegeneratingThis || Boolean(activeJobStatus)
                         }
                         className="shrink-0 rounded-full bg-night-100 px-3 py-1.5 text-xs font-bold text-night-700 hover:bg-night-200 disabled:opacity-50"
                       >

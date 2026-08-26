@@ -112,10 +112,31 @@ function formFromPerson(person: StoryPerson): FormState {
   };
 }
 
+type AvatarJobResponse = {
+  jobId: string;
+  status: "queued" | "running";
+  attemptKey: string;
+  existing?: boolean;
+};
+
 function isStoryPerson(
-  value: StoryPerson | { error?: string }
+  value: StoryPerson | AvatarJobResponse | { error?: string }
 ): value is StoryPerson {
   return "id" in value;
+}
+
+function isAvatarJobResponse(
+  value: StoryPerson | AvatarJobResponse | { error?: string }
+): value is AvatarJobResponse {
+  return "jobId" in value && "status" in value;
+}
+
+function isActiveAvatarStatus(status?: string) {
+  return status === "queued" || status === "running";
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function splitList(value: string): string[] {
@@ -196,6 +217,48 @@ export default function StoryPeopleManager({
 
   const newPersonReferenceCost =
     creditInfo?.isAdmin || referenceCount < 2 ? 0 : 1;
+  async function waitForAvatarJob(
+    personId: string,
+    jobId: string
+  ): Promise<StoryPerson> {
+    for (let attempt = 0; attempt < 45; attempt += 1) {
+      const res = await fetch(`/api/story-people/${personId}`, {
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+      if (res.ok) {
+        const next = (await res.json()) as StoryPerson;
+        if (next.avatarGenerationStatus === "failed") {
+          throw new Error(
+            next.avatarGenerationError ||
+              "Could not create the illustrated reference."
+          );
+        }
+        if (
+          !isActiveAvatarStatus(next.avatarGenerationStatus) ||
+          next.avatarGenerationJobId !== jobId
+        ) {
+          return next;
+        }
+      }
+      await delay(2000);
+    }
+    throw new Error(
+      "The reference is still drawing in the background. Refresh this page in a moment."
+    );
+  }
+
+  async function resolveAvatarResponse(
+    personId: string,
+    data: StoryPerson | AvatarJobResponse | { error?: string },
+    fallback: string
+  ): Promise<StoryPerson> {
+    if (isStoryPerson(data)) return data;
+    if (isAvatarJobResponse(data)) return waitForAvatarJob(personId, data.jobId);
+    throw new Error(data.error || fallback);
+  }
+
+
   const newPersonReferenceCostLabel = creditInfo?.isAdmin
     ? newPersonReferenceCost > 0
       ? "0 Credits (Admin)"
@@ -387,14 +450,22 @@ export default function StoryPeopleManager({
       method: "POST",
       body: formData,
     });
-    const data = (await res.json()) as StoryPerson | { error?: string };
-    if (!res.ok || !isStoryPerson(data)) {
-      const message = isStoryPerson(data)
-        ? "Could not create the illustrated reference"
-        : data.error;
-      throw new Error(message ?? "Could not create the illustrated reference");
+    const data = (await res.json()) as
+      | StoryPerson
+      | AvatarJobResponse
+      | { error?: string };
+    if (!res.ok) {
+      throw new Error(
+        isStoryPerson(data) || isAvatarJobResponse(data)
+          ? "Could not create the illustrated reference"
+          : data.error || "Could not create the illustrated reference"
+      );
     }
-    return data;
+    return resolveAvatarResponse(
+      person.id,
+      data,
+      "Could not create the illustrated reference"
+    );
   }
 
   async function generateAvatar(person: StoryPerson) {
@@ -471,20 +542,28 @@ export default function StoryPeopleManager({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ adjustment }),
       });
-      const data = (await res.json()) as StoryPerson | { error?: string };
-      if (!res.ok || !isStoryPerson(data)) {
+      const data = (await res.json()) as
+        | StoryPerson
+        | AvatarJobResponse
+        | { error?: string };
+      if (!res.ok) {
         throw new Error(
-          isStoryPerson(data)
+          isStoryPerson(data) || isAvatarJobResponse(data)
             ? "Could not redo the illustrated reference"
             : data.error || "Could not redo the illustrated reference"
         );
       }
+      const nextPerson = await resolveAvatarResponse(
+        person.id,
+        data,
+        "Could not redo the illustrated reference"
+      );
       setPeople((current) =>
         current.map((currentPerson) =>
-          currentPerson.id === data.id ? data : currentPerson
+          currentPerson.id === nextPerson.id ? nextPerson : currentPerson
         )
       );
-      if (form.id === data.id) setForm(formFromPerson(data));
+      if (form.id === nextPerson.id) setForm(formFromPerson(nextPerson));
       setRedoNotes((current) => ({ ...current, [person.id]: "" }));
       setRedoOpenForId(null);
       window.dispatchEvent(new Event("storycot:credits-updated"));
@@ -519,20 +598,28 @@ export default function StoryPeopleManager({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ source: "description" }),
       });
-      const data = (await res.json()) as StoryPerson | { error?: string };
-      if (!res.ok || !isStoryPerson(data)) {
+      const data = (await res.json()) as
+        | StoryPerson
+        | AvatarJobResponse
+        | { error?: string };
+      if (!res.ok) {
         throw new Error(
-          isStoryPerson(data)
+          isStoryPerson(data) || isAvatarJobResponse(data)
             ? "Could not create the illustrated reference"
             : data.error || "Could not create the illustrated reference"
         );
       }
+      const nextPerson = await resolveAvatarResponse(
+        person.id,
+        data,
+        "Could not create the illustrated reference"
+      );
       setPeople((current) =>
         current.map((currentPerson) =>
-          currentPerson.id === data.id ? data : currentPerson
+          currentPerson.id === nextPerson.id ? nextPerson : currentPerson
         )
       );
-      if (form.id === data.id) setForm(formFromPerson(data));
+      if (form.id === nextPerson.id) setForm(formFromPerson(nextPerson));
       window.dispatchEvent(new Event("storycot:credits-updated"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

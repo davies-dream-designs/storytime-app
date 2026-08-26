@@ -6,6 +6,14 @@ import {
   processLocationEstablishingJob,
   type LocationEstablishingJobData,
 } from "@/lib/print-books/locationEstablishingJobs";
+import {
+  processAvatarGenerationJob,
+  type AvatarGenerationJobData,
+} from "@/lib/avatarGenerationJobs";
+import {
+  processBookImageRegenerationJob,
+  type BookImageRegenerationJobData,
+} from "@/lib/bookImageRegenerationJobs";
 
 // Hard stop so a wedged pipeline can never loop forever inside one invocation.
 // A full 16-spread build advances well under this many stages.
@@ -89,6 +97,37 @@ export const generateLocationEstablishing = inngest.createFunction(
     });
   }
 );
+
+export const generateAvatarReference = inngest.createFunction(
+  {
+    id: "generate-avatar-reference",
+    concurrency: [{ limit: 4 }, { limit: 1, key: "event.data.userId" }],
+    retries: 2,
+    triggers: [{ event: INNGEST_EVENTS.avatarGenerationRequested }],
+  },
+  async ({ event, step }) => {
+    const data = event.data as AvatarGenerationJobData;
+    return step.run("generate-avatar-reference", async () => {
+      return processAvatarGenerationJob(data);
+    });
+  }
+);
+export const regenerateBookImage = inngest.createFunction(
+  {
+    id: "regenerate-book-image",
+    concurrency: [{ limit: 4 }, { limit: 1, key: "event.data.userId" }],
+    retries: 2,
+    triggers: [{ event: INNGEST_EVENTS.bookImageRegenerationRequested }],
+  },
+  async ({ event, step }) => {
+    const data = event.data as BookImageRegenerationJobData;
+    return step.run("regenerate-book-image", async () => {
+      return processBookImageRegenerationJob(data);
+    });
+  }
+);
+
+
 
 /**
  * Durable story-generation fallback.
@@ -204,6 +243,8 @@ export const submitPrintFulfillmentJob = inngest.createFunction(
 export const inngestFunctions: InngestFunction.Any[] = [
   buildBook,
   generateLocationEstablishing,
+  generateAvatarReference,
+  regenerateBookImage,
   generateStory,
   submitPrintFulfillmentJob,
 ];

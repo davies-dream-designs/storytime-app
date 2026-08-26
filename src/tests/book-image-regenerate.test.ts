@@ -4,15 +4,17 @@ import type { BookProject } from "@/types/printBook";
 
 const {
   mockAuth,
+  mockAssertImageRegenerationAffordable,
   mockCaptureIllustratedBookCredits,
   mockChargeImageRegenerationCredit,
   mockDb,
-  mockRefundImageRegenerationCredit,
   mockRefundIllustratedBookCredits,
   mockReserveIllustratedBookCredits,
   mockRegenerateBookSpreadPageImage,
+  mockLogEvent,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(async () => ({ userId: "user-1" })),
+  mockAssertImageRegenerationAffordable: vi.fn(),
   mockCaptureIllustratedBookCredits: vi.fn(),
   mockChargeImageRegenerationCredit: vi.fn(),
   mockDb: {
@@ -20,10 +22,10 @@ const {
       getById: vi.fn(),
     },
   },
-  mockRefundImageRegenerationCredit: vi.fn(),
   mockRefundIllustratedBookCredits: vi.fn(),
   mockReserveIllustratedBookCredits: vi.fn(),
   mockRegenerateBookSpreadPageImage: vi.fn(),
+  mockLogEvent: vi.fn(),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
@@ -31,11 +33,15 @@ vi.mock("@clerk/nextjs/server", () => ({
 }));
 
 vi.mock("@/lib/credits", () => ({
+  assertImageRegenerationAffordable: mockAssertImageRegenerationAffordable,
   captureIllustratedBookCredits: mockCaptureIllustratedBookCredits,
   chargeImageRegenerationCredit: mockChargeImageRegenerationCredit,
-  refundImageRegenerationCredit: mockRefundImageRegenerationCredit,
   refundIllustratedBookCredits: mockRefundIllustratedBookCredits,
   reserveIllustratedBookCredits: mockReserveIllustratedBookCredits,
+}));
+
+vi.mock("@/lib/logEvent", () => ({
+  logEvent: mockLogEvent,
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -74,6 +80,8 @@ describe("POST /api/books/[id]/images/regenerate", () => {
     vi.resetModules();
     vi.clearAllMocks();
     mockAuth.mockResolvedValue({ userId: "user-1" });
+    mockAssertImageRegenerationAffordable.mockResolvedValue(undefined);
+    mockLogEvent.mockResolvedValue(undefined);
     mockChargeImageRegenerationCredit.mockResolvedValue({
       credits: 2,
       isAdmin: false,
@@ -133,7 +141,35 @@ describe("POST /api/books/[id]/images/regenerate", () => {
       spreadId: "spread-2",
       side: "right",
     });
-    expect(mockRefundImageRegenerationCredit).not.toHaveBeenCalled();
+    // Charge happens only after the image is delivered, never before.
+    expect(
+      mockAssertImageRegenerationAffordable
+    ).toHaveBeenCalledWith("user-1");
+  });
+
+  it("does not charge a paid redo when generation fails (crash-safe ordering)", async () => {
+    mockRegenerateBookSpreadPageImage.mockRejectedValue(
+      new Error("image provider timed out")
+    );
+
+    const { POST } =
+      await import("@/app/api/books/[id]/images/regenerate/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/books/book-1/images/regenerate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ spreadId: "spread-2", side: "right" }),
+      }),
+      { params: Promise.resolve({ id: "book-1" }) }
+    );
+
+    expect(res.status).toBe(500);
+    expect(mockAssertImageRegenerationAffordable).toHaveBeenCalledWith(
+      "user-1"
+    );
+    // The credit is never taken because the image was never delivered, so
+    // there is nothing to refund even if the process had been killed.
+    expect(mockChargeImageRegenerationCredit).not.toHaveBeenCalled();
   });
 
   it("passes a user correction note to the image redo job", async () => {
@@ -400,7 +436,7 @@ describe("POST /api/books/[id]/images/regenerate", () => {
   });
 
   it("returns 402 when the user has no credits", async () => {
-    mockChargeImageRegenerationCredit.mockRejectedValue(
+    mockAssertImageRegenerationAffordable.mockRejectedValue(
       new Error("Insufficient credits. Regenerating an image costs 1 credit.")
     );
 

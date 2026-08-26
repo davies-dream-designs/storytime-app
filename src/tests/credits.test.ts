@@ -191,3 +191,56 @@ describe("illustrated book credits", () => {
     expect(mockUpdateUserMetadata).not.toHaveBeenCalled();
   });
 });
+
+describe("affordability pre-checks (charge-after-delivery guards)", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  it("assertReferenceRedoAffordable throws for a non-admin with no credits and never mutates", async () => {
+    mockGetUser.mockResolvedValue({ privateMetadata: { credits: 0 } });
+    const { assertReferenceRedoAffordable } = await import("@/lib/credits");
+    await expect(assertReferenceRedoAffordable("user-1")).rejects.toThrow(
+      /insufficient credits/i
+    );
+    expect(mockUpdateUserMetadata).not.toHaveBeenCalled();
+  });
+
+  it("assertReferenceRedoAffordable resolves for a funded user without charging", async () => {
+    mockGetUser.mockResolvedValue({ privateMetadata: { credits: 3 } });
+    const { assertReferenceRedoAffordable } = await import("@/lib/credits");
+    await expect(
+      assertReferenceRedoAffordable("user-1")
+    ).resolves.toBeUndefined();
+    expect(mockUpdateUserMetadata).not.toHaveBeenCalled();
+  });
+
+  it("assertReferenceRedoAffordable resolves for an admin even with zero credits", async () => {
+    mockGetUser.mockResolvedValue({
+      privateMetadata: { credits: 0, isAdmin: true },
+    });
+    const { assertReferenceRedoAffordable } = await import("@/lib/credits");
+    await expect(
+      assertReferenceRedoAffordable("user-1")
+    ).resolves.toBeUndefined();
+  });
+
+  it("assertImageRegenerationAffordable throws for a non-admin with no credits and never mutates", async () => {
+    mockGetUser.mockResolvedValue({ privateMetadata: { credits: 0 } });
+    const { assertImageRegenerationAffordable } = await import("@/lib/credits");
+    await expect(
+      assertImageRegenerationAffordable("user-1")
+    ).rejects.toThrow(/insufficient credits/i);
+    expect(mockUpdateUserMetadata).not.toHaveBeenCalled();
+  });
+
+  it("assertImageRegenerationAffordable resolves for a funded user without charging", async () => {
+    mockGetUser.mockResolvedValue({ privateMetadata: { credits: 1 } });
+    const { assertImageRegenerationAffordable } = await import("@/lib/credits");
+    await expect(
+      assertImageRegenerationAffordable("user-1")
+    ).resolves.toBeUndefined();
+    expect(mockUpdateUserMetadata).not.toHaveBeenCalled();
+  });
+});

@@ -17,11 +17,7 @@ import {
   sendPrintOrderConfirmedEmail,
 } from "@/lib/email";
 import { logEvent } from "@/lib/logEvent";
-import type {
-  PrintBookOrder,
-  PrintFulfillment,
-  PrintOrderRecord,
-} from "@/types/printBook";
+import type { PrintBookOrder, PrintOrderRecord } from "@/types/printBook";
 
 function withoutStoredShipping(order: PrintBookOrder): PrintBookOrder {
   const safeOrder = { ...order };

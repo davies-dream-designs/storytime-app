@@ -174,6 +174,9 @@ export default function StoryPeopleManager({
   const [generatingAvatarForId, setGeneratingAvatarForId] = useState<
     string | null
   >(null);
+  const [drawingAvatarForId, setDrawingAvatarForId] = useState<string | null>(
+    null
+  );
   const [redoNotes, setRedoNotes] = useState<Record<string, string>>({});
   const [redoOpenForId, setRedoOpenForId] = useState<string | null>(null);
   const [pendingPhotos, setPendingPhotos] = useState<
@@ -254,7 +257,12 @@ export default function StoryPeopleManager({
     fallback: string
   ): Promise<StoryPerson> {
     if (isStoryPerson(data)) return data;
-    if (isAvatarJobResponse(data)) return waitForAvatarJob(personId, data.jobId);
+    if (isAvatarJobResponse(data)) {
+      setDrawingAvatarForId(personId);
+      clearStagedPhoto(personId);
+      setRedoOpenForId(null);
+      return waitForAvatarJob(personId, data.jobId);
+    }
     throw new Error(data.error || fallback);
   }
 
@@ -511,6 +519,7 @@ export default function StoryPeopleManager({
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setGeneratingAvatarForId(null);
+      setDrawingAvatarForId(null);
     }
   }
 
@@ -571,6 +580,7 @@ export default function StoryPeopleManager({
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setGeneratingAvatarForId(null);
+      setDrawingAvatarForId(null);
     }
   }
 
@@ -625,6 +635,7 @@ export default function StoryPeopleManager({
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setGeneratingAvatarForId(null);
+      setDrawingAvatarForId(null);
     }
   }
 
@@ -1167,6 +1178,8 @@ export default function StoryPeopleManager({
               {(() => {
                 const pendingPhoto = pendingPhotos[person.id];
                 const busy = generatingAvatarForId === person.id;
+                const isDrawing =
+                  busy && drawingAvatarForId === person.id;
                 const editing = form.id === person.id;
                 const referenceIsStale = isStoryPersonReferenceStale(person);
 
@@ -1174,7 +1187,11 @@ export default function StoryPeopleManager({
                   <>
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex min-w-0 gap-3">
-                        {person.avatarImageUrl ? (
+                        {isDrawing ? (
+                          <div className="flex h-12 w-12 shrink-0 animate-pulse items-center justify-center rounded-full bg-star-100">
+                            <div className="h-5 w-5 rounded-full bg-star-300" />
+                          </div>
+                        ) : person.avatarImageUrl ? (
                           <div
                             className="h-12 w-12 shrink-0 rounded-full bg-cover bg-center"
                             style={{
@@ -1590,6 +1607,21 @@ export default function StoryPeopleManager({
                     ) : null}
 
                     <div className="mt-4 rounded-xl border border-night-100 bg-night-50 p-3">
+                      {isDrawing ? (
+                        <div className="flex items-center gap-3 py-1">
+                          <div className="flex h-12 w-12 shrink-0 animate-pulse items-center justify-center rounded-xl bg-star-100">
+                            <div className="h-6 w-6 rounded-full bg-star-300" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-star-700">
+                              Drawing reference…
+                            </p>
+                            <p className="mt-0.5 text-xs text-star-600">
+                              Usually 20–40 seconds. You can leave this page.
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
                       <div className="grid gap-4 md:grid-cols-[8rem_1fr]">
                         <div className="overflow-hidden rounded-xl border border-night-100 bg-white">
                           <div
@@ -1792,7 +1824,7 @@ export default function StoryPeopleManager({
                                       disabled={busy || !pendingPhoto.consent}
                                     >
                                       {busy
-                                        ? "Creating..."
+                                        ? "Submitting…"
                                         : "Create Reference"}
                                     </Button>
                                     <button
@@ -1824,7 +1856,7 @@ export default function StoryPeopleManager({
                                 disabled={busy}
                               >
                                 {busy
-                                  ? "Creating..."
+                                  ? "Submitting…"
                                   : "Create From Description"}
                               </Button>
                             ) : null}
@@ -1876,6 +1908,7 @@ export default function StoryPeopleManager({
                           </div>
                         </div>
                       </div>
+                      )}
                     </div>
 
                     <p className="mt-4 rounded-full bg-night-50 px-3 py-1 text-xs font-semibold text-night-500">

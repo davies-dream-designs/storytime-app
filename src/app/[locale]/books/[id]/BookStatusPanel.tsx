@@ -194,6 +194,9 @@ export default function BookStatusPanel({
   const [regeneratingImage, setRegeneratingImage] = useState<string | null>(
     null
   );
+  const [localQueuedSpreads, setLocalQueuedSpreads] = useState<Set<string>>(
+    () => new Set()
+  );
   const [redoTarget, setRedoTarget] = useState<ExpandedImage | null>(null);
   const [redoCorrectionNote, setRedoCorrectionNote] = useState("");
   const [imageError, setImageError] = useState("");
@@ -435,7 +438,9 @@ export default function BookStatusPanel({
     image: ExpandedImage,
     correctionNote = ""
   ) {
-    setRegeneratingImage(`${image.spreadId}:${image.side}`);
+    const imageKey = `${image.spreadId}:${image.side}`;
+    setRegeneratingImage(imageKey);
+    setLocalQueuedSpreads((prev) => new Set([...prev, imageKey]));
     setImageError("");
     const res = await fetch(`/api/books/${project.id}/images/regenerate`, {
       method: "POST",
@@ -477,6 +482,11 @@ export default function BookStatusPanel({
     }
 
     setRegeneratingImage(null);
+    setLocalQueuedSpreads((prev) => {
+      const next = new Set(prev);
+      next.delete(imageKey);
+      return next;
+    });
   }
 
   function openRedoPrompt(image: ExpandedImage) {
@@ -835,6 +845,7 @@ export default function BookStatusPanel({
                         const sideStatus = side === "left" ? preview.leftPageImageStatus : preview.rightPageImageStatus;
                         const isRegenerating =
                           regeneratingImage === key ||
+                          localQueuedSpreads.has(key) ||
                           sideStatus === "queued" ||
                           sideStatus === "running";
                         const canRegenerate =
@@ -896,7 +907,7 @@ export default function BookStatusPanel({
                                   className="w-full rounded-full bg-white px-1 py-0.5 text-xs font-bold text-night-600 shadow-sm disabled:opacity-50"
                                 >
                                   {isRegenerating
-                                    ? "..."
+                                    ? "Working…"
                                     : isFreeRetry
                                       ? "Retry"
                                       : "Redo"}
@@ -1147,6 +1158,7 @@ export default function BookStatusPanel({
               const sideStatus = side === "left" ? preview.leftPageImageStatus : preview.rightPageImageStatus;
               const isRegenerating =
                 regeneratingImage === key ||
+                localQueuedSpreads.has(key) ||
                 sideStatus === "queued" ||
                 sideStatus === "running";
               const canRegenerate =
@@ -1205,7 +1217,7 @@ export default function BookStatusPanel({
                         }
                         className="w-full rounded-full bg-white px-1 py-0.5 text-xs font-bold text-night-600 shadow-sm disabled:opacity-50"
                       >
-                        {isRegenerating ? "…" : isFreeRetry ? "Retry" : "Redo"}
+                        {isRegenerating ? "Working…" : isFreeRetry ? "Retry" : "Redo"}
                       </button>
                     </div>
                   ) : null}
@@ -1384,6 +1396,7 @@ export default function BookStatusPanel({
                 : artwork.preview.rightPageImageStatus;
             const isRegeneratingThis =
               regeneratingImage === imgKey ||
+              localQueuedSpreads.has(imgKey) ||
               artSideStatus === "queued" ||
               artSideStatus === "running";
             const isFreeRetry = !artwork.url || Boolean(artwork.error);

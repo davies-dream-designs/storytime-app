@@ -182,17 +182,21 @@ export const submitPrintFulfillmentJob = inngest.createFunction(
     triggers: [{ event: INNGEST_EVENTS.printFulfillmentRequested }],
   },
   async ({ event, step }) => {
-    const { orderId } = event.data as { orderId: string };
-    return step.run("submit-public-print-fulfillment", async () => {
-      const { runPublicPrintFulfillment } = await import(
-        "@/lib/print-books/runFulfillment"
-      );
-      const result = await runPublicPrintFulfillment(orderId);
+    const data = event.data as
+      | { kind: "public"; orderId: string }
+      | { kind: "owner"; projectId: string };
+    return step.run("submit-print-fulfillment", async () => {
+      const { runPublicPrintFulfillment, runOwnerPrintFulfillment } =
+        await import("@/lib/print-books/runFulfillment");
+      const result =
+        data.kind === "owner"
+          ? await runOwnerPrintFulfillment(data.projectId)
+          : await runPublicPrintFulfillment(data.orderId);
       // Surface a real failure so Inngest retries the transient Lulu error.
       if (result.status === "failed") {
         throw new Error(result.reason ?? "Lulu fulfillment failed");
       }
-      return { orderId, status: result.status };
+      return { ...data, status: result.status };
     });
   }
 );

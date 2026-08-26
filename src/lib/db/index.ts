@@ -134,6 +134,9 @@ function rowToStory(row: StoryRow): Story {
     createdAt: row.createdAt,
     status: row.status ?? undefined,
     generationError: row.generationError ?? undefined,
+    generationJobId: row.generationJobId ?? undefined,
+    generationClaimedAt: row.generationClaimedAt ?? undefined,
+    creditChargedAt: row.creditChargedAt ?? undefined,
     shareToken: row.shareToken ?? undefined,
     visibility: row.visibility,
     publicReviewStatus: row.publicReviewStatus,
@@ -167,6 +170,9 @@ function storyToRow(s: Story) {
     createdAt: s.createdAt,
     status: s.status ?? null,
     generationError: s.generationError ?? null,
+    generationJobId: s.generationJobId ?? null,
+    generationClaimedAt: s.generationClaimedAt ?? null,
+    creditChargedAt: s.creditChargedAt ?? null,
     shareToken: s.shareToken ?? null,
     visibility: s.visibility ?? "private",
     publicReviewStatus: s.publicReviewStatus ?? "not_submitted",
@@ -700,6 +706,34 @@ export const db = {
         .update(schema.stories)
         .set({ shareToken: token })
         .where(eq(schema.stories.id, id));
+    },
+    /**
+     * Atomically claims a still-generating story for one generator. Succeeds
+     * only if the story is generating and either unclaimed or the previous
+     * claim is older than `staleBefore` (so a wedged generator can be retried).
+     * Returns the claimed story, or undefined if another live generator owns it.
+     */
+    async claimGeneration(
+      id: string,
+      jobId: string,
+      claimedAt: string,
+      staleBefore: string
+    ): Promise<Story | undefined> {
+      const rows = await getClient()
+        .update(schema.stories)
+        .set({ generationJobId: jobId, generationClaimedAt: claimedAt })
+        .where(
+          and(
+            eq(schema.stories.id, id),
+            eq(schema.stories.status, "generating"),
+            or(
+              isNull(schema.stories.generationClaimedAt),
+              lt(schema.stories.generationClaimedAt, staleBefore)
+            )
+          )
+        )
+        .returning();
+      return rows[0] ? rowToStory(rows[0]) : undefined;
     },
     async delete(id: string): Promise<boolean> {
       const story = await this.getById(id);

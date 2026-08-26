@@ -90,7 +90,66 @@ export const generateLocationEstablishing = inngest.createFunction(
   }
 );
 
+/**
+ * Durable story-generation fallback.
+ *
+ * The live SSE route generates connected stories directly for the best UX. This
+ * function guarantees a story still finishes (and the credit is charged exactly
+ * once) even if the browser closed mid-generation. It waits briefly to let the
+ * live path complete, then only takes over if the story is still generating and
+ * hasn't been freshly claimed by a live generator.
+ */
+export const generateStory = inngest.createFunction(
+  {
+    id: "generate-story",
+    concurrency: [{ limit: 5 }, { limit: 1, key: "event.data.userId" }],
+    retries: 3,
+    triggers: [{ event: INNGEST_EVENTS.storyGenerationRequested }],
+  },
+  async ({ event, step }) => {
+    const { storyId, locale } = event.data as {
+      storyId: string;
+      userId?: string;
+      locale?: string;
+    };
+
+    // Grace period: give the connected browser's live generation time to finish
+    // before the durable fallback considers taking over.
+    await step.sleep("await-live-generation", "60s");
+
+    return step.run("generate-story", async () => {
+      const { db } = await import("@/lib/db");
+      const { runStoryGeneration } = await import(
+        "@/lib/stories/runGeneration"
+      );
+
+      const story = await db.stories.getById(storyId);
+      if (!story || story.status !== "generating") {
+        return { storyId, status: story?.status ?? "missing" };
+      }
+
+      // Consider a live claim stale after 2 minutes; a healthy live generator
+      // refreshes far more often than that via its own claim at request start.
+      const now = new Date();
+      const staleBefore = new Date(now.getTime() - 2 * 60 * 1000).toISOString();
+      const claimed = await db.stories.claimGeneration(
+        storyId,
+        `inngest:${event.id ?? storyId}`,
+        now.toISOString(),
+        staleBefore
+      );
+      if (!claimed) {
+        return { storyId, status: "claimed-elsewhere" };
+      }
+
+      const result = await runStoryGeneration(storyId, { locale });
+      return { storyId, status: result.status };
+    });
+  }
+);
+
 export const inngestFunctions: InngestFunction.Any[] = [
   buildBook,
   generateLocationEstablishing,
+  generateStory,
 ];

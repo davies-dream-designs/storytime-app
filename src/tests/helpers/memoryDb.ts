@@ -90,6 +90,26 @@ export function createMemoryDb() {
         const current = storyMap.get(id);
         if (current) storyMap.set(id, { ...current, shareToken: token });
       },
+      async claimGeneration(
+        id: string,
+        jobId: string,
+        claimedAt: string,
+        staleBefore: string
+      ): Promise<Story | undefined> {
+        const current = storyMap.get(id);
+        if (!current || current.status !== "generating") return undefined;
+        const claimIsFresh =
+          current.generationClaimedAt != null &&
+          current.generationClaimedAt >= staleBefore;
+        if (claimIsFresh) return undefined;
+        const next = {
+          ...current,
+          generationJobId: jobId,
+          generationClaimedAt: claimedAt,
+        };
+        storyMap.set(id, next);
+        return next;
+      },
       async delete(id: string): Promise<boolean> {
         if (!storyMap.has(id)) return false;
         const books = [...bookProjectMap.values()].filter(

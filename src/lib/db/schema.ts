@@ -94,6 +94,9 @@ export const stories = pgTable(
     createdAt: text("created_at").notNull(),
     status: text("status").$type<"generating" | "ready" | "failed">(),
     generationError: text("generation_error"),
+    generationJobId: text("generation_job_id"),
+    generationClaimedAt: text("generation_claimed_at"),
+    creditChargedAt: text("credit_charged_at"),
     shareToken: text("share_token"),
     visibility: text("visibility")
       .$type<StoryVisibility>()

@@ -18,6 +18,8 @@ import {
   validateStoryIdeaSafety,
 } from "@/lib/storySafety";
 import { getSelectedStoryPeople } from "@/lib/storyPeopleSelection";
+import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
+import { logEvent } from "@/lib/logEvent";
 import type { Story, StoryPreset } from "@/types";
 
 function sanitizeText(value: unknown, maxLength = 200): string {
@@ -155,6 +157,28 @@ export async function POST(req: NextRequest) {
   };
 
   await db.stories.create(story);
+
+  // Durability: enqueue a background generator so the story still completes even
+  // if the browser closes before the live SSE generation finishes. The live
+  // stream claims the story first, so this fallback only takes over on abandon.
+  try {
+    await inngest.send({
+      name: INNGEST_EVENTS.storyGenerationRequested,
+      data: { storyId: story.id, userId, locale },
+    });
+  } catch (err) {
+    // The live stream path still generates; a failed enqueue only loses the
+    // durable fallback, so don't block story creation over it.
+    await logEvent({
+      error: err,
+      fallbackCode: "story.generation_failed",
+      userId,
+      entityType: "story",
+      entityId: story.id,
+      source: "story/start",
+      context: { phase: "enqueue_fallback" },
+    });
+  }
 
   return NextResponse.json(
     {

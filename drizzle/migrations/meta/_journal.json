@@ -148,6 +148,13 @@
       "when": 1787702273220,
       "tag": "0020_processed_webhook_events",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1787707714844,
+      "tag": "0021_story_generation_durability",
+      "breakpoints": true
     }
   ]
 }

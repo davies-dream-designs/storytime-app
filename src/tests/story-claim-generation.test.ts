@@ -76,4 +76,35 @@ describe("db.stories.claimGeneration", () => {
     );
     expect(claimed).toBeUndefined();
   });
+
+  it("heartbeat keeps the owner's claim fresh so a rival cannot take over", async () => {
+    await db.stories.claimGeneration("story-1", "stream:1", now, staleBefore);
+
+    // Owner heartbeats, moving the claim well past the original staleBefore.
+    const later = "2026-07-15T01:05:00.000Z";
+    await db.stories.refreshGenerationClaim("story-1", "stream:1", later);
+
+    // A rival evaluating staleness relative to the original time now sees a
+    // fresh claim and is refused.
+    const rival = await db.stories.claimGeneration(
+      "story-1",
+      "inngest:2",
+      "2026-07-15T01:05:30.000Z",
+      staleBefore
+    );
+    expect(rival).toBeUndefined();
+    const story = await db.stories.getById("story-1");
+    expect(story?.generationClaimedAt).toBe(later);
+  });
+
+  it("heartbeat from a non-owner is ignored", async () => {
+    await db.stories.claimGeneration("story-1", "stream:1", now, staleBefore);
+    await db.stories.refreshGenerationClaim(
+      "story-1",
+      "someone-else",
+      "2026-07-15T02:00:00.000Z"
+    );
+    const story = await db.stories.getById("story-1");
+    expect(story?.generationClaimedAt).toBe(now);
+  });
 });

@@ -735,6 +735,26 @@ export const db = {
         .returning();
       return rows[0] ? rowToStory(rows[0]) : undefined;
     },
+    /**
+     * Heartbeat for the current owner: refreshes `generationClaimedAt` only if
+     * this job still holds the claim. Lets a healthy generator keep its claim
+     * fresh so the durable fallback's short stale window never races it.
+     */
+    async refreshGenerationClaim(
+      id: string,
+      jobId: string,
+      claimedAt: string
+    ): Promise<void> {
+      await getClient()
+        .update(schema.stories)
+        .set({ generationClaimedAt: claimedAt })
+        .where(
+          and(
+            eq(schema.stories.id, id),
+            eq(schema.stories.generationJobId, jobId)
+          )
+        );
+    },
     async delete(id: string): Promise<boolean> {
       const story = await this.getById(id);
       if (!story) return false;

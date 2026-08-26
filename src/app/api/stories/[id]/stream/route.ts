@@ -7,6 +7,7 @@ import { storyRatelimit, checkRatelimit } from "@/lib/ratelimit";
 import {
   runStoryGeneration,
   readStorySnapshot,
+  GENERATION_CLAIM_STALE_MS,
   type StorySnapshotState,
 } from "@/lib/stories/runGeneration";
 
@@ -130,11 +131,16 @@ export async function POST(
   // Atomically claim this story so a second tab or the durable Inngest fallback
   // never generates (and double-charges) in parallel. If the claim fails, this
   // request becomes a read-only observer of the owning generator's progress.
+  // The generator heartbeats this claim, so a short stale window is safe and
+  // gives fast fallback recovery if this request dies mid-generation.
   const now = new Date();
-  const staleBefore = new Date(now.getTime() - 2 * 60 * 1000).toISOString();
+  const jobId = `stream:${now.getTime()}`;
+  const staleBefore = new Date(
+    now.getTime() - GENERATION_CLAIM_STALE_MS
+  ).toISOString();
   const claimed = await db.stories.claimGeneration(
     id,
-    `stream:${now.getTime()}`,
+    jobId,
     now.toISOString(),
     staleBefore
   );
@@ -151,6 +157,7 @@ export async function POST(
         sendEvent(controller, "status", { status: "starting" });
         const result = await runStoryGeneration(id, {
           locale,
+          jobId,
           onSnapshot: (state) => relaySnapshot(controller, state),
         });
 

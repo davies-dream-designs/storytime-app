@@ -21,6 +21,10 @@ const { mockSendGiftCreditsEmail, mockSendPrintOrderConfirmedEmail } =
     mockSendPrintOrderConfirmedEmail: vi.fn(),
   }));
 
+const { mockInngestSend } = vi.hoisted(() => ({
+  mockInngestSend: vi.fn(),
+}));
+
 const mockDb = {
   bookProjects: {
     getById: vi.fn(),
@@ -75,6 +79,13 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/print-books/fulfillment", () => ({
   submitPrintFulfillment: mockSubmitPrintFulfillment,
+}));
+
+vi.mock("@/lib/inngest/client", () => ({
+  inngest: { send: mockInngestSend },
+  INNGEST_EVENTS: {
+    printFulfillmentRequested: "storycot/print.fulfillment.requested",
+  },
 }));
 
 vi.mock("@/lib/email", () => ({
@@ -180,6 +191,7 @@ describe("Stripe checkout webhook", () => {
     mockUpdateUserMetadata.mockResolvedValue(undefined);
     mockSendGiftCreditsEmail.mockResolvedValue(undefined);
     mockSendPrintOrderConfirmedEmail.mockResolvedValue(undefined);
+    mockInngestSend.mockResolvedValue(undefined);
     mockSubmitPrintFulfillment.mockResolvedValue({
       provider: "lulu",
       status: "submitted",
@@ -501,31 +513,25 @@ describe("Stripe checkout webhook", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(mockSubmitPrintFulfillment).toHaveBeenCalledWith({
-      project: expect.objectContaining({ id: "book-1" }),
-      order: expect.objectContaining({
-        amountAud: 51.95,
-        subtotalAud: 39.95,
-        shippingAmountAud: 12,
+    // The webhook records the paid order (with shipping) and enqueues the Lulu
+    // submission durably, instead of calling Lulu inline.
+    expect(mockSubmitPrintFulfillment).not.toHaveBeenCalled();
+    expect(mockDb.printOrders.update).toHaveBeenCalledWith(
+      "print-order-1",
+      expect.objectContaining({
+        status: "fulfillment_pending",
+        paymentIntentId: "pi_test_123",
+        paidAt: expect.any(String),
         shipping: expect.objectContaining({
           name: "Public Buyer",
           city: "Adelaide",
         }),
-      }),
-    });
-    expect(mockDb.printOrders.update).toHaveBeenCalledWith(
-      "print-order-1",
-      expect.objectContaining({
-        status: "fulfillment_submitted",
-        paymentIntentId: "pi_test_123",
-        paidAt: expect.any(String),
-        fulfillment: expect.objectContaining({
-          provider: "lulu",
-          status: "submitted",
-          externalOrderId: "ord_123",
-        }),
       })
     );
+    expect(mockInngestSend).toHaveBeenCalledWith({
+      name: "storycot/print.fulfillment.requested",
+      data: { orderId: "print-order-1" },
+    });
     expect(mockDb.bookProjects.update).not.toHaveBeenCalled();
     expect(mockSendPrintOrderConfirmedEmail).toHaveBeenCalledWith(
       expect.objectContaining({

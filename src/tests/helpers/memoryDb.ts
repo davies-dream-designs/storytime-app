@@ -110,6 +110,16 @@ export function createMemoryDb() {
         storyMap.set(id, next);
         return next;
       },
+      async refreshGenerationClaim(
+        id: string,
+        jobId: string,
+        claimedAt: string
+      ): Promise<void> {
+        const current = storyMap.get(id);
+        if (current && current.generationJobId === jobId) {
+          storyMap.set(id, { ...current, generationClaimedAt: claimedAt });
+        }
+      },
       async delete(id: string): Promise<boolean> {
         if (!storyMap.has(id)) return false;
         const books = [...bookProjectMap.values()].filter(

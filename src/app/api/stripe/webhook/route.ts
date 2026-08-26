@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { clerkClient } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { submitPrintFulfillment } from "@/lib/print-books/fulfillment";
+import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
 import {
   isPrintProductKey,
   quotePrintProduct,
@@ -39,24 +40,6 @@ function withoutStoredFulfillmentPayload(
 
 function centsToAud(value: number) {
   return Number((value / 100).toFixed(2));
-}
-
-function fulfillmentStatusToPrintOrderStatus(
-  fulfillment: PrintFulfillment
-): PrintOrderRecord["status"] {
-  switch (fulfillment.status) {
-    case "submitted":
-      return "fulfillment_submitted";
-    case "shipped":
-      return "shipped";
-    case "delivered":
-      return "delivered";
-    case "failed":
-    case "not_configured":
-      return "failed";
-    case "ready_for_manual_review":
-      return "fulfillment_pending";
-  }
 }
 
 function printOrderRecordToBookOrder(
@@ -332,22 +315,39 @@ async function handleStripeEvent(stripe: Stripe, event: Stripe.Event) {
             session,
             billingCountry
           );
-          const fulfillment = await submitPrintFulfillment({
-            project,
-            order: printOrder,
-          });
+          // Record the paid order (with shipping) and submit to Lulu durably in
+          // the background, so a slow/failed Lulu call can't time out the
+          // webhook or strand a paid order without an automatic retry.
           await db.printOrders.update(order.id, {
-            status: fulfillmentStatusToPrintOrderStatus(fulfillment),
+            status: "fulfillment_pending",
             paymentIntentId:
               typeof session.payment_intent === "string"
                 ? session.payment_intent
                 : undefined,
             billingCountry,
             shipping: printOrder.shipping,
-            fulfillment: withoutStoredFulfillmentPayload(fulfillment),
             paidAt: now,
             updatedAt: now,
           });
+          try {
+            await inngest.send({
+              name: INNGEST_EVENTS.printFulfillmentRequested,
+              data: { orderId: order.id },
+            });
+          } catch (err) {
+            await logEvent({
+              error: err,
+              code: "print.fulfillment_failed",
+              userId: order.buyerUserId,
+              entityType: "print_order",
+              entityId: order.id,
+              source: "stripe/webhook",
+              context: {
+                phase: "enqueue_fulfillment",
+                checkoutSessionId: session.id,
+              },
+            });
+          }
 
           const customerEmail = printOrder.shipping?.email ?? order.buyerEmail;
           if (customerEmail) {

@@ -62,6 +62,15 @@ export interface RunStoryGenerationResult {
   error?: string;
 }
 
+const CLAIM_HEARTBEAT_INTERVAL_MS = 15 * 1000;
+
+/**
+ * A generation claim is considered abandoned once its heartbeat is older than
+ * this. Kept comfortably above the heartbeat interval so a healthy generator is
+ * never mistaken for a dead one, while still recovering a crashed one quickly.
+ */
+export const GENERATION_CLAIM_STALE_MS = 90 * 1000;
+
 /**
  * Generates a story end-to-end and persists the terminal result. This is the
  * single source of truth for story generation, shared by the live SSE route
@@ -76,6 +85,12 @@ export async function runStoryGeneration(
   storyId: string,
   options: {
     locale?: string;
+    /**
+     * Claim id held by the caller. When provided, the generator periodically
+     * refreshes the claim so the durable fallback's stale window never races a
+     * healthy live generation.
+     */
+    jobId?: string;
     onSnapshot?: (state: StorySnapshotState) => void;
   } = {}
 ): Promise<RunStoryGenerationResult> {
@@ -83,9 +98,27 @@ export async function runStoryGeneration(
   if (!story) return { status: "skipped", error: "Story not found" };
   if (story.status === "ready") return { status: "ready", story };
 
+  let lastHeartbeat = 0;
+  const heartbeat = async () => {
+    if (!options.jobId) return;
+    const nowMs = Date.now();
+    if (nowMs - lastHeartbeat < CLAIM_HEARTBEAT_INTERVAL_MS) return;
+    lastHeartbeat = nowMs;
+    try {
+      await db.stories.refreshGenerationClaim(
+        storyId,
+        options.jobId,
+        new Date(nowMs).toISOString()
+      );
+    } catch {
+      // Heartbeat is best-effort; never fail generation over it.
+    }
+  };
+
   const emit = async (state: StorySnapshotState) => {
     options.onSnapshot?.(state);
     await writeStorySnapshot(storyId, state);
+    await heartbeat();
   };
 
   await emit({

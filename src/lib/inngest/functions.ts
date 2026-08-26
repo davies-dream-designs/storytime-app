@@ -95,9 +95,10 @@ export const generateLocationEstablishing = inngest.createFunction(
  *
  * The live SSE route generates connected stories directly for the best UX. This
  * function guarantees a story still finishes (and the credit is charged exactly
- * once) even if the browser closed mid-generation. It waits briefly to let the
- * live path complete, then only takes over if the story is still generating and
- * hasn't been freshly claimed by a live generator.
+ * once) even if the browser closed mid-generation. After a short grace period it
+ * polls: while a live generator keeps its claim fresh (via heartbeat) it waits;
+ * once the claim goes stale (the live path crashed) or the story is abandoned,
+ * it takes over and generates. A healthy live run is therefore never duplicated.
  */
 export const generateStory = inngest.createFunction(
   {
@@ -112,38 +113,86 @@ export const generateStory = inngest.createFunction(
       userId?: string;
       locale?: string;
     };
+    const jobId = `inngest:${event.id ?? storyId}`;
 
-    // Grace period: give the connected browser's live generation time to finish
-    // before the durable fallback considers taking over.
-    await step.sleep("await-live-generation", "60s");
+    // Grace period: give the connected browser's live generation time to start
+    // and claim before the durable fallback begins polling.
+    await step.sleep("await-live-generation", "30s");
 
-    return step.run("generate-story", async () => {
-      const { db } = await import("@/lib/db");
-      const { runStoryGeneration } = await import(
-        "@/lib/stories/runGeneration"
-      );
+    // Poll until the story reaches a terminal state or its claim goes stale
+    // (i.e. the live generator crashed and stopped heartbeating). Each attempt
+    // is its own durable step so a healthy live run is never generated twice.
+    const MAX_POLLS = 20;
+    for (let attempt = 0; attempt < MAX_POLLS; attempt += 1) {
+      const outcome = await step.run(`attempt-${attempt}`, async () => {
+        const { db } = await import("@/lib/db");
+        const { runStoryGeneration, GENERATION_CLAIM_STALE_MS } = await import(
+          "@/lib/stories/runGeneration"
+        );
 
-      const story = await db.stories.getById(storyId);
-      if (!story || story.status !== "generating") {
-        return { storyId, status: story?.status ?? "missing" };
+        const story = await db.stories.getById(storyId);
+        if (!story) return { action: "done" as const, status: "missing" };
+        if (story.status !== "generating") {
+          return { action: "done" as const, status: story.status };
+        }
+
+        const now = new Date();
+        const staleBefore = new Date(
+          now.getTime() - GENERATION_CLAIM_STALE_MS
+        ).toISOString();
+        const claimed = await db.stories.claimGeneration(
+          storyId,
+          jobId,
+          now.toISOString(),
+          staleBefore
+        );
+        if (!claimed) {
+          // A live generator still holds a fresh claim; wait and re-check.
+          return { action: "wait" as const, status: "claimed-elsewhere" };
+        }
+
+        const result = await runStoryGeneration(storyId, { locale, jobId });
+        return { action: "done" as const, status: result.status };
+      });
+
+      if (outcome.action === "done") {
+        return { storyId, status: outcome.status };
       }
+      await step.sleep(`poll-wait-${attempt}`, "30s");
+    }
 
-      // Consider a live claim stale after 2 minutes; a healthy live generator
-      // refreshes far more often than that via its own claim at request start.
-      const now = new Date();
-      const staleBefore = new Date(now.getTime() - 2 * 60 * 1000).toISOString();
-      const claimed = await db.stories.claimGeneration(
-        storyId,
-        `inngest:${event.id ?? storyId}`,
-        now.toISOString(),
-        staleBefore
+    return { storyId, status: "gave-up" };
+  }
+);
+
+/**
+ * Durable public print-order fulfillment.
+ *
+ * The Stripe webhook records the paid order (with shipping) and enqueues this,
+ * instead of calling Lulu inline. That keeps the webhook fast and lets a
+ * transient Lulu failure retry with backoff rather than stranding a paid order
+ * for manual resend. Idempotent: an order already submitted is skipped, so
+ * Stripe redelivery or Inngest retries never double-print.
+ */
+export const submitPrintFulfillmentJob = inngest.createFunction(
+  {
+    id: "submit-print-fulfillment",
+    concurrency: [{ limit: 5 }],
+    retries: 5,
+    triggers: [{ event: INNGEST_EVENTS.printFulfillmentRequested }],
+  },
+  async ({ event, step }) => {
+    const { orderId } = event.data as { orderId: string };
+    return step.run("submit-public-print-fulfillment", async () => {
+      const { runPublicPrintFulfillment } = await import(
+        "@/lib/print-books/runFulfillment"
       );
-      if (!claimed) {
-        return { storyId, status: "claimed-elsewhere" };
+      const result = await runPublicPrintFulfillment(orderId);
+      // Surface a real failure so Inngest retries the transient Lulu error.
+      if (result.status === "failed") {
+        throw new Error(result.reason ?? "Lulu fulfillment failed");
       }
-
-      const result = await runStoryGeneration(storyId, { locale });
-      return { storyId, status: result.status };
+      return { orderId, status: result.status };
     });
   }
 );
@@ -152,4 +201,5 @@ export const inngestFunctions: InngestFunction.Any[] = [
   buildBook,
   generateLocationEstablishing,
   generateStory,
+  submitPrintFulfillmentJob,
 ];

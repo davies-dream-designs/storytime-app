@@ -973,11 +973,9 @@ export const db = {
         | "avatarGenerationAttemptKey"
         | "avatarGenerationUpdatedAt"
       >
-    ): Promise<StoryPerson | undefined> {
-      const current = await this.getById(id);
-      if (!current) return undefined;
+    ): Promise<void> {
       const now = new Date().toISOString();
-      const rows = await getClient()
+      await getClient()
         .update(schema.storyPeople)
         .set({
           avatarGenerationStatus: updates.avatarGenerationStatus ?? null,
@@ -987,11 +985,7 @@ export const db = {
           avatarGenerationUpdatedAt: updates.avatarGenerationUpdatedAt ?? now,
           updatedAt: now,
         })
-        .where(eq(schema.storyPeople.id, id))
-        .returning();
-      return rows[0]
-        ? rowToStoryPerson(rows[0], current.profileIds)
-        : undefined;
+        .where(eq(schema.storyPeople.id, id));
     },
     async markAvatarGenerationIfCurrent(
       id: string,
@@ -1005,11 +999,9 @@ export const db = {
         | "avatarGenerationAttemptKey"
         | "avatarGenerationUpdatedAt"
       >
-    ): Promise<StoryPerson | undefined> {
-      const current = await this.getById(id);
-      if (!current) return undefined;
+    ): Promise<void> {
       const now = new Date().toISOString();
-      const rows = await getClient()
+      await getClient()
         .update(schema.storyPeople)
         .set({
           avatarGenerationStatus: updates.avatarGenerationStatus ?? null,
@@ -1025,11 +1017,7 @@ export const db = {
             eq(schema.storyPeople.userId, userId),
             eq(schema.storyPeople.avatarGenerationJobId, jobId)
           )
-        )
-        .returning();
-      return rows[0]
-        ? rowToStoryPerson(rows[0], current.profileIds)
-        : undefined;
+        );
     },
     async completeAvatarGenerationIfCurrent(
       id: string,
@@ -1044,8 +1032,6 @@ export const db = {
         | "avatarGeneratedAt"
       >
     ): Promise<StoryPerson | undefined> {
-      const current = await this.getById(id);
-      if (!current) return undefined;
       const now = new Date().toISOString();
       const rows = await getClient()
         .update(schema.storyPeople)
@@ -1069,9 +1055,15 @@ export const db = {
           )
         )
         .returning();
-      return rows[0]
-        ? rowToStoryPerson(rows[0], current.profileIds)
-        : undefined;
+      if (!rows[0]) return undefined;
+      const links = await getClient()
+        .select()
+        .from(schema.storyPersonProfiles)
+        .where(eq(schema.storyPersonProfiles.storyPersonId, id));
+      return rowToStoryPerson(
+        rows[0],
+        links.map((l) => l.profileId)
+      );
     },
     async create(person: StoryPerson): Promise<void> {
       await getClient()

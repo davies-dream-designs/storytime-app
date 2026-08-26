@@ -114,7 +114,6 @@ export default function ChildProfileReference({
     throw new Error(data.error || fallback);
   }
 
-
   const createReferenceCost =
     profile.avatarImageUrl || referenceCount >= 2 ? 1 : 0;
   const createCostLabel = creditInfo?.isAdmin

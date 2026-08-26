@@ -255,6 +255,7 @@ async function advanceExportBuild(
     buildMode: mode,
   });
 }
+
 function getSpreadImageJobId(spread: BookSpread, side: "left" | "right") {
   return side === "left" ? spread.leftPageImageJobId : spread.rightPageImageJobId;
 }

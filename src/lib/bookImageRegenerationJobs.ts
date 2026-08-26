@@ -5,6 +5,7 @@ import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
 import { logEvent } from "@/lib/logEvent";
 import { regenerateBookSpreadPageImage } from "@/lib/print-books/jobs";
 import { applySpreadIllustration } from "@/lib/print-books/illustrations";
+import { isPlaceholderImageUrl } from "@/lib/print-books/review";
 import type { BookProject, BookSpread } from "@/types/printBook";
 
 export type BookImageRegenerationJobData = {
@@ -29,12 +30,6 @@ export type BookImageRegenerationEnqueueResult = {
 function sanitizeAttemptKey(value?: string | null) {
   const cleaned = value?.trim().slice(0, 160);
   return cleaned || randomUUID();
-}
-
-function isPlaceholderImageUrl(url?: string): boolean {
-  if (!url) return false;
-  const lower = url.toLowerCase();
-  return lower.startsWith("data:image/svg") || lower.endsWith(".svg");
 }
 
 function getSideStatus(spread: BookSpread, side: "left" | "right") {

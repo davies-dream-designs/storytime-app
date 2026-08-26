@@ -127,8 +127,6 @@ export const regenerateBookImage = inngest.createFunction(
   }
 );
 
-
-
 /**
  * Durable story-generation fallback.
  *

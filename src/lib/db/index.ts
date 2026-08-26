@@ -1758,4 +1758,29 @@ export const db = {
         .orderBy(desc(schema.publicStoryModerationEvents.createdAt));
     },
   },
+
+  processedWebhookEvents: {
+    /**
+     * Atomically records a webhook event id the first time it is seen.
+     * Returns true only for the first caller; duplicate deliveries get false
+     * and must be treated as a no-op so external side effects never repeat.
+     */
+    async claim(id: string, source: string): Promise<boolean> {
+      const inserted = await getClient()
+        .insert(schema.processedWebhookEvents)
+        .values({ id, source, createdAt: new Date().toISOString() })
+        .onConflictDoNothing({ target: schema.processedWebhookEvents.id })
+        .returning({ id: schema.processedWebhookEvents.id });
+      return inserted.length > 0;
+    },
+    /**
+     * Releases a previously claimed event id so it can be retried. Used when
+     * processing fails after claiming, so Stripe/Lulu redelivery can run again.
+     */
+    async release(id: string): Promise<void> {
+      await getClient()
+        .delete(schema.processedWebhookEvents)
+        .where(eq(schema.processedWebhookEvents.id, id));
+    },
+  },
 };

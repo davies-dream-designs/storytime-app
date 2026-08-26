@@ -38,6 +38,10 @@ const mockDb = {
   stories: {
     getById: vi.fn(),
   },
+  processedWebhookEvents: {
+    claim: vi.fn(),
+    release: vi.fn(),
+  },
 };
 
 vi.mock("stripe", () => ({
@@ -165,6 +169,8 @@ describe("Stripe checkout webhook", () => {
     }));
     mockDb.printOrders.getByCheckoutSessionId.mockResolvedValue(undefined);
     mockDb.printOrders.update.mockResolvedValue(undefined);
+    mockDb.processedWebhookEvents.claim.mockResolvedValue(true);
+    mockDb.processedWebhookEvents.release.mockResolvedValue(undefined);
     mockDb.stories.getById.mockResolvedValue({ title: "Moonlight Garden" });
     mockGetUser.mockResolvedValue({
       firstName: "Buyer",
@@ -558,5 +564,90 @@ describe("Stripe checkout webhook", () => {
     expect(res.status).toBe(200);
     expect(mockUpdateUserMetadata).not.toHaveBeenCalled();
     expect(mockSendGiftCreditsEmail).not.toHaveBeenCalled();
+  });
+
+  it("treats a redelivered event id as a no-op via the processed-event ledger", async () => {
+    mockDb.processedWebhookEvents.claim.mockResolvedValue(false);
+    mockConstructEvent.mockReturnValue({
+      id: "evt_dupe_1",
+      type: "checkout.session.completed",
+      data: { object: createCheckoutSession() },
+    });
+
+    const { POST } = await import("@/app/api/stripe/webhook/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/stripe/webhook", {
+        method: "POST",
+        headers: { "stripe-signature": "sig_test" },
+        body: "{}",
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ duplicate: true });
+    expect(mockSubmitPrintFulfillment).not.toHaveBeenCalled();
+    expect(mockDb.bookProjects.update).not.toHaveBeenCalled();
+  });
+
+  it("does not resubmit private print fulfillment when one is already submitted", async () => {
+    mockDb.bookProjects.getById.mockResolvedValue({
+      ...createProject(),
+      printOrder: {
+        productKey: "hardcover",
+        productLabel: "Hardcover",
+        provider: "Lulu",
+        format: '8.5" square hardcover casewrap',
+        status: "paid",
+        amountAud: 59.5,
+        pageCount: 24,
+        fulfillment: {
+          provider: "lulu",
+          status: "submitted",
+          externalOrderId: "ord_existing",
+        },
+      },
+    });
+    mockConstructEvent.mockReturnValue({
+      id: "evt_private_print_retry",
+      type: "checkout.session.completed",
+      data: { object: createCheckoutSession() },
+    });
+
+    const { POST } = await import("@/app/api/stripe/webhook/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/stripe/webhook", {
+        method: "POST",
+        headers: { "stripe-signature": "sig_test" },
+        body: "{}",
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ alreadySubmitted: true });
+    expect(mockSubmitPrintFulfillment).not.toHaveBeenCalled();
+    expect(mockDb.bookProjects.update).not.toHaveBeenCalled();
+  });
+
+  it("releases the processed-event claim when handling throws so Stripe can retry", async () => {
+    mockSubmitPrintFulfillment.mockRejectedValue(new Error("lulu down"));
+    mockConstructEvent.mockReturnValue({
+      id: "evt_fail_1",
+      type: "checkout.session.completed",
+      data: { object: createCheckoutSession() },
+    });
+
+    const { POST } = await import("@/app/api/stripe/webhook/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/stripe/webhook", {
+        method: "POST",
+        headers: { "stripe-signature": "sig_test" },
+        body: "{}",
+      })
+    );
+
+    expect(res.status).toBe(500);
+    expect(mockDb.processedWebhookEvents.release).toHaveBeenCalledWith(
+      "evt_fail_1"
+    );
   });
 });

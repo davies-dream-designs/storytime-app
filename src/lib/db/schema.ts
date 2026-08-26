@@ -432,6 +432,16 @@ export const locationFixtures = pgTable(
   (t) => [index("location_fixtures_user_id_idx").on(t.userId)]
 );
 
+export const processedWebhookEvents = pgTable(
+  "processed_webhook_events",
+  {
+    id: text("id").primaryKey(),
+    source: text("source").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [index("processed_webhook_events_source_idx").on(t.source)]
+);
+
 export const publicStoryModerationEvents = pgTable(
   "public_story_moderation_events",
   {

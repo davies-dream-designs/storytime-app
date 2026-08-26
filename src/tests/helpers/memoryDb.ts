@@ -14,6 +14,7 @@ export function createMemoryDb() {
   const bookBuildJobMap = new Map<string, BookBuildJob>();
   const printOrderMap = new Map<string, PrintOrderRecord>();
   const emailClaimSet = new Set<string>();
+  const processedWebhookEventSet = new Set<string>();
 
   const db = {
     _reset() {
@@ -25,6 +26,7 @@ export function createMemoryDb() {
       bookBuildJobMap.clear();
       printOrderMap.clear();
       emailClaimSet.clear();
+      processedWebhookEventSet.clear();
     },
 
     profiles: {
@@ -351,6 +353,17 @@ export function createMemoryDb() {
         };
         bookBuildJobMap.set(id, next);
         return next;
+      },
+    },
+
+    processedWebhookEvents: {
+      async claim(id: string): Promise<boolean> {
+        if (processedWebhookEventSet.has(id)) return false;
+        processedWebhookEventSet.add(id);
+        return true;
+      },
+      async release(id: string): Promise<void> {
+        processedWebhookEventSet.delete(id);
       },
     },
   };

@@ -7,6 +7,12 @@ import { buttonClassName } from "@/components/ui/buttonStyles";
 import { formStyles } from "@/components/ui/formStyles";
 import { useConfirmDialog } from "@/components/ui/useConfirmDialog";
 import { isStoryPersonReferenceStale } from "@/lib/characterReferenceContext";
+import {
+  delay,
+  isActiveAvatarStatus,
+  isAvatarJobResponse,
+  type AvatarGenerationEnqueueResult,
+} from "@/lib/avatarJobUtils";
 import type {
   ChildProfile,
   BodyBuild,
@@ -112,31 +118,10 @@ function formFromPerson(person: StoryPerson): FormState {
   };
 }
 
-type AvatarJobResponse = {
-  jobId: string;
-  status: "queued" | "running";
-  attemptKey: string;
-  existing?: boolean;
-};
-
 function isStoryPerson(
-  value: StoryPerson | AvatarJobResponse | { error?: string }
+  value: StoryPerson | AvatarGenerationEnqueueResult | { error?: string }
 ): value is StoryPerson {
   return "id" in value;
-}
-
-function isAvatarJobResponse(
-  value: StoryPerson | AvatarJobResponse | { error?: string }
-): value is AvatarJobResponse {
-  return "jobId" in value && "status" in value;
-}
-
-function isActiveAvatarStatus(status?: string) {
-  return status === "queued" || status === "running";
-}
-
-function delay(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function splitList(value: string): string[] {
@@ -253,7 +238,7 @@ export default function StoryPeopleManager({
 
   async function resolveAvatarResponse(
     personId: string,
-    data: StoryPerson | AvatarJobResponse | { error?: string },
+    data: StoryPerson | AvatarGenerationEnqueueResult | { error?: string },
     fallback: string
   ): Promise<StoryPerson> {
     if (isStoryPerson(data)) return data;
@@ -380,6 +365,7 @@ export default function StoryPeopleManager({
     } finally {
       setSaving(false);
       setGeneratingAvatarForId(null);
+      setDrawingAvatarForId(null);
     }
   }
 
@@ -460,7 +446,7 @@ export default function StoryPeopleManager({
     });
     const data = (await res.json()) as
       | StoryPerson
-      | AvatarJobResponse
+      | AvatarGenerationEnqueueResult
       | { error?: string };
     if (!res.ok) {
       throw new Error(
@@ -553,7 +539,7 @@ export default function StoryPeopleManager({
       });
       const data = (await res.json()) as
         | StoryPerson
-        | AvatarJobResponse
+        | AvatarGenerationEnqueueResult
         | { error?: string };
       if (!res.ok) {
         throw new Error(
@@ -610,7 +596,7 @@ export default function StoryPeopleManager({
       });
       const data = (await res.json()) as
         | StoryPerson
-        | AvatarJobResponse
+        | AvatarGenerationEnqueueResult
         | { error?: string };
       if (!res.ok) {
         throw new Error(

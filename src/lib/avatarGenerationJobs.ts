@@ -6,6 +6,9 @@ import { assertReferenceRedoAffordable, chargeReferenceRedoCredit } from "@/lib/
 import { logEvent } from "@/lib/logEvent";
 import { deleteBookAssetUrls, storeBookAsset } from "@/lib/print-books/storage";
 import { FREE_REFERENCE_AVATAR_LIMIT } from "@/lib/pricing";
+import { isActiveAvatarStatus } from "@/lib/avatarJobUtils";
+import type { AvatarGenerationEnqueueResult } from "@/lib/avatarJobUtils";
+export type { AvatarGenerationEnqueueResult } from "@/lib/avatarJobUtils";
 import {
   createChildProfileAvatar,
   createChildProfileAvatarFromDescription,
@@ -33,17 +36,6 @@ export type AvatarGenerationJobData = {
   shouldCharge: boolean;
   tempPhotoUrl?: string;
 };
-
-export type AvatarGenerationEnqueueResult = {
-  jobId: string;
-  status: "queued" | "running";
-  attemptKey: string;
-  existing: boolean;
-};
-
-function isActiveAvatarStatus(status?: string) {
-  return status === "queued" || status === "running";
-}
 
 function sanitizeAttemptKey(value?: string | null) {
   const cleaned = value?.trim().slice(0, 160);

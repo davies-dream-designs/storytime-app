@@ -7,6 +7,12 @@ import { buttonClassName } from "@/components/ui/buttonStyles";
 import { formStyles } from "@/components/ui/formStyles";
 import { useConfirmDialog } from "@/components/ui/useConfirmDialog";
 import { isChildProfileReferenceStale } from "@/lib/characterReferenceContext";
+import {
+  delay,
+  isActiveAvatarStatus,
+  isAvatarJobResponse,
+  type AvatarGenerationEnqueueResult,
+} from "@/lib/avatarJobUtils";
 import type { ChildProfile } from "@/types";
 
 type PendingPhoto = {
@@ -16,31 +22,10 @@ type PendingPhoto = {
   adjustment: string;
 };
 
-type AvatarJobResponse = {
-  jobId: string;
-  status: "queued" | "running";
-  attemptKey: string;
-  existing?: boolean;
-};
-
 function isChildProfile(
-  value: ChildProfile | AvatarJobResponse | { error?: string }
+  value: ChildProfile | AvatarGenerationEnqueueResult | { error?: string }
 ): value is ChildProfile {
   return "id" in value;
-}
-
-function isAvatarJobResponse(
-  value: ChildProfile | AvatarJobResponse | { error?: string }
-): value is AvatarJobResponse {
-  return "jobId" in value && "status" in value;
-}
-
-function isActiveAvatarStatus(status?: string) {
-  return status === "queued" || status === "running";
-}
-
-function delay(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 export default function ChildProfileReference({
@@ -101,7 +86,7 @@ export default function ChildProfileReference({
   }
 
   async function resolveAvatarResponse(
-    data: ChildProfile | AvatarJobResponse | { error?: string },
+    data: ChildProfile | AvatarGenerationEnqueueResult | { error?: string },
     fallback: string
   ): Promise<ChildProfile> {
     if (isChildProfile(data)) return data;
@@ -179,7 +164,7 @@ export default function ChildProfileReference({
       });
       const data = (await res.json()) as
         | ChildProfile
-        | AvatarJobResponse
+        | AvatarGenerationEnqueueResult
         | { error?: string };
       if (!res.ok) {
         throw new Error(
@@ -234,7 +219,7 @@ export default function ChildProfileReference({
       });
       const data = (await res.json()) as
         | ChildProfile
-        | AvatarJobResponse
+        | AvatarGenerationEnqueueResult
         | { error?: string };
       if (!res.ok) {
         throw new Error(
@@ -285,7 +270,7 @@ export default function ChildProfileReference({
       });
       const data = (await res.json()) as
         | ChildProfile
-        | AvatarJobResponse
+        | AvatarGenerationEnqueueResult
         | { error?: string };
       if (!res.ok) {
         throw new Error(

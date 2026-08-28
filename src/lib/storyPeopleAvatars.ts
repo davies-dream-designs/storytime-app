@@ -286,11 +286,17 @@ export async function normalizeUploadForOpenAI(file: File): Promise<Buffer> {
     .toBuffer();
 }
 
+const OPENAI_BASE = () =>
+  (process.env.OPENAI_API_BASE_URL ?? "https://api.openai.com/v1").replace(
+    /\/$/,
+    ""
+  );
+
 async function generateImageFromText(prompt: string): Promise<Buffer> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
 
-  const response = await fetch("https://api.openai.com/v1/images/generations", {
+  const response = await fetch(`${OPENAI_BASE()}/images/generations`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -346,7 +352,7 @@ export async function generateEditedImage(input: {
   formData.append("size", "1024x1024");
   formData.append("quality", "medium");
 
-  const response = await fetch("https://api.openai.com/v1/images/edits", {
+  const response = await fetch(`${OPENAI_BASE()}/images/edits`, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}` },
     body: formData,

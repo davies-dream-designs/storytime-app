@@ -33,6 +33,12 @@ function isOpenAIConfigured(): boolean {
   return Boolean(process.env.OPENAI_API_KEY);
 }
 
+const openAIBase = () =>
+  (process.env.OPENAI_API_BASE_URL ?? "https://api.openai.com/v1").replace(
+    /\/$/,
+    ""
+  );
+
 // True when the provider has its credentials AND blob storage is ready.
 export function isGeneratedIllustrationConfigured(): boolean {
   return isBookAssetStorageConfigured() && isOpenAIConfigured();
@@ -1123,8 +1129,8 @@ async function generateOpenAIImage(input: {
           });
       const response = await fetch(
         useConditioningReferences
-          ? "https://api.openai.com/v1/images/edits"
-          : "https://api.openai.com/v1/images/generations",
+          ? `${openAIBase()}/images/edits`
+          : `${openAIBase()}/images/generations`,
         {
           method: "POST",
           headers: useConditioningReferences

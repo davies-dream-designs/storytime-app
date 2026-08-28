@@ -25,6 +25,8 @@ const PAGES = [
   { name: "family", path: "/en/family" },
   { name: "locations", path: "/en/locations" },
   { name: "account", path: "/en/account" },
+  { name: "support", path: "/en/support" },
+  { name: "public-gallery", path: "/en/public" },
 ];
 
 test.beforeAll(() => {

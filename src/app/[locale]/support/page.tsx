@@ -171,10 +171,10 @@ export default function SupportPage() {
       <main
         id="main-content"
         tabIndex={-1}
-        className="mx-auto max-w-2xl px-5 py-14"
+        className="mx-auto max-w-5xl px-5 py-14"
       >
         {/* Hero */}
-        <div className="mb-2">
+        <div className="mb-8">
           <h1 className="font-display text-4xl font-bold text-night-800">
             Help &amp; FAQ
           </h1>
@@ -189,12 +189,19 @@ export default function SupportPage() {
           </p>
         </div>
 
-        <FAQSection title="Getting started" items={gettingStarted} />
-        <FAQSection title="Illustrated books" items={illustratedBooks} />
-        <FAQSection title="Voice narration" items={voiceNarration} />
-        <FAQSection title="Hardcover books" items={hardcoverBooks} />
-        <FAQSection title="Public gallery" items={publicGallery} />
-        <FAQSection title="Billing &amp; refunds" items={billing} />
+        {/* 2-col layout at desktop */}
+        <div className="lg:grid lg:grid-cols-2 lg:gap-x-12">
+          <div>
+            <FAQSection title="Getting started" items={gettingStarted} />
+            <FAQSection title="Voice narration" items={voiceNarration} />
+            <FAQSection title="Public gallery" items={publicGallery} />
+          </div>
+          <div>
+            <FAQSection title="Illustrated books" items={illustratedBooks} />
+            <FAQSection title="Hardcover books" items={hardcoverBooks} />
+            <FAQSection title="Billing &amp; refunds" items={billing} />
+          </div>
+        </div>
 
         {/* Contact card */}
         <div className="mt-14 rounded-3xl border border-night-100 bg-white px-8 py-8 shadow-sm text-center">

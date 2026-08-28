@@ -548,7 +548,9 @@ function GenerateForm() {
 
   return (
     <>
-      <div className="space-y-8">
+      {/* Desktop: 2-col grid — profile picker left, config right. Mobile: single column. */}
+      <div className="lg:grid lg:grid-cols-[1fr_460px] lg:gap-10 lg:items-start">
+        {/* Left column: profile picker */}
         <div>
           <p className="mb-3 text-sm font-bold uppercase tracking-wide text-night-400">
             {t("stepWho")}
@@ -577,8 +579,12 @@ function GenerateForm() {
             ))}
           </div>
 
+        </div>
+
+        {/* Right column: story config — shown inline on mobile, right panel on desktop */}
+        <div className="mt-8 space-y-8 lg:mt-0">
           {profileId && (
-            <div className="mt-5 space-y-4">
+            <div className="space-y-4">
               <div>
                 <p className="mb-2 text-sm font-bold uppercase tracking-wide text-night-400">
                   {t("storyPresetLabel")}
@@ -985,9 +991,8 @@ function GenerateForm() {
               )}
             </div>
           )}
-        </div>
 
-        {showIdeas && (
+          {showIdeas && (
           <div>
             <p className="mb-3 text-sm font-bold uppercase tracking-wide text-night-400">
               {t("stepChoose")}
@@ -1066,12 +1071,12 @@ function GenerateForm() {
               </div>
             )}
           </div>
-        )}
+          )}
 
-        {profileId && (
-          <>
-            <div>
-              <label className={formStyles.label}>{t("notesLabel")}</label>
+          {profileId && (
+            <>
+              <div>
+                <label className={formStyles.label}>{t("notesLabel")}</label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
@@ -1156,9 +1161,10 @@ function GenerateForm() {
                 {t("generatingSub")}
               </p>
             )}
-          </>
-        )}
-      </div>
+            </>
+          )}
+        </div>{/* end right column */}
+      </div>{/* end desktop grid */}
       <ConfirmDialog />
     </>
   );
@@ -1169,7 +1175,7 @@ export default function GenerateStoryPage() {
   return (
     <>
       <Nav />
-      <main className="mx-auto max-w-2xl px-5 py-10">
+      <main className="mx-auto max-w-5xl px-5 py-10">
         <div className="mb-8">
           <h1 className="font-display text-4xl font-bold text-night-800">
             {t("newTitle")}

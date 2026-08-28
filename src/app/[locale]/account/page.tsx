@@ -36,7 +36,7 @@ export default async function AccountPage({
       <main
         id="main-content"
         tabIndex={-1}
-        className="mx-auto max-w-2xl px-5 py-14"
+        className="mx-auto max-w-3xl px-5 py-14"
       >
         <h1 className="font-display text-4xl font-bold text-night-800">
           {t("title")}

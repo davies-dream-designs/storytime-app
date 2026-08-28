@@ -101,7 +101,7 @@ export default async function Dashboard() {
           ))}
         </div>
 
-        <div className="mb-10 grid gap-4 sm:grid-cols-2">
+        <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Link
             href="/stories/new"
             className="flex items-center gap-4 rounded-2xl bg-night-700 px-6 py-5 text-white transition hover:bg-night-600"

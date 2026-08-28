@@ -242,7 +242,7 @@ export default function NewProfilePage() {
   return (
     <>
       <Nav />
-      <main className="mx-auto max-w-2xl px-5 py-10">
+      <main className="mx-auto max-w-3xl px-5 py-10">
         <div className="mb-8">
           <h1 className="font-display text-4xl font-bold text-night-800">
             {t("newTitle")}

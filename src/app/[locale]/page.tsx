@@ -28,24 +28,24 @@ export default async function Home() {
   ] satisfies Array<{ icon: IconName; title: string; body: string }>
 
   const arcSteps = [
-    { num: '1', label: t('arc.introduction'), icon: '🌅' },
-    { num: '2', label: t('arc.adventure'), icon: '🗺️' },
-    { num: '3', label: t('arc.growth'), icon: '🌱' },
-    { num: '4', label: t('arc.resolution'), icon: '⭐' },
-    { num: '5', label: t('arc.bedtime'), icon: '😴' },
+    { num: '1', label: t('arc.introduction'), icon: 'profile' as const },
+    { num: '2', label: t('arc.adventure'), icon: 'image' as const },
+    { num: '3', label: t('arc.growth'), icon: 'sparkle' as const },
+    { num: '4', label: t('arc.resolution'), icon: 'book' as const },
+    { num: '5', label: t('arc.bedtime'), icon: 'download' as const },
   ]
 
   const themes = [
-    ['💛', t('themes.kindness')],
-    ['🦁', t('themes.bravery')],
-    ['🤝', t('themes.sharing')],
-    ['🌈', t('themes.tryingNewThings')],
-    ['💭', t('themes.dealingWithEmotions')],
-    ['👫', t('themes.friendship')],
-    ['🌿', t('themes.patience')],
-    ['✅', t('themes.honesty')],
-    ['🙏', t('themes.gratitude')],
-    ['💪', t('themes.perseverance')],
+    t('themes.kindness'),
+    t('themes.bravery'),
+    t('themes.sharing'),
+    t('themes.tryingNewThings'),
+    t('themes.dealingWithEmotions'),
+    t('themes.friendship'),
+    t('themes.patience'),
+    t('themes.honesty'),
+    t('themes.gratitude'),
+    t('themes.perseverance'),
   ]
 
   return (
@@ -156,11 +156,14 @@ export default async function Home() {
           <p className="mt-4 text-night-200">{t('arcSub')}</p>
           <div className="mt-14 grid grid-cols-5 gap-2 sm:gap-4">
             {arcSteps.map((step) => (
-              <div key={step.num} className="flex flex-col items-center gap-2">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-moon-400/20 text-2xl">
-                  {step.icon}
+              <div key={step.num} className="flex flex-col items-center gap-3">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-moon-400/20 ring-1 ring-moon-400/30">
+                  <Icon name={step.icon} className="h-7 w-7 text-moon-300" />
                 </div>
-                <p className="text-xs font-bold text-moon-300 sm:text-sm">{step.label}</p>
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-moon-400/30">
+                  <span className="text-xs font-bold text-moon-200">{step.num}</span>
+                </div>
+                <p className="text-center text-xs font-bold text-moon-300 sm:text-sm">{step.label}</p>
               </div>
             ))}
           </div>
@@ -178,12 +181,12 @@ export default async function Home() {
           </p>
         </div>
         <div className="mt-12 flex flex-wrap justify-center gap-3">
-          {themes.map(([icon, theme]) => (
+          {themes.map((theme) => (
             <span
               key={theme}
-              className="flex items-center gap-2 rounded-full border border-night-100 bg-white px-5 py-2.5 text-sm font-bold text-night-600 shadow-sm"
+              className="rounded-full border border-night-100 bg-white px-5 py-2.5 text-sm font-bold text-night-600 shadow-sm"
             >
-              <span>{icon}</span> {theme}
+              {theme}
             </span>
           ))}
         </div>

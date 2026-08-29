@@ -168,11 +168,24 @@ export default function StoryPeopleManager({
     Record<string, PendingPhoto>
   >({});
   const [error, setError] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [creditInfo, setCreditInfo] = useState<{
     credits: number;
     isAdmin: boolean;
   } | null>(null);
   const { confirm, ConfirmDialog } = useConfirmDialog();
+
+  function openAddModal() {
+    setForm({ ...EMPTY_FORM, profileIds: defaultProfileId ? [defaultProfileId] : [] });
+    setIsModalOpen(true);
+  }
+  function openEditModal(person: StoryPerson) {
+    setForm(formFromPerson(person));
+    setIsModalOpen(true);
+  }
+  function closeModal() {
+    setIsModalOpen(false);
+  }
 
   useEffect(() => {
     fetch("/api/user/credits")
@@ -360,6 +373,7 @@ export default function StoryPeopleManager({
       });
       clearStagedNewPhoto();
       setNewPersonMode("description");
+      setIsModalOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -625,43 +639,32 @@ export default function StoryPeopleManager({
     }
   }
 
-  return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr]">
-      <section className="rounded-2xl border border-night-100 bg-white p-5">
-        <h2 className="font-display text-2xl font-bold text-night-800">
-          {form.id ? "Edit Story Person" : "Add Story Person"}
-        </h2>
-        <p className="mt-1 text-sm leading-6 text-night-500">
-          Add family members, friends, pets, or original characters once and
-          reuse them across children.
-        </p>
-
-        {form.id ? (
-          <div className="mt-5 rounded-xl border border-star-200 bg-star-50 p-4">
-            <p className="text-sm font-bold text-night-700">
-              Editing {form.name} below
-            </p>
+  const formSection = (
+    <section className="rounded-2xl border border-night-100 bg-white p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-display text-2xl font-bold text-night-800">
+              {form.id ? `Edit — ${form.name}` : "Add Family & Friends"}
+            </h2>
             <p className="mt-1 text-sm leading-6 text-night-500">
-              Make changes in the matching Family & Friends card.
+              {form.id
+                ? "Update their details below, then save."
+                : "Add a family member, friend, pet, or original character."}
             </p>
-            <button
-              type="button"
-              onClick={() =>
-                setForm({
-                  ...EMPTY_FORM,
-                  profileIds: defaultProfileId ? [defaultProfileId] : [],
-                })
-              }
-              className={buttonClassName({
-                variant: "secondary",
-                size: "compact",
-                className: "mt-3",
-              })}
-            >
-              Cancel Edit
-            </button>
           </div>
-        ) : (
+          <button
+            type="button"
+            onClick={closeModal}
+            aria-label="Close"
+            className="rounded-lg p-1.5 text-night-400 transition hover:bg-night-100 hover:text-night-700"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {form.id ? null : (
           <div className="mt-5 space-y-4">
             <div>
               <p className="text-sm font-bold text-night-700">Who They Are</p>
@@ -1153,8 +1156,41 @@ export default function StoryPeopleManager({
           </div>
         )}
       </section>
+  );
 
-      <section className="space-y-3">
+  return (
+    <div>
+      {/* Modal overlay */}
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-end bg-night-900/55 px-4 pb-4 pt-10 backdrop-blur-sm sm:items-center sm:justify-center sm:p-6"
+          onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
+        >
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl">
+            {formSection}
+          </div>
+        </div>
+      )}
+
+      {/* Gallery header */}
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <p className="text-sm text-night-500">
+          {people.length === 0
+            ? "No one added yet."
+            : `${people.length} person${people.length === 1 ? "" : " people"} added.`}
+        </p>
+        <button
+          type="button"
+          onClick={openAddModal}
+          className={buttonClassName({ size: "compact" })}
+        >
+          <Icon name="plus" className="h-3.5 w-3.5" />
+          Add Family & Friends
+        </button>
+      </div>
+
+      {/* People gallery */}
+      <div className={people.length > 0 ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3" : undefined}>
         {people.length > 0 ? (
           people.map((person) => (
             <article
@@ -1166,7 +1202,6 @@ export default function StoryPeopleManager({
                 const busy = generatingAvatarForId === person.id;
                 const isDrawing =
                   busy && drawingAvatarForId === person.id;
-                const editing = form.id === person.id;
                 const referenceIsStale = isStoryPersonReferenceStale(person);
 
                 return (
@@ -1214,7 +1249,7 @@ export default function StoryPeopleManager({
                       <div className="flex shrink-0 gap-2">
                         <button
                           type="button"
-                          onClick={() => setForm(formFromPerson(person))}
+                          onClick={() => openEditModal(person)}
                           className={buttonClassName({
                             variant: "secondary",
                             size: "compact",
@@ -1242,328 +1277,7 @@ export default function StoryPeopleManager({
                       </div>
                     ) : null}
 
-                    {editing ? (
-                      <div className="mt-4 rounded-xl border border-star-200 bg-star-50 p-4">
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div>
-                            <label className={formStyles.subLabel}>
-                              Display Name
-                            </label>
-                            <input
-                              value={form.name}
-                              onChange={(event) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  name: event.target.value,
-                                }))
-                              }
-                              className={formStyles.field}
-                            />
-                          </div>
-                          <div>
-                            <label className={formStyles.subLabel}>
-                              Relationship
-                            </label>
-                            <select
-                              value={form.relationship}
-                              onChange={(event) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  relationship: event.target
-                                    .value as StoryPersonRelationship,
-                                  customRelationship:
-                                    event.target.value === "other"
-                                      ? current.customRelationship
-                                      : "",
-                                }))
-                              }
-                              className={formStyles.field}
-                            >
-                              {STORY_PERSON_RELATIONSHIPS.map(
-                                (relationship) => (
-                                  <option
-                                    key={relationship}
-                                    value={relationship}
-                                  >
-                                    {relationshipLabel(relationship)}
-                                  </option>
-                                )
-                              )}
-                            </select>
-                          </div>
-                          {form.relationship === "other" ? (
-                            <div>
-                              <label className={formStyles.subLabel}>
-                                Custom Relationship
-                              </label>
-                              <input
-                                value={form.customRelationship}
-                                onChange={(event) =>
-                                  setForm((current) => ({
-                                    ...current,
-                                    customRelationship: event.target.value,
-                                  }))
-                                }
-                                placeholder="Auntie's partner, godmother, family friend"
-                                className={formStyles.field}
-                              />
-                            </div>
-                          ) : null}
-                          <div>
-                            <label className={formStyles.subLabel}>
-                              Pronouns
-                            </label>
-                            <input
-                              value={form.pronouns}
-                              onChange={(event) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  pronouns: event.target.value,
-                                }))
-                              }
-                              placeholder="she/her, he/him, they/them"
-                              className={formStyles.field}
-                            />
-                          </div>
-                          <div>
-                            <label className={formStyles.subLabel}>
-                              Age Group
-                            </label>
-                            <select
-                              value={form.ageGroup}
-                              onChange={(event) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  ageGroup: event.target
-                                    .value as StoryPersonAgeGroup,
-                                }))
-                              }
-                              className={formStyles.field}
-                            >
-                              {STORY_PERSON_AGE_GROUP_OPTIONS.map((option) => (
-                                <option key={option} value={option}>
-                                  {getStoryPersonAgeGroupLabel(option)}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className={formStyles.subLabel}>
-                              Height
-                            </label>
-                            <select
-                              value={form.height}
-                              onChange={(event) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  height: event.target
-                                    .value as StoryPersonHeight,
-                                }))
-                              }
-                              className={formStyles.field}
-                            >
-                              {STORY_PERSON_HEIGHT_OPTIONS.map((option) => (
-                                <option key={option} value={option}>
-                                  {getStoryPersonHeightLabel(option)}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className={formStyles.subLabel}>
-                              Body Build
-                            </label>
-                            <select
-                              value={form.bodyBuild}
-                              onChange={(event) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  bodyBuild: event.target.value as BodyBuild,
-                                }))
-                              }
-                              className={formStyles.field}
-                            >
-                              {BODY_BUILD_OPTIONS.map((option) => (
-                                <option key={option} value={option}>
-                                  {getBodyBuildLabel(option)}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <div className="flex items-center justify-between gap-3">
-                              <label className={formStyles.subLabel}>
-                                Personality
-                              </label>
-                              <span className="text-xs font-bold text-night-300">
-                                {splitList(form.personality).length}/3
-                              </span>
-                            </div>
-                            <div className="mb-2 flex flex-wrap gap-2">
-                              {PERSONALITY_OPTIONS.map((option) => {
-                                const selected = splitList(
-                                  form.personality
-                                ).includes(option);
-                                return (
-                                  <button
-                                    key={option}
-                                    type="button"
-                                    onClick={() =>
-                                      toggleListField("personality", option)
-                                    }
-                                    className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                                      selected
-                                        ? "bg-night-700 text-moon-200"
-                                        : "bg-white text-night-600 hover:bg-night-100"
-                                    }`}
-                                  >
-                                    {option}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            <input
-                              value={form.personality}
-                              onChange={(event) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  personality: event.target.value,
-                                }))
-                              }
-                              className={formStyles.field}
-                            />
-                          </div>
-                        </div>
 
-                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                          <div>
-                            <label className={formStyles.subLabel}>
-                              Appearance
-                            </label>
-                            <textarea
-                              value={form.appearance}
-                              onChange={(event) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  appearance: event.target.value,
-                                }))
-                              }
-                              rows={3}
-                              className={formStyles.textarea}
-                            />
-                          </div>
-                          <div>
-                            <div className="flex items-center justify-between gap-3">
-                              <label className={formStyles.subLabel}>
-                                Story Role
-                              </label>
-                              <span className="text-xs font-bold text-night-300">
-                                {splitList(form.description).length}/3
-                              </span>
-                            </div>
-                            <div className="mb-2 flex flex-wrap gap-2">
-                              {STORY_ROLE_OPTIONS.map((option) => {
-                                const selected = splitList(
-                                  form.description
-                                ).includes(option);
-                                return (
-                                  <button
-                                    key={option}
-                                    type="button"
-                                    onClick={() =>
-                                      toggleListField("description", option)
-                                    }
-                                    className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                                      selected
-                                        ? "bg-night-700 text-moon-200"
-                                        : "bg-white text-night-600 hover:bg-night-100"
-                                    }`}
-                                  >
-                                    {option}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            <textarea
-                              value={form.description}
-                              onChange={(event) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  description: event.target.value,
-                                }))
-                              }
-                              rows={3}
-                              className={formStyles.textarea}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="mt-3 rounded-xl border border-night-100 bg-white p-3">
-                          <label className="flex items-start gap-3 text-sm font-semibold text-night-700">
-                            <input
-                              type="checkbox"
-                              checked={form.availableToAllProfiles}
-                              onChange={(event) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  availableToAllProfiles: event.target.checked,
-                                }))
-                              }
-                              className="mt-1 h-4 w-4 rounded border-night-300"
-                            />
-                            Available For All Children
-                          </label>
-                          {!form.availableToAllProfiles ? (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {profiles.map((profile) => (
-                                <button
-                                  key={profile.id}
-                                  type="button"
-                                  onClick={() => toggleProfile(profile.id)}
-                                  className={`rounded-full px-3 py-1.5 text-sm font-bold transition ${
-                                    form.profileIds.includes(profile.id)
-                                      ? "bg-night-700 text-moon-200"
-                                      : "bg-night-50 text-night-600 hover:bg-night-100"
-                                  }`}
-                                >
-                                  {profile.name}
-                                </button>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <Button
-                            size="compact"
-                            onClick={submit}
-                            disabled={saving || !form.name.trim()}
-                          >
-                            {saving ? "Saving..." : "Save Changes"}
-                          </Button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setForm({
-                                ...EMPTY_FORM,
-                                profileIds: defaultProfileId
-                                  ? [defaultProfileId]
-                                  : [],
-                              })
-                            }
-                            className={buttonClassName({
-                              variant: "secondary",
-                              size: "compact",
-                            })}
-                            disabled={saving}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {!editing ? (
                       <div className="mt-4 grid gap-3 text-sm leading-6 text-night-600 sm:grid-cols-2">
                         {person.personality ? (
                           <p>
@@ -1590,7 +1304,6 @@ export default function StoryPeopleManager({
                           </p>
                         ) : null}
                       </div>
-                    ) : null}
 
                     <div className="mt-4 rounded-xl border border-night-100 bg-night-50 p-3">
                       {isDrawing ? (
@@ -1913,15 +1626,23 @@ export default function StoryPeopleManager({
           <div className="rounded-2xl border-2 border-dashed border-night-200 p-8 text-center">
             <Icon name="profile" className="mx-auto h-8 w-8 text-star-500" />
             <p className="mt-3 font-display font-bold text-night-700">
-              No Family & Friends Yet
+              No one added yet
             </p>
             <p className="mt-1 text-sm leading-6 text-night-500">
               Start with Mum, Dad, a grandparent, sibling, or pet. You can pick
               who appears each time you make a story.
             </p>
+            <button
+              type="button"
+              onClick={openAddModal}
+              className={buttonClassName({ size: "compact", className: "mt-4" })}
+            >
+              <Icon name="plus" className="h-3.5 w-3.5" />
+              Add Family & Friends
+            </button>
           </div>
         )}
-      </section>
+      </div>
       <ConfirmDialog />
     </div>
   );

@@ -2028,6 +2028,15 @@ export const db = {
         )
         .orderBy(desc(schema.publicStoryModerationEvents.createdAt));
     },
+    // Returns IDs of stories that have ever been awarded a monthly reward,
+    // so they can be excluded from future monthly runs.
+    async listAllRewardedStoryIds(): Promise<Set<string>> {
+      const rows = await getClient()
+        .select({ storyId: schema.publicStoryModerationEvents.storyId })
+        .from(schema.publicStoryModerationEvents)
+        .where(eq(schema.publicStoryModerationEvents.action, "reward_granted"));
+      return new Set(rows.map((r) => r.storyId));
+    },
   },
 
   processedWebhookEvents: {

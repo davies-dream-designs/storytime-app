@@ -2,11 +2,10 @@ import { NextResponse } from "next/server";
 import { getAdminIdentity } from "@/lib/adminAuth";
 import { adjustUserCredits } from "@/lib/credits";
 import { db } from "@/lib/db";
-import { PUBLIC_STORY_REWARD_CATEGORIES } from "@/lib/publicStoryRewards";
-import type { StoryPreset } from "@/types";
+import { PUBLIC_STORY_REWARD_TIERS } from "@/lib/publicStoryRewards";
 
 type AwardedReward = {
-  category: string;
+  place: number;
   storyId: string;
   title: string;
   userId: string;
@@ -16,21 +15,9 @@ type AwardedReward = {
 };
 
 type SkippedReward = {
-  category: string;
-  reason: "already_awarded" | "no_votes";
+  place: number;
+  reason: "already_awarded_this_month" | "no_eligible_story";
 };
-
-function getAwardedCategoryKeys(
-  events: Awaited<
-    ReturnType<typeof db.publicStoryModerationEvents.listRewardEventsForMonth>
-  >
-) {
-  return new Set(
-    events
-      .map((event) => event.metadata?.category)
-      .filter((value): value is string => typeof value === "string")
-  );
-}
 
 export async function POST() {
   const admin = await getAdminIdentity();
@@ -39,54 +26,75 @@ export async function POST() {
   }
 
   const voteMonth = db.publicStoryVotes.getVoteMonth();
-  const existingRewards =
+
+  // Idempotency: if this month has already been run, bail out entirely.
+  const existingThisMonth =
     await db.publicStoryModerationEvents.listRewardEventsForMonth(voteMonth);
-  const awardedCategoryKeys = getAwardedCategoryKeys(existingRewards);
+  if (existingThisMonth.length > 0) {
+    return NextResponse.json({
+      voteMonth,
+      awarded: [],
+      skipped: PUBLIC_STORY_REWARD_TIERS.map((t) => ({
+        place: t.place,
+        reason: "already_awarded_this_month" as const,
+      })),
+    });
+  }
+
+  // Exclude stories that have won in any previous month.
+  const previouslyRewardedIds =
+    await db.publicStoryModerationEvents.listAllRewardedStoryIds();
+
+  // Fetch enough of the leaderboard to fill 3 places even after exclusions.
+  const leaderboard = await db.publicStoryVotes.leaderboard(50);
+  const eligible = leaderboard.filter(
+    (entry) =>
+      entry.votes > 0 && !previouslyRewardedIds.has(entry.story.id)
+  );
+
   const awarded: AwardedReward[] = [];
   const skipped: SkippedReward[] = [];
+  const usedUserIds = new Set<string>(); // one win per user per month
 
-  for (const category of PUBLIC_STORY_REWARD_CATEGORIES) {
-    if (awardedCategoryKeys.has(category.key)) {
-      skipped.push({ category: category.key, reason: "already_awarded" });
+  for (const tier of PUBLIC_STORY_REWARD_TIERS) {
+    // Find the next eligible entry (skip users already placed this run).
+    const winner = eligible.find((e) => !usedUserIds.has(e.story.userId));
+    if (!winner) {
+      skipped.push({ place: tier.place, reason: "no_eligible_story" });
       continue;
     }
-
-    const storyPreset =
-      category.key === "all" ? undefined : (category.key as StoryPreset);
-    const [leader] = await db.publicStoryVotes.leaderboard(1, { storyPreset });
-    if (!leader || leader.votes <= 0) {
-      skipped.push({ category: category.key, reason: "no_votes" });
-      continue;
-    }
+    // Remove from pool so it can't fill a lower place too.
+    eligible.splice(eligible.indexOf(winner), 1);
+    usedUserIds.add(winner.story.userId);
 
     const newBalance = await adjustUserCredits(
-      leader.story.userId,
-      category.credits
+      winner.story.userId,
+      tier.credits
     );
     await db.publicStoryModerationEvents.create({
-      storyId: leader.story.id,
+      storyId: winner.story.id,
       actorUserId: admin.userId,
       actorLabel: admin.label,
       action: "reward_granted",
-      note: `${category.label}: ${category.credits} credit reward for ${voteMonth}.`,
+      note: `${tier.label}: ${tier.credits} credit reward for ${voteMonth}.`,
       metadata: {
         voteMonth,
-        category: category.key,
-        categoryLabel: category.label,
-        credits: category.credits,
-        votes: leader.votes,
-        userId: leader.story.userId,
+        place: tier.place,
+        placeLabel: tier.label,
+        credits: tier.credits,
+        votes: winner.votes,
+        userId: winner.story.userId,
         newBalance,
       },
     });
 
     awarded.push({
-      category: category.key,
-      storyId: leader.story.id,
-      title: leader.story.title,
-      userId: leader.story.userId,
-      credits: category.credits,
-      votes: leader.votes,
+      place: tier.place,
+      storyId: winner.story.id,
+      title: winner.story.title,
+      userId: winner.story.userId,
+      credits: tier.credits,
+      votes: winner.votes,
       newBalance,
     });
   }

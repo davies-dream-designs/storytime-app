@@ -216,7 +216,7 @@ export default async function Home() {
                 From families like yours
               </h2>
               <p className="mt-4 text-lg text-night-500">
-                Every illustration is created specifically for your child's story.
+                Every illustration is created specifically for your child&apos;s story.
               </p>
             </div>
             <div className="columns-2 gap-4 md:columns-3 lg:columns-4">

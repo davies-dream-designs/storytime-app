@@ -67,85 +67,54 @@ export default async function ProfilesPage() {
             {profiles.map((profile) => {
               const storyCount = storyCounts[profile.id] ?? 0;
               return (
-                <div key={profile.id} className="relative">
-                  <Link
-                    href={`/profiles/${profile.id}` as string}
-                    className="group block rounded-2xl border border-night-100 bg-white p-6 pb-16 shadow-sm transition hover:shadow-md"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div
-                        className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-star-300 to-moon-300 bg-cover bg-center font-display text-2xl font-bold text-night-800"
-                        style={
-                          profile.avatarImageUrl
-                            ? {
-                                backgroundImage: `url("${profile.avatarImageUrl}")`,
-                              }
-                            : undefined
-                        }
-                        aria-label={`${profile.name} illustrated reference`}
-                      >
-                        {!profile.avatarImageUrl
-                          ? profile.name[0].toUpperCase()
-                          : null}
-                      </div>
-                      <span className="rounded-full bg-night-50 px-3 py-1 text-sm font-bold text-night-500">
-                        {(() => {
-                          if (profile.dateOfBirth) {
-                            const dob = new Date(profile.dateOfBirth);
-                            const totalMonths =
-                              (now.getFullYear() - dob.getFullYear()) * 12 +
-                              (now.getMonth() - dob.getMonth());
-                            return totalMonths < 12
-                              ? tCommon("monthsOld", {
-                                  months: Math.max(totalMonths, 0),
-                                })
-                              : tCommon("yearsOld", {
-                                  years: Math.floor(totalMonths / 12),
-                                });
-                          }
-                          return t("ageLabel", { age: profile.age });
-                        })()}
-                      </span>
+                <Link
+                  key={profile.id}
+                  href={`/profiles/${profile.id}` as string}
+                  className="group flex flex-col rounded-2xl border border-night-100 bg-white p-6 shadow-sm transition hover:shadow-md"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div
+                      className="h-20 w-20 shrink-0 rounded-full bg-gradient-to-br from-star-300 to-moon-300 bg-cover bg-center font-display text-3xl font-bold text-night-800 flex items-center justify-center"
+                      style={
+                        profile.avatarImageUrl
+                          ? { backgroundImage: `url("${profile.avatarImageUrl}")` }
+                          : undefined
+                      }
+                      aria-label={`${profile.name} avatar`}
+                    >
+                      {!profile.avatarImageUrl ? profile.name[0].toUpperCase() : null}
                     </div>
-                    <h2 className="mt-4 font-display text-xl font-bold text-night-800 group-hover:text-night-600">
-                      {profile.name}
-                    </h2>
-                    {profile.favouriteCharacters.length > 0 && (
-                      <p className="mt-1 text-sm text-night-400 line-clamp-1">
-                        {t("lovesLabel", {
-                          items: profile.favouriteCharacters.join(", "),
-                        })}
-                      </p>
-                    )}
-                    <p className="mt-4 text-sm text-night-400">
-                      {storyCount === 1
-                        ? t("storyCount", { count: storyCount })
-                        : t("storiesCount", { count: storyCount })}
+                    <span className="rounded-full bg-night-50 px-3 py-1 text-sm font-bold text-night-500 whitespace-nowrap">
+                      {(() => {
+                        if (profile.dateOfBirth) {
+                          const dob = new Date(profile.dateOfBirth);
+                          const totalMonths =
+                            (now.getFullYear() - dob.getFullYear()) * 12 +
+                            (now.getMonth() - dob.getMonth());
+                          return totalMonths < 12
+                            ? tCommon("monthsOld", { months: Math.max(totalMonths, 0) })
+                            : tCommon("yearsOld", { years: Math.floor(totalMonths / 12) });
+                        }
+                        return t("ageLabel", { age: profile.age });
+                      })()}
+                    </span>
+                  </div>
+                  <h2 className="mt-4 font-display text-xl font-bold text-night-800 group-hover:text-night-600">
+                    {profile.name}
+                  </h2>
+                  {profile.favouriteCharacters.length > 0 && (
+                    <p className="mt-1 text-sm text-night-400 line-clamp-1">
+                      {t("lovesLabel", { items: profile.favouriteCharacters.join(", ") })}
                     </p>
-                  </Link>
-                  <Link
-                    href={`/stories/new?profileId=${profile.id}` as string}
-                    className={buttonClassName({
-                      size: "compact",
-                      className: "absolute bottom-5 right-5 z-10 text-xs",
-                    })}
-                  >
-                    {t("generate")}
-                  </Link>
-                </div>
+                  )}
+                  <p className="mt-auto pt-4 text-sm text-night-400">
+                    {storyCount === 1
+                      ? t("storyCount", { count: storyCount })
+                      : t("storiesCount", { count: storyCount })}
+                  </p>
+                </Link>
               );
             })}
-            <Link
-              href="/profiles/new"
-              className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-night-200 p-6 text-night-400 transition hover:border-night-400 hover:text-night-600"
-            >
-              <span className="text-3xl" aria-hidden>
-                +
-              </span>
-              <span className="mt-2 font-display font-bold">
-                {t("addAnother")}
-              </span>
-            </Link>
           </div>
         )}
       </main>

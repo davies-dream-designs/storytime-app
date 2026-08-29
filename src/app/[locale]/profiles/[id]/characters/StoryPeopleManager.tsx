@@ -1196,7 +1196,7 @@ export default function StoryPeopleManager({
           people.map((person) => (
             <article
               key={person.id}
-              className="rounded-2xl border border-night-100 bg-white p-5"
+              className="flex flex-col rounded-2xl border border-night-100 bg-white p-5"
             >
               {(() => {
                 const busy = generatingAvatarForId === person.id;
@@ -1204,91 +1204,79 @@ export default function StoryPeopleManager({
 
                 return (
                   <>
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex min-w-0 gap-3">
-                        {isDrawing ? (
-                          <div className="flex h-12 w-12 shrink-0 animate-pulse items-center justify-center rounded-full bg-star-100">
-                            <div className="h-5 w-5 rounded-full bg-star-300" />
-                          </div>
-                        ) : person.avatarImageUrl ? (
-                          <div
-                            className="h-12 w-12 shrink-0 rounded-full bg-cover bg-center"
-                            style={{
-                              backgroundImage: `url("${person.avatarImageUrl}")`,
-                            }}
-                            aria-hidden="true"
-                          />
-                        ) : (
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-star-200 to-moon-200 font-display text-lg font-bold text-night-800">
-                            {person.name[0]?.toUpperCase()}
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <h3 className="truncate font-display text-xl font-bold text-night-800">
-                            {person.name}
-                          </h3>
-                          <p className="text-sm capitalize text-night-400">
-                            {getStoryPersonRelationshipLabel(person)}
-                            {person.pronouns ? ` · ${person.pronouns}` : ""}
-                            {person.ageGroup &&
-                            person.ageGroup !== "not_specified"
-                              ? ` · ${getStoryPersonAgeGroupLabel(person.ageGroup)}`
-                              : ""}
-                            {person.height && person.height !== "not_specified"
-                              ? ` · ${getStoryPersonHeightLabel(person.height)}`
-                              : ""}
-                            {person.bodyBuild &&
-                            person.bodyBuild !== "not_specified"
-                              ? ` · ${getBodyBuildLabel(person.bodyBuild)} build`
-                              : ""}
-                          </p>
+                    {/* Header: avatar + name + buttons */}
+                    <div className="flex items-start gap-3">
+                      {isDrawing ? (
+                        <div className="flex h-16 w-16 shrink-0 animate-pulse items-center justify-center rounded-full bg-star-100">
+                          <div className="h-6 w-6 rounded-full bg-star-300" />
                         </div>
+                      ) : person.avatarImageUrl ? (
+                        <div
+                          className="h-16 w-16 shrink-0 rounded-full bg-cover bg-center"
+                          style={{ backgroundImage: `url("${person.avatarImageUrl}")` }}
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-star-200 to-moon-200 font-display text-xl font-bold text-night-800">
+                          {person.name[0]?.toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate font-display text-xl font-bold text-night-800">
+                          {person.name}
+                        </h3>
+                        <p className="line-clamp-2 text-sm capitalize text-night-400">
+                          {getStoryPersonRelationshipLabel(person)}
+                          {person.pronouns ? ` · ${person.pronouns}` : ""}
+                          {person.ageGroup && person.ageGroup !== "not_specified"
+                            ? ` · ${getStoryPersonAgeGroupLabel(person.ageGroup)}`
+                            : ""}
+                          {person.height && person.height !== "not_specified"
+                            ? ` · ${getStoryPersonHeightLabel(person.height)}`
+                            : ""}
+                          {person.bodyBuild && person.bodyBuild !== "not_specified"
+                            ? ` · ${getBodyBuildLabel(person.bodyBuild)} build`
+                            : ""}
+                        </p>
                       </div>
                       <div className="flex shrink-0 gap-2">
                         <button
                           type="button"
                           onClick={() => openEditModal(person)}
-                          className={buttonClassName({
-                            variant: "secondary",
-                            size: "compact",
-                          })}
+                          className={buttonClassName({ variant: "secondary", size: "compact" })}
                         >
                           Edit
                         </button>
                         <button
                           type="button"
                           onClick={() => remove(person)}
-                          className={buttonClassName({
-                            variant: "danger",
-                            size: "compact",
-                          })}
+                          className={buttonClassName({ variant: "danger", size: "compact" })}
                         >
                           Remove
                         </button>
                       </div>
                     </div>
 
-
-                      <div className="mt-4 grid gap-3 text-sm leading-6 text-night-600 sm:grid-cols-2">
+                    {/* Personality + Role summary */}
+                    {(person.personality || person.description) && (
+                      <div className="mt-4 grid gap-2 text-sm leading-5 text-night-600 sm:grid-cols-2">
                         {person.personality ? (
-                          <p>
-                            <span className="font-bold text-night-700">
-                              Personality:
-                            </span>{" "}
+                          <p className="line-clamp-3">
+                            <span className="font-bold text-night-700">Personality: </span>
                             {person.personality}
                           </p>
                         ) : null}
                         {person.description ? (
-                          <p>
-                            <span className="font-bold text-night-700">
-                              Role:
-                            </span>{" "}
+                          <p className="line-clamp-3">
+                            <span className="font-bold text-night-700">Role: </span>
                             {person.description}
                           </p>
                         ) : null}
                       </div>
+                    )}
 
-                    <p className="mt-4 rounded-full bg-night-50 px-3 py-1 text-xs font-semibold text-night-500">
+                    {/* Availability badge pinned to bottom */}
+                    <p className="mt-auto pt-4 rounded-full bg-night-50 px-3 py-1 text-xs font-semibold text-night-500 self-start">
                       {person.availableToAllProfiles
                         ? "Available for all children"
                         : `Linked to ${person.profileIds.length} child profile${

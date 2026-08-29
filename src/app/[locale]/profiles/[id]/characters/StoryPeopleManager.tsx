@@ -1275,14 +1275,7 @@ export default function StoryPeopleManager({
                       </div>
                     )}
 
-                    {/* Availability badge pinned to bottom */}
-                    <p className="mt-auto pt-4 rounded-full bg-night-50 px-3 py-1 text-xs font-semibold text-night-500 self-start">
-                      {person.availableToAllProfiles
-                        ? "Available for all children"
-                        : `Linked to ${person.profileIds.length} child profile${
-                            person.profileIds.length === 1 ? "" : "s"
-                          }`}
-                    </p>
+
                   </>
                 );
               })()}

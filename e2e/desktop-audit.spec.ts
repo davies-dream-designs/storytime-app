@@ -27,6 +27,9 @@ const PAGES = [
   { name: "account", path: "/en/account" },
   { name: "support", path: "/en/support" },
   { name: "public-gallery", path: "/en/public" },
+  { name: "admin", path: "/en/admin" },
+  { name: "admin-content", path: "/en/admin?tab=content" },
+  { name: "admin-rewards", path: "/en/admin?tab=rewards" },
 ];
 
 test.beforeAll(() => {

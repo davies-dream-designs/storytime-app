@@ -238,6 +238,89 @@ export const submitPrintFulfillmentJob = inngest.createFunction(
   }
 );
 
+// Runs on the 2nd of every month at 02:00 UTC (well after month rollover).
+// Awards top-3 voted public stories that haven't won in a previous month.
+// Idempotent — safe if Inngest retries; the award route skips already-run months.
+export const awardMonthlyPublicStoryWinners = inngest.createFunction(
+  {
+    id: "award-monthly-public-story-winners",
+    retries: 3,
+    triggers: [{ cron: "0 2 2 * *" }],
+  },
+  async ({ step }) => {
+    return step.run("award-winners", async () => {
+      const { adjustUserCredits } = await import("@/lib/credits");
+      const { PUBLIC_STORY_REWARD_TIERS } = await import(
+        "@/lib/publicStoryRewards"
+      );
+      const { db } = await import("@/lib/db");
+
+      const voteMonth = db.publicStoryVotes.getVoteMonth();
+
+      // Idempotency: bail if this month already ran.
+      const existing =
+        await db.publicStoryModerationEvents.listRewardEventsForMonth(
+          voteMonth
+        );
+      if (existing.length > 0) {
+        return { voteMonth, status: "already_run", awarded: [] };
+      }
+
+      const previouslyRewardedIds =
+        await db.publicStoryModerationEvents.listAllRewardedStoryIds();
+      const leaderboard = await db.publicStoryVotes.leaderboard(50);
+      const eligible = leaderboard.filter(
+        (e) => e.votes > 0 && !previouslyRewardedIds.has(e.story.id)
+      );
+
+      const awarded: Array<{
+        place: number;
+        storyId: string;
+        userId: string;
+        credits: number;
+      }> = [];
+      const usedUserIds = new Set<string>();
+
+      for (const tier of PUBLIC_STORY_REWARD_TIERS) {
+        const winner = eligible.find((e) => !usedUserIds.has(e.story.userId));
+        if (!winner) continue;
+        eligible.splice(eligible.indexOf(winner), 1);
+        usedUserIds.add(winner.story.userId);
+
+        const newBalance = await adjustUserCredits(
+          winner.story.userId,
+          tier.credits
+        );
+        await db.publicStoryModerationEvents.create({
+          storyId: winner.story.id,
+          actorUserId: "inngest-cron",
+          actorLabel: "Monthly rewards cron",
+          action: "reward_granted",
+          note: `${tier.label}: ${tier.credits} credit reward for ${voteMonth} (automated).`,
+          metadata: {
+            voteMonth,
+            place: tier.place,
+            placeLabel: tier.label,
+            credits: tier.credits,
+            votes: winner.votes,
+            userId: winner.story.userId,
+            newBalance,
+          },
+        });
+
+        awarded.push({
+          place: tier.place,
+          storyId: winner.story.id,
+          userId: winner.story.userId,
+          credits: tier.credits,
+        });
+      }
+
+      return { voteMonth, status: "completed", awarded };
+    });
+  }
+);
+
 export const inngestFunctions: InngestFunction.Any[] = [
   buildBook,
   generateLocationEstablishing,
@@ -245,4 +328,5 @@ export const inngestFunctions: InngestFunction.Any[] = [
   regenerateBookImage,
   generateStory,
   submitPrintFulfillmentJob,
+  awardMonthlyPublicStoryWinners,
 ];

@@ -25,22 +25,13 @@ export default async function StoryPeoplePage({
     <>
       <Nav />
       <main className="mx-auto max-w-6xl px-5 py-10">
-        <div className="mb-8">
-          <Link
-            href={`/profiles/${profile.id}` as string}
-            className="inline-flex items-center gap-2 text-sm font-bold text-night-500 hover:text-night-700"
-          >
-            <Icon name="arrowLeft" className="h-4 w-4" />
-            Back To {profile.name}
-          </Link>
-          <h1 className="mt-4 font-display text-4xl font-bold text-night-800">
-            Family & Friends
-          </h1>
-          <p className="mt-2 max-w-2xl text-night-500">
-            Add reusable people, pets, and companions. Pick who appears when you
-            create a story for {profile.name} or another child.
-          </p>
-        </div>
+        <Link
+          href={`/profiles/${profile.id}` as string}
+          className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-night-500 hover:text-night-700"
+        >
+          <Icon name="arrowLeft" className="h-4 w-4" />
+          Back To {profile.name}
+        </Link>
 
         <StoryPeopleManager
           currentProfileId={profile.id}

@@ -17,16 +17,6 @@ export default async function FamilyPage() {
     <>
       <Nav />
       <main className="mx-auto max-w-6xl px-5 py-10">
-        <div className="mb-8">
-          <h1 className="font-display text-4xl font-bold text-night-800">
-            Family & Friends
-          </h1>
-          <p className="mt-2 max-w-2xl text-night-500">
-            Add reusable people, pets, and companions. Pick who appears each
-            time you create a story.
-          </p>
-        </div>
-
         <StoryPeopleManager profiles={profiles} initialPeople={people} />
       </main>
     </>

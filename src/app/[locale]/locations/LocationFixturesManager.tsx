@@ -323,8 +323,16 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
 
   return (
     <div>
-      <div className="mb-6 flex justify-end">
-        <Button onClick={startAdd} size="compact">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="font-display text-4xl font-bold text-night-800">Locations</h1>
+          <p className="mt-2 max-w-2xl text-night-500">
+            Save real places you use often — a bedroom, Grandma&apos;s house, the car — with notes
+            and a reference photo. We&apos;ll suggest them when building new books so illustrations
+            stay consistent.
+          </p>
+        </div>
+        <Button onClick={startAdd} size="compact" className="shrink-0">
           <Icon name="plus" />
           Add a location
         </Button>

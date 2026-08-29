@@ -138,7 +138,7 @@ export default function SupportPage() {
     },
     {
       q: "Do public gallery winners get paid?",
-      a: "No cash payouts are offered for public gallery rewards. Storycot may offer small promotional rewards such as credits, badges, discounts, or featured placement.",
+      a: "No cash payouts, but the top 3 stories each month receive free credits automatically: 1st place gets 10 credits, 2nd place gets 5 credits, and 3rd place gets 3 credits. Winners are chosen by community votes, and a story can only win once — so fresh stories have a chance every month.",
     },
     {
       q: "Can a public story be reported or removed?",

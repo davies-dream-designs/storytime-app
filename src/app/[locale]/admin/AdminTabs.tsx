@@ -1,7 +1,4 @@
-"use client";
-
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useCallback } from "react";
+// No "use client" needed — pure server-renderable anchor links.
 
 const TABS = [
   { id: "overview",   label: "Overview" },
@@ -20,26 +17,12 @@ export function getActiveTab(raw: string | undefined): AdminTab {
 }
 
 export default function AdminTabs({ active }: { active: AdminTab }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const navigate = useCallback(
-    (id: AdminTab) => {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("tab", id);
-      router.push(`${pathname}?${params.toString()}`);
-    },
-    [router, pathname, searchParams]
-  );
-
   return (
     <div className="mb-8 flex flex-wrap gap-1 rounded-2xl border border-night-100 bg-white p-1.5 shadow-sm">
       {TABS.map((tab) => (
-        <button
+        <a
           key={tab.id}
-          type="button"
-          onClick={() => navigate(tab.id)}
+          href={`?tab=${tab.id}`}
           className={`rounded-xl px-4 py-2 text-sm font-bold transition ${
             active === tab.id
               ? "bg-night-800 text-white shadow-sm"
@@ -47,7 +30,7 @@ export default function AdminTabs({ active }: { active: AdminTab }) {
           }`}
         >
           {tab.label}
-        </button>
+        </a>
       ))}
     </div>
   );

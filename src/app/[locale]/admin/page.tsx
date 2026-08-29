@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { auth, clerkClient } from "@clerk/nextjs/server";
-import { Suspense } from "react";
 import Nav from "@/components/Nav";
 import { db } from "@/lib/db";
 import MigrationActions from "./MigrationActions";
@@ -92,9 +91,7 @@ export default async function AdminPage({
           </p>
         </div>
 
-        <Suspense>
-          <AdminTabs active={tab} />
-        </Suspense>
+        <AdminTabs active={tab} />
 
         {tab === "overview" && (
           <div className="space-y-8">

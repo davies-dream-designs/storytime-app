@@ -1172,20 +1172,21 @@ export default function StoryPeopleManager({
         </div>
       )}
 
-      {/* Gallery header */}
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <p className="text-sm text-night-500">
-          {people.length === 0
-            ? "No one added yet."
-            : `${people.length} person${people.length === 1 ? "" : " people"} added.`}
-        </p>
+      {/* Page header */}
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="font-display text-4xl font-bold text-night-800">Family &amp; Friends</h1>
+          <p className="mt-2 text-night-500">
+            Add reusable people, pets, and companions. Pick who appears each time you create a story.
+          </p>
+        </div>
         <button
           type="button"
           onClick={openAddModal}
-          className={buttonClassName({ size: "compact" })}
+          className={buttonClassName({ size: "compact", className: "shrink-0" })}
         >
           <Icon name="plus" className="h-3.5 w-3.5" />
-          Add Family & Friends
+          Add Family &amp; Friends
         </button>
       </div>
 

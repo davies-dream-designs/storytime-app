@@ -194,7 +194,7 @@ export default function Nav() {
           )}
           <button
             onClick={() => setOpen((o) => !o)}
-            className="rounded-lg p-2 text-night-600 transition hover:bg-night-100 lg:hidden"
+            className="rounded-lg p-2 text-night-600 transition hover:bg-night-100"
             aria-label={open ? t("closeMenu") : t("openMenu")}
           >
             {open ? (
@@ -229,9 +229,10 @@ export default function Nav() {
         </div>
       </nav>
 
-      {/* Drawer (all widths) */}
+      {/* Drawer (all widths) — 1-col on mobile, 2-col grid on desktop */}
       {open && (
-        <div className="border-t border-night-100 bg-parchment/95 backdrop-blur px-4 py-3 flex flex-col gap-1">
+        <div className="border-t border-night-100 bg-parchment/95 backdrop-blur px-4 py-3">
+          <div className="mx-auto max-w-6xl grid gap-1 lg:grid-cols-2">
           {isSignedIn ? (
             <>
               {mobileLinks
@@ -277,12 +278,13 @@ export default function Nav() {
             href="/stories/new"
             onClick={() => setOpen(false)}
             className={buttonClassName({
-              className: "mt-2 w-full gap-2",
+              className: "mt-2 w-full gap-2 lg:col-span-2",
             })}
           >
             <Icon name="plus" />
             {t("newStory")}
           </Link>
+          </div>
         </div>
       )}
     </header>

@@ -47,6 +47,11 @@ const mockDb = {
     markDone: vi.fn(),
     release: vi.fn(),
   },
+  emailOutbox: {
+    enqueue: vi.fn(),
+    markSent: vi.fn(),
+    markFailed: vi.fn(),
+  },
 };
 
 vi.mock("stripe", () => ({
@@ -92,6 +97,17 @@ vi.mock("@/lib/inngest/client", () => ({
 vi.mock("@/lib/email", () => ({
   sendGiftCreditsEmail: mockSendGiftCreditsEmail,
   sendPrintOrderConfirmedEmail: mockSendPrintOrderConfirmedEmail,
+  // Pass-through wrapper: invoke the sender so the underlying email mocks are
+  // still asserted; the outbox's own idempotency is covered in email-outbox.test.ts.
+  sendViaOutbox: vi.fn(
+    async (
+      _meta: { dedupeKey: string; kind: string; recipient: string },
+      send: () => Promise<void>
+    ) => {
+      await send();
+      return true;
+    }
+  ),
 }));
 
 function createProject(): BookProject {

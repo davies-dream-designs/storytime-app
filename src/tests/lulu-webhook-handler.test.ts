@@ -25,7 +25,18 @@ const { mockSendShippedEmail, mockGetUser } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/db", () => ({ db: mockDb }));
-vi.mock("@/lib/email", () => ({ sendShippedEmail: mockSendShippedEmail }));
+vi.mock("@/lib/email", () => ({
+  sendShippedEmail: mockSendShippedEmail,
+  sendViaOutbox: vi.fn(
+    async (
+      _meta: { dedupeKey: string; kind: string; recipient: string },
+      send: () => Promise<void>
+    ) => {
+      await send();
+      return true;
+    }
+  ),
+}));
 vi.mock("@/lib/logEvent", () => ({ logEvent: vi.fn(async () => undefined) }));
 vi.mock("@clerk/nextjs/server", () => ({
   clerkClient: vi.fn(async () => ({ users: { getUser: mockGetUser } })),

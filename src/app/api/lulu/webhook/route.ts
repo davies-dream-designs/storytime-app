@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { sendShippedEmail } from "@/lib/email";
+import { sendShippedEmail, sendViaOutbox } from "@/lib/email";
 import { logEvent } from "@/lib/logEvent";
 import type { PrintFulfillment } from "@/types/printBook";
 
@@ -225,16 +225,25 @@ export async function POST(req: NextRequest) {
   if (newStatus === "shipped" && recipientEmail && project) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://storycot.com";
     const story = await db.stories.getById(project.sourceStoryId);
-    void sendShippedEmail({
-      toEmail: recipientEmail,
-      toName: recipientName ?? "there",
-      storyTitle: story?.title ?? "Your story",
-      productLabel: productLabel ?? "Storycot book",
-      trackingUrl,
-      carrier,
-      trackUrl: `${appUrl}/stories/${project.sourceStoryId}`,
-      appUrl,
-    }).catch((err) => console.error("Shipped email failed (non-fatal)", err));
+    // Durable + idempotent: keyed on the order so a webhook redelivery never
+    // sends the shipped email twice, and a failed send is recorded (not lost).
+    const dedupeKey = `shipped:${matched.kind}:${
+      matched.kind === "public" ? matched.orderId : projectId
+    }`;
+    await sendViaOutbox(
+      { dedupeKey, kind: "shipped", recipient: recipientEmail },
+      () =>
+        sendShippedEmail({
+          toEmail: recipientEmail,
+          toName: recipientName ?? "there",
+          storyTitle: story?.title ?? "Your story",
+          productLabel: productLabel ?? "Storycot book",
+          trackingUrl,
+          carrier,
+          trackUrl: `${appUrl}/stories/${project.sourceStoryId}`,
+          appUrl,
+        })
+    ).catch((err) => console.error("Shipped email failed (non-fatal)", err));
   }
 
   return NextResponse.json({ received: true });

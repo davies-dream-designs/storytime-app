@@ -20,6 +20,11 @@ export function createMemoryDb() {
   >();
   const userCreditsMap = new Map<string, number>();
   const creditLedgerDedupeKeys = new Set<string>();
+  const emailOutboxDedupeKeys = new Set<string>();
+  const emailOutboxRows = new Map<
+    string,
+    { status: "pending" | "sent" | "failed"; kind: string; lastError?: string }
+  >();
 
   const db = {
     _reset() {
@@ -34,6 +39,8 @@ export function createMemoryDb() {
       processedWebhookEventLeases.clear();
       userCreditsMap.clear();
       creditLedgerDedupeKeys.clear();
+      emailOutboxDedupeKeys.clear();
+      emailOutboxRows.clear();
     },
 
     profiles: {
@@ -418,6 +425,31 @@ export function createMemoryDb() {
       },
       async release(id: string): Promise<void> {
         processedWebhookEventLeases.delete(id);
+      },
+    },
+
+    emailOutbox: {
+      async enqueue(input: {
+        dedupeKey: string;
+        kind: string;
+        recipient: string;
+      }): Promise<string | null> {
+        if (emailOutboxDedupeKeys.has(input.dedupeKey)) return null;
+        emailOutboxDedupeKeys.add(input.dedupeKey);
+        const id = `outbox-${emailOutboxDedupeKeys.size}`;
+        emailOutboxRows.set(id, { status: "pending", kind: input.kind });
+        return id;
+      },
+      async markSent(id: string): Promise<void> {
+        const row = emailOutboxRows.get(id);
+        if (row) row.status = "sent";
+      },
+      async markFailed(id: string, error: string): Promise<void> {
+        const row = emailOutboxRows.get(id);
+        if (row) {
+          row.status = "failed";
+          row.lastError = error;
+        }
       },
     },
 

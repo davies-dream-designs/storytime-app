@@ -2171,6 +2171,49 @@ export const db = {
     },
   },
 
+  emailOutbox: {
+    /**
+     * Claims a slot for an email before it is sent. Returns the row id when this
+     * caller now owns the pending row (first time for this dedupeKey), or
+     * `null` when the email was already enqueued/sent (duplicate). Claim-before-
+     * send means a crash between send and mark leaves a `pending` row that can
+     * be reconciled rather than silently lost.
+     */
+    async enqueue(input: {
+      dedupeKey: string;
+      kind: string;
+      recipient: string;
+    }): Promise<string | null> {
+      const id = crypto.randomUUID();
+      const inserted = await getClient()
+        .insert(schema.emailOutbox)
+        .values({
+          id,
+          dedupeKey: input.dedupeKey,
+          kind: input.kind,
+          recipient: input.recipient,
+          status: "pending",
+          attempts: 1,
+          createdAt: new Date().toISOString(),
+        })
+        .onConflictDoNothing({ target: schema.emailOutbox.dedupeKey })
+        .returning({ id: schema.emailOutbox.id });
+      return inserted[0]?.id ?? null;
+    },
+    async markSent(id: string): Promise<void> {
+      await getClient()
+        .update(schema.emailOutbox)
+        .set({ status: "sent", sentAt: new Date().toISOString() })
+        .where(eq(schema.emailOutbox.id, id));
+    },
+    async markFailed(id: string, error: string): Promise<void> {
+      await getClient()
+        .update(schema.emailOutbox)
+        .set({ status: "failed", lastError: error.slice(0, 500) })
+        .where(eq(schema.emailOutbox.id, id));
+    },
+  },
+
   userCredits: {
     async getBalance(userId: string): Promise<number | undefined> {
       const rows = await getClient()

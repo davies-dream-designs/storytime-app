@@ -466,6 +466,26 @@ export const processedWebhookEvents = pgTable(
   (t) => [index("processed_webhook_events_source_idx").on(t.source)]
 );
 
+// Durable outbox for transactional emails. A row is claimed (pending) before
+// the provider send and only flipped to 'sent' after the provider confirms, so
+// emails are never silently lost on a fire-and-forget send. `dedupeKey` is
+// unique for at-most-once delivery across retries/webhook redelivery.
+export const emailOutbox = pgTable(
+  "email_outbox",
+  {
+    id: text("id").primaryKey(),
+    dedupeKey: text("dedupe_key").notNull().unique(),
+    kind: text("kind").notNull(),
+    recipient: text("recipient").notNull(),
+    status: text("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    lastError: text("last_error"),
+    createdAt: text("created_at").notNull(),
+    sentAt: text("sent_at"),
+  },
+  (t) => [index("email_outbox_status_idx").on(t.status)]
+);
+
 // Authoritative per-user credit balance (opt-in via CREDIT_LEDGER_ENABLED).
 // The balance lives in one row and is mutated with atomic single-statement
 // UPDATEs so concurrent operations cannot lose updates the way Clerk-metadata

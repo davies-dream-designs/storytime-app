@@ -183,6 +183,13 @@
       "when": 1787756419149,
       "tag": "0025_credit_ledger",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1787756420149,
+      "tag": "0026_email_outbox",
+      "breakpoints": true
     }
   ]
 }

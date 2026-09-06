@@ -15,6 +15,7 @@ import {
 import {
   sendGiftCreditsEmail,
   sendPrintOrderConfirmedEmail,
+  sendViaOutbox,
 } from "@/lib/email";
 import { logEvent } from "@/lib/logEvent";
 import type { PrintBookOrder, PrintOrderRecord } from "@/types/printBook";
@@ -267,19 +268,27 @@ async function handleStripeEvent(stripe: Stripe, event: Stripe.Event) {
               return undefined;
             }
           })();
-          void sendGiftCreditsEmail({
-            toEmail: updatedGift.recipientEmail,
-            toName: updatedGift.recipientName,
-            fromName:
-              purchaser?.firstName ??
-              purchaser?.primaryEmailAddress?.emailAddress ??
-              updatedGift.purchaserEmail ??
-              "Someone",
-            credits: updatedGift.credits,
-            message: updatedGift.message,
-            redeemUrl: `${appUrl.replace(/\/$/, "")}/gift/${updatedGift.token}`,
-            appUrl,
-          }).catch((err) => {
+          void sendViaOutbox(
+            {
+              dedupeKey: `gift:${updatedGift.id}`,
+              kind: "gift_credits",
+              recipient: updatedGift.recipientEmail,
+            },
+            () =>
+              sendGiftCreditsEmail({
+                toEmail: updatedGift.recipientEmail,
+                toName: updatedGift.recipientName,
+                fromName:
+                  purchaser?.firstName ??
+                  purchaser?.primaryEmailAddress?.emailAddress ??
+                  updatedGift.purchaserEmail ??
+                  "Someone",
+                credits: updatedGift.credits,
+                message: updatedGift.message,
+                redeemUrl: `${appUrl.replace(/\/$/, "")}/gift/${updatedGift.token}`,
+                appUrl,
+              })
+          ).catch((err) => {
             console.error("Gift email failed (non-fatal)", err);
             void logEvent({
               error: err,
@@ -352,15 +361,23 @@ async function handleStripeEvent(stripe: Stripe, event: Stripe.Event) {
             const trackPath = story?.shareToken
               ? `/s/${story.shareToken}`
               : `/public`;
-            void sendPrintOrderConfirmedEmail({
-              toEmail: customerEmail,
-              toName: printOrder.shipping?.name ?? "there",
-              storyTitle: story?.title ?? "Your story",
-              productLabel: order.productLabel,
-              amountAud: printOrder.amountAud,
-              trackUrl: `${appUrl.replace(/\/$/, "")}${trackPath}`,
-              appUrl,
-            }).catch((err) => {
+            void sendViaOutbox(
+              {
+                dedupeKey: `print_confirmed:public:${order.id}`,
+                kind: "print_confirmed",
+                recipient: customerEmail,
+              },
+              () =>
+                sendPrintOrderConfirmedEmail({
+                  toEmail: customerEmail,
+                  toName: printOrder.shipping?.name ?? "there",
+                  storyTitle: story?.title ?? "Your story",
+                  productLabel: order.productLabel,
+                  amountAud: printOrder.amountAud,
+                  trackUrl: `${appUrl.replace(/\/$/, "")}${trackPath}`,
+                  appUrl,
+                })
+            ).catch((err) => {
               console.error(
                 "Public print order confirmation email failed (non-fatal)",
                 err
@@ -473,17 +490,25 @@ async function handleStripeEvent(stripe: Stripe, event: Stripe.Event) {
           if (customerEmail) {
             const appUrl =
               process.env.NEXT_PUBLIC_APP_URL ?? "https://storycot.com";
-            void sendPrintOrderConfirmedEmail({
-              toEmail: customerEmail,
-              toName: printOrder.shipping?.name ?? "there",
-              storyTitle:
-                (await db.stories.getById(project.sourceStoryId))?.title ??
-                "Your story",
-              productLabel: quote.label,
-              amountAud: printOrder.amountAud,
-              trackUrl: `${appUrl}/stories/${project.sourceStoryId}`,
-              appUrl,
-            }).catch((err) => {
+            void sendViaOutbox(
+              {
+                dedupeKey: `print_confirmed:owner:${project.id}`,
+                kind: "print_confirmed",
+                recipient: customerEmail,
+              },
+              async () =>
+                sendPrintOrderConfirmedEmail({
+                  toEmail: customerEmail,
+                  toName: printOrder.shipping?.name ?? "there",
+                  storyTitle:
+                    (await db.stories.getById(project.sourceStoryId))?.title ??
+                    "Your story",
+                  productLabel: quote.label,
+                  amountAud: printOrder.amountAud,
+                  trackUrl: `${appUrl}/stories/${project.sourceStoryId}`,
+                  appUrl,
+                })
+            ).catch((err) => {
               console.error(
                 "Print order confirmation email failed (non-fatal)",
                 err

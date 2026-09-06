@@ -394,11 +394,9 @@ export function createMemoryDb() {
     },
 
     processedWebhookEvents: {
-      async claim(
-        id: string,
-        _source?: string,
-        _leaseMs?: number
-      ): Promise<boolean> {
+      // Accepts the real db's (id, source?, leaseMs?) signature; extras ignored.
+      async claim(id: string, ..._rest: unknown[]): Promise<boolean> {
+        void _rest;
         const existing = processedWebhookEventLeases.get(id);
         const now = Date.now();
         if (!existing) {

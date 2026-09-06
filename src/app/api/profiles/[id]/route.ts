@@ -7,6 +7,41 @@ import {
   hasProfileIpConfirmation,
   PROFILE_IP_CONFIRMATION_ERROR,
 } from "@/lib/profileIpConfirmation";
+import { isAllowedMediaUrl } from "@/lib/safeMediaFetch";
+
+// Fields a parent may edit directly. Identity (id/userId/createdAt) and all
+// avatar-generation bookkeeping stay server-controlled so a request body can't
+// reassign ownership or forge generation state.
+const EDITABLE_PROFILE_FIELDS = [
+  "name",
+  "age",
+  "dateOfBirth",
+  "gender",
+  "appearance",
+  "appearanceSummary",
+  "favouriteCharacters",
+  "favouriteActivities",
+  "favouriteAnimals",
+  "favouritePlaces",
+  "lessons",
+] as const;
+
+function pickEditableProfileFields(
+  body: Partial<ChildProfile>
+): Partial<ChildProfile> {
+  const updates: Partial<ChildProfile> = {};
+  for (const key of EDITABLE_PROFILE_FIELDS) {
+    if (key in body && body[key] !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (updates as any)[key] = body[key];
+    }
+  }
+  // avatarImageUrl is accepted only when it is one of our own stored assets.
+  if (body.avatarImageUrl && isAllowedMediaUrl(body.avatarImageUrl)) {
+    updates.avatarImageUrl = body.avatarImageUrl;
+  }
+  return updates;
+}
 
 export async function GET(
   _req: NextRequest,
@@ -47,8 +82,7 @@ export async function PUT(
       { status: 400 }
     );
   }
-  const profileUpdates = { ...body };
-  delete profileUpdates.ipConfirmationAccepted;
+  const profileUpdates = pickEditableProfileFields(body);
   const updated = await db.profiles.update(id, {
     ...profileUpdates,
     ...(profileUpdates.gender !== undefined
@@ -74,6 +108,16 @@ export async function DELETE(
   if (!profile || profile.userId !== userId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+
+  // Cascade: deleting a child must not leave their stories/books (and the
+  // sharing state + generated art those carry) behind. `stories.delete` already
+  // cascades to book projects and their blob assets.
+  const stories = await db.stories.getByProfileId(id);
+  await Promise.all(
+    stories
+      .filter((story) => story.userId === userId)
+      .map((story) => db.stories.delete(story.id))
+  );
 
   await db.profiles.delete(id);
   return NextResponse.json({ success: true });

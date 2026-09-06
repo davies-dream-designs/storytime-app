@@ -41,6 +41,12 @@ export async function POST(
   if (!story.shareToken) {
     await db.stories.setShareToken(id, token);
   }
+  // Record explicit share-link visibility so the resolver can distinguish an
+  // actively shared story from one that was later made private/delisted. Never
+  // downgrade a story that is already fully public.
+  if (story.visibility !== "public" && story.visibility !== "share_link") {
+    await db.stories.update(id, { visibility: "share_link" });
+  }
 
   return NextResponse.json({ token });
 }

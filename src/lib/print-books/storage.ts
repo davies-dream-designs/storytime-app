@@ -223,6 +223,7 @@ export function collectBookAssetUrls(project: BookProject): string[] {
   };
 
   add(project.assets.coverImageUrl);
+  add(project.assets.coverWebImageUrl);
   add(project.assets.coverPdfUrl);
   add(project.assets.luluCoverPdfUrl);
   add(project.assets.previewPdfUrl);
@@ -234,6 +235,7 @@ export function collectBookAssetUrls(project: BookProject): string[] {
   for (const spread of project.spreads) {
     add(spread.imageUrl);
     add(spread.leftPageImageUrl);
+    add(spread.leftPageWebImageUrl);
     add(spread.rightPageImageUrl);
     add(spread.thumbnailUrl);
   }

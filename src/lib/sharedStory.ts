@@ -73,11 +73,29 @@ function selectSharedProject(projects: BookProject[]): BookProject | undefined {
     })[0];
 }
 
+/**
+ * A story is only reachable by its share token while the owner keeps it shared.
+ * Admin delisting/owner withdrawal set visibility to `private` and/or review
+ * status to `rejected`, which must revoke the previously distributed link
+ * immediately — regardless of whether its book art is still `ready`.
+ *
+ * Backward compatible: stories shared before `visibility` was tracked have it
+ * `undefined`; those remain shareable. Only an explicit `private` visibility or
+ * a `rejected` review status revokes access.
+ */
+export function isStoryShareable(
+  story: Pick<Story, "visibility" | "publicReviewStatus">
+): boolean {
+  if (story.publicReviewStatus === "rejected") return false;
+  return story.visibility !== "private";
+}
+
 export async function getSharedStoryByToken(
   token: string
 ): Promise<SharedStory | undefined> {
   const story = await db.stories.getByShareToken(token);
   if (!story) return undefined;
+  if (!isStoryShareable(story)) return undefined;
 
   const project = selectSharedProject(
     await db.bookProjects.getByStoryId(story.id)

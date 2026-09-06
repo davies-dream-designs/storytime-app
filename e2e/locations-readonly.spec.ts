@@ -24,19 +24,20 @@ test("authenticated app is healthy on the branch preview (stories library render
   await expect(page.getByRole("link", { name: /^stories$/i })).toBeVisible();
 });
 
-// NOTE: /en/locations cannot be exercised against this preview until migration
-// 0023 (the location_fixtures.views column) is applied to the preview's
-// database — otherwise the page 500s ("A page fluttered out of place."). That
-// migration is intentionally authored-but-unapplied; see the manual checklist.
-test.skip("locations page + multi-perspective UI (needs migration 0023 applied)", async ({
+test("locations page renders and add-location modal opens (migration 0023 live)", async ({
   page,
 }) => {
   await signIn(page);
   await page.goto(`${BASE}/en/locations`);
   await page.waitForLoadState("networkidle");
+
+  // Not the error boundary — the migration is applied so the views query works.
+  await expect(page.locator("h1")).not.toHaveText(/fluttered out of place/i);
   await expect(
     page.getByRole("heading", { name: /locations/i }).first()
   ).toBeVisible();
+
+  // Open the add modal (does not save anything).
   await page.getByRole("button", { name: /add a location/i }).first().click();
   await expect(
     page.getByRole("heading", { name: /add a location/i })

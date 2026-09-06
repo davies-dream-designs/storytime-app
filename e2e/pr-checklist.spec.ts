@@ -78,6 +78,9 @@ test('can create a child profile — age shows months for under-1', async ({ pag
 // ─── Test 5: Story generation decrements credits ──────────────────────────────
 
 test('generating a story decrements credits', async ({ page }) => {
+  // Real story generation (ideas + full story) routinely exceeds the default
+  // 30s per-test cap; the inner waits are already bounded (90s for the story URL).
+  test.setTimeout(180_000)
   await signIn(page)
 
   await page.goto(`${BASE}/en/account`)

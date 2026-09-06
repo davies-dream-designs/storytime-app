@@ -1,10 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
+import { clerkClient } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { sendShippedEmail } from "@/lib/email";
 import { logEvent } from "@/lib/logEvent";
 import type { PrintFulfillment } from "@/types/printBook";
 
 // Lulu does not sign webhook payloads - no secret verification needed.
+
+/**
+ * Owner (self-purchase) print orders never store the buyer's shipping details,
+ * so the shipped-notification recipient is the account's own Clerk email.
+ * Best-effort — returns undefined on any lookup failure.
+ */
+async function resolveOwnerEmail(
+  userId: string
+): Promise<string | undefined> {
+  try {
+    const client = await clerkClient();
+    const user = await client.users.getUser(userId);
+    return (
+      user.primaryEmailAddress?.emailAddress ??
+      user.emailAddresses?.[0]?.emailAddress ??
+      undefined
+    );
+  } catch (err) {
+    console.error("Lulu webhook: owner email lookup failed (non-fatal)", err);
+    return undefined;
+  }
+}
 
 // Lulu print job status → our fulfillment status mapping
 function mapLuluStatus(luluStatus: string): PrintFulfillment["status"] | null {
@@ -158,10 +181,16 @@ export async function POST(req: NextRequest) {
     await db.bookProjects.update(projectId, {
       printOrder: { ...project.printOrder, fulfillment: updatedFulfillment },
     });
-    recipientEmail = project.printOrder.shipping?.email;
-    recipientName = project.printOrder.shipping?.name;
     productLabel = project.printOrder.productLabel;
     ownerUserId = project.userId;
+    // Owner orders intentionally never persist a shipping block, so recover the
+    // account email from Clerk to send the shipped notification. Best-effort:
+    // notification delivery must never break the webhook.
+    recipientName = project.printOrder.shipping?.name;
+    recipientEmail = project.printOrder.shipping?.email;
+    if (!recipientEmail) {
+      recipientEmail = await resolveOwnerEmail(project.userId);
+    }
   } else if (matched.kind === "public") {
     const order = publicOrders.find((o) => o.id === matched.orderId);
     await db.printOrders.update(matched.orderId, {

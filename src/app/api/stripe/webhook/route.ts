@@ -99,7 +99,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    return await handleStripeEvent(stripe, event);
+    const response = await handleStripeEvent(stripe, event);
+    // Side effects succeeded — finalize the lease so redeliveries are skipped.
+    await db.processedWebhookEvents.markDone(event.id).catch(() => undefined);
+    return response;
   } catch (err) {
     await db.processedWebhookEvents.release(event.id).catch(() => undefined);
     await logEvent({

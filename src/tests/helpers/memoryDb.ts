@@ -14,7 +14,10 @@ export function createMemoryDb() {
   const bookBuildJobMap = new Map<string, BookBuildJob>();
   const printOrderMap = new Map<string, PrintOrderRecord>();
   const emailClaimSet = new Set<string>();
-  const processedWebhookEventSet = new Set<string>();
+  const processedWebhookEventLeases = new Map<
+    string,
+    { status: "pending" | "done"; leaseExpiresAt: number }
+  >();
 
   const db = {
     _reset() {
@@ -26,7 +29,7 @@ export function createMemoryDb() {
       bookBuildJobMap.clear();
       printOrderMap.clear();
       emailClaimSet.clear();
-      processedWebhookEventSet.clear();
+      processedWebhookEventLeases.clear();
     },
 
     profiles: {
@@ -387,13 +390,32 @@ export function createMemoryDb() {
     },
 
     processedWebhookEvents: {
-      async claim(id: string): Promise<boolean> {
-        if (processedWebhookEventSet.has(id)) return false;
-        processedWebhookEventSet.add(id);
-        return true;
+      async claim(
+        id: string,
+        _source?: string,
+        _leaseMs?: number
+      ): Promise<boolean> {
+        const existing = processedWebhookEventLeases.get(id);
+        const now = Date.now();
+        if (!existing) {
+          processedWebhookEventLeases.set(id, {
+            status: "pending",
+            leaseExpiresAt: now + 5 * 60 * 1000,
+          });
+          return true;
+        }
+        if (existing.status === "pending" && existing.leaseExpiresAt < now) {
+          existing.leaseExpiresAt = now + 5 * 60 * 1000;
+          return true;
+        }
+        return false;
+      },
+      async markDone(id: string): Promise<void> {
+        const existing = processedWebhookEventLeases.get(id);
+        if (existing) existing.status = "done";
       },
       async release(id: string): Promise<void> {
-        processedWebhookEventSet.delete(id);
+        processedWebhookEventLeases.delete(id);
       },
     },
   };

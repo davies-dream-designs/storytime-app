@@ -16,9 +16,20 @@ const mockDb = {
   },
 };
 
+const { mockSendShippedEmail, mockGetUser } = vi.hoisted(() => ({
+  mockSendShippedEmail: vi.fn(async () => undefined),
+  mockGetUser: vi.fn(async () => ({
+    primaryEmailAddress: { emailAddress: "owner@example.com" },
+    emailAddresses: [{ emailAddress: "owner@example.com" }],
+  })),
+}));
+
 vi.mock("@/lib/db", () => ({ db: mockDb }));
-vi.mock("@/lib/email", () => ({ sendShippedEmail: vi.fn(async () => undefined) }));
+vi.mock("@/lib/email", () => ({ sendShippedEmail: mockSendShippedEmail }));
 vi.mock("@/lib/logEvent", () => ({ logEvent: vi.fn(async () => undefined) }));
+vi.mock("@clerk/nextjs/server", () => ({
+  clerkClient: vi.fn(async () => ({ users: { getUser: mockGetUser } })),
+}));
 
 function ownerProject(): BookProject {
   return {
@@ -154,6 +165,29 @@ describe("Lulu webhook handler order resolution", () => {
       })
     );
     expect(mockDb.printOrders.update).not.toHaveBeenCalled();
+  });
+
+  it("sends the owner shipped email to the account's Clerk email when it ships", async () => {
+    mockDb.bookProjects.getById.mockResolvedValue(ownerProject());
+    mockDb.printOrders.getByProjectId.mockResolvedValue([]);
+
+    const { POST } = await import("@/app/api/lulu/webhook/route");
+    await POST(
+      callback({
+        event: "print_job.status.changed",
+        data: {
+          id: "lulu-owner-1",
+          external_id: "storycot-book-1",
+          status: { name: "SHIPPED" },
+          line_items: [{ tracking_urls: ["https://track/owner"] }],
+        },
+      })
+    );
+
+    expect(mockGetUser).toHaveBeenCalledWith("owner-1");
+    expect(mockSendShippedEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ toEmail: "owner@example.com" })
+    );
   });
 
   it("does not update any order when no job id matches and there are multiple candidates", async () => {

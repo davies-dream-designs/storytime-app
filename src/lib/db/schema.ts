@@ -457,6 +457,11 @@ export const processedWebhookEvents = pgTable(
     id: text("id").primaryKey(),
     source: text("source").notNull(),
     createdAt: text("created_at").notNull(),
+    // Lease state so a worker that dies between claiming and finishing does not
+    // permanently strand an event: 'pending' rows whose lease has expired can be
+    // re-claimed; only 'done' rows are treated as real duplicates.
+    status: text("status").notNull().default("done"),
+    leaseExpiresAt: text("lease_expires_at"),
   },
   (t) => [index("processed_webhook_events_source_idx").on(t.source)]
 );

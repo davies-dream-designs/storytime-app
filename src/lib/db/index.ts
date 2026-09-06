@@ -2105,21 +2105,64 @@ export const db = {
 
   processedWebhookEvents: {
     /**
-     * Atomically records a webhook event id the first time it is seen.
-     * Returns true only for the first caller; duplicate deliveries get false
-     * and must be treated as a no-op so external side effects never repeat.
+     * Leases a webhook event id for processing. Returns true only when the
+     * caller now owns a fresh lease and should run the side effects:
+     *  - first ever delivery: inserts a `pending` row with a lease, or
+     *  - a previous worker died mid-processing: steals a `pending` row whose
+     *    lease has expired.
+     * Returns false for a genuine duplicate (`done`) or while another worker's
+     * lease is still active, so external side effects never repeat.
+     *
+     * Callers MUST call `markDone(id)` after side effects succeed, and
+     * `release(id)` on a known failure so redelivery can retry immediately.
      */
-    async claim(id: string, source: string): Promise<boolean> {
+    async claim(
+      id: string,
+      source: string,
+      leaseMs = 5 * 60 * 1000
+    ): Promise<boolean> {
+      const now = new Date();
+      const leaseExpiresAt = new Date(now.getTime() + leaseMs).toISOString();
       const inserted = await getClient()
         .insert(schema.processedWebhookEvents)
-        .values({ id, source, createdAt: new Date().toISOString() })
+        .values({
+          id,
+          source,
+          createdAt: now.toISOString(),
+          status: "pending",
+          leaseExpiresAt,
+        })
         .onConflictDoNothing({ target: schema.processedWebhookEvents.id })
         .returning({ id: schema.processedWebhookEvents.id });
-      return inserted.length > 0;
+      if (inserted.length > 0) return true;
+
+      // Row already exists — only steal it if it's a stale pending lease.
+      const stolen = await getClient()
+        .update(schema.processedWebhookEvents)
+        .set({ leaseExpiresAt, source })
+        .where(
+          and(
+            eq(schema.processedWebhookEvents.id, id),
+            eq(schema.processedWebhookEvents.status, "pending"),
+            lt(schema.processedWebhookEvents.leaseExpiresAt, now.toISOString())
+          )
+        )
+        .returning({ id: schema.processedWebhookEvents.id });
+      return stolen.length > 0;
     },
     /**
-     * Releases a previously claimed event id so it can be retried. Used when
-     * processing fails after claiming, so Stripe/Lulu redelivery can run again.
+     * Marks a claimed event as fully processed so future deliveries are treated
+     * as duplicates and skipped.
+     */
+    async markDone(id: string): Promise<void> {
+      await getClient()
+        .update(schema.processedWebhookEvents)
+        .set({ status: "done", leaseExpiresAt: null })
+        .where(eq(schema.processedWebhookEvents.id, id));
+    },
+    /**
+     * Releases a claimed-but-unfinished event so it can be retried immediately.
+     * Used when processing fails after claiming.
      */
     async release(id: string): Promise<void> {
       await getClient()

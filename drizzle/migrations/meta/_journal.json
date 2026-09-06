@@ -162,6 +162,13 @@
       "when": 1787756357149,
       "tag": "0022_avatar_generation_status",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1787756417149,
+      "tag": "0023_location_fixture_views",
+      "breakpoints": true
     }
   ]
 }

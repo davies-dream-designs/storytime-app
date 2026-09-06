@@ -10,6 +10,7 @@ import {
   getStoryPersonRelationshipLabel,
 } from "@/types";
 import { storeBookAsset } from "@/lib/print-books/storage";
+import { fetchAllowedMediaBuffer } from "@/lib/safeMediaFetch";
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 const ALLOWED_CONTENT_TYPES = new Set([
@@ -374,15 +375,12 @@ export async function generateEditedImage(input: {
 }
 
 async function loadReferenceImage(url: string): Promise<Buffer> {
-  if (url.startsWith("data:")) {
-    const base64 = url.split(",", 2)[1];
-    if (!base64) throw new Error("Reference image is unavailable");
-    return Buffer.from(base64, "base64");
+  try {
+    const { buffer } = await fetchAllowedMediaBuffer(url);
+    return buffer;
+  } catch {
+    throw new Error("Reference image is unavailable");
   }
-
-  const response = await fetch(url);
-  if (!response.ok) throw new Error("Reference image is unavailable");
-  return Buffer.from(await response.arrayBuffer());
 }
 
 function parseAnalysis(raw: string): PhotoAnalysis {

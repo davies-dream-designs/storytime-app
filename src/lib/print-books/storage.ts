@@ -1,4 +1,4 @@
-import { del, list, put } from "@vercel/blob";
+import { del, get, list, put } from "@vercel/blob";
 import type { BookProject } from "@/types/printBook";
 
 type ResolvedBlobConfig =
@@ -95,6 +95,91 @@ export async function storeBookAsset(input: {
   });
 
   return blob.url;
+}
+
+/**
+ * Store a short-lived private asset (e.g. an uploaded room photo used only to
+ * seed an establishing illustration). Returns a stable reference the worker can
+ * read back and later delete. Unlike {@link storeBookAsset}, the blob is created
+ * with `access: "private"` so a leaked/guessed URL cannot expose a family photo.
+ *
+ * When blob storage isn't configured (local/dev), falls back to an inline data
+ * URL so the flow still works end-to-end.
+ */
+export async function storeTemporaryPrivateAsset(input: {
+  pathname: string;
+  body: string | Buffer | ArrayBuffer;
+  contentType: string;
+}): Promise<{ ref: string; isInline: boolean }> {
+  const blobConfig = resolveBlobConfig();
+  if (!blobConfig) {
+    const buffer =
+      typeof input.body === "string"
+        ? Buffer.from(input.body, "utf8")
+        : input.body instanceof ArrayBuffer
+          ? Buffer.from(input.body)
+          : input.body;
+    return { ref: bufferToDataUrl(buffer, input.contentType), isInline: true };
+  }
+
+  await put(input.pathname, input.body, {
+    access: "private",
+    allowOverwrite: true,
+    addRandomSuffix: false,
+    contentType: input.contentType,
+    ...getBlobCommandOptions(blobConfig),
+  });
+  // Reference by pathname; private blobs are read back with get(..., private).
+  return { ref: input.pathname, isInline: false };
+}
+
+/** Read back a private temporary asset stored via storeTemporaryPrivateAsset. */
+export async function readTemporaryPrivateAsset(
+  ref: string
+): Promise<{ buffer: Buffer; contentType: string }> {
+  if (ref.startsWith("data:")) {
+    const comma = ref.indexOf(",");
+    const meta = ref.slice(5, comma);
+    const isBase64 = meta.includes(";base64");
+    const payload = ref.slice(comma + 1);
+    const buffer = isBase64
+      ? Buffer.from(payload, "base64")
+      : Buffer.from(decodeURIComponent(payload), "utf8");
+    return { buffer, contentType: meta.split(";")[0] || "image/png" };
+  }
+
+  const blobConfig = resolveBlobConfig();
+  if (!blobConfig) throw new Error("Temporary photo is unavailable");
+  const result = await get(ref, {
+    access: "private",
+    useCache: false,
+    ...getBlobCommandOptions(blobConfig),
+  });
+  if (!result || result.statusCode !== 200 || !result.stream) {
+    throw new Error("Temporary photo is unavailable");
+  }
+  const chunks: Uint8Array[] = [];
+  const reader = result.stream.getReader();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (value) chunks.push(value);
+  }
+  return {
+    buffer: Buffer.concat(chunks.map((c) => Buffer.from(c))),
+    contentType: result.blob.contentType || "image/png",
+  };
+}
+
+/** Best-effort delete of private temporary asset refs (pathnames or inline). */
+export async function deleteTemporaryPrivateAssets(
+  refs: string[]
+): Promise<void> {
+  const deletable = refs.filter((ref) => ref && !ref.startsWith("data:"));
+  if (deletable.length === 0) return;
+  const blobConfig = resolveBlobConfig();
+  if (!blobConfig) return;
+  await del(deletable, getBlobCommandOptions(blobConfig)).catch(() => undefined);
 }
 
 // Returns the public URL if a blob already exists at pathname, null otherwise.

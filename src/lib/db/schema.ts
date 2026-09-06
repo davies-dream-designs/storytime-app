@@ -30,6 +30,7 @@ import type {
   PrintOrderRecord,
   CharacterBible,
   LocationBible,
+  LocationView,
   BookProjectStatus,
   BookBuildMode,
   BookBuildJobStatus,
@@ -436,6 +437,7 @@ export const locationFixtures = pgTable(
     >(),
     establishingImageError: text("establishing_image_error"),
     establishingImageJobId: text("establishing_image_job_id"),
+    views: jsonb("views").$type<LocationView[]>().notNull().default([]),
     fixedElements: jsonb("fixed_elements")
       .$type<string[]>()
       .notNull()

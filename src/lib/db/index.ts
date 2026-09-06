@@ -270,6 +270,7 @@ function rowToLocationFixture(row: LocationFixtureRow): LocationFixture {
     establishingImageStatus: row.establishingImageStatus ?? undefined,
     establishingImageError: row.establishingImageError ?? undefined,
     establishingImageJobId: row.establishingImageJobId ?? undefined,
+    views: row.views && row.views.length ? row.views : undefined,
     fixedElements: row.fixedElements ?? [],
     doNotChange: row.doNotChange ?? [],
     lighting: row.lighting ?? undefined,
@@ -292,6 +293,7 @@ function locationFixtureToRow(fixture: LocationFixture) {
     establishingImageStatus: fixture.establishingImageStatus ?? null,
     establishingImageError: fixture.establishingImageError ?? null,
     establishingImageJobId: fixture.establishingImageJobId ?? null,
+    views: fixture.views ?? [],
     fixedElements: fixture.fixedElements,
     doNotChange: fixture.doNotChange,
     lighting: fixture.lighting ?? null,
@@ -299,6 +301,37 @@ function locationFixtureToRow(fixture: LocationFixture) {
     createdAt: fixture.createdAt,
     updatedAt: fixture.updatedAt,
   };
+}
+
+/** Map only the provided fixture fields to row columns (for CAS updates). */
+function locationFixtureRowUpdates(
+  updates: Partial<LocationFixture>
+): Record<string, unknown> {
+  const row: Record<string, unknown> = {};
+  const set = (key: string, value: unknown) => {
+    if (value !== undefined) row[key] = value;
+  };
+  if ("area" in updates) set("area", updates.area ?? null);
+  if ("summary" in updates) set("summary", updates.summary ?? null);
+  if ("notes" in updates) set("notes", updates.notes ?? null);
+  if ("place" in updates) set("place", updates.place);
+  if ("referenceImageUrl" in updates)
+    set("referenceImageUrl", updates.referenceImageUrl ?? null);
+  if ("establishingImageUrl" in updates)
+    set("establishingImageUrl", updates.establishingImageUrl ?? null);
+  if ("establishingImageStatus" in updates)
+    set("establishingImageStatus", updates.establishingImageStatus ?? null);
+  if ("establishingImageError" in updates)
+    set("establishingImageError", updates.establishingImageError ?? null);
+  if ("establishingImageJobId" in updates)
+    set("establishingImageJobId", updates.establishingImageJobId ?? null);
+  if ("views" in updates) set("views", updates.views ?? []);
+  if ("fixedElements" in updates) set("fixedElements", updates.fixedElements);
+  if ("doNotChange" in updates) set("doNotChange", updates.doNotChange);
+  if ("lighting" in updates) set("lighting", updates.lighting ?? null);
+  if ("palette" in updates) set("palette", updates.palette ?? null);
+  if ("updatedAt" in updates) set("updatedAt", updates.updatedAt);
+  return row;
 }
 
 function profileIdsByPersonId(
@@ -1226,6 +1259,37 @@ export const db = {
         .where(eq(schema.locationFixtures.id, id))
         .returning({ id: schema.locationFixtures.id });
       return result.length > 0;
+    },
+    /**
+     * Compare-and-swap fixture update: only writes when the stored job id still
+     * matches `expectedJobId` (and owner matches). Returns the updated fixture,
+     * or undefined when a newer job/edit has superseded this one. Prevents a
+     * slow background job from overwriting a newer upload or a deletion.
+     */
+    async updateIfJob(
+      id: string,
+      expectedJobId: string,
+      userId: string,
+      updates: Partial<LocationFixture>
+    ): Promise<LocationFixture | undefined> {
+      const result = await getClient()
+        .update(schema.locationFixtures)
+        .set(
+          locationFixtureRowUpdates({
+            ...updates,
+            updatedAt: new Date().toISOString(),
+          })
+        )
+        .where(
+          and(
+            eq(schema.locationFixtures.id, id),
+            eq(schema.locationFixtures.userId, userId),
+            eq(schema.locationFixtures.establishingImageJobId, expectedJobId)
+          )
+        )
+        .returning();
+      const row = result[0];
+      return row ? rowToLocationFixture(row) : undefined;
     },
   },
 

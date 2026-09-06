@@ -3,6 +3,7 @@ import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
 import { db } from "@/lib/db";
 import { processBookBuildJob } from "@/lib/print-books/jobs";
 import {
+  finalizeFailedLocationJob,
   processLocationEstablishingJob,
   type LocationEstablishingJobData,
 } from "@/lib/print-books/locationEstablishingJobs";
@@ -87,11 +88,25 @@ export const generateLocationEstablishing = inngest.createFunction(
   {
     id: "generate-location-establishing",
     concurrency: [{ limit: 4 }, { limit: 1, key: "event.data.userId" }],
-    retries: 1,
+    retries: 3,
     triggers: [{ event: INNGEST_EVENTS.locationEstablishingRequested }],
+    // Retries are exhausted: record terminal failure and clean up the private
+    // input photos (kept until now so retries could reuse them).
+    onFailure: async ({ event, error }) => {
+      const data = event.data.event.data as LocationEstablishingJobData;
+      await finalizeFailedLocationJob(
+        data,
+        error instanceof Error
+          ? error.message
+          : "Couldn't draw this place. Please try again."
+      );
+    },
   },
   async ({ event, step }) => {
     const data = event.data as LocationEstablishingJobData;
+    // A retryable failure thrown from the worker propagates out of the step so
+    // Inngest re-runs it; a terminal failure is recorded inside the worker and
+    // returned as { status: "failed" } without throwing.
     return step.run("generate-location-establishing", async () => {
       return processLocationEstablishingJob(data);
     });

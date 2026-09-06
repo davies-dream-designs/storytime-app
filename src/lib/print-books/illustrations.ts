@@ -1,6 +1,7 @@
 import sharp from "sharp";
 import type { ChildProfile, Story } from "@/types";
 import { AppError } from "@/lib/errors";
+import { fetchAllowedMediaBuffer } from "@/lib/safeMediaFetch";
 import type {
   BookProject,
   BookSpread,
@@ -630,9 +631,7 @@ async function loadReferenceImageBuffer(input: {
   kind: "character" | "continuity" | "location";
 }): Promise<Buffer | null> {
   try {
-    const response = await fetch(input.imageUrl);
-    if (!response.ok) return null;
-    const source = Buffer.from(await response.arrayBuffer());
+    const { buffer: source } = await fetchAllowedMediaBuffer(input.imageUrl);
     // "contain" (not "cover") so faces are never cropped out of the reference,
     // and a larger cell so fine facial detail survives to the image model.
     return sharp(source)

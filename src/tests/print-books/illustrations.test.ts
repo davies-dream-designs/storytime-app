@@ -255,7 +255,7 @@ describe("generateCoverIllustration", () => {
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       void init;
-      if (String(url).startsWith("https://assets.example.com/")) {
+      if (String(url).startsWith("https://acct.blob.vercel-storage.com/")) {
         return {
           ok: true,
           arrayBuffer: async () => Buffer.from("reference").buffer,
@@ -293,7 +293,7 @@ describe("generateCoverIllustration", () => {
               lighting: "soft lamp light from the right",
               palette: "cream, timber, and soft blue",
               doNotChange: ["no window on the left", "no extra door"],
-              establishingImageUrl: "https://assets.example.com/nursery.png",
+              establishingImageUrl: "https://acct.blob.vercel-storage.com/nursery.png",
             },
           ],
           pageLocations: { 1: "nursery", 2: "nursery" },
@@ -589,7 +589,7 @@ describe("generateCoverIllustration", () => {
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       void init;
-      if (String(url).startsWith("https://assets.example.com/")) {
+      if (String(url).startsWith("https://acct.blob.vercel-storage.com/")) {
         return {
           ok: true,
           arrayBuffer: async () => Buffer.from("reference").buffer,
@@ -634,7 +634,7 @@ describe("generateCoverIllustration", () => {
           name: "Glenpa",
           role: "family_friend_pet",
           relationship: "grandparent",
-          imageUrl: "https://assets.example.com/glenpa.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/glenpa.jpg",
           appearance:
             "Latest edited appearance: warm smile, dark-framed glasses, grey hair tied in a neat man bun. Previous generated reference summary, use only when it does not conflict with latest edited appearance/body build: grey-brown shoulder-length wavy hair. Illustration body-build cue: very large plus-size body build with a clearly fuller round frame.",
         },
@@ -727,7 +727,7 @@ describe("generateCoverIllustration", () => {
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       void init;
-      if (String(url).startsWith("https://assets.example.com/")) {
+      if (String(url).startsWith("https://acct.blob.vercel-storage.com/")) {
         return {
           ok: true,
           arrayBuffer: async () => Buffer.from("reference").buffer,
@@ -792,7 +792,7 @@ describe("generateCoverIllustration", () => {
           id: "profile:profile-1",
           name: "Mila",
           role: "main_child",
-          imageUrl: "https://assets.example.com/mila.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/mila.jpg",
           appearance: hugeText,
         },
         {
@@ -800,7 +800,7 @@ describe("generateCoverIllustration", () => {
           name: "Glenpa",
           role: "family_friend_pet",
           relationship: "grandparent",
-          imageUrl: "https://assets.example.com/glenpa.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/glenpa.jpg",
           appearance: hugeText,
           isStale: true,
         },
@@ -861,7 +861,7 @@ describe("generateCoverIllustration", () => {
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       void init;
-      if (String(url).startsWith("https://assets.example.com/")) {
+      if (String(url).startsWith("https://acct.blob.vercel-storage.com/")) {
         return {
           ok: true,
           arrayBuffer: async () => Buffer.from("reference").buffer,
@@ -905,7 +905,7 @@ describe("generateCoverIllustration", () => {
           id: "profile:profile-1",
           name: "Mila",
           role: "main_child",
-          imageUrl: "https://assets.example.com/mila.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/mila.jpg",
           appearance: "Curly dark hair and bright brown eyes.",
         },
         {
@@ -913,7 +913,7 @@ describe("generateCoverIllustration", () => {
           name: "Glenpa",
           role: "family_friend_pet",
           relationship: "grandparent",
-          imageUrl: "https://assets.example.com/glenpa.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/glenpa.jpg",
           appearance:
             "Warm smile, dark-framed glasses, grey hair in a neat bun.",
         },
@@ -922,7 +922,7 @@ describe("generateCoverIllustration", () => {
           name: "Poppy",
           role: "family_friend_pet",
           relationship: "friend",
-          imageUrl: "https://assets.example.com/poppy.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/poppy.jpg",
           appearance: "Red overalls and two braids.",
         },
       ],
@@ -942,7 +942,7 @@ describe("generateCoverIllustration", () => {
     expect(body.get("prompt")).not.toContain("Poppy");
     expect(
       fetchMock.mock.calls.some(
-        (call) => String(call[0]) === "https://assets.example.com/poppy.jpg"
+        (call) => String(call[0]) === "https://acct.blob.vercel-storage.com/poppy.jpg"
       )
     ).toBe(false);
 
@@ -986,7 +986,7 @@ describe("generateCoverIllustration", () => {
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       void init;
-      if (String(url).startsWith("https://assets.example.com/")) {
+      if (String(url).startsWith("https://acct.blob.vercel-storage.com/")) {
         return {
           ok: true,
           arrayBuffer: async () => Buffer.from("reference").buffer,
@@ -1057,7 +1057,7 @@ describe("generateCoverIllustration", () => {
           id: "profile:profile-1",
           name: "Mila",
           role: "main_child",
-          imageUrl: "https://assets.example.com/mila.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/mila.jpg",
           appearance: "Curly dark hair and bright brown eyes.",
         },
         {
@@ -1065,7 +1065,7 @@ describe("generateCoverIllustration", () => {
           name: "Glenpa",
           role: "family_friend_pet",
           relationship: "grandparent",
-          imageUrl: "https://assets.example.com/glenpa.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/glenpa.jpg",
           appearance:
             "Warm smile, dark-framed glasses, grey hair in a neat bun.",
         },
@@ -1074,7 +1074,7 @@ describe("generateCoverIllustration", () => {
           name: "Poppy",
           role: "family_friend_pet",
           relationship: "friend",
-          imageUrl: "https://assets.example.com/poppy.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/poppy.jpg",
           appearance: "Red overalls and two braids.",
         },
       ],
@@ -1131,7 +1131,7 @@ describe("generateCoverIllustration", () => {
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       void init;
-      if (String(url).startsWith("https://assets.example.com/")) {
+      if (String(url).startsWith("https://acct.blob.vercel-storage.com/")) {
         return {
           ok: true,
           arrayBuffer: async () => Buffer.from("reference").buffer,
@@ -1156,12 +1156,12 @@ describe("generateCoverIllustration", () => {
       ...baseProject,
       assets: {
         ...baseProject.assets,
-        coverImageUrl: "https://assets.example.com/cover.png",
+        coverImageUrl: "https://acct.blob.vercel-storage.com/cover.png",
       },
       spreads: [
         {
           ...baseProject.spreads[0]!,
-          imageUrl: "https://assets.example.com/cover.png",
+          imageUrl: "https://acct.blob.vercel-storage.com/cover.png",
         },
         {
           id: "book-1:spread:2",
@@ -1175,8 +1175,8 @@ describe("generateCoverIllustration", () => {
           rightPageText: "",
           sceneBrief: "Mila carries her lantern through the garden path.",
           illustrationPrompt: "Mila on the garden path with her lantern.",
-          leftPageImageUrl: "https://assets.example.com/spread-2.png",
-          thumbnailUrl: "https://assets.example.com/spread-2-thumb.jpg",
+          leftPageImageUrl: "https://acct.blob.vercel-storage.com/spread-2.png",
+          thumbnailUrl: "https://acct.blob.vercel-storage.com/spread-2-thumb.jpg",
         },
       ],
     };
@@ -1206,7 +1206,7 @@ describe("generateCoverIllustration", () => {
           id: "profile:profile-1",
           name: "Mila",
           role: "main_child",
-          imageUrl: "https://assets.example.com/mila.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/mila.jpg",
           appearance: "Curly dark hair and bright brown eyes.",
         },
         {
@@ -1214,7 +1214,7 @@ describe("generateCoverIllustration", () => {
           name: "Glenpa",
           role: "family_friend_pet",
           relationship: "grandparent",
-          imageUrl: "https://assets.example.com/glenpa.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/glenpa.jpg",
           appearance:
             "Warm smile, dark-framed glasses, grey hair in a neat bun.",
         },
@@ -1235,12 +1235,12 @@ describe("generateCoverIllustration", () => {
     );
     expect(
       fetchMock.mock.calls.some(
-        (call) => String(call[0]) === "https://assets.example.com/cover.png"
+        (call) => String(call[0]) === "https://acct.blob.vercel-storage.com/cover.png"
       )
     ).toBe(true);
     expect(
       fetchMock.mock.calls.some(
-        (call) => String(call[0]) === "https://assets.example.com/spread-2.png"
+        (call) => String(call[0]) === "https://acct.blob.vercel-storage.com/spread-2.png"
       )
     ).toBe(true);
     expect(result.spread.leftPageQa).toMatchObject({
@@ -1291,7 +1291,7 @@ describe("generateCoverIllustration", () => {
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       void init;
-      if (String(url).startsWith("https://assets.example.com/")) {
+      if (String(url).startsWith("https://acct.blob.vercel-storage.com/")) {
         return {
           ok: true,
           arrayBuffer: async () => Buffer.from("reference").buffer,
@@ -1316,12 +1316,12 @@ describe("generateCoverIllustration", () => {
       ...baseProject,
       assets: {
         ...baseProject.assets,
-        coverImageUrl: "https://assets.example.com/cover.png",
+        coverImageUrl: "https://acct.blob.vercel-storage.com/cover.png",
       },
       spreads: [
         {
           ...baseProject.spreads[0]!,
-          imageUrl: "https://assets.example.com/cover.png",
+          imageUrl: "https://acct.blob.vercel-storage.com/cover.png",
         },
         {
           id: "book-1:spread:2",
@@ -1336,7 +1336,7 @@ describe("generateCoverIllustration", () => {
           sceneBrief: "Mila and Glenpa share a garden lantern walk.",
           illustrationPrompt:
             "Mila and Glenpa with the silver lantern in the garden.",
-          leftPageImageUrl: "https://assets.example.com/spread-2.png",
+          leftPageImageUrl: "https://acct.blob.vercel-storage.com/spread-2.png",
           leftPageQa: {
             provider: "openai",
             generatedAt: "2026-08-17T00:00:00.000Z",
@@ -1358,7 +1358,7 @@ describe("generateCoverIllustration", () => {
           rightPageText: "",
           sceneBrief: "Poppy enjoys a snowy mountain afternoon.",
           illustrationPrompt: "Poppy in the snow.",
-          leftPageImageUrl: "https://assets.example.com/spread-3.png",
+          leftPageImageUrl: "https://acct.blob.vercel-storage.com/spread-3.png",
           leftPageQa: {
             provider: "openai",
             generatedAt: "2026-08-17T00:00:00.000Z",
@@ -1395,7 +1395,7 @@ describe("generateCoverIllustration", () => {
           id: "profile:profile-1",
           name: "Mila",
           role: "main_child",
-          imageUrl: "https://assets.example.com/mila.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/mila.jpg",
           appearance: "Curly dark hair and bright brown eyes.",
         },
         {
@@ -1403,7 +1403,7 @@ describe("generateCoverIllustration", () => {
           name: "Glenpa",
           role: "family_friend_pet",
           relationship: "grandparent",
-          imageUrl: "https://assets.example.com/glenpa.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/glenpa.jpg",
           appearance:
             "Warm smile, dark-framed glasses, grey hair in a neat bun.",
           isStale: true,
@@ -1413,7 +1413,7 @@ describe("generateCoverIllustration", () => {
           name: "Poppy",
           role: "family_friend_pet",
           relationship: "friend",
-          imageUrl: "https://assets.example.com/poppy.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/poppy.jpg",
           appearance: "Red overalls and two braids.",
         },
       ],
@@ -1423,17 +1423,17 @@ describe("generateCoverIllustration", () => {
 
     expect(
       fetchMock.mock.calls.some(
-        (call) => String(call[0]) === "https://assets.example.com/cover.png"
+        (call) => String(call[0]) === "https://acct.blob.vercel-storage.com/cover.png"
       )
     ).toBe(true);
     expect(
       fetchMock.mock.calls.some(
-        (call) => String(call[0]) === "https://assets.example.com/spread-2.png"
+        (call) => String(call[0]) === "https://acct.blob.vercel-storage.com/spread-2.png"
       )
     ).toBe(true);
     expect(
       fetchMock.mock.calls.some(
-        (call) => String(call[0]) === "https://assets.example.com/spread-3.png"
+        (call) => String(call[0]) === "https://acct.blob.vercel-storage.com/spread-3.png"
       )
     ).toBe(false);
     expect(result.spread.leftPageQa?.staleCharacterReferenceNames).toEqual([

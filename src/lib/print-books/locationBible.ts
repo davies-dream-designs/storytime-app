@@ -236,40 +236,119 @@ function normalizeLocationBible(
   return { locations, pageLocations };
 }
 
+/**
+ * Only apply a saved fixture to a story location when the match is
+ * unambiguous. A confident match is one of:
+ *   - an existing explicit binding (`location.fixtureId === fixture.id`), or
+ *   - an exact normalised place/area key match, or
+ *   - a single clear best candidate that scores at/above this bar with a clear
+ *     margin over the runner-up.
+ * Anything else is returned as "unresolved" so the caller can ask the parent to
+ * confirm, instead of silently swapping (e.g.) a Lounge into a Kitchen.
+ */
+const CONFIDENT_MATCH_SCORE = 0.75;
+const CONFIDENT_MATCH_MARGIN = 0.2;
+
+export interface FixtureResolution {
+  fixtureId: string;
+  locationId?: string;
+  status: "bound" | "exact" | "confident" | "unresolved";
+}
+
+export interface ApplyPreferredFixturesResult {
+  bible: LocationBible;
+  resolutions: FixtureResolution[];
+  unresolvedFixtureIds: string[];
+}
+
+export function resolvePreferredFixtures(
+  bible: LocationBible,
+  preferredFixtures: LocationFixture[] = []
+): ApplyPreferredFixturesResult {
+  const resolutions: FixtureResolution[] = [];
+  if (preferredFixtures.length === 0) {
+    return { bible, resolutions, unresolvedFixtureIds: [] };
+  }
+
+  let locations = bible.locations;
+  const usedLocationIds = new Set<string>();
+
+  const bindAndApply = (
+    fixture: LocationFixture,
+    location: SceneLocation,
+    status: FixtureResolution["status"]
+  ) => {
+    usedLocationIds.add(location.id);
+    resolutions.push({
+      fixtureId: fixture.id,
+      locationId: location.id,
+      status,
+    });
+    locations = locations.map((loc) =>
+      loc.id === location.id ? applyFixtureToLocation(loc, fixture) : loc
+    );
+  };
+
+  for (const fixture of preferredFixtures) {
+    const available = locations.filter((loc) => !usedLocationIds.has(loc.id));
+
+    const alreadyBound = available.find((loc) => loc.fixtureId === fixture.id);
+    if (alreadyBound) {
+      bindAndApply(fixture, alreadyBound, "bound");
+      continue;
+    }
+
+    const exact = available.find(
+      (loc) => locationSimilarity(loc, fixture) === 1
+    );
+    if (exact) {
+      bindAndApply(fixture, exact, "exact");
+      continue;
+    }
+
+    let best: SceneLocation | undefined;
+    let bestScore = 0;
+    let secondScore = 0;
+    for (const loc of available) {
+      const score = locationSimilarity(loc, fixture);
+      if (score > bestScore) {
+        secondScore = bestScore;
+        bestScore = score;
+        best = loc;
+      } else if (score > secondScore) {
+        secondScore = score;
+      }
+    }
+
+    if (
+      best &&
+      bestScore >= CONFIDENT_MATCH_SCORE &&
+      bestScore - secondScore >= CONFIDENT_MATCH_MARGIN
+    ) {
+      bindAndApply(fixture, best, "confident");
+      continue;
+    }
+
+    resolutions.push({ fixtureId: fixture.id, status: "unresolved" });
+  }
+
+  const unresolvedFixtureIds = resolutions
+    .filter((r) => r.status === "unresolved")
+    .map((r) => r.fixtureId);
+  const changed = resolutions.some((r) => r.status !== "unresolved");
+
+  return {
+    bible: changed ? { ...bible, locations } : bible,
+    resolutions,
+    unresolvedFixtureIds,
+  };
+}
+
 export function applyPreferredFixturesToLocationBible(
   bible: LocationBible,
   preferredFixtures: LocationFixture[] = []
 ): LocationBible {
-  if (preferredFixtures.length === 0) return bible;
-
-  let locations = bible.locations;
-  const usedLocationIds = new Set<string>();
-  let changed = false;
-
-  for (const fixture of preferredFixtures) {
-    let bestLocation: SceneLocation | undefined;
-    let bestScore = 0;
-    for (const location of locations) {
-      if (usedLocationIds.has(location.id)) continue;
-      const score = locationSimilarity(location, fixture);
-      if (score > bestScore) {
-        bestScore = score;
-        bestLocation = location;
-      }
-    }
-
-    if (!bestLocation || bestScore < 0.6) continue;
-
-    usedLocationIds.add(bestLocation.id);
-    changed = true;
-    locations = locations.map((location) =>
-      location.id === bestLocation.id
-        ? applyFixtureToLocation(location, fixture)
-        : location
-    );
-  }
-
-  return changed ? { ...bible, locations } : bible;
+  return resolvePreferredFixtures(bible, preferredFixtures).bible;
 }
 
 export function applyPreferredFixtureToLocationBible(
@@ -395,6 +474,16 @@ export function stampSpreadLocations(
   }));
 
   return spreads.map((spread) => {
+    // Prefer true source-page provenance recorded at compose time. This is
+    // exact and immune to repeated/identical prose across pages.
+    const provenancePages = spread.sourcePageNumbers ?? [];
+    if (provenancePages.length > 0) {
+      const locationId = resolveProvenanceLocation(provenancePages, bible);
+      return locationId ? { ...spread, locationId } : spread;
+    }
+
+    // Fallback for spreads with no provenance (legacy books, front/end matter):
+    // token overlap against source pages.
     const spreadTokens = tokenize(
       `${spread.leftPageText} ${spread.rightPageText}`
     );
@@ -418,6 +507,22 @@ export function stampSpreadLocations(
     if (!locationId) return spread;
     return { ...spread, locationId };
   });
+}
+
+/**
+ * Pick a location for a spread that spans one or more source pages. Uses the
+ * first page's location; if that page has no mapping, falls back to the first
+ * mapped page in the group so grouped spreads still resolve deterministically.
+ */
+function resolveProvenanceLocation(
+  pageNumbers: number[],
+  bible: LocationBible
+): string | undefined {
+  for (const pageNumber of pageNumbers) {
+    const locationId = bible.pageLocations[pageNumber];
+    if (locationId) return locationId;
+  }
+  return undefined;
 }
 
 function findLocationById(

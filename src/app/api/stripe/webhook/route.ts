@@ -99,7 +99,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    return await handleStripeEvent(stripe, event);
+    const response = await handleStripeEvent(stripe, event);
+    // Side effects succeeded — finalize the lease so redeliveries are skipped.
+    await db.processedWebhookEvents.markDone(event.id).catch(() => undefined);
+    return response;
   } catch (err) {
     await db.processedWebhookEvents.release(event.id).catch(() => undefined);
     await logEvent({
@@ -334,6 +337,11 @@ async function handleStripeEvent(stripe: Stripe, event: Stripe.Event) {
                 checkoutSessionId: session.id,
               },
             });
+            // A paid order with no fulfillment job would be stranded. Rethrow so
+            // the outer handler releases the event claim and returns 500; Stripe
+            // redelivers and this handler re-runs idempotently (the order is
+            // already paid/pending and the worker guards on externalOrderId).
+            throw err;
           }
 
           const customerEmail = printOrder.shipping?.email ?? order.buyerEmail;
@@ -454,6 +462,10 @@ async function handleStripeEvent(stripe: Stripe, event: Stripe.Event) {
                 checkoutSessionId: session.id,
               },
             });
+            // Rethrow so the event claim is released and Stripe redelivers; the
+            // owner order is already persisted (digital unlocked once, guarded)
+            // and re-enqueuing fulfillment is idempotent.
+            throw err;
           }
 
           // Fire-and-forget - email failure must never break the webhook response.

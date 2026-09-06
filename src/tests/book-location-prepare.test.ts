@@ -182,6 +182,25 @@ describe("POST /api/books/[id]/locations/prepare", () => {
     mockDb.locationFixtures.getById.mockImplementation(async (id: string) =>
       id === lounge.id ? lounge : id === garden.id ? garden : undefined
     );
+    // A realistic generated bible contains both places, so both fixtures bind
+    // exactly and no confirmation popup is needed.
+    mockGenerateLocationBible.mockResolvedValue({
+      locations: [
+        ...createBible().locations,
+        {
+          id: "grandmas_garden",
+          name: "Grandma's House (Garden)",
+          place: "Grandma's House",
+          area: "Garden",
+          summary: "A garden with a lemon tree.",
+          fixedElements: ["lemon tree beside the path"],
+          lighting: "afternoon sun",
+          palette: "greens",
+          doNotChange: ["tree placement"],
+        },
+      ],
+      pageLocations: { 1: "grandmas_lounge", 2: "grandmas_garden" },
+    });
 
     const { POST } =
       await import("@/app/api/books/[id]/locations/prepare/route");
@@ -198,6 +217,40 @@ describe("POST /api/books/[id]/locations/prepare", () => {
       story,
       preferredFixtures: [lounge, garden],
     });
+  });
+
+  it("requires review when a selected saved location cannot be confidently matched", async () => {
+    const lounge = createFixture();
+    const kitchen = createFixture({
+      id: "fixture-kitchen",
+      place: "Grandma's House",
+      area: "Kitchen",
+      summary: "A bright kitchen.",
+    });
+    const story = createStory({
+      locationFixtureIds: [lounge.id, kitchen.id],
+    });
+    mockDb.stories.getById.mockResolvedValue(story);
+    mockDb.locationFixtures.getById.mockImplementation(async (id: string) =>
+      id === lounge.id ? lounge : id === kitchen.id ? kitchen : undefined
+    );
+    // Generated bible only contains the lounge; the kitchen has no match, so
+    // review is required rather than silently applying the kitchen elsewhere.
+    mockGenerateLocationBible.mockResolvedValue(createBible());
+
+    const { POST } =
+      await import("@/app/api/books/[id]/locations/prepare/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/books/book-1/locations/prepare", {
+        method: "POST",
+      }),
+      { params: Promise.resolve({ id: "book-1" }) }
+    );
+
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.reviewRequired).toBe(true);
+    expect(body.unresolvedFixtureIds).toContain(kitchen.id);
   });
 
   it("still requires review when there was no saved builder location", async () => {

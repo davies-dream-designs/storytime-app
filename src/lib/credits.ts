@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import {
   estimateIllustratedBookCredits,
   REFERENCE_REDO_CREDIT_COST,
+  STORY_CREDIT_COST,
 } from "@/lib/pricing";
 import { getStorycotIllustrationCountForAgeBand } from "@/lib/print-books/printProducts";
 import type { BookBilling, BookProject } from "@/types/printBook";
@@ -16,15 +17,55 @@ function getCredits(value: unknown) {
     : DEFAULT_CREDITS;
 }
 
+/**
+ * Opt-in switch to the atomic DB credit ledger. Off by default so production
+ * behaviour is unchanged until the `user_credits`/`credit_ledger` tables exist
+ * (migration 0025) and a staging rehearsal has confirmed the Clerk→DB seed.
+ */
+function creditLedgerEnabled(): boolean {
+  return process.env.CREDIT_LEDGER_ENABLED === "true";
+}
+
+/**
+ * Returns the authoritative DB balance for a user, seeding the row from the
+ * user's current Clerk value on first access. Only used when the ledger is on.
+ */
+async function ledgerBalance(
+  userId: string,
+  clerkCredits: number
+): Promise<number> {
+  const existing = await db.userCredits.getBalance(userId);
+  if (typeof existing === "number") return existing;
+  return db.userCredits.ensureSeeded(userId, clerkCredits);
+}
+
+/**
+ * Mirrors the authoritative DB balance back to Clerk metadata so existing read
+ * paths (account page, /api/user/credits display) stay roughly correct during
+ * the transition. Best-effort; the DB remains the source of truth.
+ */
+async function mirrorToClerk(userId: string, balance: number): Promise<void> {
+  try {
+    const client = await clerkClient();
+    await client.users.updateUserMetadata(userId, {
+      privateMetadata: { credits: balance },
+    });
+  } catch {
+    // Non-fatal: DB balance is authoritative; Clerk is only a display mirror.
+  }
+}
+
 export async function getUserCredits(
   userId: string
 ): Promise<{ credits: number; isAdmin: boolean }> {
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
-  return {
-    credits: getCredits(user.privateMetadata.credits),
-    isAdmin: user.privateMetadata.isAdmin === true,
-  };
+  const clerkCredits = getCredits(user.privateMetadata.credits);
+  const isAdmin = user.privateMetadata.isAdmin === true;
+  if (creditLedgerEnabled()) {
+    return { credits: await ledgerBalance(userId, clerkCredits), isAdmin };
+  }
+  return { credits: clerkCredits, isAdmin };
 }
 
 /**
@@ -33,12 +74,63 @@ export async function getUserCredits(
  */
 export async function adjustUserCredits(
   userId: string,
-  delta: number
+  delta: number,
+  dedupeKey?: string
 ): Promise<number> {
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
   const currentCredits = getCredits(user.privateMetadata.credits);
+
+  if (creditLedgerEnabled()) {
+    await ledgerBalance(userId, currentCredits);
+    const { balance } = await db.userCredits.applyDelta({
+      userId,
+      delta,
+      reason: delta >= 0 ? "admin_grant" : "admin_debit",
+      dedupeKey: dedupeKey ?? `adjust:${userId}:${Date.now()}:${delta}`,
+    });
+    await mirrorToClerk(userId, balance);
+    return balance;
+  }
+
   const next = Math.max(0, currentCredits + delta);
+  await client.users.updateUserMetadata(userId, {
+    privateMetadata: { credits: next },
+  });
+  return next;
+}
+
+/**
+ * Debit one story-generation credit using a fresh read of the current balance
+ * (never a stale value captured earlier in the request). Idempotency is the
+ * caller's responsibility via `stories.creditChargedAt` — this only performs the
+ * balance math against the latest Clerk value, clamped at zero.
+ *
+ * Returns the new balance, or `null` when the debit could not be applied (the
+ * caller decides whether to surface a reconcile event).
+ */
+export async function chargeStoryGenerationCredit(
+  userId: string,
+  dedupeKey?: string
+): Promise<number | null> {
+  const client = await clerkClient();
+  const fresh = await client.users.getUser(userId);
+  if (fresh.privateMetadata.isAdmin === true) return null;
+  const current = getCredits(fresh.privateMetadata.credits);
+
+  if (creditLedgerEnabled()) {
+    await ledgerBalance(userId, current);
+    const { balance } = await db.userCredits.applyDelta({
+      userId,
+      delta: -STORY_CREDIT_COST,
+      reason: "story_generation",
+      dedupeKey: dedupeKey ?? `story:${userId}:${Date.now()}`,
+    });
+    await mirrorToClerk(userId, balance);
+    return balance;
+  }
+
+  const next = Math.max(0, current - STORY_CREDIT_COST);
   await client.users.updateUserMetadata(userId, {
     privateMetadata: { credits: next },
   });

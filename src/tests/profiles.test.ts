@@ -10,6 +10,12 @@ const mockDb = {
     update: vi.fn(),
     delete: vi.fn(() => false),
   },
+  stories: {
+    getByProfileId: vi.fn(
+      async (): Promise<Array<{ id: string; userId: string }>> => []
+    ),
+    delete: vi.fn(async () => true),
+  },
 };
 
 vi.mock("@/lib/db", () => ({ db: mockDb }));
@@ -200,5 +206,68 @@ describe("PUT /api/profiles/[id]", () => {
         gender: "boy",
       })
     );
+  });
+
+  it("ignores attempts to reassign ownership or generation state", async () => {
+    const { PUT } = await importProfileRoute();
+    const req = new NextRequest("http://localhost/api/profiles/profile-1", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Max",
+        ipConfirmationAccepted: true,
+        id: "someone-elses-id",
+        userId: "attacker",
+        avatarGenerationStatus: "ready",
+        avatarImageUrl: "https://evil.example.com/x.png",
+      }),
+    });
+    const res = await PUT(req, {
+      params: Promise.resolve({ id: "profile-1" }),
+    });
+    expect(res.status).toBe(200);
+    const [, updates] = mockDb.profiles.update.mock.calls.at(-1)!;
+    expect(updates).not.toHaveProperty("id");
+    expect(updates).not.toHaveProperty("userId");
+    expect(updates).not.toHaveProperty("avatarGenerationStatus");
+    // A foreign avatar URL is rejected by the media allowlist.
+    expect(updates).not.toHaveProperty("avatarImageUrl");
+  });
+});
+
+describe("DELETE /api/profiles/[id]", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    mockDb.profiles.getById.mockResolvedValue({
+      id: "profile-1",
+      userId: "user-1",
+      name: "Max",
+      age: 3,
+      favouriteCharacters: [],
+      favouriteActivities: [],
+      favouriteAnimals: [],
+      favouritePlaces: [],
+      lessons: [],
+      createdAt: "2026-07-28T00:00:00.000Z",
+    });
+    mockDb.profiles.delete.mockResolvedValue(true);
+  });
+
+  it("cascades deletion to the child's stories", async () => {
+    mockDb.stories.getByProfileId.mockResolvedValue([
+      { id: "story-1", userId: "user-1" },
+      { id: "story-2", userId: "user-1" },
+    ]);
+    const { DELETE } = await import("@/app/api/profiles/[id]/route");
+    const res = await DELETE(
+      new NextRequest("http://localhost/api/profiles/profile-1", {
+        method: "DELETE",
+      }),
+      { params: Promise.resolve({ id: "profile-1" }) }
+    );
+    expect(res.status).toBe(200);
+    expect(mockDb.stories.delete).toHaveBeenCalledWith("story-1");
+    expect(mockDb.stories.delete).toHaveBeenCalledWith("story-2");
+    expect(mockDb.profiles.delete).toHaveBeenCalledWith("profile-1");
   });
 });

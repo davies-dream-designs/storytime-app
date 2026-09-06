@@ -270,6 +270,7 @@ function rowToLocationFixture(row: LocationFixtureRow): LocationFixture {
     establishingImageStatus: row.establishingImageStatus ?? undefined,
     establishingImageError: row.establishingImageError ?? undefined,
     establishingImageJobId: row.establishingImageJobId ?? undefined,
+    views: row.views && row.views.length ? row.views : undefined,
     fixedElements: row.fixedElements ?? [],
     doNotChange: row.doNotChange ?? [],
     lighting: row.lighting ?? undefined,
@@ -292,6 +293,7 @@ function locationFixtureToRow(fixture: LocationFixture) {
     establishingImageStatus: fixture.establishingImageStatus ?? null,
     establishingImageError: fixture.establishingImageError ?? null,
     establishingImageJobId: fixture.establishingImageJobId ?? null,
+    views: fixture.views ?? [],
     fixedElements: fixture.fixedElements,
     doNotChange: fixture.doNotChange,
     lighting: fixture.lighting ?? null,
@@ -299,6 +301,37 @@ function locationFixtureToRow(fixture: LocationFixture) {
     createdAt: fixture.createdAt,
     updatedAt: fixture.updatedAt,
   };
+}
+
+/** Map only the provided fixture fields to row columns (for CAS updates). */
+function locationFixtureRowUpdates(
+  updates: Partial<LocationFixture>
+): Record<string, unknown> {
+  const row: Record<string, unknown> = {};
+  const set = (key: string, value: unknown) => {
+    if (value !== undefined) row[key] = value;
+  };
+  if ("area" in updates) set("area", updates.area ?? null);
+  if ("summary" in updates) set("summary", updates.summary ?? null);
+  if ("notes" in updates) set("notes", updates.notes ?? null);
+  if ("place" in updates) set("place", updates.place);
+  if ("referenceImageUrl" in updates)
+    set("referenceImageUrl", updates.referenceImageUrl ?? null);
+  if ("establishingImageUrl" in updates)
+    set("establishingImageUrl", updates.establishingImageUrl ?? null);
+  if ("establishingImageStatus" in updates)
+    set("establishingImageStatus", updates.establishingImageStatus ?? null);
+  if ("establishingImageError" in updates)
+    set("establishingImageError", updates.establishingImageError ?? null);
+  if ("establishingImageJobId" in updates)
+    set("establishingImageJobId", updates.establishingImageJobId ?? null);
+  if ("views" in updates) set("views", updates.views ?? []);
+  if ("fixedElements" in updates) set("fixedElements", updates.fixedElements);
+  if ("doNotChange" in updates) set("doNotChange", updates.doNotChange);
+  if ("lighting" in updates) set("lighting", updates.lighting ?? null);
+  if ("palette" in updates) set("palette", updates.palette ?? null);
+  if ("updatedAt" in updates) set("updatedAt", updates.updatedAt);
+  return row;
 }
 
 function profileIdsByPersonId(
@@ -1227,6 +1260,37 @@ export const db = {
         .returning({ id: schema.locationFixtures.id });
       return result.length > 0;
     },
+    /**
+     * Compare-and-swap fixture update: only writes when the stored job id still
+     * matches `expectedJobId` (and owner matches). Returns the updated fixture,
+     * or undefined when a newer job/edit has superseded this one. Prevents a
+     * slow background job from overwriting a newer upload or a deletion.
+     */
+    async updateIfJob(
+      id: string,
+      expectedJobId: string,
+      userId: string,
+      updates: Partial<LocationFixture>
+    ): Promise<LocationFixture | undefined> {
+      const result = await getClient()
+        .update(schema.locationFixtures)
+        .set(
+          locationFixtureRowUpdates({
+            ...updates,
+            updatedAt: new Date().toISOString(),
+          })
+        )
+        .where(
+          and(
+            eq(schema.locationFixtures.id, id),
+            eq(schema.locationFixtures.userId, userId),
+            eq(schema.locationFixtures.establishingImageJobId, expectedJobId)
+          )
+        )
+        .returning();
+      const row = result[0];
+      return row ? rowToLocationFixture(row) : undefined;
+    },
   },
 
   bookProjects: {
@@ -2041,26 +2105,154 @@ export const db = {
 
   processedWebhookEvents: {
     /**
-     * Atomically records a webhook event id the first time it is seen.
-     * Returns true only for the first caller; duplicate deliveries get false
-     * and must be treated as a no-op so external side effects never repeat.
+     * Leases a webhook event id for processing. Returns true only when the
+     * caller now owns a fresh lease and should run the side effects:
+     *  - first ever delivery: inserts a `pending` row with a lease, or
+     *  - a previous worker died mid-processing: steals a `pending` row whose
+     *    lease has expired.
+     * Returns false for a genuine duplicate (`done`) or while another worker's
+     * lease is still active, so external side effects never repeat.
+     *
+     * Callers MUST call `markDone(id)` after side effects succeed, and
+     * `release(id)` on a known failure so redelivery can retry immediately.
      */
-    async claim(id: string, source: string): Promise<boolean> {
+    async claim(
+      id: string,
+      source: string,
+      leaseMs = 5 * 60 * 1000
+    ): Promise<boolean> {
+      const now = new Date();
+      const leaseExpiresAt = new Date(now.getTime() + leaseMs).toISOString();
       const inserted = await getClient()
         .insert(schema.processedWebhookEvents)
-        .values({ id, source, createdAt: new Date().toISOString() })
+        .values({
+          id,
+          source,
+          createdAt: now.toISOString(),
+          status: "pending",
+          leaseExpiresAt,
+        })
         .onConflictDoNothing({ target: schema.processedWebhookEvents.id })
         .returning({ id: schema.processedWebhookEvents.id });
-      return inserted.length > 0;
+      if (inserted.length > 0) return true;
+
+      // Row already exists — only steal it if it's a stale pending lease.
+      const stolen = await getClient()
+        .update(schema.processedWebhookEvents)
+        .set({ leaseExpiresAt, source })
+        .where(
+          and(
+            eq(schema.processedWebhookEvents.id, id),
+            eq(schema.processedWebhookEvents.status, "pending"),
+            lt(schema.processedWebhookEvents.leaseExpiresAt, now.toISOString())
+          )
+        )
+        .returning({ id: schema.processedWebhookEvents.id });
+      return stolen.length > 0;
     },
     /**
-     * Releases a previously claimed event id so it can be retried. Used when
-     * processing fails after claiming, so Stripe/Lulu redelivery can run again.
+     * Marks a claimed event as fully processed so future deliveries are treated
+     * as duplicates and skipped.
+     */
+    async markDone(id: string): Promise<void> {
+      await getClient()
+        .update(schema.processedWebhookEvents)
+        .set({ status: "done", leaseExpiresAt: null })
+        .where(eq(schema.processedWebhookEvents.id, id));
+    },
+    /**
+     * Releases a claimed-but-unfinished event so it can be retried immediately.
+     * Used when processing fails after claiming.
      */
     async release(id: string): Promise<void> {
       await getClient()
         .delete(schema.processedWebhookEvents)
         .where(eq(schema.processedWebhookEvents.id, id));
+    },
+  },
+
+  userCredits: {
+    async getBalance(userId: string): Promise<number | undefined> {
+      const rows = await getClient()
+        .select()
+        .from(schema.userCredits)
+        .where(eq(schema.userCredits.userId, userId));
+      return rows[0]?.credits;
+    },
+    /**
+     * Ensures a balance row exists, seeding it from the given value only on
+     * first creation (never overwriting an existing authoritative balance).
+     */
+    async ensureSeeded(userId: string, seed: number): Promise<number> {
+      const now = new Date().toISOString();
+      await getClient()
+        .insert(schema.userCredits)
+        .values({ userId, credits: Math.max(0, seed), updatedAt: now })
+        .onConflictDoNothing({ target: schema.userCredits.userId });
+      const rows = await getClient()
+        .select()
+        .from(schema.userCredits)
+        .where(eq(schema.userCredits.userId, userId));
+      return rows[0]?.credits ?? Math.max(0, seed);
+    },
+    /**
+     * Applies a credit change atomically and idempotently.
+     *
+     * The `dedupeKey` uniqueness guarantees an at-most-once application: if the
+     * ledger row already exists, the balance is NOT touched and the current
+     * balance is returned. Otherwise the balance is bumped with a single
+     * `UPDATE ... credits = GREATEST(0, credits + delta) RETURNING`, and the
+     * ledger row is written with the resulting balance.
+     *
+     * Returns `{ balance, applied }`.
+     */
+    async applyDelta(input: {
+      userId: string;
+      delta: number;
+      reason: string;
+      dedupeKey: string;
+    }): Promise<{ balance: number; applied: boolean }> {
+      const client = getClient();
+      const now = new Date().toISOString();
+
+      // Reserve the dedupe key first. If it already exists, this is a duplicate.
+      const reserved = await client
+        .insert(schema.creditLedger)
+        .values({
+          id: crypto.randomUUID(),
+          userId: input.userId,
+          delta: input.delta,
+          reason: input.reason,
+          dedupeKey: input.dedupeKey,
+          balanceAfter: 0,
+          createdAt: now,
+        })
+        .onConflictDoNothing({ target: schema.creditLedger.dedupeKey })
+        .returning({ id: schema.creditLedger.id });
+
+      if (reserved.length === 0) {
+        const current = await this.getBalance(input.userId);
+        return { balance: current ?? 0, applied: false };
+      }
+
+      const updated = await client
+        .update(schema.userCredits)
+        .set({
+          credits: sql`GREATEST(0, ${schema.userCredits.credits} + ${input.delta})`,
+          updatedAt: now,
+        })
+        .where(eq(schema.userCredits.userId, input.userId))
+        .returning({ credits: schema.userCredits.credits });
+
+      const balance = updated[0]?.credits ?? 0;
+
+      // Backfill the ledger row's resulting balance for auditability.
+      await client
+        .update(schema.creditLedger)
+        .set({ balanceAfter: balance })
+        .where(eq(schema.creditLedger.id, reserved[0].id));
+
+      return { balance, applied: true };
     },
   },
 };

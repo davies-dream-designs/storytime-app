@@ -15,6 +15,8 @@ import {
   resolveRequestedLocationFixtures,
 } from "@/lib/storyLocationFixtures";
 import { STORY_CREDIT_COST } from "@/lib/pricing";
+import { chargeStoryGenerationCredit } from "@/lib/credits";
+import { logEvent } from "@/lib/logEvent";
 import {
   storyIdeaSafetyErrorResponse,
   validateStoryIdeaSafety,
@@ -189,21 +191,44 @@ export async function POST(req: NextRequest) {
   story.ipPolicy =
     generatedIpPolicy.riskLevel === "restricted" ? generatedIpPolicy : ipPolicy;
 
+  // Stamp the charge marker in the same write that persists the story so the
+  // debit is idempotent if this request is ever retried.
+  const shouldCharge = !isAdmin;
+  if (shouldCharge) story.creditChargedAt = new Date().toISOString();
+
   await Promise.all([
     db.stories.create(story),
     kv.del(`suggestions:${profileId}`),
   ]);
 
-  if (!isAdmin) {
-    await client.users.updateUserMetadata(userId, {
-      privateMetadata: { credits: credits - STORY_CREDIT_COST },
-    });
+  let creditsRemaining = isAdmin ? Infinity : credits - STORY_CREDIT_COST;
+  if (shouldCharge) {
+    // Debit against a fresh read, not the balance captured at request start, so
+    // concurrent operations on the same account can't lose an update.
+    const next = await chargeStoryGenerationCredit(
+      userId,
+      `story:${story.id}`
+    ).catch(
+      async (err) => {
+        await logEvent({
+          error: err,
+          fallbackCode: "story.generation_failed",
+          userId,
+          entityType: "story",
+          entityId: story.id,
+          source: "story/generation",
+          context: { phase: "credit_charge" },
+        });
+        return null;
+      }
+    );
+    if (typeof next === "number") creditsRemaining = next;
   }
 
   return NextResponse.json(
     {
       ...story,
-      creditsRemaining: isAdmin ? Infinity : credits - STORY_CREDIT_COST,
+      creditsRemaining,
     },
     { status: 201 }
   );

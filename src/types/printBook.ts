@@ -86,6 +86,12 @@ export interface Beat {
   visualIntent: string;
   mood: BeatMood;
   isQuietBeat: boolean;
+  /**
+   * Source story page(s) this beat was derived from. Preserved so composed
+   * spreads keep their true scene provenance (and therefore location) instead
+   * of being re-matched to a page by fragile prose token overlap.
+   */
+  sourcePageNumbers?: number[];
 }
 
 export interface CharacterBible {
@@ -98,6 +104,24 @@ export interface CharacterBible {
   lightingTone: string;
   doNotChange: string[];
   lockedCharacterRules?: LockedCharacterRule[];
+}
+
+/**
+ * One drawn perspective of a place (e.g. wide establishing shot, the cot
+ * corner, the reading nook). A location can optionally hold several so a book
+ * can pick the angle that matches a given scene while keeping the room
+ * consistent. The primary view mirrors the legacy single `establishingImageUrl`.
+ */
+export interface LocationView {
+  id: string;
+  /** Short parent/system label for the angle, e.g. "Wide", "Cot corner". */
+  label: string;
+  imageUrl?: string;
+  status?: LocationEstablishingStatus;
+  error?: string;
+  jobId?: string;
+  isPrimary?: boolean;
+  createdAt?: string;
 }
 
 export interface SceneLocation {
@@ -113,6 +137,18 @@ export interface SceneLocation {
   lighting: string;
   palette: string;
   doNotChange: string[];
+  /**
+   * Saved location fixture this scene location is explicitly bound to, if the
+   * parent selected one. Binding is authoritative: it replaces name-based fuzzy
+   * matching so a saved "Lounge" can never silently overwrite a "Kitchen".
+   */
+  fixtureId?: string;
+  /**
+   * True once a parent has made book-specific edits (notes/image/etc.) to this
+   * location. Guards against a later prepare/build pass re-importing library
+   * defaults over their corrections.
+   */
+  hasBookOverrides?: boolean;
   /**
    * Optional parent-supplied ground-truth about this place. Treated as
    * authoritative over the AI-inferred description when present.
@@ -136,6 +172,11 @@ export interface SceneLocation {
   establishingImageStatus?: LocationEstablishingStatus;
   establishingImageError?: string;
   establishingImageJobId?: string;
+  /**
+   * Optional extra perspectives of this place. Empty/undefined means the single
+   * `establishingImageUrl` is the only view (the common case).
+   */
+  views?: LocationView[];
 }
 
 export interface LocationBible {
@@ -166,6 +207,12 @@ export interface LocationFixture {
   establishingImageStatus?: LocationEstablishingStatus;
   establishingImageError?: string;
   establishingImageJobId?: string;
+  /**
+   * Optional extra perspectives of this saved place. The primary view mirrors
+   * `establishingImageUrl`; undefined/empty means the single view is the only
+   * one, preserving the original single-photo behaviour.
+   */
+  views?: LocationView[];
   fixedElements: string[];
   doNotChange: string[];
   lighting?: string;
@@ -235,6 +282,12 @@ export interface BookSpread {
   illustrationPrompt: string;
   /** Location id (from the project's LocationBible) this spread is set in. */
   locationId?: string;
+  /**
+   * Source story page number(s) this spread was composed from. Set at compose
+   * time so location assignment uses true provenance rather than prose token
+   * overlap. Empty for front/end matter.
+   */
+  sourcePageNumbers?: number[];
   imageUrl?: string;
   leftPageImageUrl?: string;
   leftPageWebImageUrl?: string;

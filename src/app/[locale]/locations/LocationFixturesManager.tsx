@@ -1,11 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import { compressImageForUpload } from "@/lib/client/compressImage";
-import type { LocationFixture } from "@/types/printBook";
+import type { LocationFixture, LocationView } from "@/types/printBook";
 
 const MAX_LOCATION_PHOTOS = 5;
 
@@ -24,6 +24,7 @@ type FormState = {
   establishingImageStatus?: LocationFixture["establishingImageStatus"];
   establishingImageError?: string;
   establishingImageJobId?: string;
+  views?: LocationView[];
 };
 
 const emptyForm: FormState = {
@@ -64,6 +65,7 @@ function fixtureToForm(fixture: LocationFixture): FormState {
     establishingImageStatus: fixture.establishingImageStatus,
     establishingImageError: fixture.establishingImageError,
     establishingImageJobId: fixture.establishingImageJobId,
+    views: fixture.views,
   };
 }
 
@@ -170,6 +172,10 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
         throw new Error(data?.error ?? "Couldn't check drawing progress.");
       }
       if (jobId && data.fixture.establishingImageJobId !== jobId) {
+        // The job finished (it clears its own job id on success) or a newer
+        // drawing superseded it. Either way, install the freshest fixture in
+        // state so a completed drawing is never lost until a manual reload.
+        upsertFixture(data.fixture);
         if (data.fixture.establishingImageUrl) return data.fixture;
         throw new Error("A newer drawing was started for this location.");
       }
@@ -240,7 +246,7 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
 
   async function uploadPhotos(
     selected: File[],
-    options?: { closeAfterQueued?: boolean }
+    options?: { closeAfterQueued?: boolean; viewLabel?: string }
   ): Promise<boolean> {
     if (!form) return false;
     if (selected.length === 0) return false;
@@ -262,6 +268,7 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
       const body = new FormData();
       for (const file of files) body.append("photos", file);
       body.append("photoConsent", "yes");
+      if (options?.viewLabel) body.append("viewLabel", options.viewLabel);
       const res = await fetch(`/api/location-fixtures/${fixtureId}/photo`, {
         method: "POST",
         body,
@@ -320,6 +327,58 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
     const uploaded = await uploadPhotos(cameraPhotos);
     if (uploaded) clearCameraPhotos();
   }
+
+  async function addPerspective(selected: File[]) {
+    if (!form?.id) {
+      setError("Save the place first, then add another angle.");
+      return;
+    }
+    const label = window
+      .prompt(
+        "Name this angle (e.g. Cot corner, Reading nook, Window side):",
+        ""
+      )
+      ?.trim();
+    if (!label) return;
+    await uploadPhotos(selected, { viewLabel: label });
+  }
+
+  async function removeView(view: LocationView) {
+    if (!form?.id) return;
+    if (!window.confirm(`Remove the "${view.label}" angle?`)) return;
+    const res = await fetch(
+      `/api/location-fixtures/${form.id}/photo?viewId=${encodeURIComponent(view.id)}`,
+      { method: "DELETE" }
+    );
+    const data = (await res.json().catch(() => null)) as {
+      fixture?: LocationFixture;
+    } | null;
+    if (res.ok && data?.fixture) {
+      upsertFixture(data.fixture);
+      setForm(fixtureToForm(data.fixture));
+    }
+  }
+
+  // Resume polling for any place whose drawing was still running when the page
+  // loaded (e.g. the parent navigated away and came back), so a background
+  // drawing that finishes while they're gone still appears without a reload.
+  const polledJobIds = useRef(new Set<string>());
+  useEffect(() => {
+    for (const fixture of fixtures) {
+      if (
+        isPendingLocationImage(fixture.establishingImageStatus) &&
+        fixture.establishingImageJobId &&
+        !polledJobIds.current.has(fixture.establishingImageJobId)
+      ) {
+        polledJobIds.current.add(fixture.establishingImageJobId);
+        void pollLocationPhotoJob(
+          fixture.id,
+          fixture.establishingImageJobId
+        ).catch(() => undefined);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fixtures]);
 
   return (
     <div>
@@ -514,10 +573,74 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                     />
                     <div className="border-t border-night-100 bg-white px-3 py-2">
                       <p className="text-xs font-bold uppercase tracking-[0.18em] text-night-400">
-                        Current illustration preview
+                        Primary illustration preview
                       </p>
                     </div>
                   </div>
+                ) : null}
+
+                {form.id && (form.views?.length ?? 0) > 1 ? (
+                  <div className="mt-3">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-night-400">
+                      Extra angles
+                    </p>
+                    <div className="mt-2 grid grid-cols-3 gap-2">
+                      {(form.views ?? [])
+                        .filter((view) => !view.isPrimary && view.imageUrl)
+                        .map((view) => (
+                          <div
+                            key={view.id}
+                            className="overflow-hidden rounded-xl border border-night-100 bg-night-50"
+                          >
+                            <Image
+                              src={view.imageUrl as string}
+                              alt={`${view.label} angle`}
+                              width={160}
+                              height={160}
+                              className="aspect-square w-full object-cover"
+                            />
+                            <div className="flex items-center justify-between gap-1 px-2 py-1">
+                              <span className="truncate text-[11px] font-bold text-night-600">
+                                {view.label}
+                              </span>
+                              <button
+                                type="button"
+                                aria-label={`Remove ${view.label} angle`}
+                                className="text-night-400 hover:text-blush-600"
+                                onClick={() => void removeView(view)}
+                              >
+                                <Icon name="trash" className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {form.id && form.establishingImageUrl ? (
+                  <label
+                    className={`mt-3 inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-night-200 px-3 py-1.5 text-sm font-bold text-night-700 ${
+                      uploading || saving
+                        ? "pointer-events-none opacity-60"
+                        : "hover:bg-night-50"
+                    }`}
+                  >
+                    <Icon name="plus" />
+                    Add another angle (optional)
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/jpeg,image/png,image/webp"
+                      className="sr-only"
+                      disabled={uploading || saving}
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        if (files.length > 0) void addPerspective(files);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
                 ) : null}
                 {isPendingLocationImage(form.establishingImageStatus) ? (
                   <p className="mt-3 rounded-xl bg-star-50 px-3 py-2 text-xs font-bold text-star-700">

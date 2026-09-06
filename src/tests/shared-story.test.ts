@@ -143,4 +143,42 @@ describe("shared story resolver", () => {
     ]);
     expect(shared?.narrationEnabled).toBe(true);
   });
+
+  it("revokes the share link when the story is delisted (rejected)", async () => {
+    await memoryDb.stories.create(createStory());
+    await memoryDb.bookProjects.create(
+      createProject({
+        assets: {
+          proofVersion: 1,
+          coverWebImageUrl: "https://assets.example.com/cover.jpg",
+        },
+      })
+    );
+    // Simulate admin delist: private + rejected, book art still ready.
+    await memoryDb.stories.update("story-1", {
+      visibility: "private",
+      publicReviewStatus: "rejected",
+    });
+
+    const { getSharedStoryByToken } = await import("@/lib/sharedStory");
+    expect(await getSharedStoryByToken("share-token")).toBeUndefined();
+  });
+
+  it("still serves an actively shared (share_link) story", async () => {
+    await memoryDb.stories.create(createStory());
+    await memoryDb.bookProjects.create(
+      createProject({
+        assets: {
+          proofVersion: 1,
+          coverWebImageUrl: "https://assets.example.com/cover.jpg",
+        },
+      })
+    );
+    await memoryDb.stories.update("story-1", { visibility: "share_link" });
+
+    const { getSharedStoryByToken } = await import("@/lib/sharedStory");
+    expect((await getSharedStoryByToken("share-token"))?.project?.id).toBe(
+      "book-1"
+    );
+  });
 });

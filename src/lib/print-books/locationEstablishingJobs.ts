@@ -2,11 +2,16 @@ import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
 import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
 import { generateLocationEstablishingFromPhotos } from "@/lib/print-books/locationEstablishing";
-import { deleteBookAssetUrls, storeBookAsset } from "@/lib/print-books/storage";
+import {
+  deleteTemporaryPrivateAssets,
+  readTemporaryPrivateAsset,
+  storeTemporaryPrivateAsset,
+} from "@/lib/print-books/storage";
 import type {
   LocationEstablishingStatus,
   LocationFixture,
   LocationBible,
+  LocationView,
   SceneLocation,
 } from "@/types/printBook";
 
@@ -18,106 +23,241 @@ export type LocationEstablishingJobData = {
   jobId: string;
   userId: string;
   target: LocationEstablishingTarget;
-  photoUrls: string[];
+  /** Private temporary asset refs (pathnames or inline data) for the photos. */
+  photoRefs: string[];
+  /** Optional perspective this job draws. Absent = the primary/only view. */
+  viewId?: string;
+  viewLabel?: string;
 };
 
-function isDataUrl(url: string): boolean {
-  return url.startsWith("data:");
-}
-
-function parseDataUrl(url: string): { body: Buffer; contentType: string } {
-  const match = url.match(/^data:([^;,]+)(?:;base64)?,(.*)$/);
-  if (!match) throw new Error("Temporary photo is unavailable");
-  const [, contentType, payload] = match;
-  return {
-    contentType: contentType || "image/png",
-    body: Buffer.from(decodeURIComponent(payload), "base64"),
-  };
-}
-
-async function fileFromUrl(url: string, index: number): Promise<File> {
-  if (isDataUrl(url)) {
-    const { body, contentType } = parseDataUrl(url);
-    const arrayBuffer = body.buffer.slice(
-      body.byteOffset,
-      body.byteOffset + body.byteLength
-    ) as ArrayBuffer;
-    return new File([arrayBuffer], `location-reference-${index + 1}.png`, {
-      type: contentType,
-    });
+/**
+ * A failure the scheduler should retry (e.g. a transient provider/network
+ * error). Throwing this from a worker lets Inngest re-run the step with the
+ * private input photos still intact, instead of the old behaviour of returning
+ * `{ status: "failed" }` (which the scheduler saw as success and never retried).
+ */
+export class RetryableLocationJobError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RetryableLocationJobError";
   }
+}
 
-  const response = await fetch(url);
-  if (!response.ok) throw new Error("Temporary photo is unavailable");
-  const contentType = response.headers.get("content-type") || "image/png";
-  return new File(
-    [await response.arrayBuffer()],
-    `location-reference-${index + 1}.png`,
-    {
-      type: contentType,
-    }
+function isRetryable(error: unknown): boolean {
+  if (error instanceof RetryableLocationJobError) return true;
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  return (
+    message.includes("timeout") ||
+    message.includes("timed out") ||
+    message.includes("network") ||
+    message.includes("econnreset") ||
+    message.includes("rate limit") ||
+    message.includes("etimedout") ||
+    message.includes("temporarily") ||
+    message.includes("503") ||
+    message.includes("502") ||
+    message.includes("429")
   );
 }
 
-async function loadPhotoFiles(photoUrls: string[]): Promise<File[]> {
-  return Promise.all(photoUrls.map((url, index) => fileFromUrl(url, index)));
+async function loadPhotoFiles(photoRefs: string[]): Promise<File[]> {
+  return Promise.all(
+    photoRefs.map(async (ref, index) => {
+      const { buffer, contentType } = await readTemporaryPrivateAsset(ref);
+      const arrayBuffer = buffer.buffer.slice(
+        buffer.byteOffset,
+        buffer.byteOffset + buffer.byteLength
+      ) as ArrayBuffer;
+      return new File([arrayBuffer], `location-reference-${index + 1}.png`, {
+        type: contentType,
+      });
+    })
+  );
 }
 
+/**
+ * Store uploaded room photos privately, tracking every object we successfully
+ * created so a partial-batch failure still cleans up rather than leaking a
+ * public family photo (the old flow uploaded publicly and only cleaned up from
+ * inside a later try block).
+ */
 export async function storeTemporaryLocationPhotos(input: {
   userId: string;
   jobId: string;
   files: File[];
   targetLabel: string;
 }): Promise<string[]> {
-  return Promise.all(
-    input.files.map(async (file, index) => {
+  const created: string[] = [];
+  try {
+    for (const [index, file] of input.files.entries()) {
       const extension = file.type.includes("webp")
         ? "webp"
         : file.type.includes("png")
           ? "png"
           : "jpg";
-      return storeBookAsset({
+      const { ref } = await storeTemporaryPrivateAsset({
         pathname: `tmp/location-establishing/${input.userId}/${input.jobId}/${input.targetLabel}-${index + 1}.${extension}`,
         body: await file.arrayBuffer(),
         contentType: file.type || "image/jpeg",
       });
-    })
+      created.push(ref);
+    }
+    return created;
+  } catch (err) {
+    await deleteTemporaryPrivateAssets(created).catch(() => undefined);
+    throw err;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// View helpers (multi-perspective support)
+// ---------------------------------------------------------------------------
+
+function upsertView(
+  views: LocationView[] | undefined,
+  view: LocationView
+): LocationView[] {
+  const existing = views ?? [];
+  const without = existing.filter((v) => v.id !== view.id);
+  const next = [...without, view];
+  // Exactly one primary. If none marked, the first becomes primary.
+  const hasPrimary = next.some((v) => v.isPrimary);
+  return next.map((v, index) => ({
+    ...v,
+    isPrimary: hasPrimary ? v.isPrimary === true : index === 0,
+  }));
+}
+
+function primaryImageUrl(views: LocationView[]): string | undefined {
+  return (
+    views.find((v) => v.isPrimary && v.imageUrl)?.imageUrl ??
+    views.find((v) => v.imageUrl)?.imageUrl
   );
 }
+
+// ---------------------------------------------------------------------------
+// Fixture target (atomic, compare-and-swap on job id)
+// ---------------------------------------------------------------------------
+
+async function markFixture(input: {
+  fixtureId: string;
+  jobId: string;
+  userId: string;
+  viewId?: string;
+  viewLabel?: string;
+  status: LocationEstablishingStatus;
+  error?: string;
+  establishingImageUrl?: string;
+}): Promise<LocationFixture | undefined> {
+  const fixture = await db.locationFixtures.getById(input.fixtureId);
+  if (!fixture || fixture.userId !== input.userId) return undefined;
+
+  // Queuing claims the fixture for this job. Any later transition must still own
+  // it, or a newer upload/deletion has superseded us.
+  if (
+    input.status !== "queued" &&
+    fixture.establishingImageJobId !== input.jobId
+  ) {
+    return undefined;
+  }
+
+  const viewId = input.viewId ?? "primary";
+  const priorView = fixture.views?.find((v) => v.id === viewId);
+  const nextView: LocationView = {
+    id: viewId,
+    label: input.viewLabel ?? priorView?.label ?? "Wide",
+    imageUrl:
+      input.status === "ready"
+        ? (input.establishingImageUrl ?? priorView?.imageUrl)
+        : priorView?.imageUrl,
+    status: input.status,
+    error: input.error,
+    jobId: input.status === "ready" ? undefined : input.jobId,
+    isPrimary: priorView?.isPrimary ?? (fixture.views ?? []).length === 0,
+    createdAt: priorView?.createdAt ?? new Date().toISOString(),
+  };
+  const views = upsertView(fixture.views, nextView);
+  const establishingImageUrl = primaryImageUrl(views);
+
+  const updates: Partial<LocationFixture> = {
+    views,
+    establishingImageUrl:
+      input.status === "ready"
+        ? establishingImageUrl
+        : fixture.establishingImageUrl,
+    referenceImageUrl:
+      input.status === "ready" && input.establishingImageUrl
+        ? undefined
+        : fixture.referenceImageUrl,
+    establishingImageStatus: input.status,
+    establishingImageError: input.error,
+    establishingImageJobId: input.status === "ready" ? undefined : input.jobId,
+  };
+
+  if (input.status === "queued") {
+    // First claim: an unconditional owner-scoped write is safe because no other
+    // job holds this fixture yet.
+    return db.locationFixtures.update(input.fixtureId, updates);
+  }
+  // Later transitions must win the compare-and-swap against the claimed job id.
+  return db.locationFixtures.updateIfJob(
+    input.fixtureId,
+    input.jobId,
+    input.userId,
+    updates
+  );
+}
+
+async function getFixtureForJob(input: {
+  fixtureId: string;
+  jobId: string;
+  userId: string;
+}): Promise<LocationFixture | undefined> {
+  const fixture = await db.locationFixtures.getById(input.fixtureId);
+  if (!fixture || fixture.userId !== input.userId) return undefined;
+  if (fixture.establishingImageJobId !== input.jobId) return undefined;
+  return fixture;
+}
+
+// ---------------------------------------------------------------------------
+// Book-location target
+// ---------------------------------------------------------------------------
 
 function withLocationStatus(
   location: SceneLocation,
   updates: {
-    status?: LocationEstablishingStatus;
+    status: LocationEstablishingStatus;
     error?: string;
     jobId?: string;
     establishingImageUrl?: string;
-    clearImage?: boolean;
   }
 ): SceneLocation {
+  const drewImage =
+    updates.status === "ready" && Boolean(updates.establishingImageUrl);
   return {
     ...location,
-    establishingImageUrl: updates.clearImage
-      ? undefined
-      : (updates.establishingImageUrl ?? location.establishingImageUrl),
-    referenceImageUrl: updates.establishingImageUrl
-      ? undefined
-      : location.referenceImageUrl,
+    establishingImageUrl: drewImage
+      ? updates.establishingImageUrl
+      : location.establishingImageUrl,
+    referenceImageUrl: drewImage ? undefined : location.referenceImageUrl,
+    // A drawn book-location image is a book-specific correction; protect it from
+    // later fixture re-application.
+    hasBookOverrides: drewImage ? true : location.hasBookOverrides,
     establishingImageStatus: updates.status,
     establishingImageError: updates.error,
-    establishingImageJobId: updates.jobId,
+    establishingImageJobId:
+      updates.status === "ready" ? undefined : updates.jobId,
   };
 }
 
-async function updateBookLocation(input: {
+async function markBookLocation(input: {
   projectId: string;
   locationId: string;
   jobId: string;
   userId: string;
-  status?: LocationEstablishingStatus;
+  status: LocationEstablishingStatus;
   error?: string;
   establishingImageUrl?: string;
-  clearImage?: boolean;
 }): Promise<SceneLocation | undefined> {
   const project = await db.bookProjects.getById(input.projectId);
   if (!project || project.userId !== input.userId) return undefined;
@@ -134,9 +274,8 @@ async function updateBookLocation(input: {
   const nextLocation = withLocationStatus(location, {
     status: input.status,
     error: input.error,
-    jobId: input.status === "ready" ? undefined : input.jobId,
+    jobId: input.jobId,
     establishingImageUrl: input.establishingImageUrl,
-    clearImage: input.clearImage,
   });
   const nextBible: LocationBible = {
     ...bible,
@@ -148,7 +287,7 @@ async function updateBookLocation(input: {
   return nextLocation;
 }
 
-async function getBookLocation(input: {
+async function getBookLocationForJob(input: {
   projectId: string;
   locationId: string;
   jobId: string;
@@ -159,76 +298,37 @@ async function getBookLocation(input: {
   const location = project.locationBible?.locations.find(
     (loc) => loc.id === input.locationId
   );
-  if (!location) return undefined;
-  if (location.establishingImageJobId !== input.jobId) {
+  if (!location || location.establishingImageJobId !== input.jobId) {
     return undefined;
   }
   return location;
 }
 
-async function updateFixtureStatus(input: {
-  fixtureId: string;
-  jobId: string;
-  userId: string;
-  status?: LocationEstablishingStatus;
-  error?: string;
-  establishingImageUrl?: string;
-  clearImage?: boolean;
-}): Promise<LocationFixture | undefined> {
-  const fixture = await db.locationFixtures.getById(input.fixtureId);
-  if (!fixture || fixture.userId !== input.userId) return undefined;
-  if (
-    input.status !== "queued" &&
-    fixture.establishingImageJobId !== input.jobId
-  ) {
-    return undefined;
-  }
-  return db.locationFixtures.update(input.fixtureId, {
-    establishingImageUrl: input.clearImage
-      ? undefined
-      : (input.establishingImageUrl ?? fixture.establishingImageUrl),
-    referenceImageUrl: input.establishingImageUrl
-      ? undefined
-      : fixture.referenceImageUrl,
-    establishingImageStatus: input.status,
-    establishingImageError: input.error,
-    establishingImageJobId: input.status === "ready" ? undefined : input.jobId,
-  });
-}
-
-async function getFixture(input: {
-  fixtureId: string;
-  jobId: string;
-  userId: string;
-}): Promise<LocationFixture | undefined> {
-  const fixture = await db.locationFixtures.getById(input.fixtureId);
-  if (!fixture || fixture.userId !== input.userId) return undefined;
-  if (fixture.establishingImageJobId !== input.jobId) {
-    return undefined;
-  }
-  return fixture;
-}
+// ---------------------------------------------------------------------------
+// Unified target dispatch
+// ---------------------------------------------------------------------------
 
 async function markTarget(
   input: LocationEstablishingJobData & {
-    status?: LocationEstablishingStatus;
+    status: LocationEstablishingStatus;
     error?: string;
     establishingImageUrl?: string;
   }
-): Promise<void> {
+): Promise<LocationFixture | SceneLocation | undefined> {
   if (input.target.kind === "location_fixture") {
-    await updateFixtureStatus({
+    return markFixture({
       fixtureId: input.target.fixtureId,
       userId: input.userId,
       jobId: input.jobId,
+      viewId: input.viewId,
+      viewLabel: input.viewLabel,
       status: input.status,
       error: input.error,
       establishingImageUrl: input.establishingImageUrl,
     });
-    return;
   }
 
-  await updateBookLocation({
+  return markBookLocation({
     projectId: input.target.projectId,
     locationId: input.target.locationId,
     userId: input.userId,
@@ -243,14 +343,13 @@ async function getTargetLocation(
   input: LocationEstablishingJobData
 ): Promise<SceneLocation | LocationFixture | undefined> {
   if (input.target.kind === "location_fixture") {
-    return getFixture({
+    return getFixtureForJob({
       fixtureId: input.target.fixtureId,
       userId: input.userId,
       jobId: input.jobId,
     });
   }
-
-  return getBookLocation({
+  return getBookLocationForJob({
     projectId: input.target.projectId,
     locationId: input.target.locationId,
     userId: input.userId,
@@ -263,9 +362,11 @@ export async function enqueueLocationEstablishingJob(input: {
   target: LocationEstablishingTarget;
   files: File[];
   targetLabel: string;
-}): Promise<{ jobId: string; photoUrls: string[] }> {
+  viewId?: string;
+  viewLabel?: string;
+}): Promise<{ jobId: string; photoRefs: string[] }> {
   const jobId = randomUUID();
-  const photoUrls = await storeTemporaryLocationPhotos({
+  const photoRefs = await storeTemporaryLocationPhotos({
     userId: input.userId,
     jobId,
     files: input.files,
@@ -276,7 +377,9 @@ export async function enqueueLocationEstablishingJob(input: {
     jobId,
     userId: input.userId,
     target: input.target,
-    photoUrls,
+    photoRefs,
+    viewId: input.viewId,
+    viewLabel: input.viewLabel,
   };
 
   try {
@@ -291,46 +394,73 @@ export async function enqueueLocationEstablishingJob(input: {
       status: "failed",
       error: "Could not start background drawing. Please try again.",
     }).catch(() => undefined);
-    await deleteBookAssetUrls(photoUrls).catch(() => 0);
+    await deleteTemporaryPrivateAssets(photoRefs).catch(() => undefined);
     throw err;
   }
 
-  return { jobId, photoUrls };
+  return { jobId, photoRefs };
 }
 
+/**
+ * Draw the establishing illustration for one location perspective.
+ *
+ * On a transient failure this throws (retryable) and leaves the private input
+ * photos in place so Inngest can retry. Terminal failure and the final cleanup
+ * are handled here or via {@link finalizeFailedLocationJob} (called from the
+ * Inngest onFailure handler) so photos are never deleted before retries are
+ * exhausted.
+ */
 export async function processLocationEstablishingJob(
   input: LocationEstablishingJobData
 ): Promise<{ jobId: string; status: LocationEstablishingStatus | "stale" }> {
-  try {
-    await markTarget({ ...input, status: "running", error: undefined });
-    const location = await getTargetLocation(input);
-    if (!location) return { jobId: input.jobId, status: "stale" };
-
-    const files = await loadPhotoFiles(input.photoUrls);
-    const { establishingImageUrl } =
-      await generateLocationEstablishingFromPhotos({
-        location,
-        files,
-        pathnamePrefix:
-          input.target.kind === "location_fixture"
-            ? `location-fixtures/${input.userId}/${input.target.fixtureId}`
-            : `book-locations/${input.userId}/${input.target.projectId}/${input.target.locationId}`,
-      });
-
-    await markTarget({
-      ...input,
-      status: "ready",
-      error: undefined,
-      establishingImageUrl,
-    });
-    return { jobId: input.jobId, status: "ready" };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Generation failed";
-    await markTarget({ ...input, status: "failed", error: message }).catch(
-      () => undefined
-    );
-    return { jobId: input.jobId, status: "failed" };
-  } finally {
-    await deleteBookAssetUrls(input.photoUrls).catch(() => 0);
+  await markTarget({ ...input, status: "running", error: undefined });
+  const location = await getTargetLocation(input);
+  if (!location) {
+    // Superseded or removed: nothing to draw. Clean up inputs.
+    await deleteTemporaryPrivateAssets(input.photoRefs).catch(() => undefined);
+    return { jobId: input.jobId, status: "stale" };
   }
+
+  let establishingImageUrl: string;
+  try {
+    const files = await loadPhotoFiles(input.photoRefs);
+    ({ establishingImageUrl } = await generateLocationEstablishingFromPhotos({
+      location,
+      files,
+      pathnamePrefix:
+        input.target.kind === "location_fixture"
+          ? `location-fixtures/${input.userId}/${input.target.fixtureId}${
+              input.viewId ? `-${input.viewId}` : ""
+            }`
+          : `book-locations/${input.userId}/${input.target.projectId}/${input.target.locationId}`,
+    }));
+  } catch (err) {
+    if (isRetryable(err)) {
+      // Keep inputs; let the scheduler retry this step.
+      throw err instanceof Error ? err : new Error(String(err));
+    }
+    const message = err instanceof Error ? err.message : "Generation failed";
+    await finalizeFailedLocationJob(input, message);
+    return { jobId: input.jobId, status: "failed" };
+  }
+
+  await markTarget({
+    ...input,
+    status: "ready",
+    error: undefined,
+    establishingImageUrl,
+  });
+  await deleteTemporaryPrivateAssets(input.photoRefs).catch(() => undefined);
+  return { jobId: input.jobId, status: "ready" };
+}
+
+/** Record terminal failure and clean up private inputs (retries exhausted). */
+export async function finalizeFailedLocationJob(
+  input: LocationEstablishingJobData,
+  message: string
+): Promise<void> {
+  await markTarget({ ...input, status: "failed", error: message }).catch(
+    () => undefined
+  );
+  await deleteTemporaryPrivateAssets(input.photoRefs).catch(() => undefined);
 }

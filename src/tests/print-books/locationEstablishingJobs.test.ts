@@ -2,14 +2,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LocationFixture } from "@/types/printBook";
 
 const {
-  mockDeleteBookAssetUrls,
+  mockDeleteTemporaryPrivateAssets,
+  mockReadTemporaryPrivateAsset,
+  mockStoreTemporaryPrivateAsset,
   mockGenerateLocationEstablishingFromPhotos,
   mockInngestSend,
   fixtureStore,
 } = vi.hoisted(() => ({
-  mockDeleteBookAssetUrls: vi.fn(async () => 1),
+  mockDeleteTemporaryPrivateAssets: vi.fn(async () => undefined),
+  mockReadTemporaryPrivateAsset: vi.fn(async () => ({
+    buffer: Buffer.from([1, 2, 3, 4]),
+    contentType: "image/png",
+  })),
+  mockStoreTemporaryPrivateAsset: vi.fn(
+    async (input: { pathname: string }) => ({
+      ref: input.pathname,
+      isInline: false,
+    })
+  ),
   mockGenerateLocationEstablishingFromPhotos: vi.fn(async () => ({
-    establishingImageUrl: "https://blob.example/location.jpg",
+    establishingImageUrl: "https://acct.blob.vercel-storage.com/location.jpg",
   })),
   mockInngestSend: vi.fn(async () => undefined),
   fixtureStore: new Map<string, LocationFixture>(),
@@ -28,8 +40,9 @@ vi.mock("@/lib/print-books/locationEstablishing", () => ({
 }));
 
 vi.mock("@/lib/print-books/storage", () => ({
-  deleteBookAssetUrls: mockDeleteBookAssetUrls,
-  storeBookAsset: vi.fn(async () => "data:image/png;base64,AAAA"),
+  deleteTemporaryPrivateAssets: mockDeleteTemporaryPrivateAssets,
+  readTemporaryPrivateAsset: mockReadTemporaryPrivateAsset,
+  storeTemporaryPrivateAsset: mockStoreTemporaryPrivateAsset,
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -43,15 +56,32 @@ vi.mock("@/lib/db", () => ({
         fixtureStore.set(id, next);
         return next;
       }),
+      updateIfJob: vi.fn(
+        async (
+          id: string,
+          expectedJobId: string,
+          userId: string,
+          updates: Partial<LocationFixture>
+        ) => {
+          const current = fixtureStore.get(id);
+          if (
+            !current ||
+            current.userId !== userId ||
+            current.establishingImageJobId !== expectedJobId
+          ) {
+            return undefined;
+          }
+          const next = { ...current, ...updates };
+          fixtureStore.set(id, next);
+          return next;
+        }
+      ),
     },
-    bookProjects: {
-      getById: vi.fn(),
-      update: vi.fn(),
-    },
+    bookProjects: { getById: vi.fn(), update: vi.fn() },
   },
 }));
 
-function makeFixture(): LocationFixture {
+function makeFixture(overrides: Partial<LocationFixture> = {}): LocationFixture {
   return {
     id: "fixture-1",
     userId: "user-1",
@@ -65,45 +95,158 @@ function makeFixture(): LocationFixture {
     updatedAt: "2026-08-25T00:00:00.000Z",
     establishingImageStatus: "queued",
     establishingImageJobId: "job-1",
+    ...overrides,
   };
 }
 
 describe("processLocationEstablishingJob", () => {
   beforeEach(() => {
-    vi.resetModules();
     vi.clearAllMocks();
     fixtureStore.clear();
     fixtureStore.set("fixture-1", makeFixture());
   });
 
-  it("finishes a fixture job after the request is gone and deletes temporary photos", async () => {
-    const { processLocationEstablishingJob } =
-      await import("@/lib/print-books/locationEstablishingJobs");
+  it("finishes a fixture job, publishes the primary view, and deletes private photos", async () => {
+    const { processLocationEstablishingJob } = await import(
+      "@/lib/print-books/locationEstablishingJobs"
+    );
 
     await expect(
       processLocationEstablishingJob({
         jobId: "job-1",
         userId: "user-1",
         target: { kind: "location_fixture", fixtureId: "fixture-1" },
-        photoUrls: ["data:image/png;base64,AAAA"],
+        photoRefs: ["tmp/location-establishing/user-1/job-1/fixture-1.png"],
       })
     ).resolves.toEqual({ jobId: "job-1", status: "ready" });
 
-    expect(mockGenerateLocationEstablishingFromPhotos).toHaveBeenCalledWith(
-      expect.objectContaining({
-        location: expect.objectContaining({ id: "fixture-1" }),
-        files: expect.arrayContaining([expect.any(File)]),
-        pathnamePrefix: "location-fixtures/user-1/fixture-1",
+    const saved = fixtureStore.get("fixture-1")!;
+    expect(saved.establishingImageUrl).toBe(
+      "https://acct.blob.vercel-storage.com/location.jpg"
+    );
+    expect(saved.establishingImageStatus).toBe("ready");
+    expect(saved.establishingImageJobId).toBeUndefined();
+    expect(saved.views).toHaveLength(1);
+    expect(saved.views?.[0]).toMatchObject({
+      isPrimary: true,
+      imageUrl: "https://acct.blob.vercel-storage.com/location.jpg",
+    });
+    expect(mockDeleteTemporaryPrivateAssets).toHaveBeenCalledWith([
+      "tmp/location-establishing/user-1/job-1/fixture-1.png",
+    ]);
+  });
+
+  it("does NOT overwrite a fixture claimed by a newer job (CAS loses)", async () => {
+    // A newer upload changed the job id after this job was queued.
+    fixtureStore.set(
+      "fixture-1",
+      makeFixture({ establishingImageJobId: "job-2" })
+    );
+    const { processLocationEstablishingJob } = await import(
+      "@/lib/print-books/locationEstablishingJobs"
+    );
+
+    const result = await processLocationEstablishingJob({
+      jobId: "job-1",
+      userId: "user-1",
+      target: { kind: "location_fixture", fixtureId: "fixture-1" },
+      photoRefs: ["tmp/x.png"],
+    });
+
+    // Superseded before drawing: reported stale, newer job's state untouched.
+    expect(result.status).toBe("stale");
+    const saved = fixtureStore.get("fixture-1")!;
+    expect(saved.establishingImageJobId).toBe("job-2");
+    expect(saved.establishingImageUrl).toBeUndefined();
+  });
+
+  it("rethrows a transient failure so the scheduler retries, keeping photos", async () => {
+    mockGenerateLocationEstablishingFromPhotos.mockRejectedValueOnce(
+      new Error("network timeout while drawing")
+    );
+    const { processLocationEstablishingJob } = await import(
+      "@/lib/print-books/locationEstablishingJobs"
+    );
+
+    await expect(
+      processLocationEstablishingJob({
+        jobId: "job-1",
+        userId: "user-1",
+        target: { kind: "location_fixture", fixtureId: "fixture-1" },
+        photoRefs: ["tmp/keep.png"],
+      })
+    ).rejects.toThrow(/timeout/i);
+
+    // Inputs are NOT deleted on a retryable failure.
+    expect(mockDeleteTemporaryPrivateAssets).not.toHaveBeenCalled();
+  });
+
+  it("records terminal failure and cleans up on a non-retryable error", async () => {
+    mockGenerateLocationEstablishingFromPhotos.mockRejectedValueOnce(
+      new Error("content policy violation")
+    );
+    const { processLocationEstablishingJob } = await import(
+      "@/lib/print-books/locationEstablishingJobs"
+    );
+
+    const result = await processLocationEstablishingJob({
+      jobId: "job-1",
+      userId: "user-1",
+      target: { kind: "location_fixture", fixtureId: "fixture-1" },
+      photoRefs: ["tmp/gone.png"],
+    });
+
+    expect(result.status).toBe("failed");
+    expect(fixtureStore.get("fixture-1")!.establishingImageStatus).toBe(
+      "failed"
+    );
+    expect(mockDeleteTemporaryPrivateAssets).toHaveBeenCalledWith(["tmp/gone.png"]);
+  });
+
+  it("adds a second perspective as an extra view while keeping the primary", async () => {
+    fixtureStore.set(
+      "fixture-1",
+      makeFixture({
+        establishingImageJobId: "job-2",
+        establishingImageUrl: "https://acct.blob.vercel-storage.com/wide.jpg",
+        views: [
+          {
+            id: "primary",
+            label: "Wide",
+            imageUrl: "https://acct.blob.vercel-storage.com/wide.jpg",
+            isPrimary: true,
+            status: "ready",
+          },
+        ],
       })
     );
-    expect(fixtureStore.get("fixture-1")).toMatchObject({
-      establishingImageUrl: "https://blob.example/location.jpg",
-      establishingImageStatus: "ready",
-      establishingImageJobId: undefined,
-      referenceImageUrl: undefined,
+    mockGenerateLocationEstablishingFromPhotos.mockResolvedValueOnce({
+      establishingImageUrl: "https://acct.blob.vercel-storage.com/cot.jpg",
     });
-    expect(mockDeleteBookAssetUrls).toHaveBeenCalledWith([
-      "data:image/png;base64,AAAA",
-    ]);
+    const { processLocationEstablishingJob } = await import(
+      "@/lib/print-books/locationEstablishingJobs"
+    );
+
+    await processLocationEstablishingJob({
+      jobId: "job-2",
+      userId: "user-1",
+      target: { kind: "location_fixture", fixtureId: "fixture-1" },
+      photoRefs: ["tmp/cot.png"],
+      viewId: "cot-corner",
+      viewLabel: "Cot corner",
+    });
+
+    const saved = fixtureStore.get("fixture-1")!;
+    expect(saved.views).toHaveLength(2);
+    // Primary is unchanged; the new angle is a non-primary extra view.
+    expect(saved.establishingImageUrl).toBe(
+      "https://acct.blob.vercel-storage.com/wide.jpg"
+    );
+    const cot = saved.views?.find((v) => v.id === "cot-corner");
+    expect(cot).toMatchObject({
+      label: "Cot corner",
+      imageUrl: "https://acct.blob.vercel-storage.com/cot.jpg",
+      isPrimary: false,
+    });
   });
 });

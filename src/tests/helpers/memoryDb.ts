@@ -14,7 +14,12 @@ export function createMemoryDb() {
   const bookBuildJobMap = new Map<string, BookBuildJob>();
   const printOrderMap = new Map<string, PrintOrderRecord>();
   const emailClaimSet = new Set<string>();
-  const processedWebhookEventSet = new Set<string>();
+  const processedWebhookEventLeases = new Map<
+    string,
+    { status: "pending" | "done"; leaseExpiresAt: number }
+  >();
+  const userCreditsMap = new Map<string, number>();
+  const creditLedgerDedupeKeys = new Set<string>();
 
   const db = {
     _reset() {
@@ -26,7 +31,9 @@ export function createMemoryDb() {
       bookBuildJobMap.clear();
       printOrderMap.clear();
       emailClaimSet.clear();
-      processedWebhookEventSet.clear();
+      processedWebhookEventLeases.clear();
+      userCreditsMap.clear();
+      creditLedgerDedupeKeys.clear();
     },
 
     profiles: {
@@ -387,13 +394,63 @@ export function createMemoryDb() {
     },
 
     processedWebhookEvents: {
-      async claim(id: string): Promise<boolean> {
-        if (processedWebhookEventSet.has(id)) return false;
-        processedWebhookEventSet.add(id);
-        return true;
+      async claim(
+        id: string,
+        _source?: string,
+        _leaseMs?: number
+      ): Promise<boolean> {
+        const existing = processedWebhookEventLeases.get(id);
+        const now = Date.now();
+        if (!existing) {
+          processedWebhookEventLeases.set(id, {
+            status: "pending",
+            leaseExpiresAt: now + 5 * 60 * 1000,
+          });
+          return true;
+        }
+        if (existing.status === "pending" && existing.leaseExpiresAt < now) {
+          existing.leaseExpiresAt = now + 5 * 60 * 1000;
+          return true;
+        }
+        return false;
+      },
+      async markDone(id: string): Promise<void> {
+        const existing = processedWebhookEventLeases.get(id);
+        if (existing) existing.status = "done";
       },
       async release(id: string): Promise<void> {
-        processedWebhookEventSet.delete(id);
+        processedWebhookEventLeases.delete(id);
+      },
+    },
+
+    userCredits: {
+      async getBalance(userId: string): Promise<number | undefined> {
+        return userCreditsMap.get(userId);
+      },
+      async ensureSeeded(userId: string, seed: number): Promise<number> {
+        const existing = userCreditsMap.get(userId);
+        if (typeof existing === "number") return existing;
+        const value = Math.max(0, seed);
+        userCreditsMap.set(userId, value);
+        return value;
+      },
+      async applyDelta(input: {
+        userId: string;
+        delta: number;
+        reason: string;
+        dedupeKey: string;
+      }): Promise<{ balance: number; applied: boolean }> {
+        if (creditLedgerDedupeKeys.has(input.dedupeKey)) {
+          return {
+            balance: userCreditsMap.get(input.userId) ?? 0,
+            applied: false,
+          };
+        }
+        creditLedgerDedupeKeys.add(input.dedupeKey);
+        const current = userCreditsMap.get(input.userId) ?? 0;
+        const balance = Math.max(0, current + input.delta);
+        userCreditsMap.set(input.userId, balance);
+        return { balance, applied: true };
       },
     },
   };

@@ -86,21 +86,35 @@ export function suggestFixtureMatches(
   return suggestions;
 }
 
-/** Copy a saved fixture's ground-truth onto a story location (keeps location id/page mapping). */
+/**
+ * Copy a saved fixture's ground-truth onto a story location and record the
+ * explicit binding (`fixtureId`). When the location already carries
+ * book-specific overrides, those parent corrections (notes and establishing
+ * image) are preserved rather than being replaced by library defaults, so
+ * rebuilding a book never silently reverts an edit.
+ */
 export function applyFixtureToLocation(
   location: SceneLocation,
   fixture: LocationFixture
 ): SceneLocation {
+  const preserveOverrides = location.hasBookOverrides === true;
   return {
     ...location,
+    fixtureId: fixture.id,
     place: fixture.place || location.place,
     area: fixture.area ?? location.area,
     name: locationFixtureName(fixture),
     summary: fixture.summary || location.summary,
-    notes: fixture.notes ?? location.notes,
+    notes: preserveOverrides
+      ? (location.notes ?? fixture.notes)
+      : (fixture.notes ?? location.notes),
     referenceImageUrl: fixture.referenceImageUrl ?? location.referenceImageUrl,
-    establishingImageUrl:
-      fixture.establishingImageUrl ?? location.establishingImageUrl,
+    establishingImageUrl: preserveOverrides
+      ? (location.establishingImageUrl ?? fixture.establishingImageUrl)
+      : (fixture.establishingImageUrl ?? location.establishingImageUrl),
+    views: preserveOverrides
+      ? (location.views ?? fixture.views)
+      : (fixture.views ?? location.views),
     fixedElements: fixture.fixedElements.length
       ? fixture.fixedElements
       : location.fixedElements,

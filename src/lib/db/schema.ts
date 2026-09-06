@@ -30,6 +30,7 @@ import type {
   PrintOrderRecord,
   CharacterBible,
   LocationBible,
+  LocationView,
   BookProjectStatus,
   BookBuildMode,
   BookBuildJobStatus,
@@ -436,6 +437,7 @@ export const locationFixtures = pgTable(
     >(),
     establishingImageError: text("establishing_image_error"),
     establishingImageJobId: text("establishing_image_job_id"),
+    views: jsonb("views").$type<LocationView[]>().notNull().default([]),
     fixedElements: jsonb("fixed_elements")
       .$type<string[]>()
       .notNull()
@@ -455,8 +457,40 @@ export const processedWebhookEvents = pgTable(
     id: text("id").primaryKey(),
     source: text("source").notNull(),
     createdAt: text("created_at").notNull(),
+    // Lease state so a worker that dies between claiming and finishing does not
+    // permanently strand an event: 'pending' rows whose lease has expired can be
+    // re-claimed; only 'done' rows are treated as real duplicates.
+    status: text("status").notNull().default("done"),
+    leaseExpiresAt: text("lease_expires_at"),
   },
   (t) => [index("processed_webhook_events_source_idx").on(t.source)]
+);
+
+// Authoritative per-user credit balance (opt-in via CREDIT_LEDGER_ENABLED).
+// The balance lives in one row and is mutated with atomic single-statement
+// UPDATEs so concurrent operations cannot lose updates the way Clerk-metadata
+// read-modify-write does.
+export const userCredits = pgTable("user_credits", {
+  userId: text("user_id").primaryKey(),
+  credits: integer("credits").notNull().default(0),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// Append-only audit + idempotency log for every credit change. `dedupeKey` is
+// unique, so a grant/charge tagged with a stable key is applied at most once
+// even under retries or webhook redelivery.
+export const creditLedger = pgTable(
+  "credit_ledger",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    delta: integer("delta").notNull(),
+    reason: text("reason").notNull(),
+    dedupeKey: text("dedupe_key").notNull().unique(),
+    balanceAfter: integer("balance_after").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [index("credit_ledger_user_id_idx").on(t.userId)]
 );
 
 export const publicStoryModerationEvents = pgTable(

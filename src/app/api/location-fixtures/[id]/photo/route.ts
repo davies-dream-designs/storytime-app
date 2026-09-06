@@ -83,12 +83,28 @@ export async function POST(
     }
   }
 
+  // Optional perspective: absent keeps the single primary-view behaviour.
+  const rawViewLabel = form.get("viewLabel");
+  const viewLabel =
+    typeof rawViewLabel === "string" && rawViewLabel.trim()
+      ? rawViewLabel.trim().slice(0, 40)
+      : undefined;
+  const rawViewId = form.get("viewId");
+  const viewId =
+    typeof rawViewId === "string" && rawViewId.trim()
+      ? rawViewId.trim().slice(0, 60)
+      : viewLabel
+        ? `view-${crypto.randomUUID()}`
+        : undefined;
+
   try {
     const { jobId } = await enqueueLocationEstablishingJob({
       userId,
       target: { kind: "location_fixture", fixtureId: id },
       files: photos,
       targetLabel: "fixture",
+      viewId,
+      viewLabel,
     });
     const queued = await db.locationFixtures.getById(id);
     return NextResponse.json(
@@ -107,7 +123,7 @@ export async function POST(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { userId } = await auth();
@@ -121,12 +137,37 @@ export async function DELETE(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  // Delete a single perspective when ?viewId= is provided; otherwise clear all
+  // establishing art for the place.
+  const viewId = req.nextUrl.searchParams.get("viewId");
+  if (viewId && fixture.views?.length) {
+    const remaining = fixture.views.filter((v) => v.id !== viewId);
+    const normalized = remaining.map((v, index) => ({
+      ...v,
+      isPrimary: remaining.some((r) => r.isPrimary)
+        ? v.isPrimary === true
+        : index === 0,
+    }));
+    const primary =
+      normalized.find((v) => v.isPrimary && v.imageUrl)?.imageUrl ??
+      normalized.find((v) => v.imageUrl)?.imageUrl;
+    const updated = await db.locationFixtures.update(id, {
+      views: normalized.length ? normalized : undefined,
+      establishingImageUrl: primary,
+      establishingImageStatus: primary ? "ready" : undefined,
+      establishingImageError: undefined,
+      establishingImageJobId: undefined,
+    });
+    return NextResponse.json({ fixture: updated });
+  }
+
   const updated = await db.locationFixtures.update(id, {
     establishingImageUrl: undefined,
     referenceImageUrl: undefined,
     establishingImageStatus: undefined,
     establishingImageError: undefined,
     establishingImageJobId: undefined,
+    views: undefined,
   });
   return NextResponse.json({ fixture: updated });
 }

@@ -44,6 +44,7 @@ const mockDb = {
   },
   processedWebhookEvents: {
     claim: vi.fn(),
+    markDone: vi.fn(),
     release: vi.fn(),
   },
 };
@@ -181,6 +182,7 @@ describe("Stripe checkout webhook", () => {
     mockDb.printOrders.getByCheckoutSessionId.mockResolvedValue(undefined);
     mockDb.printOrders.update.mockResolvedValue(undefined);
     mockDb.processedWebhookEvents.claim.mockResolvedValue(true);
+    mockDb.processedWebhookEvents.markDone.mockResolvedValue(undefined);
     mockDb.processedWebhookEvents.release.mockResolvedValue(undefined);
     mockDb.stories.getById.mockResolvedValue({ title: "Moonlight Garden" });
     mockGetUser.mockResolvedValue({
@@ -641,5 +643,70 @@ describe("Stripe checkout webhook", () => {
     expect(mockDb.processedWebhookEvents.release).toHaveBeenCalledWith(
       "evt_fail_1"
     );
+  });
+
+  it("releases the claim (so Stripe retries) when fulfillment enqueue fails, never stranding a paid order", async () => {
+    mockDb.bookProjects.getById.mockResolvedValue({
+      ...createProject(),
+      printOrder: {
+        productKey: "hardcover",
+        productLabel: "Hardcover",
+        provider: "Lulu",
+        format: '8.5" square hardcover casewrap',
+        status: "checkout_started",
+        amountAud: 59.5,
+        subtotalAud: 44.35,
+        shippingAmountAud: 15.15,
+        pageCount: 24,
+        checkoutSessionId: "cs_test_123",
+      },
+    });
+    mockInngestSend.mockRejectedValueOnce(new Error("inngest unavailable"));
+    mockConstructEvent.mockReturnValue({
+      id: "evt_enqueue_fail",
+      type: "checkout.session.completed",
+      data: { object: createCheckoutSession() },
+    });
+    mockRetrieveSession.mockResolvedValue(createCheckoutSession());
+
+    const { POST } = await import("@/app/api/stripe/webhook/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/stripe/webhook", {
+        method: "POST",
+        headers: { "stripe-signature": "sig_test" },
+        body: "{}",
+      })
+    );
+
+    expect(res.status).toBe(500);
+    expect(mockDb.processedWebhookEvents.release).toHaveBeenCalledWith(
+      "evt_enqueue_fail"
+    );
+    // A failed handler must NOT finalize the lease, so redelivery can retry.
+    expect(mockDb.processedWebhookEvents.markDone).not.toHaveBeenCalled();
+  });
+
+  it("finalizes the event lease (markDone) only after successful processing", async () => {
+    mockConstructEvent.mockReturnValue({
+      id: "evt_success_lease",
+      type: "checkout.session.completed",
+      data: { object: createCheckoutSession() },
+    });
+    mockRetrieveSession.mockResolvedValue(createCheckoutSession());
+
+    const { POST } = await import("@/app/api/stripe/webhook/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/stripe/webhook", {
+        method: "POST",
+        headers: { "stripe-signature": "sig_test" },
+        body: "{}",
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockDb.processedWebhookEvents.markDone).toHaveBeenCalledWith(
+      "evt_success_lease"
+    );
+    expect(mockDb.processedWebhookEvents.release).not.toHaveBeenCalled();
   });
 });

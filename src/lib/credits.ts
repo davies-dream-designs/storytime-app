@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import {
   estimateIllustratedBookCredits,
   REFERENCE_REDO_CREDIT_COST,
+  STORY_CREDIT_COST,
 } from "@/lib/pricing";
 import { getStorycotIllustrationCountForAgeBand } from "@/lib/print-books/printProducts";
 import type { BookBilling, BookProject } from "@/types/printBook";
@@ -39,6 +40,29 @@ export async function adjustUserCredits(
   const user = await client.users.getUser(userId);
   const currentCredits = getCredits(user.privateMetadata.credits);
   const next = Math.max(0, currentCredits + delta);
+  await client.users.updateUserMetadata(userId, {
+    privateMetadata: { credits: next },
+  });
+  return next;
+}
+
+/**
+ * Debit one story-generation credit using a fresh read of the current balance
+ * (never a stale value captured earlier in the request). Idempotency is the
+ * caller's responsibility via `stories.creditChargedAt` — this only performs the
+ * balance math against the latest Clerk value, clamped at zero.
+ *
+ * Returns the new balance, or `null` when the debit could not be applied (the
+ * caller decides whether to surface a reconcile event).
+ */
+export async function chargeStoryGenerationCredit(
+  userId: string
+): Promise<number | null> {
+  const client = await clerkClient();
+  const fresh = await client.users.getUser(userId);
+  if (fresh.privateMetadata.isAdmin === true) return null;
+  const current = getCredits(fresh.privateMetadata.credits);
+  const next = Math.max(0, current - STORY_CREDIT_COST);
   await client.users.updateUserMetadata(userId, {
     privateMetadata: { credits: next },
   });

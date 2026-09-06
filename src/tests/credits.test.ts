@@ -244,3 +244,48 @@ describe("affordability pre-checks (charge-after-delivery guards)", () => {
     expect(mockUpdateUserMetadata).not.toHaveBeenCalled();
   });
 });
+
+describe("chargeStoryGenerationCredit", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  it("debits one credit from a fresh read and returns the new balance", async () => {
+    mockGetUser.mockResolvedValue({ privateMetadata: { credits: 5 } });
+    const { chargeStoryGenerationCredit } = await import("@/lib/credits");
+    const next = await chargeStoryGenerationCredit("user-1");
+    expect(next).toBe(4);
+    expect(mockUpdateUserMetadata).toHaveBeenCalledWith("user-1", {
+      privateMetadata: { credits: 4 },
+    });
+  });
+
+  it("clamps at zero and never goes negative", async () => {
+    mockGetUser.mockResolvedValue({ privateMetadata: { credits: 0 } });
+    const { chargeStoryGenerationCredit } = await import("@/lib/credits");
+    expect(await chargeStoryGenerationCredit("user-1")).toBe(0);
+    expect(mockUpdateUserMetadata).toHaveBeenCalledWith("user-1", {
+      privateMetadata: { credits: 0 },
+    });
+  });
+
+  it("does not charge admins", async () => {
+    mockGetUser.mockResolvedValue({
+      privateMetadata: { credits: 5, isAdmin: true },
+    });
+    const { chargeStoryGenerationCredit } = await import("@/lib/credits");
+    expect(await chargeStoryGenerationCredit("user-1")).toBeNull();
+    expect(mockUpdateUserMetadata).not.toHaveBeenCalled();
+  });
+
+  it("uses the latest balance, not a value read earlier (no lost update)", async () => {
+    // Two sequential charges must reflect each other's writes.
+    mockGetUser
+      .mockResolvedValueOnce({ privateMetadata: { credits: 5 } })
+      .mockResolvedValueOnce({ privateMetadata: { credits: 4 } });
+    const { chargeStoryGenerationCredit } = await import("@/lib/credits");
+    expect(await chargeStoryGenerationCredit("user-1")).toBe(4);
+    expect(await chargeStoryGenerationCredit("user-1")).toBe(3);
+  });
+});

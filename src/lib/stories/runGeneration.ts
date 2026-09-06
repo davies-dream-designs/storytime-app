@@ -1,7 +1,7 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { kv } from "@vercel/kv";
 import { db } from "@/lib/db";
-import { STORY_CREDIT_COST } from "@/lib/pricing";
+import { chargeStoryGenerationCredit } from "@/lib/credits";
 import { StoryGenerationError, streamStory } from "@/lib/storyGenerator";
 import {
   assessGeneratedStoryIp,
@@ -239,14 +239,7 @@ export async function runStoryGeneration(
 
     if (shouldCharge) {
       try {
-        const fresh = await client.users.getUser(story.userId);
-        const credits =
-          (fresh.privateMetadata.credits as number | undefined) ?? 3;
-        await client.users.updateUserMetadata(story.userId, {
-          privateMetadata: {
-            credits: Math.max(0, credits - STORY_CREDIT_COST),
-          },
-        });
+        await chargeStoryGenerationCredit(story.userId);
       } catch (err) {
         // The story is already saved; a failed credit debit should not fail the
         // generation. Log so it can be reconciled.

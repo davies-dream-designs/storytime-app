@@ -2170,4 +2170,89 @@ export const db = {
         .where(eq(schema.processedWebhookEvents.id, id));
     },
   },
+
+  userCredits: {
+    async getBalance(userId: string): Promise<number | undefined> {
+      const rows = await getClient()
+        .select()
+        .from(schema.userCredits)
+        .where(eq(schema.userCredits.userId, userId));
+      return rows[0]?.credits;
+    },
+    /**
+     * Ensures a balance row exists, seeding it from the given value only on
+     * first creation (never overwriting an existing authoritative balance).
+     */
+    async ensureSeeded(userId: string, seed: number): Promise<number> {
+      const now = new Date().toISOString();
+      await getClient()
+        .insert(schema.userCredits)
+        .values({ userId, credits: Math.max(0, seed), updatedAt: now })
+        .onConflictDoNothing({ target: schema.userCredits.userId });
+      const rows = await getClient()
+        .select()
+        .from(schema.userCredits)
+        .where(eq(schema.userCredits.userId, userId));
+      return rows[0]?.credits ?? Math.max(0, seed);
+    },
+    /**
+     * Applies a credit change atomically and idempotently.
+     *
+     * The `dedupeKey` uniqueness guarantees an at-most-once application: if the
+     * ledger row already exists, the balance is NOT touched and the current
+     * balance is returned. Otherwise the balance is bumped with a single
+     * `UPDATE ... credits = GREATEST(0, credits + delta) RETURNING`, and the
+     * ledger row is written with the resulting balance.
+     *
+     * Returns `{ balance, applied }`.
+     */
+    async applyDelta(input: {
+      userId: string;
+      delta: number;
+      reason: string;
+      dedupeKey: string;
+    }): Promise<{ balance: number; applied: boolean }> {
+      const client = getClient();
+      const now = new Date().toISOString();
+
+      // Reserve the dedupe key first. If it already exists, this is a duplicate.
+      const reserved = await client
+        .insert(schema.creditLedger)
+        .values({
+          id: crypto.randomUUID(),
+          userId: input.userId,
+          delta: input.delta,
+          reason: input.reason,
+          dedupeKey: input.dedupeKey,
+          balanceAfter: 0,
+          createdAt: now,
+        })
+        .onConflictDoNothing({ target: schema.creditLedger.dedupeKey })
+        .returning({ id: schema.creditLedger.id });
+
+      if (reserved.length === 0) {
+        const current = await this.getBalance(input.userId);
+        return { balance: current ?? 0, applied: false };
+      }
+
+      const updated = await client
+        .update(schema.userCredits)
+        .set({
+          credits: sql`GREATEST(0, ${schema.userCredits.credits} + ${input.delta})`,
+          updatedAt: now,
+        })
+        .where(eq(schema.userCredits.userId, input.userId))
+        .returning({ credits: schema.userCredits.credits });
+
+      const balance = updated[0]?.credits ?? 0;
+
+      // Backfill the ledger row's resulting balance for auditability.
+      await client
+        .update(schema.creditLedger)
+        .set({ balanceAfter: balance })
+        .where(eq(schema.creditLedger.id, reserved[0].id));
+
+      return { balance, applied: true };
+    },
+  },
 };

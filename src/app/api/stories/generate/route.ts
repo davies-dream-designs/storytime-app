@@ -205,7 +205,10 @@ export async function POST(req: NextRequest) {
   if (shouldCharge) {
     // Debit against a fresh read, not the balance captured at request start, so
     // concurrent operations on the same account can't lose an update.
-    const next = await chargeStoryGenerationCredit(userId).catch(
+    const next = await chargeStoryGenerationCredit(
+      userId,
+      `story:${story.id}`
+    ).catch(
       async (err) => {
         await logEvent({
           error: err,

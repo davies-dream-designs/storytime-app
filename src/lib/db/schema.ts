@@ -466,6 +466,33 @@ export const processedWebhookEvents = pgTable(
   (t) => [index("processed_webhook_events_source_idx").on(t.source)]
 );
 
+// Authoritative per-user credit balance (opt-in via CREDIT_LEDGER_ENABLED).
+// The balance lives in one row and is mutated with atomic single-statement
+// UPDATEs so concurrent operations cannot lose updates the way Clerk-metadata
+// read-modify-write does.
+export const userCredits = pgTable("user_credits", {
+  userId: text("user_id").primaryKey(),
+  credits: integer("credits").notNull().default(0),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// Append-only audit + idempotency log for every credit change. `dedupeKey` is
+// unique, so a grant/charge tagged with a stable key is applied at most once
+// even under retries or webhook redelivery.
+export const creditLedger = pgTable(
+  "credit_ledger",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    delta: integer("delta").notNull(),
+    reason: text("reason").notNull(),
+    dedupeKey: text("dedupe_key").notNull().unique(),
+    balanceAfter: integer("balance_after").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [index("credit_ledger_user_id_idx").on(t.userId)]
+);
+
 export const publicStoryModerationEvents = pgTable(
   "public_story_moderation_events",
   {

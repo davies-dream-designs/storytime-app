@@ -239,7 +239,7 @@ export async function runStoryGeneration(
 
     if (shouldCharge) {
       try {
-        await chargeStoryGenerationCredit(story.userId);
+        await chargeStoryGenerationCredit(story.userId, `story:${storyId}`);
       } catch (err) {
         // The story is already saved; a failed credit debit should not fail the
         // generation. Log so it can be reconciled.

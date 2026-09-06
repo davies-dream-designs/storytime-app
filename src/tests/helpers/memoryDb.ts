@@ -18,6 +18,8 @@ export function createMemoryDb() {
     string,
     { status: "pending" | "done"; leaseExpiresAt: number }
   >();
+  const userCreditsMap = new Map<string, number>();
+  const creditLedgerDedupeKeys = new Set<string>();
 
   const db = {
     _reset() {
@@ -30,6 +32,8 @@ export function createMemoryDb() {
       printOrderMap.clear();
       emailClaimSet.clear();
       processedWebhookEventLeases.clear();
+      userCreditsMap.clear();
+      creditLedgerDedupeKeys.clear();
     },
 
     profiles: {
@@ -416,6 +420,37 @@ export function createMemoryDb() {
       },
       async release(id: string): Promise<void> {
         processedWebhookEventLeases.delete(id);
+      },
+    },
+
+    userCredits: {
+      async getBalance(userId: string): Promise<number | undefined> {
+        return userCreditsMap.get(userId);
+      },
+      async ensureSeeded(userId: string, seed: number): Promise<number> {
+        const existing = userCreditsMap.get(userId);
+        if (typeof existing === "number") return existing;
+        const value = Math.max(0, seed);
+        userCreditsMap.set(userId, value);
+        return value;
+      },
+      async applyDelta(input: {
+        userId: string;
+        delta: number;
+        reason: string;
+        dedupeKey: string;
+      }): Promise<{ balance: number; applied: boolean }> {
+        if (creditLedgerDedupeKeys.has(input.dedupeKey)) {
+          return {
+            balance: userCreditsMap.get(input.userId) ?? 0,
+            applied: false,
+          };
+        }
+        creditLedgerDedupeKeys.add(input.dedupeKey);
+        const current = userCreditsMap.get(input.userId) ?? 0;
+        const balance = Math.max(0, current + input.delta);
+        userCreditsMap.set(input.userId, balance);
+        return { balance, applied: true };
       },
     },
   };

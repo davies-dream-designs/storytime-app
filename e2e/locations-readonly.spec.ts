@@ -16,6 +16,8 @@ test("health endpoint is ok", async ({ request }) => {
 test("authenticated app is healthy on the branch preview (stories library renders)", async ({
   page,
 }) => {
+  // Clerk sign-in + full page load can exceed the default 30s cap under load.
+  test.setTimeout(90_000);
   await signIn(page);
   await page.goto(`${BASE}/en/stories`);
   await page.waitForLoadState("networkidle");
@@ -27,6 +29,8 @@ test("authenticated app is healthy on the branch preview (stories library render
 test("locations page renders and add-location modal opens (migration 0023 live)", async ({
   page,
 }) => {
+  // Clerk sign-in + full page load can exceed the default 30s cap under load.
+  test.setTimeout(90_000);
   await signIn(page);
   await page.goto(`${BASE}/en/locations`);
   await page.waitForLoadState("networkidle");

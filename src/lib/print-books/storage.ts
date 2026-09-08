@@ -98,13 +98,26 @@ export async function storeBookAsset(input: {
 }
 
 /**
- * Store a short-lived private asset (e.g. an uploaded room photo used only to
- * seed an establishing illustration). Returns a stable reference the worker can
- * read back and later delete. Unlike {@link storeBookAsset}, the blob is created
- * with `access: "private"` so a leaked/guessed URL cannot expose a family photo.
+ * True only when the configured Blob store is provisioned for private access
+ * (Vercel rejects `access: "private"` on a public store). Opt-in so the default
+ * public store keeps working; set `BLOB_PRIVATE_ACCESS_ENABLED=true` once a
+ * private store is wired up.
+ */
+function privateBlobAccessEnabled(): boolean {
+  return process.env.BLOB_PRIVATE_ACCESS_ENABLED === "true";
+}
+
+/**
+ * Store a short-lived asset (e.g. an uploaded room photo used only to seed an
+ * establishing illustration). Returns a reference the worker can read back and
+ * later delete.
  *
- * When blob storage isn't configured (local/dev), falls back to an inline data
- * URL so the flow still works end-to-end.
+ * Privacy: when a private Blob store is configured
+ * (`BLOB_PRIVATE_ACCESS_ENABLED=true`) the blob uses `access: "private"` so a
+ * leaked/guessed URL cannot expose a family photo. Otherwise it falls back to a
+ * public blob with a high-entropy random suffix (URL is not guessable) and is
+ * deleted immediately after the illustration is drawn. When blob storage isn't
+ * configured at all (local), falls back to an inline data URL.
  */
 export async function storeTemporaryPrivateAsset(input: {
   pathname: string;
@@ -122,15 +135,27 @@ export async function storeTemporaryPrivateAsset(input: {
     return { ref: bufferToDataUrl(buffer, input.contentType), isInline: true };
   }
 
-  await put(input.pathname, input.body, {
-    access: "private",
-    allowOverwrite: true,
-    addRandomSuffix: false,
+  if (privateBlobAccessEnabled()) {
+    await put(input.pathname, input.body, {
+      access: "private",
+      allowOverwrite: true,
+      addRandomSuffix: false,
+      contentType: input.contentType,
+      ...getBlobCommandOptions(blobConfig),
+    });
+    // Reference by pathname; private blobs are read back with get(..., private).
+    return { ref: input.pathname, isInline: false };
+  }
+
+  // Public store fallback: unguessable URL + prompt deletion after use.
+  const blob = await put(input.pathname, input.body, {
+    access: "public",
+    addRandomSuffix: true,
     contentType: input.contentType,
     ...getBlobCommandOptions(blobConfig),
   });
-  // Reference by pathname; private blobs are read back with get(..., private).
-  return { ref: input.pathname, isInline: false };
+  // Reference by full URL so read-back/delete work without private access.
+  return { ref: blob.url, isInline: false };
 }
 
 /** Read back a private temporary asset stored via storeTemporaryPrivateAsset. */
@@ -146,6 +171,17 @@ export async function readTemporaryPrivateAsset(
       ? Buffer.from(payload, "base64")
       : Buffer.from(decodeURIComponent(payload), "utf8");
     return { buffer, contentType: meta.split(";")[0] || "image/png" };
+  }
+
+  // Public fallback stores the full (unguessable) URL — fetch it directly.
+  if (ref.startsWith("http://") || ref.startsWith("https://")) {
+    const res = await fetch(ref, { cache: "no-store" });
+    if (!res.ok) throw new Error("Temporary photo is unavailable");
+    const arrayBuffer = await res.arrayBuffer();
+    return {
+      buffer: Buffer.from(arrayBuffer),
+      contentType: res.headers.get("content-type") || "image/png",
+    };
   }
 
   const blobConfig = resolveBlobConfig();
@@ -171,7 +207,7 @@ export async function readTemporaryPrivateAsset(
   };
 }
 
-/** Best-effort delete of private temporary asset refs (pathnames or inline). */
+/** Best-effort delete of temporary asset refs (URLs, pathnames, or inline). */
 export async function deleteTemporaryPrivateAssets(
   refs: string[]
 ): Promise<void> {

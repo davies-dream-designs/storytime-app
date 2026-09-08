@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const put = vi.fn(async (pathname: string) => ({
-  url: `https://blob.example/${pathname}-abc123`,
-}));
+const put = vi.fn(
+  async (pathname: string, _body: unknown, _opts: unknown) => ({
+    url: `https://blob.example/${pathname}-abc123`,
+  })
+);
 const get = vi.fn();
 const del = vi.fn(async () => undefined);
 const list = vi.fn(async () => ({ blobs: [] }));

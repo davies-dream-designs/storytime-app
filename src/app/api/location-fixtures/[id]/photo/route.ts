@@ -83,19 +83,19 @@ export async function POST(
     }
   }
 
-  // Optional perspective: absent keeps the single primary-view behaviour.
   const rawViewLabel = form.get("viewLabel");
   const viewLabel =
     typeof rawViewLabel === "string" && rawViewLabel.trim()
       ? rawViewLabel.trim().slice(0, 40)
       : undefined;
   const rawViewId = form.get("viewId");
+  // Explicit viewId = redraw of one existing perspective (single render).
+  // Otherwise each uploaded photo becomes its own perspective/render; the job
+  // fans out across photos and writes every view in one atomic update.
   const viewId =
     typeof rawViewId === "string" && rawViewId.trim()
       ? rawViewId.trim().slice(0, 60)
-      : viewLabel
-        ? `view-${crypto.randomUUID()}`
-        : undefined;
+      : undefined;
 
   try {
     const { jobId } = await enqueueLocationEstablishingJob({

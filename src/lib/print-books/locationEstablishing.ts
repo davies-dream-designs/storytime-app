@@ -120,11 +120,7 @@ export function buildEstablishingPromptFromPhotos(
       ? `${sleepFurnitureDirection} This rule applies while generating the saved location illustration itself, not only later book pages.`
       : "",
     notes.length
-      ? `Use the attached source photo as the visual anchor, and match this real layout captured from ${
-          notes.length > 1
-            ? `${notes.length} reference photos`
-            : "a reference photo"
-        } (fuse them into one coherent room, keeping each object's position and the direction it faces): ${notes.join(" | ")}`
+      ? `Use the attached source photo as the visual anchor and match this real layout exactly, keeping each object's position and the direction it faces: ${notes.join(" | ")}`
       : "Use the attached source photo as the visual anchor. Keep the real furniture types, object positions, and window/door layout from the photo instead of inventing a generic room.",
     buildLocationDirection(location as SceneLocation),
     "Use a neutral, eye-level, straight-on or very slight three-quarter view that shows the whole space clearly. Do not mirror the room. Do not invent extra windows, doors, beds, cots, dressers, wall art, lamps, rugs, or shelves. Do not hide important furniture behind curtains or crop it out.",
@@ -165,8 +161,9 @@ export async function generateLocationEstablishingFromPhotos(input: {
   );
 
   const prompt = buildEstablishingPromptFromPhotos(location, photoNotes);
-  // Seed the drawing with the first (primary) photo; the fused notes carry the
-  // detail from the remaining angles.
+  // One perspective per render: each view is drawn from its own photo. Callers
+  // fan out multiple angles into separate jobs, so `files` is normally a single
+  // photo; `normalized[0]` is that angle's anchor.
   const generated = await generateEditedImage({
     image: normalized[0],
     prompt,

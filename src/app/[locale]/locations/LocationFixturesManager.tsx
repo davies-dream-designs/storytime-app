@@ -557,9 +557,9 @@ export default function LocationFixturesManager({ initialFixtures }: Props) {
                 </p>
                 <p className="mt-0.5 text-xs text-night-400">
                   Add up to {MAX_LOCATION_PHOTOS} photos from different angles —
-                  we draw one storybook picture of the space to keep it
-                  consistent, then discard your photos. We keep the
-                  illustration, not your photos.
+                  we draw a separate storybook picture for each angle (the first
+                  is the main one used in books), then discard your photos. We
+                  keep the illustrations, not your photos.
                 </p>
                 {form.establishingImageUrl ? (
                   <div className="mt-3 overflow-hidden rounded-2xl border border-night-100 bg-night-50 shadow-sm">

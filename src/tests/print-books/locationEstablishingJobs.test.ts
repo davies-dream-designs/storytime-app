@@ -249,4 +249,73 @@ describe("processLocationEstablishingJob", () => {
       isPrimary: false,
     });
   });
+
+  it("renders one perspective per photo when several are uploaded (fan-out)", async () => {
+    // Each generate call returns a distinct URL so we can assert separate renders.
+    let n = 0;
+    mockGenerateLocationEstablishingFromPhotos.mockImplementation(async () => ({
+      establishingImageUrl: `https://acct.blob.vercel-storage.com/render-${++n}.jpg`,
+    }));
+    fixtureStore.set(
+      "fixture-1",
+      makeFixture({ establishingImageJobId: "job-fan", views: [] })
+    );
+
+    const { processLocationEstablishingJob } = await import(
+      "@/lib/print-books/locationEstablishingJobs"
+    );
+    const result = await processLocationEstablishingJob({
+      jobId: "job-fan",
+      userId: "user-1",
+      target: { kind: "location_fixture", fixtureId: "fixture-1" },
+      photoRefs: ["ref-a", "ref-b", "ref-c"],
+    });
+
+    expect(result.status).toBe("ready");
+    // Three photos → three separate renders, not one merged image.
+    expect(mockGenerateLocationEstablishingFromPhotos).toHaveBeenCalledTimes(3);
+
+    const saved = fixtureStore.get("fixture-1")!;
+    expect(saved.views).toHaveLength(3);
+    const urls = saved.views?.map((v) => v.imageUrl).sort();
+    expect(urls).toEqual([
+      "https://acct.blob.vercel-storage.com/render-1.jpg",
+      "https://acct.blob.vercel-storage.com/render-2.jpg",
+      "https://acct.blob.vercel-storage.com/render-3.jpg",
+    ]);
+    // Exactly one primary, and it drives the book anchor.
+    expect(saved.views?.filter((v) => v.isPrimary)).toHaveLength(1);
+    expect(saved.establishingImageUrl).toBe(saved.views?.[0].imageUrl);
+  });
+
+  it("keeps successful angles when one photo fails to render", async () => {
+    let n = 0;
+    mockGenerateLocationEstablishingFromPhotos.mockImplementation(async () => {
+      n += 1;
+      if (n === 2) throw new Error("content policy violation");
+      return {
+        establishingImageUrl: `https://acct.blob.vercel-storage.com/ok-${n}.jpg`,
+      };
+    });
+    fixtureStore.set(
+      "fixture-1",
+      makeFixture({ establishingImageJobId: "job-partial", views: [] })
+    );
+
+    const { processLocationEstablishingJob } = await import(
+      "@/lib/print-books/locationEstablishingJobs"
+    );
+    const result = await processLocationEstablishingJob({
+      jobId: "job-partial",
+      userId: "user-1",
+      target: { kind: "location_fixture", fixtureId: "fixture-1" },
+      photoRefs: ["ref-a", "ref-b"],
+    });
+
+    expect(result.status).toBe("ready");
+    const saved = fixtureStore.get("fixture-1")!;
+    expect(saved.views).toHaveLength(2);
+    expect(saved.views?.filter((v) => v.status === "ready")).toHaveLength(1);
+    expect(saved.views?.filter((v) => v.status === "failed")).toHaveLength(1);
+  });
 });

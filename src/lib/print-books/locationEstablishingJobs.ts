@@ -208,6 +208,81 @@ async function markFixture(input: {
   );
 }
 
+type RenderedView = {
+  id: string;
+  label: string;
+  imageUrl?: string;
+  status: LocationEstablishingStatus;
+  error?: string;
+};
+
+/**
+ * Atomically write one-or-more rendered perspectives to a fixture in a single
+ * compare-and-swap update (owned by this job). Used for multi-photo uploads
+ * where each photo becomes its own view/render — writing them together avoids
+ * concurrent read-modify-write races on the `views` jsonb array.
+ */
+async function finalizeFixtureViews(input: {
+  fixtureId: string;
+  jobId: string;
+  userId: string;
+  rendered: RenderedView[];
+}): Promise<LocationFixture | undefined> {
+  const fixture = await db.locationFixtures.getById(input.fixtureId);
+  if (!fixture || fixture.userId !== input.userId) return undefined;
+  if (fixture.establishingImageJobId !== input.jobId) return undefined;
+
+  let views = fixture.views ?? [];
+  for (const r of input.rendered) {
+    const prior = views.find((v) => v.id === r.id);
+    views = upsertView(views, {
+      id: r.id,
+      label: r.label,
+      imageUrl: r.status === "ready" ? r.imageUrl : prior?.imageUrl,
+      status: r.status,
+      error: r.error,
+      jobId: undefined,
+      isPrimary: prior?.isPrimary,
+      createdAt: prior?.createdAt ?? new Date().toISOString(),
+    });
+  }
+
+  // Drop the placeholder view the generic "running" marker created (no image,
+  // still queued/running) so fan-out doesn't leave an empty extra angle.
+  views = views.filter(
+    (v) =>
+      v.imageUrl ||
+      v.status === "failed" ||
+      input.rendered.some((r) => r.id === v.id)
+  );
+  // Filtering may have removed the primary; re-establish exactly one, in order.
+  const hasPrimary = views.some((v) => v.isPrimary);
+  views = views.map((v, i) => ({
+    ...v,
+    isPrimary: hasPrimary ? v.isPrimary === true : i === 0,
+  }));
+
+  const anyReady = input.rendered.some((r) => r.status === "ready");
+  const establishingImageUrl = primaryImageUrl(views);
+  return db.locationFixtures.updateIfJob(
+    input.fixtureId,
+    input.jobId,
+    input.userId,
+    {
+      views,
+      establishingImageUrl: anyReady
+        ? establishingImageUrl
+        : fixture.establishingImageUrl,
+      referenceImageUrl: anyReady ? undefined : fixture.referenceImageUrl,
+      establishingImageStatus: anyReady ? "ready" : "failed",
+      establishingImageError: anyReady
+        ? undefined
+        : (input.rendered.find((r) => r.error)?.error ?? "Generation failed"),
+      establishingImageJobId: undefined,
+    }
+  );
+}
+
 async function getFixtureForJob(input: {
   fixtureId: string;
   jobId: string;
@@ -419,6 +494,58 @@ export async function processLocationEstablishingJob(
     // Superseded or removed: nothing to draw. Clean up inputs.
     await deleteTemporaryPrivateAssets(input.photoRefs).catch(() => undefined);
     return { jobId: input.jobId, status: "stale" };
+  }
+
+  // Fixture uploads without an explicit view render one perspective per photo.
+  const fanOut =
+    input.target.kind === "location_fixture" &&
+    !input.viewId &&
+    input.photoRefs.length > 1;
+
+  if (fanOut && input.target.kind === "location_fixture") {
+    const fixture = location as LocationFixture;
+    const existingCount = (fixture.views ?? []).length;
+    const files = await loadPhotoFiles(input.photoRefs);
+    const rendered: RenderedView[] = [];
+    for (let i = 0; i < files.length; i++) {
+      // Deterministic view id keyed to this job so a retry updates the same
+      // views rather than creating duplicates.
+      const viewId = `${input.jobId}-${i}`;
+      const label = input.viewLabel
+        ? `${input.viewLabel} ${i + 1}`
+        : `Angle ${existingCount + i + 1}`;
+      try {
+        const { establishingImageUrl } =
+          await generateLocationEstablishingFromPhotos({
+            location,
+            files: [files[i]],
+            pathnamePrefix: `location-fixtures/${input.userId}/${input.target.fixtureId}-${viewId}`,
+          });
+        rendered.push({ id: viewId, label, imageUrl: establishingImageUrl, status: "ready" });
+      } catch (err) {
+        if (isRetryable(err)) {
+          // Keep inputs; retry the whole job (deterministic ids make this safe).
+          throw err instanceof Error ? err : new Error(String(err));
+        }
+        rendered.push({
+          id: viewId,
+          label,
+          status: "failed",
+          error: err instanceof Error ? err.message : "Generation failed",
+        });
+      }
+    }
+    await finalizeFixtureViews({
+      fixtureId: input.target.fixtureId,
+      jobId: input.jobId,
+      userId: input.userId,
+      rendered,
+    });
+    await deleteTemporaryPrivateAssets(input.photoRefs).catch(() => undefined);
+    return {
+      jobId: input.jobId,
+      status: rendered.some((r) => r.status === "ready") ? "ready" : "failed",
+    };
   }
 
   let establishingImageUrl: string;

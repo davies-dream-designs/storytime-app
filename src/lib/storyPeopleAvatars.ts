@@ -330,6 +330,9 @@ async function generateImageFromText(prompt: string): Promise<Buffer> {
 export async function generateEditedImage(input: {
   image: Buffer;
   prompt: string;
+  /** "high" preserves the input image's layout/detail far better (gpt-image-1). */
+  inputFidelity?: "high" | "low";
+  quality?: "low" | "medium" | "high";
 }): Promise<Buffer> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
@@ -351,7 +354,10 @@ export async function generateEditedImage(input: {
   );
   formData.append("prompt", input.prompt);
   formData.append("size", "1024x1024");
-  formData.append("quality", "medium");
+  formData.append("quality", input.quality ?? "medium");
+  if (input.inputFidelity) {
+    formData.append("input_fidelity", input.inputFidelity);
+  }
 
   const response = await fetch(`${OPENAI_BASE()}/images/edits`, {
     method: "POST",

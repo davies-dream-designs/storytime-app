@@ -1,9 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import sharp from "sharp";
-import {
-  generateEditedImage,
-  normalizeUploadForOpenAI,
-} from "@/lib/storyPeopleAvatars";
+import { generateEditedImage } from "@/lib/storyPeopleAvatars";
 import { storeBookAsset } from "@/lib/print-books/storage";
 import {
   buildLocationDirection,
@@ -12,12 +9,9 @@ import {
 import type { LocationFixture, SceneLocation } from "@/types/printBook";
 
 /**
- * Turn one or more parent photos of a place into a single reusable
- * "establishing" illustration. The raw photos are analysed and used to seed the
- * drawing, then discarded — only the generated illustration is persisted, the
- * same privacy model as story-people avatars. Locations differ from people in
- * that a space often needs several angles to pin down its layout, so this
- * accepts multiple photos and fuses them into one canonical view.
+ * Turn a parent photo of a place into a reusable "establishing" illustration.
+ * For saved fixtures, multiple uploaded angles are fanned out by the worker so
+ * each photo produces its own view/render rather than being fused together.
  */
 
 type LocationLike = Pick<
@@ -41,6 +35,18 @@ function compactList(values: Array<string | undefined>, maxLength: number) {
   return text.length <= maxLength
     ? text
     : `${text.slice(0, maxLength).trim()}…`;
+}
+
+export async function normalizeLocationPhotoForOpenAI(file: File): Promise<Buffer> {
+  const input = Buffer.from(await file.arrayBuffer());
+  return sharp(input)
+    .rotate()
+    .resize(1024, 1024, {
+      fit: "contain",
+      background: { r: 246, g: 240, b: 229, alpha: 1 },
+    })
+    .png({ compressionLevel: 8 })
+    .toBuffer();
 }
 
 function buildHardLayoutBlueprint(location: LocationLike): string {
@@ -113,8 +119,9 @@ export function buildEstablishingPromptFromPhotos(
     location as SceneLocation
   );
   return [
-    `A literal children's picture-book establishing illustration of "${displayName(location)}" — the empty space with no people, pets, or characters.`,
-    "Primary goal: create an accurate, reviewable setting reference, not a decorative nursery concept. Accuracy of layout and object identity is more important than charm or a convenient composition.",
+    `Redraw the attached photo of "${displayName(location)}" as a literal children's picture-book establishing illustration — the same empty space with no people, pets, or characters.`,
+    "The attached photo is the source of truth. Preserve the same camera viewpoint, room proportions, wall/window/door placement, cabinets, counters, appliances, major furniture, dominant colours, and distinctive fixed objects. Apply a soft storybook style without changing the layout.",
+    "Accuracy of layout and object identity is more important than charm, symmetry, or a convenient composition.",
     hardBlueprint,
     sleepFurnitureDirection
       ? `${sleepFurnitureDirection} This rule applies while generating the saved location illustration itself, not only later book pages.`
@@ -123,7 +130,7 @@ export function buildEstablishingPromptFromPhotos(
       ? `Use the attached source photo as the visual anchor and match this real layout exactly, keeping each object's position and the direction it faces: ${notes.join(" | ")}`
       : "Use the attached source photo as the visual anchor. Keep the real furniture types, object positions, and window/door layout from the photo instead of inventing a generic room.",
     buildLocationDirection(location as SceneLocation),
-    "Use a neutral, eye-level, straight-on or very slight three-quarter view that shows the whole space clearly. Do not mirror the room. Do not invent extra windows, doors, beds, cots, dressers, wall art, lamps, rugs, or shelves. Do not hide important furniture behind curtains or crop it out.",
+    "Keep the photo's viewpoint and framing where possible; do not rotate, mirror, re-stage, or invent a cleaner angle. Do not invent extra windows, doors, beds, cots, dressers, wall art, lamps, rugs, shelves, cabinets, or appliances. Do not hide important furniture behind curtains or crop it out.",
     "Soft, warm, storybook style. No text, no watermark, no people, no characters.",
   ]
     .filter(Boolean)
@@ -154,7 +161,7 @@ export async function generateLocationEstablishingFromPhotos(input: {
   }
 
   const normalized = await Promise.all(
-    files.map((file) => normalizeUploadForOpenAI(file))
+    files.map((file) => normalizeLocationPhotoForOpenAI(file))
   );
   const photoNotes = await Promise.all(
     normalized.map((image) => analyzeLocationPhoto(image))
@@ -167,6 +174,8 @@ export async function generateLocationEstablishingFromPhotos(input: {
   const generated = await generateEditedImage({
     image: normalized[0],
     prompt,
+    inputFidelity: "high",
+    quality: "high",
   });
 
   const illustration = await sharp(generated)

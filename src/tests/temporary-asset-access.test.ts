@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const put = vi.fn(
-  async (pathname: string, _body: unknown, _opts: unknown) => ({
-    url: `https://blob.example/${pathname}-abc123`,
-  })
+  async (pathname: string, _body: unknown, _opts: unknown) => {
+    void _body;
+    void _opts;
+    return { url: `https://blob.example/${pathname}-abc123` };
+  }
 );
 const get = vi.fn();
 const del = vi.fn(async () => undefined);

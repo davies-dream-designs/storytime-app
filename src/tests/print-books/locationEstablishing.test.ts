@@ -1,8 +1,9 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import sharp from "sharp";
 import {
   buildEstablishingPromptFromPhotos,
   generateLocationEstablishingFromPhotos,
+  normalizeLocationPhotoForOpenAI,
 } from "@/lib/print-books/locationEstablishing";
 import type { LocationFixture } from "@/types/printBook";
 
@@ -25,6 +26,14 @@ function makeFixture(): LocationFixture {
   };
 }
 
+function bufferFile(buffer: Buffer): File {
+  const arrayBuffer = buffer.buffer.slice(
+    buffer.byteOffset,
+    buffer.byteOffset + buffer.byteLength
+  ) as ArrayBuffer;
+  return { arrayBuffer: async () => arrayBuffer } as File;
+}
+
 async function pngFile(): Promise<File> {
   const png = await sharp({
     create: {
@@ -36,7 +45,35 @@ async function pngFile(): Promise<File> {
   })
     .png()
     .toBuffer();
-  return new File([png], "room.png", { type: "image/png" });
+  return bufferFile(png);
+}
+
+async function wideRoomFile(): Promise<File> {
+  const png = await sharp({
+    create: {
+      width: 1600,
+      height: 900,
+      channels: 3,
+      background: { r: 40, g: 90, b: 160 },
+    },
+  })
+    .png()
+    .toBuffer();
+  return bufferFile(png);
+}
+
+async function generatedPngBase64(): Promise<string> {
+  const png = await sharp({
+    create: {
+      width: 16,
+      height: 16,
+      channels: 3,
+      background: { r: 200, g: 180, b: 160 },
+    },
+  })
+    .png()
+    .toBuffer();
+  return png.toString("base64");
 }
 
 describe("buildEstablishingPromptFromPhotos", () => {
@@ -64,8 +101,8 @@ describe("buildEstablishingPromptFromPhotos", () => {
     expect(prompt).toContain("draw the window on the right next to that cot");
     expect(prompt).toContain("child's bed is on the left");
     expect(prompt).toContain("draw that bed on the left");
-    expect(prompt).toContain("Do not mirror the room");
-    expect(prompt).toContain("not a decorative nursery concept");
+    expect(prompt).toContain("do not rotate, mirror, re-stage");
+    expect(prompt).toContain("The attached photo is the source of truth");
   });
 
   it("explicitly prevents older-child beds from becoming cots while generating the location illustration", () => {
@@ -109,6 +146,13 @@ describe("generateLocationEstablishingFromPhotos", () => {
   beforeEach(() => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+    delete process.env.PREVIEW_READ_WRITE_TOKEN;
+    delete process.env.PROD_READ_WRITE_TOKEN;
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("requires at least one photo", async () => {
@@ -129,5 +173,51 @@ describe("generateLocationEstablishingFromPhotos", () => {
         pathnamePrefix: "location-fixtures/user-1/f1",
       })
     ).rejects.toThrow(/OPENAI_API_KEY/);
+  });
+
+
+  it("does not attention-crop wide room photos", async () => {
+    const imageBuffer = await normalizeLocationPhotoForOpenAI(
+      await wideRoomFile()
+    );
+    const metadata = await sharp(imageBuffer).metadata();
+    expect(metadata.width).toBe(1024);
+    expect(metadata.height).toBe(1024);
+
+    const topLeftPixel = await sharp(imageBuffer)
+      .extract({ left: 0, top: 0, width: 1, height: 1 })
+      .raw()
+      .toBuffer();
+    expect([...topLeftPixel.slice(0, 3)]).toEqual([246, 240, 229]);
+  });
+
+  it("requests high-fidelity edits for location renders", async () => {
+    process.env.OPENAI_API_KEY = "test-openai";
+    const generatedBase64 = await generatedPngBase64();
+    const fetchMock = vi.fn(async (_url: string | URL, init?: RequestInit) => {
+      const body = init?.body;
+      expect(body).toBeInstanceOf(FormData);
+      const form = body as FormData;
+      expect(form.get("quality")).toBe("high");
+      expect(form.get("input_fidelity")).toBe("high");
+      expect(form.get("image")).toBeTruthy();
+
+      return new Response(
+        JSON.stringify({ data: [{ b64_json: generatedBase64 }] }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      generateLocationEstablishingFromPhotos({
+        location: makeFixture(),
+        files: [await wideRoomFile()],
+        pathnamePrefix: "location-fixtures/user-1/f1",
+      })
+    ).resolves.toMatchObject({
+      establishingImageUrl: expect.stringMatching(/^data:image\/jpeg;base64,/),
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

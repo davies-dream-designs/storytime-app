@@ -55,6 +55,31 @@ export function getIllustrationConcurrency(): number {
 }
 
 // ---------------------------------------------------------------------------
+// A2 two-pass location rendering (custom saved locations only, behind a flag)
+// ---------------------------------------------------------------------------
+
+// "a2_custom" enables the two-pass render (empty room background + characters
+// drawn into it) for custom saved locations. Anything else keeps the legacy
+// single composite reference-sheet path.
+export function getLocationRenderMode(): "legacy" | "a2_custom" {
+  return process.env.LOCATION_RENDER_MODE === "a2_custom"
+    ? "a2_custom"
+    : "legacy";
+}
+
+// A location is CUSTOM when it is explicitly bound to a saved fixture AND its
+// establishing image is a real (non-inline) URL we can fetch and reuse.
+export function isCustomSavedLocation(location: SceneLocation): boolean {
+  return (
+    typeof location.fixtureId === "string" &&
+    location.fixtureId.length > 0 &&
+    typeof location.establishingImageUrl === "string" &&
+    location.establishingImageUrl.length > 0 &&
+    !location.establishingImageUrl.startsWith("data:")
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Upscaling
 // ---------------------------------------------------------------------------
 
@@ -937,6 +962,13 @@ function buildVisualReferencePrompt(input: {
   );
 }
 
+function bufferToArrayBuffer(buffer: Buffer): ArrayBuffer {
+  return buffer.buffer.slice(
+    buffer.byteOffset,
+    buffer.byteOffset + buffer.byteLength
+  ) as ArrayBuffer;
+}
+
 async function buildOpenAIImageEditBody(input: {
   model: string;
   prompt: string;
@@ -944,6 +976,10 @@ async function buildOpenAIImageEditBody(input: {
   visualReferences?: CharacterVisualReference[];
   continuityReferences?: ContinuityVisualReference[];
   locationReferences?: LocationVisualReference[];
+  // When present, A2 pass 2: send the pre-rendered empty room as image 1 and
+  // the character-only conditioning sheet as image 2, both as repeated
+  // `image[]` form fields, and draw the characters into the room.
+  backgroundImage?: Buffer;
 }): Promise<FormData> {
   const sheet = await buildIllustrationConditioningSheet({
     visualReferences: input.visualReferences,
@@ -956,29 +992,50 @@ async function buildOpenAIImageEditBody(input: {
     });
   }
 
-  const imageArrayBuffer = sheet.image.buffer.slice(
-    sheet.image.byteOffset,
-    sheet.image.byteOffset + sheet.image.byteLength
-  ) as ArrayBuffer;
-  const formData = new FormData();
-  formData.append(
-    "image",
-    new File([imageArrayBuffer], "storycot-illustration-references.png", {
-      type: "image/png",
-    })
+  const sheetFile = new File(
+    [bufferToArrayBuffer(sheet.image)],
+    "storycot-illustration-references.png",
+    { type: "image/png" }
   );
-  formData.append("model", input.model);
-  const finalPrompt = clampPromptText(
-    [
-      buildVisualReferencePrompt({
-        visualReferences: sheet.visualReferences,
-        continuityReferences: sheet.continuityReferences,
-        locationReferences: sheet.locationReferences,
-      }),
+  const formData = new FormData();
+
+  const referencePrompt = buildVisualReferencePrompt({
+    visualReferences: sheet.visualReferences,
+    continuityReferences: sheet.continuityReferences,
+    locationReferences: sheet.locationReferences,
+  });
+
+  if (input.backgroundImage) {
+    const backgroundFile = new File(
+      [bufferToArrayBuffer(input.backgroundImage)],
+      "storycot-location-background.png",
+      { type: "image/png" }
+    );
+    formData.append("image[]", backgroundFile);
+    formData.append("image[]", sheetFile);
+    formData.append("model", input.model);
+    const a2Prompt = [
+      "Two images are attached. Image 1 is the exact room/background — keep its layout, furniture, doors, windows, appliances, and colours exactly; do not redraw or reinvent the room from any other image.",
+      "Image 2 is the character reference sheet — draw those characters INTO the room from image 1, preserving their faces and identity from image 2.",
+      referencePrompt,
       input.prompt,
     ]
       .filter(Boolean)
-      .join(" "),
+      .join(" ");
+    formData.append(
+      "prompt",
+      clampPromptText(a2Prompt, OPENAI_IMAGE_PROMPT_MAX_CHARS)
+    );
+    formData.append("size", input.size);
+    formData.append("input_fidelity", "high");
+    formData.append("quality", "high");
+    return formData;
+  }
+
+  formData.append("image", sheetFile);
+  formData.append("model", input.model);
+  const finalPrompt = clampPromptText(
+    [referencePrompt, input.prompt].filter(Boolean).join(" "),
     OPENAI_IMAGE_PROMPT_MAX_CHARS
   );
   formData.append("prompt", finalPrompt);
@@ -1089,6 +1146,7 @@ async function generateOpenAIImage(input: {
   visualReferences?: CharacterVisualReference[];
   continuityReferences?: ContinuityVisualReference[];
   locationReferences?: LocationVisualReference[];
+  backgroundImage?: Buffer;
 }): Promise<Buffer> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -1108,7 +1166,8 @@ async function generateOpenAIImage(input: {
       const useConditioningReferences = Boolean(
         input.visualReferences?.length ||
         input.continuityReferences?.length ||
-        input.locationReferences?.length
+        input.locationReferences?.length ||
+        input.backgroundImage
       );
       const body = useConditioningReferences
         ? await buildOpenAIImageEditBody({
@@ -1118,6 +1177,7 @@ async function generateOpenAIImage(input: {
             visualReferences: input.visualReferences,
             continuityReferences: input.continuityReferences,
             locationReferences: input.locationReferences,
+            backgroundImage: input.backgroundImage,
           })
         : JSON.stringify({
             model,
@@ -1202,11 +1262,13 @@ async function generateBaseImage(input: {
   visualReferences?: CharacterVisualReference[];
   continuityReferences?: ContinuityVisualReference[];
   locationReferences?: LocationVisualReference[];
+  backgroundImage?: Buffer;
 }): Promise<Buffer> {
   if (
     input.visualReferences?.length ||
     input.continuityReferences?.length ||
-    input.locationReferences?.length
+    input.locationReferences?.length ||
+    input.backgroundImage
   ) {
     try {
       return await generateOpenAIImage({
@@ -1215,6 +1277,7 @@ async function generateBaseImage(input: {
         visualReferences: input.visualReferences,
         continuityReferences: input.continuityReferences,
         locationReferences: input.locationReferences,
+        backgroundImage: input.backgroundImage,
       });
     } catch (error) {
       if (!(error instanceof AppError)) throw error;
@@ -1237,10 +1300,138 @@ async function generateAndUpscale(input: {
   visualReferences?: CharacterVisualReference[];
   continuityReferences?: ContinuityVisualReference[];
   locationReferences?: LocationVisualReference[];
+  backgroundImage?: Buffer;
 }): Promise<Buffer> {
   const png = await generateBaseImage(input);
   await assertUsableGeneratedImage(png);
   return upscaleImageBuffer(png);
+}
+
+// A2 pass 1: render (and cache per book build) an empty, character-free
+// version of a custom saved location's establishing image, restyled into the
+// book's art style so pass 2 can drop characters into a clean background.
+const locationBackgroundCache = new Map<string, Promise<Buffer>>();
+
+// Test-only hook: clear the per-process background cache between cases.
+export function __resetLocationBackgroundCache(): void {
+  locationBackgroundCache.clear();
+}
+
+function buildLocationBackgroundPrompt(input: {
+  location: SceneLocation;
+  characterBible: CharacterBible;
+}): string {
+  const { location, characterBible } = input;
+  return [
+    `Reproduce THIS EXACT room ("${location.name}") from the same viewpoint as an EMPTY children's picture-book background.`,
+    `Render it in the book's art style: ${characterBible.renderStyle}; palette ${characterBible.palette}; lighting ${characterBible.lightingTone}.`,
+    "Keep the doors, windows, furniture, appliances, and layout identical to the attached image.",
+    "No people, no pets, no characters of any kind — only the empty room.",
+    "No text, no captions, no watermark.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+async function renderLocationBackground(input: {
+  project: Pick<BookProject, "id">;
+  location: SceneLocation;
+  characterBible: CharacterBible;
+}): Promise<Buffer> {
+  const { project, location, characterBible } = input;
+  const cacheKey = `${project.id}:${location.id}:${location.establishingImageUrl}`;
+  const cached = locationBackgroundCache.get(cacheKey);
+  if (cached) return cached;
+
+  const promise = (async () => {
+    const establishingImageUrl = location.establishingImageUrl;
+    if (!establishingImageUrl) {
+      throw new AppError("book.reference_image_unavailable", {
+        message: "Custom location has no establishing image URL.",
+      });
+    }
+    const source = await loadReferenceImageBuffer({
+      id: `location-background:${location.id}`,
+      imageUrl: establishingImageUrl,
+      kind: "location",
+    });
+    if (!source) {
+      throw new AppError("book.reference_image_unavailable", {
+        message: "Custom location establishing image could not be loaded.",
+      });
+    }
+
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new AppError("system.config_missing", {
+        message: "OPENAI_API_KEY is not configured",
+      });
+    }
+    const prompt = buildLocationBackgroundPrompt({ location, characterBible });
+    const models = getPreferredOpenAIImageModels();
+    let lastErrorMessage = "Unknown OpenAI background render error";
+
+    for (let index = 0; index < models.length; index += 1) {
+      const model = models[index]!;
+      const formData = new FormData();
+      formData.append(
+        "image",
+        new File(
+          [bufferToArrayBuffer(source)],
+          "storycot-location-establishing.png",
+          { type: "image/png" }
+        )
+      );
+      formData.append("model", model);
+      formData.append(
+        "prompt",
+        clampPromptText(prompt, OPENAI_IMAGE_PROMPT_MAX_CHARS)
+      );
+      formData.append("size", "1024x1024");
+      formData.append("input_fidelity", "high");
+      formData.append("quality", "high");
+
+      const response = await fetch(`${openAIBase()}/images/edits`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: formData,
+      });
+      if (!response.ok) {
+        const errorBody = await response.text();
+        lastErrorMessage = `OpenAI background render failed for ${model}: ${response.status} ${errorBody}`;
+        if (
+          index < models.length - 1 &&
+          shouldTryNextImageModel(response.status, errorBody)
+        ) {
+          continue;
+        }
+        throw new AppError("external.openai_error", {
+          message: lastErrorMessage,
+          context: { model, status: response.status },
+        });
+      }
+      const payload = (await response.json()) as {
+        data?: Array<{ b64_json?: string }>;
+      };
+      const base64Image = payload.data?.[0]?.b64_json;
+      if (!base64Image) {
+        throw new AppError("external.openai_error", {
+          message: `OpenAI background render returned no image data for ${model}`,
+          context: { model },
+        });
+      }
+      return Buffer.from(base64Image, "base64");
+    }
+    throw new AppError("external.openai_error", { message: lastErrorMessage });
+  })();
+
+  locationBackgroundCache.set(cacheKey, promise);
+  try {
+    return await promise;
+  } catch (error) {
+    locationBackgroundCache.delete(cacheKey);
+    throw error;
+  }
 }
 
 function buildEstablishingImagePrompt(location: SceneLocation): string {
@@ -1703,10 +1894,16 @@ function buildIllustrationQaMetadata(input: {
   referenceSnapshotKey?: string;
   correctionNote?: string;
   pageTextOmitted?: boolean;
+  locationRenderMode?: "legacy" | "a2_custom";
+  locationReferenceId?: string;
+  backgroundRendered?: boolean;
 }): IllustrationGenerationMetadata {
   return {
     provider: input.provider,
     generatedAt: new Date().toISOString(),
+    locationRenderMode: input.locationRenderMode,
+    locationReferenceId: input.locationReferenceId,
+    backgroundRendered: input.backgroundRendered,
     referenceSnapshotKey: input.referenceSnapshotKey,
     characterReferenceIds: input.characterReferences.map(
       (reference) => reference.id
@@ -1982,6 +2179,22 @@ export async function generateCoverIllustration(input: {
     coverLocation,
   });
 
+  // A2: same two-pass render as spreads when the cover location is a custom
+  // saved location.
+  const useA2 =
+    getLocationRenderMode() === "a2_custom" &&
+    Boolean(coverLocation) &&
+    isCustomSavedLocation(coverLocation!);
+  let backgroundImage: Buffer | undefined;
+  if (useA2 && coverLocation) {
+    backgroundImage = await renderLocationBackground({
+      project: input.project,
+      location: coverLocation,
+      characterBible: input.characterBible,
+    });
+  }
+  const effectiveLocationReferences = useA2 ? undefined : locationReferences;
+
   if (isGeneratedIllustrationConfigured()) {
     try {
       let upscaled: Buffer;
@@ -1990,7 +2203,8 @@ export async function generateCoverIllustration(input: {
           prompt,
           visualReferences: input.visualReferences,
           continuityReferences: input.continuityReferences,
-          locationReferences,
+          locationReferences: effectiveLocationReferences,
+          backgroundImage,
         });
       } catch (err) {
         if (!(err instanceof UnusableGeneratedImageError)) throw err;
@@ -1999,7 +2213,8 @@ export async function generateCoverIllustration(input: {
           prompt,
           visualReferences: input.visualReferences,
           continuityReferences: input.continuityReferences,
-          locationReferences,
+          locationReferences: effectiveLocationReferences,
+          backgroundImage,
         });
       }
 
@@ -2048,7 +2263,8 @@ export async function generateCoverIllustration(input: {
           prompt: fallbackPrompt,
           visualReferences: input.visualReferences,
           continuityReferences: input.continuityReferences,
-          locationReferences,
+          locationReferences: effectiveLocationReferences,
+          backgroundImage,
         });
         const [coverImageUrl, coverWebImageUrl] = await Promise.all([
           storeBookAsset({
@@ -2192,6 +2408,25 @@ export async function generateSpreadPageIllustration(input: {
   const locationReferences = locationReference
     ? [locationReference]
     : undefined;
+
+  // A2: for custom saved locations, render an empty room background once (pass
+  // 1) and draw characters into it (pass 2), keeping the character conditioning
+  // sheet free of any location cell so faces stay isolated.
+  const spreadLocation = resolveSpreadLocation(project.locationBible, spread);
+  const useA2 =
+    getLocationRenderMode() === "a2_custom" &&
+    Boolean(spreadLocation) &&
+    isCustomSavedLocation(spreadLocation!);
+  let backgroundImage: Buffer | undefined;
+  if (useA2 && spreadLocation) {
+    backgroundImage = await renderLocationBackground({
+      project,
+      location: spreadLocation,
+      characterBible: input.characterBible,
+    });
+  }
+  const effectiveLocationReferences = useA2 ? undefined : locationReferences;
+
   const buildQa = (options: {
     provider: "openai" | "placeholder";
     pageTextOmitted?: boolean;
@@ -2203,6 +2438,9 @@ export async function generateSpreadPageIllustration(input: {
       referenceSnapshotKey: input.referenceSnapshotKey,
       correctionNote: input.correctionNote,
       pageTextOmitted: options.pageTextOmitted,
+      locationRenderMode: useA2 ? "a2_custom" : "legacy",
+      locationReferenceId: locationReference?.id,
+      backgroundRendered: useA2 ? Boolean(backgroundImage) : undefined,
     });
   const prompt = buildPageIllustrationPrompt({
     ...input,
@@ -2217,7 +2455,8 @@ export async function generateSpreadPageIllustration(input: {
         prompt,
         visualReferences: spreadVisualReferences,
         continuityReferences,
-        locationReferences,
+        locationReferences: effectiveLocationReferences,
+        backgroundImage,
       });
     } catch (err) {
       if (!(err instanceof UnusableGeneratedImageError)) throw err;
@@ -2228,7 +2467,8 @@ export async function generateSpreadPageIllustration(input: {
         prompt,
         visualReferences: spreadVisualReferences,
         continuityReferences,
-        locationReferences,
+        locationReferences: effectiveLocationReferences,
+        backgroundImage,
       });
     }
     const { url, webUrl } = await storeWithWeb(upscaled);
@@ -2257,7 +2497,8 @@ export async function generateSpreadPageIllustration(input: {
         prompt: fallbackPrompt,
         visualReferences: spreadVisualReferences,
         continuityReferences,
-        locationReferences,
+        locationReferences: effectiveLocationReferences,
+        backgroundImage,
       });
       const { url, webUrl } = await storeWithWeb(upscaled);
       return {

@@ -266,6 +266,9 @@ export interface IllustrationGenerationMetadata {
   staleCharacterReferenceNames?: string[];
   correctionNote?: string;
   pageTextOmitted?: boolean;
+  locationRenderMode?: "legacy" | "a2_custom";
+  locationReferenceId?: string;
+  backgroundRendered?: boolean;
 }
 
 export interface BookSpread {

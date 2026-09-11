@@ -1680,6 +1680,239 @@ describe("generateCoverIllustration", () => {
   });
 });
 
+describe("A2 location render mode", () => {
+  function setupImageMocks() {
+    vi.doMock("@/lib/print-books/storage", () => ({
+      storeBookAsset: mockStoreBookAsset,
+      isBookAssetStorageConfigured: () => true,
+    }));
+    vi.doMock("sharp", () => {
+      const instance = {
+        resize: vi.fn().mockReturnThis(),
+        composite: vi.fn().mockReturnThis(),
+        removeAlpha: vi.fn().mockReturnThis(),
+        raw: vi.fn().mockReturnThis(),
+        png: vi.fn().mockReturnThis(),
+        jpeg: vi.fn().mockReturnThis(),
+        rotate: vi.fn().mockReturnThis(),
+        toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
+          options?.resolveWithObject
+            ? Promise.resolve({
+                data: Buffer.from([128, 128, 128, 180, 180, 180]),
+                info: { channels: 3 },
+              })
+            : Promise.resolve(Buffer.from("upscaled-png"))
+        ),
+      };
+      const sharpFn = vi.fn(() => instance);
+      const sharpMock = Object.assign(sharpFn, {
+        kernel: { lanczos3: "lanczos3" },
+      });
+      return { default: sharpMock };
+    });
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      void init;
+      if (String(url).startsWith("https://acct.blob.vercel-storage.com/")) {
+        return {
+          ok: true,
+          arrayBuffer: async () => Buffer.from("reference").buffer,
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          data: [{ b64_json: Buffer.from("image").toString("base64") }],
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mockStoreBookAsset.mockResolvedValue("https://example.com/page.png");
+    return fetchMock;
+  }
+
+  function teardownImageMocks() {
+    vi.unstubAllGlobals();
+    vi.doUnmock("sharp");
+    vi.doUnmock("@/lib/print-books/storage");
+    delete process.env.LOCATION_RENDER_MODE;
+  }
+
+  function customLocation() {
+    return {
+      id: "nursery",
+      name: "Levi's bedroom",
+      place: "Home",
+      area: "Bedroom",
+      summary: "A bedroom with a cot and a Kura single bed.",
+      fixedElements: ["window on the right beside Levi's cot"],
+      lighting: "soft lamp light from the right",
+      palette: "cream, timber, and soft blue",
+      doNotChange: ["no window on the left"],
+      fixtureId: "fixture-nursery",
+      establishingImageUrl: "https://acct.blob.vercel-storage.com/nursery.png",
+    };
+  }
+
+  function spreadInLocation(locationId?: string) {
+    const project = createProject();
+    return {
+      ...project.spreads[0]!,
+      id: "book-1:spread:2",
+      sequence: 2,
+      pageStart: 3,
+      pageEnd: 4,
+      layoutType: "text_art" as const,
+      title: "Bedtime",
+      leftPageText: "Mila tucked into the cozy bedroom.",
+      rightPageText: "The fox curled up beside her.",
+      sceneBrief: "Mila settles into the bedroom.",
+      illustrationPrompt: "Mila in her bedroom at night.",
+      locationId,
+    };
+  }
+
+  const visualReferences = [
+    {
+      id: "profile:profile-1",
+      name: "Mila",
+      role: "main_child" as const,
+      imageUrl: "https://acct.blob.vercel-storage.com/mila.jpg",
+      appearance: "Curly dark hair and bright brown eyes.",
+    },
+  ];
+
+  it("keeps the legacy single-image path for a custom location when the flag is off", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    delete process.env.LOCATION_RENDER_MODE;
+    const fetchMock = setupImageMocks();
+
+    vi.resetModules();
+    const { generateSpreadPageIllustration, __resetLocationBackgroundCache } =
+      await import("@/lib/print-books/illustrations");
+    __resetLocationBackgroundCache();
+
+    const result = await generateSpreadPageIllustration({
+      project: {
+        ...createProject(),
+        locationBible: {
+          locations: [customLocation()],
+          pageLocations: {},
+        },
+      },
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+      visualReferences,
+      spread: spreadInLocation("nursery"),
+      side: "left",
+    });
+
+    const editCalls = fetchMock.mock.calls.filter((call) =>
+      String(call[0]).includes("/images/edits")
+    );
+    expect(editCalls).toHaveLength(1);
+    const body = editCalls[0]?.[1]?.body as FormData;
+    expect(body.get("image")).toBeInstanceOf(File);
+    expect(body.getAll("image[]")).toHaveLength(0);
+    expect(result.qa.locationRenderMode).toBe("legacy");
+
+    teardownImageMocks();
+  });
+
+  it("uses the two-pass multi-image path for a custom location when the flag is on", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    process.env.LOCATION_RENDER_MODE = "a2_custom";
+    const fetchMock = setupImageMocks();
+
+    vi.resetModules();
+    const { generateSpreadPageIllustration, __resetLocationBackgroundCache } =
+      await import("@/lib/print-books/illustrations");
+    __resetLocationBackgroundCache();
+
+    const result = await generateSpreadPageIllustration({
+      project: {
+        ...createProject(),
+        locationBible: {
+          locations: [customLocation()],
+          pageLocations: {},
+        },
+      },
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+      visualReferences,
+      spread: spreadInLocation("nursery"),
+      side: "left",
+    });
+
+    const editCalls = fetchMock.mock.calls.filter((call) =>
+      String(call[0]).includes("/images/edits")
+    );
+    // One background render (pass 1) + one character composite (pass 2).
+    expect(editCalls.length).toBeGreaterThanOrEqual(2);
+
+    const a2Call = editCalls.find((call) => {
+      const body = call[1]?.body as FormData;
+      return body.getAll("image[]").length === 2;
+    });
+    expect(a2Call).toBeTruthy();
+    const a2Body = a2Call?.[1]?.body as FormData;
+    expect(a2Body.getAll("image[]")).toHaveLength(2);
+    expect(a2Body.get("image")).toBeNull();
+    expect(a2Body.get("quality")).toBe("high");
+    expect(a2Body.get("input_fidelity")).toBe("high");
+
+    expect(result.qa.locationRenderMode).toBe("a2_custom");
+    expect(result.qa.backgroundRendered).toBe(true);
+
+    teardownImageMocks();
+  });
+
+  it("falls back to legacy single-image for a generic location even when the flag is on", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    process.env.LOCATION_RENDER_MODE = "a2_custom";
+    const fetchMock = setupImageMocks();
+
+    vi.resetModules();
+    const { generateSpreadPageIllustration, __resetLocationBackgroundCache } =
+      await import("@/lib/print-books/illustrations");
+    __resetLocationBackgroundCache();
+
+    const genericLocation = {
+      ...customLocation(),
+      id: "playroom",
+      fixtureId: undefined,
+      establishingImageUrl: "data:image/png;base64,inline",
+    };
+
+    const result = await generateSpreadPageIllustration({
+      project: {
+        ...createProject(),
+        locationBible: {
+          locations: [genericLocation],
+          pageLocations: {},
+        },
+      },
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+      visualReferences,
+      spread: spreadInLocation("playroom"),
+      side: "left",
+    });
+
+    const editCalls = fetchMock.mock.calls.filter((call) =>
+      String(call[0]).includes("/images/edits")
+    );
+    expect(editCalls).toHaveLength(1);
+    const body = editCalls[0]?.[1]?.body as FormData;
+    expect(body.getAll("image[]")).toHaveLength(0);
+    expect(result.qa.locationRenderMode).toBe("legacy");
+
+    teardownImageMocks();
+  });
+});
+
 describe("scoreContinuitySpread", () => {
   function spread(partial: Partial<BookProject["spreads"][number]>) {
     return {

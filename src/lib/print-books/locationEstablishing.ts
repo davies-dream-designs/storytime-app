@@ -109,6 +109,9 @@ async function analyzeLocationPhoto(image: Buffer): Promise<string> {
   }
 }
 
+const EMPTY_ROOM_DIRECTION =
+  "This is an empty-room establishing illustration. If the source photo contains any people, children, pets, or a person's reflection in a mirror/window/appliance, remove them completely and reconstruct the furniture, floor, and wall that would sit behind them. The finished image must contain no people, no pets, and no human silhouettes or shadows — only the room and its fixed objects.";
+
 export function buildEstablishingPromptFromPhotos(
   location: LocationLike,
   photoNotes: string[]
@@ -120,6 +123,7 @@ export function buildEstablishingPromptFromPhotos(
   );
   return [
     `Redraw the attached photo of "${displayName(location)}" as a literal children's picture-book establishing illustration — the same empty space with no people, pets, or characters.`,
+    EMPTY_ROOM_DIRECTION,
     "The attached photo is the source of truth. Preserve the same camera viewpoint, room proportions, wall/window/door placement, cabinets, counters, appliances, major furniture, dominant colours, and distinctive fixed objects. Apply a soft storybook style without changing the layout.",
     "Accuracy of layout and object identity is more important than charm, symmetry, or a convenient composition.",
     hardBlueprint,
@@ -135,6 +139,50 @@ export function buildEstablishingPromptFromPhotos(
   ]
     .filter(Boolean)
     .join(" ");
+}
+
+/**
+ * Cheap guard so a person left in an uploaded location photo can never survive
+ * into the empty-room establishing illustration. Returns true only when we are
+ * confident a person/pet is visible; any error or missing key fails open (no
+ * re-render) so we never block a render on the checker.
+ */
+async function imageContainsPeople(image: Buffer): Promise<boolean> {
+  if (!process.env.ANTHROPIC_API_KEY) return false;
+  try {
+    const anthropic = new Anthropic();
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 8,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: "image/png",
+                data: image.toString("base64"),
+              },
+            },
+            {
+              type: "text",
+              text: "Does this illustration show any person, child, human figure/silhouette, or pet animal? Answer with exactly YES or NO.",
+            },
+          ],
+        },
+      ],
+    });
+    const content = message.content[0];
+    if (content?.type !== "text") return false;
+    return /^\s*yes/i.test(content.text);
+  } catch (err) {
+    console.warn("Location people-check failed; skipping re-render.", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return false;
+  }
 }
 
 export type LocationEstablishingResult = {
@@ -171,12 +219,23 @@ export async function generateLocationEstablishingFromPhotos(input: {
   // One perspective per render: each view is drawn from its own photo. Callers
   // fan out multiple angles into separate jobs, so `files` is normally a single
   // photo; `normalized[0]` is that angle's anchor.
-  const generated = await generateEditedImage({
+  let generated = await generateEditedImage({
     image: normalized[0],
     prompt,
     inputFidelity: "high",
     quality: "high",
   });
+
+  // Belt-and-braces: if a person/pet survived the redraw, re-render once with a
+  // harder removal instruction rather than shipping a populated "empty" room.
+  if (await imageContainsPeople(generated)) {
+    generated = await generateEditedImage({
+      image: normalized[0],
+      prompt: `${prompt} CRITICAL: the previous attempt still contained a person, pet, or human figure. This retry must show a completely empty room with absolutely no people, children, pets, silhouettes, shadows of people, or reflections of people anywhere in the image.`,
+      inputFidelity: "high",
+      quality: "high",
+    });
+  }
 
   const illustration = await sharp(generated)
     .resize(1024, 1024, { fit: "cover" })

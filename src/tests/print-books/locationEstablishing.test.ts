@@ -124,6 +124,18 @@ describe("buildEstablishingPromptFromPhotos", () => {
     );
   });
 
+  it("instructs the model to strip any people out of the room", () => {
+    const fixture = makeFixture();
+    fixture.place = "Home";
+    fixture.area = "Kitchen";
+
+    const prompt = buildEstablishingPromptFromPhotos(fixture, []);
+
+    expect(prompt).toContain("empty-room establishing illustration");
+    expect(prompt).toContain("remove them completely");
+    expect(prompt).toContain("no human silhouettes or shadows");
+  });
+
   it("supports saved locations with no optional summary", () => {
     const fixture = makeFixture();
     fixture.place = "Home";

@@ -263,6 +263,9 @@ export interface IllustrationGenerationMetadata {
   characterReferenceNames: string[];
   continuityReferenceIds: string[];
   continuityReferenceLabels: string[];
+  locationReferenceIds?: string[];
+  locationReferenceLabels?: string[];
+  locationReferenceImageUrls?: string[];
   staleCharacterReferenceNames?: string[];
   correctionNote?: string;
   pageTextOmitted?: boolean;

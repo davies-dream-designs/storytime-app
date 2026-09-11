@@ -672,13 +672,13 @@ async function buildIllustrationConditioningSheet(input: {
     .filter((reference) => reference.imageUrl)
     .slice(0, MAX_LOCATION_REFERENCES_PER_IMAGE);
   const selected: ImageConditionReference[] = [
-    ...selectedCharacters.map((reference) => ({
-      ...reference,
-      kind: "character" as const,
-    })),
     ...selectedLocations.map((reference) => ({
       ...reference,
       kind: "location" as const,
+    })),
+    ...selectedCharacters.map((reference) => ({
+      ...reference,
+      kind: "character" as const,
     })),
     ...selectedContinuity.map((reference) => ({
       ...reference,
@@ -814,10 +814,10 @@ function buildVisualReferencePrompt(input: {
       {
         variants: [
           locationList
-            ? `Attached setting reference image (${locationList}) is the authoritative setting blueprint. Match its exact room layout, doors, windows, bed types, furniture positions, colours, and object orientation for the background; do not invent, remove, or move doors/windows/beds. Draw characters from their own references, not from this setting image.`
+            ? `The FIRST cell of the attached reference sheet is the saved Storycot setting (${locationList}) and is the hard visual anchor for the background. The scene must look like that exact room/location: same viewpoint family where possible, doors, windows, counters/cabinets, appliances, furniture positions, colours, and distinctive fixed objects. Do not replace it with a generic room. Draw characters from their own references, not from this setting image.`
             : "",
           locationList
-            ? `Attached setting reference image (${locationList}) is authoritative: keep the same doors, windows, bed types, furniture positions, colours, and object orientation.`
+            ? `First sheet cell is the saved setting (${locationList}); keep that exact room layout, doors, windows, furniture/cabinets/appliances, colours, and fixed objects. Do not use a generic background.`
             : "",
         ],
       },
@@ -983,7 +983,10 @@ async function buildOpenAIImageEditBody(input: {
   );
   formData.append("prompt", finalPrompt);
   formData.append("size", input.size);
-  formData.append("quality", "medium");
+  formData.append("quality", input.locationReferences?.length ? "high" : "medium");
+  if (input.locationReferences?.length) {
+    formData.append("input_fidelity", "high");
+  }
   return formData;
 }
 
@@ -1700,6 +1703,7 @@ function buildIllustrationQaMetadata(input: {
   provider: "openai" | "placeholder";
   characterReferences: CharacterVisualReference[];
   continuityReferences: ContinuityVisualReference[];
+  locationReferences?: LocationVisualReference[];
   referenceSnapshotKey?: string;
   correctionNote?: string;
   pageTextOmitted?: boolean;
@@ -1719,6 +1723,15 @@ function buildIllustrationQaMetadata(input: {
     ),
     continuityReferenceLabels: input.continuityReferences.map(
       (reference) => reference.label
+    ),
+    locationReferenceIds: input.locationReferences?.map(
+      (reference) => reference.id
+    ),
+    locationReferenceLabels: input.locationReferences?.map(
+      (reference) => reference.label
+    ),
+    locationReferenceImageUrls: input.locationReferences?.map(
+      (reference) => reference.imageUrl
     ),
     staleCharacterReferenceNames: input.characterReferences
       .filter((reference) => reference.isStale)
@@ -2200,6 +2213,7 @@ export async function generateSpreadPageIllustration(input: {
       provider: options.provider,
       characterReferences: spreadVisualReferences,
       continuityReferences,
+      locationReferences,
       referenceSnapshotKey: input.referenceSnapshotKey,
       correctionNote: input.correctionNote,
       pageTextOmitted: options.pageTextOmitted,

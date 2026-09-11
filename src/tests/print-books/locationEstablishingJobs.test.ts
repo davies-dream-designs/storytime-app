@@ -286,6 +286,11 @@ describe("processLocationEstablishingJob", () => {
     // Exactly one primary, and it drives the book anchor.
     expect(saved.views?.filter((v) => v.isPrimary)).toHaveLength(1);
     expect(saved.establishingImageUrl).toBe(saved.views?.[0].imageUrl);
+    expect(saved.views?.map((v) => v.label)).toEqual([
+      "Angle 1",
+      "Angle 2",
+      "Angle 3",
+    ]);
   });
 
   it("keeps successful angles when one photo fails to render", async () => {

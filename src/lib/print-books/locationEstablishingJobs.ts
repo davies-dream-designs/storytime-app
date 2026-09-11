@@ -504,7 +504,9 @@ export async function processLocationEstablishingJob(
 
   if (fanOut && input.target.kind === "location_fixture") {
     const fixture = location as LocationFixture;
-    const existingCount = (fixture.views ?? []).length;
+    const existingCount = (fixture.views ?? []).filter(
+      (view) => view.imageUrl || view.status === "failed"
+    ).length;
     const files = await loadPhotoFiles(input.photoRefs);
     const rendered: RenderedView[] = [];
     for (let i = 0; i < files.length; i++) {

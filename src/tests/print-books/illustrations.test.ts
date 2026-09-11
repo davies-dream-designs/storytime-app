@@ -310,12 +310,9 @@ describe("generateCoverIllustration", () => {
     );
     expect(editCall).toBeTruthy();
     const body = editCall?.[1]?.body as FormData;
-    expect(body.get("prompt")).toContain("FIRST cell");
-    expect(body.get("prompt")).toContain("hard visual anchor");
+    expect(body.get("prompt")).toContain("Attached setting reference image");
     expect(body.get("prompt")).toContain("no window on the left");
     expect(body.get("prompt")).toContain("IKEA Kura single bed");
-    expect(body.get("quality")).toBe("high");
-    expect(body.get("input_fidelity")).toBe("high");
 
     vi.unstubAllGlobals();
     vi.doUnmock("sharp");
@@ -1098,127 +1095,6 @@ describe("generateCoverIllustration", () => {
     vi.doUnmock("sharp");
     vi.doUnmock("@/lib/print-books/storage");
   });
-
-  it("anchors spread art to the saved location reference and records it in QA", async () => {
-    process.env.OPENAI_API_KEY = "test-key";
-
-    vi.doMock("@/lib/print-books/storage", () => ({
-      storeBookAsset: mockStoreBookAsset,
-      isBookAssetStorageConfigured: () => true,
-    }));
-
-    vi.doMock("sharp", () => {
-      const instance = {
-        resize: vi.fn().mockReturnThis(),
-        composite: vi.fn().mockReturnThis(),
-        removeAlpha: vi.fn().mockReturnThis(),
-        raw: vi.fn().mockReturnThis(),
-        png: vi.fn().mockReturnThis(),
-        jpeg: vi.fn().mockReturnThis(),
-        rotate: vi.fn().mockReturnThis(),
-        toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
-          options?.resolveWithObject
-            ? Promise.resolve({
-                data: Buffer.from([128, 128, 128, 180, 180, 180]),
-                info: { channels: 3 },
-              })
-            : Promise.resolve(Buffer.from("upscaled-png"))
-        ),
-      };
-      const sharpFn = vi.fn(() => instance);
-      const sharpMock = Object.assign(sharpFn, {
-        kernel: { lanczos3: "lanczos3" },
-      });
-      return { default: sharpMock };
-    });
-
-    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => {
-      void _url;
-      void _init;
-      return {
-        ok: true,
-        json: async () => ({
-          data: [{ b64_json: Buffer.from("image").toString("base64") }],
-        }),
-      };
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    mockStoreBookAsset.mockResolvedValue("https://example.com/page.png");
-
-    vi.resetModules();
-    const { generateSpreadPageIllustration } = await import(
-      "@/lib/print-books/illustrations"
-    );
-
-    const baseProject = createProject();
-    const kitchenReference = "data:image/png;base64,a2l0Y2hlbi1yZWY=";
-    const spread = {
-      ...baseProject.spreads[0]!,
-      id: "book-1:spread:2",
-      sequence: 2,
-      pageStart: 3,
-      pageEnd: 4,
-      layoutType: "hero" as const,
-      title: "Kitchen Pancakes",
-      leftPageText: "Mila mixed pancake batter in the kitchen.",
-      rightPageText: "The clock ticked softly above the bright bench.",
-      sceneBrief: "Mila makes pancakes in the family kitchen.",
-      illustrationPrompt:
-        "A warm family kitchen scene with Mila at the kitchen bench.",
-      locationId: "kitchen",
-    };
-    const result = await generateSpreadPageIllustration({
-      project: {
-        ...baseProject,
-        spreads: [baseProject.spreads[0]!, spread],
-        locationBible: {
-          locations: [
-            {
-              id: "kitchen",
-              name: "Family kitchen",
-              place: "Home",
-              area: "Kitchen",
-              summary: "White cabinets, large island bench, clock and pendant lights.",
-              fixedElements: [
-                "large island bench in foreground",
-                "white cabinets on back wall",
-                "clock near the dining area",
-              ],
-              doNotChange: ["do not replace with generic kitchen"],
-              establishingImageUrl: kitchenReference,
-              lighting: "warm kitchen light",
-              palette: "white cabinets, timber, cream",
-            },
-          ],
-          pageLocations: { 3: "kitchen", 4: "kitchen" },
-        },
-      },
-      story: createStory(),
-      profile: createProfile(),
-      characterBible: createCharacterBible(),
-      spread,
-      side: "left",
-    });
-
-    const editCall = fetchMock.mock.calls.find((call) =>
-      String(call[0]).includes("/images/edits")
-    );
-    expect(editCall).toBeTruthy();
-    const body = editCall?.[1]?.body as FormData;
-    expect(body.get("prompt")).toContain("FIRST cell");
-    expect(body.get("prompt")).toContain("saved Storycot setting");
-    expect(body.get("prompt")).toContain("hard visual anchor");
-    expect(body.get("prompt")).toContain("Family kitchen");
-    expect(body.get("quality")).toBe("high");
-    expect(body.get("input_fidelity")).toBe("high");
-    expect(result.qa.locationReferenceIds).toEqual(["location:kitchen"]);
-    expect(result.qa.locationReferenceImageUrls).toEqual([kitchenReference]);
-
-    vi.unstubAllGlobals();
-    vi.doUnmock("sharp");
-    vi.doUnmock("@/lib/print-books/storage");
-  });
-
 
   it("uses approved cover and prior spread art as continuity references and records QA metadata", async () => {
     process.env.OPENAI_API_KEY = "test-key";

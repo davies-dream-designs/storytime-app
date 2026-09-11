@@ -161,22 +161,33 @@ async function markFixture(input: {
     return undefined;
   }
 
-  const viewId = input.viewId ?? "primary";
-  const priorView = fixture.views?.find((v) => v.id === viewId);
-  const nextView: LocationView = {
-    id: viewId,
-    label: input.viewLabel ?? priorView?.label ?? "Wide",
-    imageUrl:
-      input.status === "ready"
-        ? (input.establishingImageUrl ?? priorView?.imageUrl)
-        : priorView?.imageUrl,
-    status: input.status,
-    error: input.error,
-    jobId: input.status === "ready" ? undefined : input.jobId,
-    isPrimary: priorView?.isPrimary ?? (fixture.views ?? []).length === 0,
-    createdAt: priorView?.createdAt ?? new Date().toISOString(),
-  };
-  const views = upsertView(fixture.views, nextView);
+  const existingViews = fixture.views ?? [];
+  const labelledExtraAngle =
+    !input.viewId &&
+    Boolean(input.viewLabel) &&
+    existingViews.some((v) => v.imageUrl || v.status === "failed");
+  let views = existingViews;
+  if (!(labelledExtraAngle && input.status !== "ready")) {
+    const viewId = input.viewId ?? "primary";
+    const priorView = existingViews.find((v) => v.id === viewId);
+    const nextView: LocationView = {
+      id: viewId,
+      label:
+        input.status === "ready"
+          ? (input.viewLabel ?? priorView?.label ?? "Wide")
+          : (priorView?.label ?? input.viewLabel ?? "Wide"),
+      imageUrl:
+        input.status === "ready"
+          ? (input.establishingImageUrl ?? priorView?.imageUrl)
+          : priorView?.imageUrl,
+      status: input.status,
+      error: input.error,
+      jobId: input.status === "ready" ? undefined : input.jobId,
+      isPrimary: priorView?.isPrimary ?? existingViews.length === 0,
+      createdAt: priorView?.createdAt ?? new Date().toISOString(),
+    };
+    views = upsertView(existingViews, nextView);
+  }
   const establishingImageUrl = primaryImageUrl(views);
 
   const updates: Partial<LocationFixture> = {
@@ -500,7 +511,7 @@ export async function processLocationEstablishingJob(
   const fanOut =
     input.target.kind === "location_fixture" &&
     !input.viewId &&
-    input.photoRefs.length > 1;
+    (input.photoRefs.length > 1 || Boolean(input.viewLabel));
 
   if (fanOut && input.target.kind === "location_fixture") {
     const fixture = location as LocationFixture;
@@ -514,7 +525,9 @@ export async function processLocationEstablishingJob(
       // views rather than creating duplicates.
       const viewId = `${input.jobId}-${i}`;
       const label = input.viewLabel
-        ? `${input.viewLabel} ${i + 1}`
+        ? files.length > 1
+          ? `${input.viewLabel} ${i + 1}`
+          : input.viewLabel
         : `Angle ${existingCount + i + 1}`;
       try {
         const { establishingImageUrl } =

@@ -293,6 +293,56 @@ describe("processLocationEstablishingJob", () => {
     ]);
   });
 
+  it("adds a labelled single-photo angle without overwriting the primary", async () => {
+    mockGenerateLocationEstablishingFromPhotos.mockResolvedValueOnce({
+      establishingImageUrl: "https://acct.blob.vercel-storage.com/side.jpg",
+    });
+    fixtureStore.set(
+      "fixture-1",
+      makeFixture({
+        establishingImageJobId: "job-side",
+        establishingImageUrl: "https://acct.blob.vercel-storage.com/wide.jpg",
+        views: [
+          {
+            id: "primary",
+            label: "Wide",
+            imageUrl: "https://acct.blob.vercel-storage.com/wide.jpg",
+            status: "ready",
+            isPrimary: true,
+          },
+        ],
+      })
+    );
+
+    const { processLocationEstablishingJob } = await import(
+      "@/lib/print-books/locationEstablishingJobs"
+    );
+    const result = await processLocationEstablishingJob({
+      jobId: "job-side",
+      userId: "user-1",
+      target: { kind: "location_fixture", fixtureId: "fixture-1" },
+      photoRefs: ["ref-side"],
+      viewLabel: "Other side",
+    });
+
+    expect(result.status).toBe("ready");
+    const saved = fixtureStore.get("fixture-1")!;
+    expect(saved.establishingImageUrl).toBe(
+      "https://acct.blob.vercel-storage.com/wide.jpg"
+    );
+    expect(saved.views).toHaveLength(2);
+    expect(saved.views?.find((v) => v.id === "primary")).toMatchObject({
+      label: "Wide",
+      imageUrl: "https://acct.blob.vercel-storage.com/wide.jpg",
+      isPrimary: true,
+    });
+    const extra = saved.views?.find((v) => v.label === "Other side");
+    expect(extra).toMatchObject({
+      imageUrl: "https://acct.blob.vercel-storage.com/side.jpg",
+      isPrimary: false,
+    });
+  });
+
   it("keeps successful angles when one photo fails to render", async () => {
     let n = 0;
     mockGenerateLocationEstablishingFromPhotos.mockImplementation(async () => {

@@ -269,6 +269,10 @@ export interface IllustrationGenerationMetadata {
   locationRenderMode?: "legacy" | "a2_custom";
   locationReferenceId?: string;
   backgroundRendered?: boolean;
+  /** True when the frame was produced by true background+character compositing. */
+  compositeMode?: boolean;
+  /** The location view (angle) whose illustration was used as the background. */
+  locationViewId?: string;
 }
 
 export interface BookSpread {

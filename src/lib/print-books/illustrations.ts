@@ -20,7 +20,9 @@ import {
   buildSleepFurnitureDirection,
   resolveSpreadLocation,
   resolveSpreadLocationReference,
+  resolveSpreadLocationView,
 } from "@/lib/print-books/locationBible";
+import { generateEditedImage } from "@/lib/storyPeopleAvatars";
 import {
   isBookAssetStorageConfigured,
   storeBookAsset,
@@ -1307,58 +1309,155 @@ async function generateAndUpscale(input: {
   return upscaleImageBuffer(png);
 }
 
-// A2 pass 1: render (and cache per book build) an empty, character-free
-// version of a custom saved location's establishing image, restyled into the
-// book's art style so pass 2 can drop characters into a clean background.
-const locationBackgroundCache = new Map<string, Promise<Buffer>>();
+// ---------------------------------------------------------------------------
+// A2 true compositing ("Option B") for custom saved locations
+// ---------------------------------------------------------------------------
 
-// Test-only hook: clear the per-process background cache between cases.
-export function __resetLocationBackgroundCache(): void {
-  locationBackgroundCache.clear();
+const COMPOSITE_FRAME_PX = 1024;
+// Characters occupy the lower band of the frame so the saved room reads above
+// and behind them. Values are fractions of the square frame.
+const COMPOSITE_CHARACTER_WIDTH_RATIO = 0.8;
+const COMPOSITE_CHARACTER_HEIGHT_RATIO = 0.7;
+
+// Prompt for the character-only layer: full-scene characters on a transparent
+// canvas, with NO room, floor, or furniture so compositing keeps the saved
+// room pixels untouched.
+function buildTransparentCharacterLayerPrompt(basePrompt: string): string {
+  return [
+    "Draw ONLY the full-scene characters described below, posed for this moment, with a fully transparent background.",
+    "No room, no walls, no floor, no furniture, no props that are not held by a character, no ground, no shadow — transparent background only.",
+    "Render the characters head-to-toe at high quality, centred, matching the attached reference faces and continuity.",
+    basePrompt,
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
-// A2 background base: the saved establishing illustration is ALREADY an empty,
-// on-style room drawn from the parent's photo, so we use it directly as the
-// Pass-2 edit base instead of re-rendering it. Re-rendering it first (an extra
-// gpt-image edit) stacked a second lossy generation that softened detail and
-// let fixed objects drift — the exact quality/consistency regression reported.
-// We only load (and cache) the establishing image buffer here.
-async function loadLocationBackground(input: {
-  project: Pick<BookProject, "id">;
-  location: SceneLocation;
+// Render the scene's characters on a transparent background using the existing
+// character conditioning sheet path (characters + continuity, NO location).
+async function renderTransparentCharacterLayer(input: {
+  prompt: string;
+  visualReferences?: CharacterVisualReference[];
+  continuityReferences?: ContinuityVisualReference[];
 }): Promise<Buffer> {
-  const { project, location } = input;
-  const establishingImageUrl = location.establishingImageUrl;
-  if (!establishingImageUrl) {
+  const sheet = await buildIllustrationConditioningSheet({
+    visualReferences: input.visualReferences,
+    continuityReferences: input.continuityReferences,
+  });
+  if (!sheet) {
     throw new AppError("book.reference_image_unavailable", {
-      message: "Custom location has no establishing image URL.",
+      message: "No usable character reference images could be loaded.",
     });
   }
-  const cacheKey = `${project.id}:${location.id}:${establishingImageUrl}`;
-  const cached = locationBackgroundCache.get(cacheKey);
-  if (cached) return cached;
+  const referencePrompt = buildVisualReferencePrompt({
+    visualReferences: sheet.visualReferences,
+    continuityReferences: sheet.continuityReferences,
+  });
+  const prompt = clampPromptText(
+    [referencePrompt, buildTransparentCharacterLayerPrompt(input.prompt)]
+      .filter(Boolean)
+      .join(" "),
+    OPENAI_IMAGE_PROMPT_MAX_CHARS
+  );
+  return generateEditedImage({
+    image: sheet.image,
+    prompt,
+    inputFidelity: "high",
+    quality: "high",
+    background: "transparent",
+  });
+}
 
-  const promise = (async () => {
-    const source = await loadReferenceImageBuffer({
-      id: `location-background:${location.id}`,
-      imageUrl: establishingImageUrl,
-      kind: "location",
+// A soft, semi-transparent elliptical contact shadow rasterised via an inline
+// SVG blur so we never depend on sharp.blur() (keeps the mock surface small).
+function buildContactShadowSvg(width: number, height: number): string {
+  const rx = Math.round(width * 0.34);
+  const ry = Math.round(height * 0.32);
+  const cx = Math.round(width / 2);
+  const cy = Math.round(height / 2);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><defs><filter id="b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="18"/></filter></defs><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="rgba(0,0,0,0.32)" filter="url(#b)"/></svg>`;
+}
+
+// Composite the saved room background and the transparent character layer into
+// the final book frame. The room pixels are only resized (cover) — never sent
+// through another image edit — so the saved location stays untouched.
+async function compositeCharactersOntoBackground(input: {
+  background: Buffer;
+  characterLayer: Buffer;
+  spreadSequence: number;
+}): Promise<Buffer> {
+  const frame = COMPOSITE_FRAME_PX;
+  const charW = Math.round(frame * COMPOSITE_CHARACTER_WIDTH_RATIO);
+  const charH = Math.round(frame * COMPOSITE_CHARACTER_HEIGHT_RATIO);
+
+  const backgroundBase = await sharp(input.background)
+    .resize(frame, frame, { fit: "cover" })
+    .png({ compressionLevel: 8 })
+    .toBuffer();
+
+  const characterBox = await sharp(input.characterLayer)
+    .resize(charW, charH, {
+      fit: "inside",
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    })
+    .png({ compressionLevel: 8 })
+    .toBuffer();
+
+  // Horizontally centre, then nudge by a simple per-spread rule so repeated
+  // rooms don't stack characters in the exact same spot.
+  const offset = ((input.spreadSequence % 3) - 1) * 40;
+  const rawLeft = Math.round((frame - charW) / 2) + offset;
+  const left = Math.min(Math.max(rawLeft, 0), frame - charW);
+  const top = frame - charH;
+
+  const shadowH = Math.round(frame * 0.16);
+  const shadow = Buffer.from(buildContactShadowSvg(charW, shadowH));
+  const shadowLeft = left;
+  const shadowTop = frame - shadowH - Math.round(frame * 0.02);
+
+  return sharp(backgroundBase)
+    .composite([
+      { input: shadow, left: shadowLeft, top: shadowTop },
+      { input: characterBox, left, top },
+    ])
+    .png({ compressionLevel: 7 })
+    .toBuffer();
+}
+
+// Full A2 compositing pipeline: pick the per-spread saved room angle, render a
+// transparent character layer, composite, and upscale to the print target.
+// Returns the upscaled PNG plus the chosen view id for QA metadata.
+async function renderCompositeLocationSpread(input: {
+  location: SceneLocation;
+  spreadSequence: number;
+  prompt: string;
+  visualReferences?: CharacterVisualReference[];
+  continuityReferences?: ContinuityVisualReference[];
+}): Promise<{ upscaled: Buffer; locationViewId?: string }> {
+  const view = resolveSpreadLocationView(input.location, {
+    sequence: input.spreadSequence,
+  });
+  if (!view) {
+    throw new AppError("book.reference_image_unavailable", {
+      message: "Custom location has no usable background view.",
     });
-    if (!source) {
-      throw new AppError("book.reference_image_unavailable", {
-        message: "Custom location establishing image could not be loaded.",
-      });
-    }
-    return source;
-  })();
-
-  locationBackgroundCache.set(cacheKey, promise);
-  try {
-    return await promise;
-  } catch (error) {
-    locationBackgroundCache.delete(cacheKey);
-    throw error;
   }
+
+  const { buffer: background } = await fetchAllowedMediaBuffer(view.imageUrl);
+  const characterLayer = await renderTransparentCharacterLayer({
+    prompt: input.prompt,
+    visualReferences: input.visualReferences,
+    continuityReferences: input.continuityReferences,
+  });
+
+  const composited = await compositeCharactersOntoBackground({
+    background,
+    characterLayer,
+    spreadSequence: input.spreadSequence,
+  });
+  await assertUsableGeneratedImage(composited);
+  const upscaled = await upscaleImageBuffer(composited);
+  return { upscaled, locationViewId: view.id };
 }
 
 function buildEstablishingImagePrompt(location: SceneLocation): string {
@@ -1824,6 +1923,8 @@ function buildIllustrationQaMetadata(input: {
   locationRenderMode?: "legacy" | "a2_custom";
   locationReferenceId?: string;
   backgroundRendered?: boolean;
+  compositeMode?: boolean;
+  locationViewId?: string;
 }): IllustrationGenerationMetadata {
   return {
     provider: input.provider,
@@ -1831,6 +1932,8 @@ function buildIllustrationQaMetadata(input: {
     locationRenderMode: input.locationRenderMode,
     locationReferenceId: input.locationReferenceId,
     backgroundRendered: input.backgroundRendered,
+    compositeMode: input.compositeMode,
+    locationViewId: input.locationViewId,
     referenceSnapshotKey: input.referenceSnapshotKey,
     characterReferenceIds: input.characterReferences.map(
       (reference) => reference.id
@@ -2106,42 +2209,42 @@ export async function generateCoverIllustration(input: {
     coverLocation,
   });
 
-  // A2: same two-pass render as spreads when the cover location is a custom
-  // saved location.
+  // A2 ("Option B"): composite a transparent character layer onto the saved
+  // establishing illustration when the cover location is a custom saved room.
   const useA2 =
     getLocationRenderMode() === "a2_custom" &&
     Boolean(coverLocation) &&
     isCustomSavedLocation(coverLocation!);
-  let backgroundImage: Buffer | undefined;
-  if (useA2 && coverLocation) {
-    backgroundImage = await loadLocationBackground({
-      project: input.project,
-      location: coverLocation,
-    });
-  }
   const effectiveLocationReferences = useA2 ? undefined : locationReferences;
+
+  const produceUpscaled = async (promptToUse: string): Promise<Buffer> => {
+    if (useA2 && coverLocation) {
+      const { upscaled } = await renderCompositeLocationSpread({
+        location: coverLocation,
+        spreadSequence: coverSpread?.sequence ?? 0,
+        prompt: promptToUse,
+        visualReferences: input.visualReferences,
+        continuityReferences: input.continuityReferences,
+      });
+      return upscaled;
+    }
+    return generateAndUpscale({
+      prompt: promptToUse,
+      visualReferences: input.visualReferences,
+      continuityReferences: input.continuityReferences,
+      locationReferences: effectiveLocationReferences,
+    });
+  };
 
   if (isGeneratedIllustrationConfigured()) {
     try {
       let upscaled: Buffer;
       try {
-        upscaled = await generateAndUpscale({
-          prompt,
-          visualReferences: input.visualReferences,
-          continuityReferences: input.continuityReferences,
-          locationReferences: effectiveLocationReferences,
-          backgroundImage,
-        });
+        upscaled = await produceUpscaled(prompt);
       } catch (err) {
         if (!(err instanceof UnusableGeneratedImageError)) throw err;
         console.warn(`${err.message} - retrying cover generation once.`);
-        upscaled = await generateAndUpscale({
-          prompt,
-          visualReferences: input.visualReferences,
-          continuityReferences: input.continuityReferences,
-          locationReferences: effectiveLocationReferences,
-          backgroundImage,
-        });
+        upscaled = await produceUpscaled(prompt);
       }
 
       const [coverImageUrl, coverWebImageUrl] = await Promise.all([
@@ -2185,13 +2288,7 @@ export async function generateCoverIllustration(input: {
         omitSceneDetails: true,
       });
       try {
-        const retryUpscaled = await generateAndUpscale({
-          prompt: fallbackPrompt,
-          visualReferences: input.visualReferences,
-          continuityReferences: input.continuityReferences,
-          locationReferences: effectiveLocationReferences,
-          backgroundImage,
-        });
+        const retryUpscaled = await produceUpscaled(fallbackPrompt);
         const [coverImageUrl, coverWebImageUrl] = await Promise.all([
           storeBookAsset({
             pathname: `books/${input.project.id}/cover.png`,
@@ -2335,22 +2432,36 @@ export async function generateSpreadPageIllustration(input: {
     ? [locationReference]
     : undefined;
 
-  // A2: for custom saved locations, render an empty room background once (pass
-  // 1) and draw characters into it (pass 2), keeping the character conditioning
-  // sheet free of any location cell so faces stay isolated.
+  // A2 ("Option B"): for custom saved locations, use the saved establishing
+  // illustration directly as the background and composite a transparent
+  // character layer onto it. The room pixels are never regenerated.
   const spreadLocation = resolveSpreadLocation(project.locationBible, spread);
   const useA2 =
     getLocationRenderMode() === "a2_custom" &&
     Boolean(spreadLocation) &&
     isCustomSavedLocation(spreadLocation!);
-  let backgroundImage: Buffer | undefined;
-  if (useA2 && spreadLocation) {
-    backgroundImage = await loadLocationBackground({
-      project,
-      location: spreadLocation,
-    });
-  }
   const effectiveLocationReferences = useA2 ? undefined : locationReferences;
+  let compositeViewId: string | undefined;
+
+  const produceUpscaled = async (promptToUse: string): Promise<Buffer> => {
+    if (useA2 && spreadLocation) {
+      const { upscaled, locationViewId } = await renderCompositeLocationSpread({
+        location: spreadLocation,
+        spreadSequence: spread.sequence,
+        prompt: promptToUse,
+        visualReferences: spreadVisualReferences,
+        continuityReferences,
+      });
+      compositeViewId = locationViewId;
+      return upscaled;
+    }
+    return generateAndUpscale({
+      prompt: promptToUse,
+      visualReferences: spreadVisualReferences,
+      continuityReferences,
+      locationReferences: effectiveLocationReferences,
+    });
+  };
 
   const buildQa = (options: {
     provider: "openai" | "placeholder";
@@ -2365,7 +2476,9 @@ export async function generateSpreadPageIllustration(input: {
       pageTextOmitted: options.pageTextOmitted,
       locationRenderMode: useA2 ? "a2_custom" : "legacy",
       locationReferenceId: locationReference?.id,
-      backgroundRendered: useA2 ? Boolean(backgroundImage) : undefined,
+      backgroundRendered: useA2 ? true : undefined,
+      compositeMode: useA2 ? true : undefined,
+      locationViewId: compositeViewId,
     });
   const prompt = buildPageIllustrationPrompt({
     ...input,
@@ -2376,25 +2489,13 @@ export async function generateSpreadPageIllustration(input: {
   try {
     let upscaled: Buffer;
     try {
-      upscaled = await generateAndUpscale({
-        prompt,
-        visualReferences: spreadVisualReferences,
-        continuityReferences,
-        locationReferences: effectiveLocationReferences,
-        backgroundImage,
-      });
+      upscaled = await produceUpscaled(prompt);
     } catch (err) {
       if (!(err instanceof UnusableGeneratedImageError)) throw err;
       console.warn(
         `${err.message} - retrying spread ${spread.sequence} ${side} page once.`
       );
-      upscaled = await generateAndUpscale({
-        prompt,
-        visualReferences: spreadVisualReferences,
-        continuityReferences,
-        locationReferences: effectiveLocationReferences,
-        backgroundImage,
-      });
+      upscaled = await produceUpscaled(prompt);
     }
     const { url, webUrl } = await storeWithWeb(upscaled);
     return {
@@ -2418,13 +2519,7 @@ export async function generateSpreadPageIllustration(input: {
       omitPageText: true,
     });
     try {
-      const upscaled = await generateAndUpscale({
-        prompt: fallbackPrompt,
-        visualReferences: spreadVisualReferences,
-        continuityReferences,
-        locationReferences: effectiveLocationReferences,
-        backgroundImage,
-      });
+      const upscaled = await produceUpscaled(fallbackPrompt);
       const { url, webUrl } = await storeWithWeb(upscaled);
       return {
         url,

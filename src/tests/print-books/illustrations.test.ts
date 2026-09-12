@@ -1,6 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ChildProfile, Story } from "@/types";
-import type { BookProject, CharacterBible } from "@/types/printBook";
+import type {
+  BookProject,
+  CharacterBible,
+  SceneLocation,
+} from "@/types/printBook";
 
 const mockStoreBookAsset = vi.fn();
 
@@ -1787,9 +1791,8 @@ describe("A2 location render mode", () => {
     const fetchMock = setupImageMocks();
 
     vi.resetModules();
-    const { generateSpreadPageIllustration, __resetLocationBackgroundCache } =
+    const { generateSpreadPageIllustration } =
       await import("@/lib/print-books/illustrations");
-    __resetLocationBackgroundCache();
 
     const result = await generateSpreadPageIllustration({
       project: {
@@ -1814,20 +1817,21 @@ describe("A2 location render mode", () => {
     const body = editCalls[0]?.[1]?.body as FormData;
     expect(body.get("image")).toBeInstanceOf(File);
     expect(body.getAll("image[]")).toHaveLength(0);
+    expect(body.get("background")).toBeNull();
     expect(result.qa.locationRenderMode).toBe("legacy");
+    expect(result.qa.compositeMode).toBeFalsy();
 
     teardownImageMocks();
   });
 
-  it("uses the two-pass multi-image path for a custom location when the flag is on", async () => {
+  it("composites a transparent character layer over the saved room when the flag is on", async () => {
     process.env.OPENAI_API_KEY = "test-key";
     process.env.LOCATION_RENDER_MODE = "a2_custom";
     const fetchMock = setupImageMocks();
 
     vi.resetModules();
-    const { generateSpreadPageIllustration, __resetLocationBackgroundCache } =
+    const { generateSpreadPageIllustration } =
       await import("@/lib/print-books/illustrations");
-    __resetLocationBackgroundCache();
 
     const result = await generateSpreadPageIllustration({
       project: {
@@ -1848,19 +1852,44 @@ describe("A2 location render mode", () => {
     const editCalls = fetchMock.mock.calls.filter((call) =>
       String(call[0]).includes("/images/edits")
     );
-    // A2 no longer re-renders the room: the establishing image is used directly
-    // as the background base, so there is exactly ONE edit call (the character
-    // composite) carrying two image[] parts.
+    // True compositing: the saved room is used directly as the background base
+    // (no regeneration), so there is exactly ONE edit call - the transparent
+    // character layer render.
     expect(editCalls).toHaveLength(1);
 
-    const a2Body = editCalls[0]?.[1]?.body as FormData;
-    expect(a2Body.getAll("image[]")).toHaveLength(2);
-    expect(a2Body.get("image")).toBeNull();
-    expect(a2Body.get("quality")).toBe("high");
-    expect(a2Body.get("input_fidelity")).toBe("high");
+    const characterBody = editCalls[0]?.[1]?.body as FormData;
+    // (a) the character layer is rendered on a transparent background with the
+    // single character conditioning sheet (no location cell / no image[] parts).
+    expect(characterBody.get("background")).toBe("transparent");
+    expect(characterBody.get("output_format")).toBe("png");
+    expect(characterBody.get("image")).toBeInstanceOf(File);
+    expect(characterBody.getAll("image[]")).toHaveLength(0);
+    expect(characterBody.get("quality")).toBe("high");
+    expect(characterBody.get("input_fidelity")).toBe("high");
 
+    // (b) the saved establishing room is only fetched as bytes for the
+    // background base - it is never sent as an input image to /images/edits.
+    const roomAsEditInput = fetchMock.mock.calls.some((call) => {
+      if (!String(call[0]).includes("/images/edits")) return false;
+      const body = call[1]?.body as FormData | undefined;
+      if (!body) return false;
+      const parts = [body.get("image"), ...body.getAll("image[]")];
+      return parts.some(
+        (part) => part instanceof File && part.name.includes("nursery")
+      );
+    });
+    expect(roomAsEditInput).toBe(false);
+    // The establishing image URL is fetched as raw bytes for the background.
+    expect(
+      fetchMock.mock.calls.some((call) =>
+        String(call[0]).includes("nursery.png")
+      )
+    ).toBe(true);
+
+    // (c) QA metadata records the composite render.
     expect(result.qa.locationRenderMode).toBe("a2_custom");
     expect(result.qa.backgroundRendered).toBe(true);
+    expect(result.qa.compositeMode).toBe(true);
 
     teardownImageMocks();
   });
@@ -1871,9 +1900,8 @@ describe("A2 location render mode", () => {
     const fetchMock = setupImageMocks();
 
     vi.resetModules();
-    const { generateSpreadPageIllustration, __resetLocationBackgroundCache } =
+    const { generateSpreadPageIllustration } =
       await import("@/lib/print-books/illustrations");
-    __resetLocationBackgroundCache();
 
     const genericLocation = {
       ...customLocation(),
@@ -1904,9 +1932,60 @@ describe("A2 location render mode", () => {
     expect(editCalls).toHaveLength(1);
     const body = editCalls[0]?.[1]?.body as FormData;
     expect(body.getAll("image[]")).toHaveLength(0);
+    expect(body.get("background")).toBeNull();
     expect(result.qa.locationRenderMode).toBe("legacy");
+    expect(result.qa.compositeMode).toBeFalsy();
 
     teardownImageMocks();
+  });
+});
+
+describe("resolveSpreadLocationView", () => {
+  function readyView(id: string, imageUrl: string, isPrimary = false) {
+    return { id, label: id, imageUrl, isPrimary, status: "ready" as const };
+  }
+
+  it("rotates through ready views by spread sequence", async () => {
+    const { resolveSpreadLocationView } = await import(
+      "@/lib/print-books/locationBible"
+    );
+    const location = {
+      id: "bedroom",
+      name: "Bedroom",
+      views: [
+        readyView("v-a", "https://acct.blob.vercel-storage.com/a.png"),
+        readyView("v-b", "https://acct.blob.vercel-storage.com/b.png"),
+        readyView("v-c", "https://acct.blob.vercel-storage.com/c.png"),
+      ],
+    } as unknown as SceneLocation;
+
+    const first = resolveSpreadLocationView(location, { sequence: 0 });
+    const second = resolveSpreadLocationView(location, { sequence: 1 });
+    const third = resolveSpreadLocationView(location, { sequence: 2 });
+
+    expect(first?.id).toBe("v-a");
+    expect(second?.id).toBe("v-b");
+    expect(third?.id).toBe("v-c");
+    expect(
+      new Set([first?.imageUrl, second?.imageUrl, third?.imageUrl]).size
+    ).toBe(3);
+  });
+
+  it("falls back to establishingImageUrl when there are no views", async () => {
+    const { resolveSpreadLocationView } = await import(
+      "@/lib/print-books/locationBible"
+    );
+    const location = {
+      id: "bedroom",
+      name: "Bedroom",
+      establishingImageUrl: "https://acct.blob.vercel-storage.com/est.png",
+    } as unknown as SceneLocation;
+
+    const chosen = resolveSpreadLocationView(location, { sequence: 5 });
+    expect(chosen?.imageUrl).toBe(
+      "https://acct.blob.vercel-storage.com/est.png"
+    );
+    expect(chosen?.id).toBeUndefined();
   });
 });
 

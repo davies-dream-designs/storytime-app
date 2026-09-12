@@ -4,6 +4,7 @@ import type {
   BookSpread,
   LocationBible,
   LocationFixture,
+  LocationView,
   LocationVisualReference,
   SceneLocation,
 } from "@/types/printBook";
@@ -630,6 +631,49 @@ export function buildLocationDirection(
     "You may frame the shot from a different distance or height for visual interest, but keep the same viewing direction into the room as other pages here: the room, furniture, props, their positions and the way each one faces, and the light source must stay consistent — reposition the camera, not the room."
   );
   return parts.join(" ");
+}
+
+/**
+ * Pick the background illustration (angle) for a spread set in a location.
+ *
+ * When a location has several ready `views`, rotate through them by the
+ * spread's sequence so consecutive spreads in the same room use different
+ * uploaded angles. Falls back to the primary view, then to the legacy single
+ * `establishingImageUrl`.
+ */
+export function resolveSpreadLocationView(
+  location: SceneLocation | undefined,
+  spread: Pick<BookSpread, "sequence">
+): { id?: string; imageUrl: string } | undefined {
+  if (!location) return undefined;
+
+  const readyViews = (location.views ?? []).filter(
+    (view): view is LocationView & { imageUrl: string } =>
+      typeof view.imageUrl === "string" &&
+      view.imageUrl.length > 0 &&
+      view.status === "ready"
+  );
+
+  if (readyViews.length > 0) {
+    const index =
+      ((spread.sequence % readyViews.length) + readyViews.length) %
+      readyViews.length;
+    const chosen = readyViews[index]!;
+    return { id: chosen.id, imageUrl: chosen.imageUrl };
+  }
+
+  const primary = (location.views ?? []).find(
+    (view): view is LocationView & { imageUrl: string } =>
+      Boolean(view.isPrimary) &&
+      typeof view.imageUrl === "string" &&
+      view.imageUrl.length > 0
+  );
+  if (primary) return { id: primary.id, imageUrl: primary.imageUrl };
+
+  if (location.establishingImageUrl) {
+    return { imageUrl: location.establishingImageUrl };
+  }
+  return undefined;
 }
 
 /**

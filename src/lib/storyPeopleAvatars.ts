@@ -333,6 +333,8 @@ export async function generateEditedImage(input: {
   /** "high" preserves the input image's layout/detail far better (gpt-image-1). */
   inputFidelity?: "high" | "low";
   quality?: "low" | "medium" | "high";
+  /** "transparent" returns a PNG with an alpha channel (no baked background). */
+  background?: "transparent";
 }): Promise<Buffer> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
@@ -357,6 +359,10 @@ export async function generateEditedImage(input: {
   formData.append("quality", input.quality ?? "medium");
   if (input.inputFidelity) {
     formData.append("input_fidelity", input.inputFidelity);
+  }
+  if (input.background === "transparent") {
+    formData.append("output_format", "png");
+    formData.append("background", "transparent");
   }
 
   const response = await fetch(`${OPENAI_BASE()}/images/edits`, {

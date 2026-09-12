@@ -28,7 +28,6 @@ import {
   getAgeInMonths,
 } from "@/types";
 import { assessStoryIdeaIp } from "@/lib/ipGuardrails";
-import type { LocationFixture } from "@/types/printBook";
 
 const THEME_EMOJIS: Record<string, string> = {
   kindness: "💛",
@@ -62,7 +61,6 @@ const FALLBACK_THEME_OPTIONS = [
 const CHILD_CAST_ID_PREFIX = "child:";
 const MAX_SUPPORTING_CAST = 3;
 const MAX_VISIBLE_SUGGESTIONS = 9;
-const MAX_STORY_LOCATIONS = 5;
 
 function buildChildCastId(profileId: string): string {
   return `${CHILD_CAST_ID_PREFIX}${profileId}`;
@@ -94,10 +92,6 @@ function childProfileToCastPerson(profile: ChildProfile): StoryPerson {
     createdAt: profile.createdAt,
     updatedAt: profile.createdAt,
   };
-}
-
-function locationFixtureLabel(fixture: LocationFixture): string {
-  return fixture.area ? `${fixture.place} (${fixture.area})` : fixture.place;
 }
 
 const SAFETY_ERRORS: Record<
@@ -184,11 +178,6 @@ function GenerateForm() {
     useState<StorySuggestion | null>(null);
   const [selectedTheme, setSelectedTheme] = useState("calm bedtime");
   const [storyPeople, setStoryPeople] = useState<StoryPerson[]>([]);
-  const [savedLocations, setSavedLocations] = useState<LocationFixture[]>([]);
-  const [selectedLocationFixtureIds, setSelectedLocationFixtureIds] = useState<
-    string[]
-  >([]);
-  const [customLocationHint, setCustomLocationHint] = useState("");
   const [selectedStoryPersonIds, setSelectedStoryPersonIds] = useState<
     string[]
   >([]);
@@ -251,13 +240,6 @@ function GenerateForm() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/location-fixtures")
-      .then((r) => (r.ok ? (r.json() as Promise<LocationFixture[]>) : []))
-      .then((fixtures) => setSavedLocations(fixtures))
-      .catch(() => setSavedLocations([]));
-  }, []);
-
-  useEffect(() => {
     if (!profileId) {
       setStoryPeople([]);
       setSelectedStoryPersonIds([]);
@@ -303,7 +285,6 @@ function GenerateForm() {
           fresh,
           theme: selectedTheme,
           storyPersonIds: selectedStoryPersonIds,
-          locationHint: resolvedLocationHint || undefined,
         }),
       });
       const data = await res.json();
@@ -350,24 +331,6 @@ function GenerateForm() {
     }
   }
 
-  function toggleSavedLocation(locationFixtureId: string) {
-    setSelectedLocationFixtureIds((current) =>
-      current.includes(locationFixtureId)
-        ? current.filter((id) => id !== locationFixtureId)
-        : current.length >= MAX_STORY_LOCATIONS
-          ? current
-          : [...current, locationFixtureId]
-    );
-    setSuggestions([]);
-    setSelectedSuggestion(null);
-  }
-
-  function updateCustomLocationHint(nextValue: string) {
-    setCustomLocationHint(nextValue);
-    setSuggestions([]);
-    setSelectedSuggestion(null);
-  }
-
   function buildBuilderPremise() {
     return builderIdea.trim();
   }
@@ -403,11 +366,6 @@ function GenerateForm() {
             theme: selectedTheme,
             premise: selectedSuggestion.premise,
             notes,
-            locationHint: resolvedLocationHint || undefined,
-            locationFixtureId: selectedLocationFixtures[0]?.id,
-            locationFixtureIds: selectedLocationFixtures.map(
-              (fixture) => fixture.id
-            ),
             storyPreset,
             storyPersonIds: selectedStoryPersonIds,
             locale,
@@ -417,11 +375,6 @@ function GenerateForm() {
             theme: selectedTheme,
             premise,
             notes,
-            locationHint: resolvedLocationHint || undefined,
-            locationFixtureId: selectedLocationFixtures[0]?.id,
-            locationFixtureIds: selectedLocationFixtures.map(
-              (fixture) => fixture.id
-            ),
             storyPreset,
             storyPersonIds: selectedStoryPersonIds,
             locale,
@@ -524,15 +477,6 @@ function GenerateForm() {
     ...selectedStoryPeople.map((person) => person.name),
   ].filter(Boolean);
   const selectedCastLabel = selectedCastNames.join(", ");
-  const selectedLocationFixtures = selectedLocationFixtureIds
-    .map((id) => savedLocations.find((fixture) => fixture.id === id))
-    .filter((fixture): fixture is LocationFixture => Boolean(fixture));
-  const resolvedLocationHint = [
-    ...selectedLocationFixtures.map(locationFixtureLabel),
-    customLocationHint.trim(),
-  ]
-    .filter(Boolean)
-    .join("; ");
 
   function toggleStoryPerson(id: string) {
     setSelectedStoryPersonIds((current) =>
@@ -793,143 +737,6 @@ function GenerateForm() {
               </div>
 
               <div className="rounded-2xl border border-night-100 bg-white/70 p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="font-display font-bold text-night-800">
-                      Special Place (Optional)
-                    </p>
-                    <p className="mt-1 text-sm leading-6 text-night-500">
-                      Pick one or more saved locations, or type a one-off place.
-                      Storycot will weave them into natural parts of the story
-                      without forcing every page to stay there.
-                    </p>
-                  </div>
-                  <Link
-                    href="/locations"
-                    className={buttonClassName({
-                      variant: "secondary",
-                      size: "compact",
-                      className: "shrink-0",
-                    })}
-                  >
-                    <Icon name="dashboard" />
-                    Manage
-                  </Link>
-                </div>
-
-                <div className="mt-4 space-y-4">
-                  <div>
-                    <label className={formStyles.subLabel}>
-                      Saved locations
-                    </label>
-                    {savedLocations.length > 0 ? (
-                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                        {savedLocations.map((fixture) => {
-                          const selected = selectedLocationFixtureIds.includes(
-                            fixture.id
-                          );
-                          const disabled =
-                            !selected &&
-                            selectedLocationFixtureIds.length >=
-                              MAX_STORY_LOCATIONS;
-                          return (
-                            <button
-                              key={fixture.id}
-                              type="button"
-                              onClick={() => toggleSavedLocation(fixture.id)}
-                              disabled={disabled}
-                              className={`rounded-2xl border p-3 text-left transition ${
-                                selected
-                                  ? "border-star-400 bg-star-50 shadow-sm"
-                                  : "border-night-100 bg-white/75 hover:border-star-200"
-                              } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
-                            >
-                              <div className="flex gap-3">
-                                {fixture.establishingImageUrl ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img
-                                    src={fixture.establishingImageUrl}
-                                    alt={locationFixtureLabel(fixture)}
-                                    className="h-14 w-14 shrink-0 rounded-xl object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-xl">
-                                    📍
-                                  </div>
-                                )}
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <span
-                                      className={`h-4 w-4 rounded border ${
-                                        selected
-                                          ? "border-star-500 bg-star-400"
-                                          : "border-night-300 bg-white"
-                                      }`}
-                                    />
-                                    <p className="truncate font-bold text-night-800">
-                                      {locationFixtureLabel(fixture)}
-                                    </p>
-                                  </div>
-                                  <p className="mt-1 line-clamp-2 text-xs leading-5 text-night-500">
-                                    {fixture.summary ||
-                                      fixture.notes ||
-                                      "Saved location ready to reuse."}
-                                  </p>
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="mt-2 rounded-xl bg-night-50 p-3 text-sm text-night-500">
-                        No saved locations yet. Add bedrooms, lounges, gardens,
-                        or other familiar places from the Locations page.
-                      </p>
-                    )}
-                    <p className="mt-2 text-xs text-night-400">
-                      Choose up to {MAX_STORY_LOCATIONS} saved rooms/places.
-                      Storycot will map each selected area into the book&apos;s
-                      Location Bible and reuse its saved illustration where the
-                      story visits it.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className={formStyles.subLabel}>
-                      Optional one-off place
-                    </label>
-                    <input
-                      value={customLocationHint}
-                      onChange={(event) =>
-                        updateCustomLocationHint(event.target.value)
-                      }
-                      placeholder="e.g. Grandma's lounge, the cubby house, or our local beach"
-                      className={formStyles.field}
-                    />
-                  </div>
-
-                  {selectedLocationFixtures.length > 0 ? (
-                    <div className="rounded-2xl border border-star-200 bg-star-50 p-3">
-                      <p className="mb-2 text-xs font-bold uppercase tracking-wide text-night-500">
-                        Selected story places
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedLocationFixtures.map((fixture) => (
-                          <span
-                            key={fixture.id}
-                            className="rounded-full bg-white px-3 py-1 text-xs font-bold text-night-700 shadow-sm"
-                          >
-                            {locationFixtureLabel(fixture)}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-night-100 bg-white/70 p-4">
                 <div>
                   <p className="font-display font-bold text-night-800">
                     Write A Story Idea
@@ -945,11 +752,6 @@ function GenerateForm() {
                     <span className="rounded-full bg-star-100 px-3 py-1 text-night-700">
                       Theme: {selectedTheme}
                     </span>
-                    {resolvedLocationHint ? (
-                      <span className="rounded-full bg-sky-100 px-3 py-1 text-sky-700">
-                        Places: {resolvedLocationHint}
-                      </span>
-                    ) : null}
                   </div>
                 </div>
                 <div className="mt-3 space-y-3">
@@ -975,7 +777,7 @@ function GenerateForm() {
                 <div className="space-y-2">
                   <p className="text-xs text-night-400">
                     {selectedCastLabel
-                      ? `Ideas will be based on ${selectedCastLabel}, "${selectedTheme}", and ${resolvedLocationHint ? `visits to ${resolvedLocationHint}` : "your selected story details"}.`
+                      ? `Ideas will be based on ${selectedCastLabel} and "${selectedTheme}".`
                       : t("getIdeasHint")}
                   </p>
                   <button
@@ -1000,11 +802,7 @@ function GenerateForm() {
             <p className="mb-3 text-sm leading-6 text-night-500">
               These ideas use {selectedCastLabel || selectedProfile?.name}, the{" "}
               <span className="font-bold text-night-700">{selectedTheme}</span>{" "}
-              theme
-              {resolvedLocationHint
-                ? `, and visits to ${resolvedLocationHint}`
-                : ""}
-              .
+              theme.
             </p>
             {loadingSuggestions && suggestions.length === 0 ? (
               <div className="space-y-3">

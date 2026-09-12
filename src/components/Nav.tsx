@@ -69,7 +69,6 @@ export default function Nav() {
     { href: "/dashboard", label: t("dashboard"), icon: "dashboard" },
     { href: "/profiles", label: t("profilesMobile"), icon: "profile" },
     { href: "/family", label: "Family & Friends", icon: "profile" },
-    { href: "/locations", label: "Locations", icon: "image" },
     { href: "/stories", label: t("storiesMobile"), icon: "book" },
     { href: "/account", label: t("accountMobile"), icon: "account" },
   ] satisfies Array<{ href: string; label: string; icon: IconName }>;
@@ -77,7 +76,6 @@ export default function Nav() {
   const desktopAuthedLinks = [
     { href: "/profiles", label: t("profiles"), icon: "profile" },
     { href: "/family", label: "Family", icon: "profile" },
-    { href: "/locations", label: "Locations", icon: "image" },
     { href: "/stories", label: t("stories"), icon: "book" },
   ] satisfies Array<{ href: string; label: string; icon: IconName }>;
   const renderMobileLink = (item: {

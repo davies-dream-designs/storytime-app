@@ -9,11 +9,6 @@ import {
   assessStoryIdeaIp,
   profileIpErrorResponse,
 } from "@/lib/ipGuardrails";
-import {
-  buildStoryLocationHint,
-  normalizeStoryLocationFixtureIds,
-  resolveRequestedLocationFixtures,
-} from "@/lib/storyLocationFixtures";
 import { STORY_CREDIT_COST } from "@/lib/pricing";
 import { chargeStoryGenerationCredit } from "@/lib/credits";
 import { logEvent } from "@/lib/logEvent";
@@ -25,10 +20,6 @@ import { generateStory, StoryGenerationError } from "@/lib/storyGenerator";
 import { getSelectedStoryPeople } from "@/lib/storyPeopleSelection";
 import type { Story } from "@/types";
 
-function sanitizeText(value: unknown, maxLength = 200): string {
-  return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
-}
-
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId)
@@ -39,9 +30,6 @@ export async function POST(req: NextRequest) {
     theme,
     premise,
     notes,
-    locationHint: rawLocationHint,
-    locationFixtureId: rawLocationFixtureId,
-    locationFixtureIds: rawLocationFixtureIds,
     locale,
     storyPersonIds,
   } = (await req.json()) as {
@@ -49,18 +37,9 @@ export async function POST(req: NextRequest) {
     theme?: string;
     premise?: string;
     notes?: string;
-    locationHint?: string;
-    locationFixtureId?: string;
-    locationFixtureIds?: unknown[];
     locale?: string;
     storyPersonIds?: string[];
   };
-
-  const locationHint = sanitizeText(rawLocationHint, 500);
-  const locationFixtureIds = normalizeStoryLocationFixtureIds({
-    locationFixtureId: rawLocationFixtureId,
-    locationFixtureIds: rawLocationFixtureIds,
-  });
 
   const safety = validateStoryIdeaSafety({ theme, premise, notes });
   if (!safety.ok) {
@@ -99,15 +78,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const [characters, recentStories, selectedLocationFixturesResult] =
-    await Promise.all([
-      db.characters.getByProfileId(profileId),
-      db.stories.getByProfileId(profileId),
-      resolveRequestedLocationFixtures({
-        userId,
-        fixtureIds: locationFixtureIds,
-      }),
-    ]);
+  const [characters, recentStories] = await Promise.all([
+    db.characters.getByProfileId(profileId),
+    db.stories.getByProfileId(profileId),
+  ]);
   const safeCharacters = characters.filter((c) => c.userId === userId);
   const selectedStoryPeople = await getSelectedStoryPeople({
     userId,
@@ -124,16 +98,6 @@ export async function POST(req: NextRequest) {
       status: 400,
     });
   }
-
-  if (selectedLocationFixturesResult.invalidIds.length > 0) {
-    return NextResponse.json({ error: "Location not found" }, { status: 404 });
-  }
-  const selectedLocationFixtures = selectedLocationFixturesResult.fixtures;
-
-  const resolvedLocationHint = buildStoryLocationHint({
-    fixtures: selectedLocationFixtures,
-    customLocationHint: locationHint,
-  });
 
   const ipPolicy = assessStoryIdeaIp({ theme, premise, notes });
 
@@ -152,7 +116,6 @@ export async function POST(req: NextRequest) {
       theme: theme ?? "a gentle adventure",
       premise: ipPolicy.originalizedPremise ?? premise,
       notes: ipPolicy.originalizedNotes ?? notes ?? "",
-      locationHint: resolvedLocationHint,
       recentTitles,
       locale,
     });
@@ -179,9 +142,6 @@ export async function POST(req: NextRequest) {
     theme: theme ?? "a gentle adventure",
     premise: ipPolicy.originalizedPremise ?? premise,
     notes: ipPolicy.originalizedNotes ?? notes ?? "",
-    locationHint: resolvedLocationHint,
-    locationFixtureId: selectedLocationFixtures[0]?.id,
-    locationFixtureIds: selectedLocationFixtures.map((fixture) => fixture.id),
     storyPersonIds: selectedStoryPeople.map((person) => person.id),
     ipPolicy,
     createdAt: new Date().toISOString(),

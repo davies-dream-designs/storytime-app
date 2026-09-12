@@ -6,8 +6,6 @@ import { Link, useRouter } from "@/i18n/navigation";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import { useConfirmDialog } from "@/components/ui/useConfirmDialog";
-import type { SceneLocation } from "@/types/printBook";
-import LocationDetailsModal from "./LocationDetailsModal";
 
 export default function CreatePrintBookButton({
   storyId,
@@ -30,8 +28,6 @@ export default function CreatePrintBookButton({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pendingProjectId, setPendingProjectId] = useState<string | null>(null);
-  const [locations, setLocations] = useState<SceneLocation[]>([]);
   const { confirm, ConfirmDialog } = useConfirmDialog();
 
   const hasEnoughCredits = isAdmin || userCredits >= credits;
@@ -77,17 +73,6 @@ export default function CreatePrintBookButton({
 
       const project = (await createRes.json()) as { id: string };
 
-      // Prepare the location list so the parent can optionally add real-life
-      // details before illustrations are drawn. If this degrades (e.g. the
-      // location model hiccups), fall through to building directly.
-      const prepared = await prepareLocations(project.id);
-      if (prepared.reviewRequired && prepared.locations.length > 0) {
-        setPendingProjectId(project.id);
-        setLocations(prepared.locations);
-        setLoading(false);
-        return;
-      }
-
       await runBuild(project.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("createError"));
@@ -95,49 +80,10 @@ export default function CreatePrintBookButton({
     }
   }
 
-  async function prepareLocations(
-    projectId: string
-  ): Promise<{ locations: SceneLocation[]; reviewRequired: boolean }> {
-    try {
-      const res = await fetch(`/api/books/${projectId}/locations/prepare`, {
-        method: "POST",
-      });
-      if (!res.ok) return { locations: [], reviewRequired: false };
-      const data = (await res.json().catch(() => null)) as {
-        locationBible?: { locations?: SceneLocation[] };
-        reviewRequired?: boolean;
-      } | null;
-      return {
-        locations: data?.locationBible?.locations ?? [],
-        reviewRequired: data?.reviewRequired ?? true,
-      };
-    } catch {
-      return { locations: [], reviewRequired: false };
-    }
-  }
-
-  async function runBuild(
-    projectId: string,
-    locationDetails?: {
-      notes?: Record<string, string>;
-      establishingImageUrls?: Record<string, string>;
-    }
-  ) {
+  async function runBuild(projectId: string) {
     setLoading(true);
     setError(null);
     try {
-      if (
-        locationDetails &&
-        (Object.keys(locationDetails.notes ?? {}).length > 0 ||
-          Object.keys(locationDetails.establishingImageUrls ?? {}).length > 0)
-      ) {
-        await fetch(`/api/books/${projectId}/locations`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(locationDetails),
-        });
-      }
-
       // Kick off the build. A 409 means this book can't be fully rebuilt and
       // needs the "retry failed images" panel instead - that's expected, so we
       // just refresh and let that panel appear rather than surfacing an error.
@@ -153,7 +99,6 @@ export default function CreatePrintBookButton({
         );
       }
 
-      setPendingProjectId(null);
       // Refresh so the server re-renders with the book's status panel in place
       // of this button.
       router.refresh();
@@ -162,22 +107,6 @@ export default function CreatePrintBookButton({
       setLoading(false);
     }
   }
-
-  const locationModal =
-    pendingProjectId !== null ? (
-      <LocationDetailsModal
-        projectId={pendingProjectId}
-        locations={locations}
-        submitting={loading}
-        onCancel={() => {
-          setPendingProjectId(null);
-          setLoading(false);
-        }}
-        onConfirm={(details) => {
-          if (pendingProjectId) void runBuild(pendingProjectId, details);
-        }}
-      />
-    ) : null;
 
   const estimateBodyText = t("estimateBody", {
     credits,
@@ -247,7 +176,6 @@ export default function CreatePrintBookButton({
           </p>
         ) : null}
         <ConfirmDialog />
-        {locationModal}
       </>
     );
   }
@@ -285,7 +213,6 @@ export default function CreatePrintBookButton({
         ) : null}
       </div>
       <ConfirmDialog />
-      {locationModal}
     </>
   );
 }

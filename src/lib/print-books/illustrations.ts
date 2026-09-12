@@ -1015,8 +1015,8 @@ async function buildOpenAIImageEditBody(input: {
     formData.append("image[]", sheetFile);
     formData.append("model", input.model);
     const a2Prompt = [
-      "Two images are attached. Image 1 is the exact room/background — keep its layout, furniture, doors, windows, appliances, and colours exactly; do not redraw or reinvent the room from any other image.",
-      "Image 2 is the character reference sheet — draw those characters INTO the room from image 1, preserving their faces and identity from image 2.",
+      "Two images are attached. Image 1 is the established illustration of this exact room — keep its existing art style, layout, furniture, doors, windows, appliances, and colours exactly as drawn; do not restyle, blur, simplify, or reinvent the room.",
+      "Image 2 is the character reference sheet — add those characters INTO the room from image 1 at high quality, preserving their faces and identity from image 2, without changing the room's fixed objects or their positions.",
       referencePrompt,
       input.prompt,
     ]
@@ -1317,39 +1317,28 @@ export function __resetLocationBackgroundCache(): void {
   locationBackgroundCache.clear();
 }
 
-function buildLocationBackgroundPrompt(input: {
-  location: SceneLocation;
-  characterBible: CharacterBible;
-}): string {
-  const { location, characterBible } = input;
-  return [
-    `Reproduce THIS EXACT room ("${location.name}") from the same viewpoint as an EMPTY children's picture-book background.`,
-    `Render it in the book's art style: ${characterBible.renderStyle}; palette ${characterBible.palette}; lighting ${characterBible.lightingTone}.`,
-    "Keep the doors, windows, furniture, appliances, and layout identical to the attached image.",
-    "No people, no pets, no characters of any kind — only the empty room.",
-    "No text, no captions, no watermark.",
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
-
-async function renderLocationBackground(input: {
+// A2 background base: the saved establishing illustration is ALREADY an empty,
+// on-style room drawn from the parent's photo, so we use it directly as the
+// Pass-2 edit base instead of re-rendering it. Re-rendering it first (an extra
+// gpt-image edit) stacked a second lossy generation that softened detail and
+// let fixed objects drift — the exact quality/consistency regression reported.
+// We only load (and cache) the establishing image buffer here.
+async function loadLocationBackground(input: {
   project: Pick<BookProject, "id">;
   location: SceneLocation;
-  characterBible: CharacterBible;
 }): Promise<Buffer> {
-  const { project, location, characterBible } = input;
-  const cacheKey = `${project.id}:${location.id}:${location.establishingImageUrl}`;
+  const { project, location } = input;
+  const establishingImageUrl = location.establishingImageUrl;
+  if (!establishingImageUrl) {
+    throw new AppError("book.reference_image_unavailable", {
+      message: "Custom location has no establishing image URL.",
+    });
+  }
+  const cacheKey = `${project.id}:${location.id}:${establishingImageUrl}`;
   const cached = locationBackgroundCache.get(cacheKey);
   if (cached) return cached;
 
   const promise = (async () => {
-    const establishingImageUrl = location.establishingImageUrl;
-    if (!establishingImageUrl) {
-      throw new AppError("book.reference_image_unavailable", {
-        message: "Custom location has no establishing image URL.",
-      });
-    }
     const source = await loadReferenceImageBuffer({
       id: `location-background:${location.id}`,
       imageUrl: establishingImageUrl,
@@ -1360,69 +1349,7 @@ async function renderLocationBackground(input: {
         message: "Custom location establishing image could not be loaded.",
       });
     }
-
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new AppError("system.config_missing", {
-        message: "OPENAI_API_KEY is not configured",
-      });
-    }
-    const prompt = buildLocationBackgroundPrompt({ location, characterBible });
-    const models = getPreferredOpenAIImageModels();
-    let lastErrorMessage = "Unknown OpenAI background render error";
-
-    for (let index = 0; index < models.length; index += 1) {
-      const model = models[index]!;
-      const formData = new FormData();
-      formData.append(
-        "image",
-        new File(
-          [bufferToArrayBuffer(source)],
-          "storycot-location-establishing.png",
-          { type: "image/png" }
-        )
-      );
-      formData.append("model", model);
-      formData.append(
-        "prompt",
-        clampPromptText(prompt, OPENAI_IMAGE_PROMPT_MAX_CHARS)
-      );
-      formData.append("size", "1024x1024");
-      formData.append("input_fidelity", "high");
-      formData.append("quality", "high");
-
-      const response = await fetch(`${openAIBase()}/images/edits`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}` },
-        body: formData,
-      });
-      if (!response.ok) {
-        const errorBody = await response.text();
-        lastErrorMessage = `OpenAI background render failed for ${model}: ${response.status} ${errorBody}`;
-        if (
-          index < models.length - 1 &&
-          shouldTryNextImageModel(response.status, errorBody)
-        ) {
-          continue;
-        }
-        throw new AppError("external.openai_error", {
-          message: lastErrorMessage,
-          context: { model, status: response.status },
-        });
-      }
-      const payload = (await response.json()) as {
-        data?: Array<{ b64_json?: string }>;
-      };
-      const base64Image = payload.data?.[0]?.b64_json;
-      if (!base64Image) {
-        throw new AppError("external.openai_error", {
-          message: `OpenAI background render returned no image data for ${model}`,
-          context: { model },
-        });
-      }
-      return Buffer.from(base64Image, "base64");
-    }
-    throw new AppError("external.openai_error", { message: lastErrorMessage });
+    return source;
   })();
 
   locationBackgroundCache.set(cacheKey, promise);
@@ -2187,10 +2114,9 @@ export async function generateCoverIllustration(input: {
     isCustomSavedLocation(coverLocation!);
   let backgroundImage: Buffer | undefined;
   if (useA2 && coverLocation) {
-    backgroundImage = await renderLocationBackground({
+    backgroundImage = await loadLocationBackground({
       project: input.project,
       location: coverLocation,
-      characterBible: input.characterBible,
     });
   }
   const effectiveLocationReferences = useA2 ? undefined : locationReferences;
@@ -2419,10 +2345,9 @@ export async function generateSpreadPageIllustration(input: {
     isCustomSavedLocation(spreadLocation!);
   let backgroundImage: Buffer | undefined;
   if (useA2 && spreadLocation) {
-    backgroundImage = await renderLocationBackground({
+    backgroundImage = await loadLocationBackground({
       project,
       location: spreadLocation,
-      characterBible: input.characterBible,
     });
   }
   const effectiveLocationReferences = useA2 ? undefined : locationReferences;

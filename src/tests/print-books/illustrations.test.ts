@@ -1848,15 +1848,12 @@ describe("A2 location render mode", () => {
     const editCalls = fetchMock.mock.calls.filter((call) =>
       String(call[0]).includes("/images/edits")
     );
-    // One background render (pass 1) + one character composite (pass 2).
-    expect(editCalls.length).toBeGreaterThanOrEqual(2);
+    // A2 no longer re-renders the room: the establishing image is used directly
+    // as the background base, so there is exactly ONE edit call (the character
+    // composite) carrying two image[] parts.
+    expect(editCalls).toHaveLength(1);
 
-    const a2Call = editCalls.find((call) => {
-      const body = call[1]?.body as FormData;
-      return body.getAll("image[]").length === 2;
-    });
-    expect(a2Call).toBeTruthy();
-    const a2Body = a2Call?.[1]?.body as FormData;
+    const a2Body = editCalls[0]?.[1]?.body as FormData;
     expect(a2Body.getAll("image[]")).toHaveLength(2);
     expect(a2Body.get("image")).toBeNull();
     expect(a2Body.get("quality")).toBe("high");

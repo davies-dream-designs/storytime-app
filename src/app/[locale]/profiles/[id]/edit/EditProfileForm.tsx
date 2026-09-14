@@ -160,7 +160,7 @@ export default function EditProfileForm({
   return (
     <>
       <Nav />
-      <main className="mx-auto max-w-2xl px-5 py-10">
+      <main className="mx-auto max-w-3xl px-5 py-10 lg:max-w-5xl">
         <div className="mb-8">
           <Button
             variant="secondary"

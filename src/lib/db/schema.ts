@@ -30,6 +30,7 @@ import type {
   PrintOrderRecord,
   CharacterBible,
   LocationBible,
+  LocationView,
   BookProjectStatus,
   BookBuildMode,
   BookBuildJobStatus,
@@ -53,6 +54,13 @@ export const profiles = pgTable(
     appearanceSummary: text("appearance_summary"),
     avatarTraitHash: text("avatar_trait_hash"),
     avatarGeneratedAt: text("avatar_generated_at"),
+    avatarGenerationStatus: text("avatar_generation_status").$type<
+      "queued" | "running" | "ready" | "failed"
+    >(),
+    avatarGenerationError: text("avatar_generation_error"),
+    avatarGenerationJobId: text("avatar_generation_job_id"),
+    avatarGenerationAttemptKey: text("avatar_generation_attempt_key"),
+    avatarGenerationUpdatedAt: text("avatar_generation_updated_at"),
     favouriteCharacters: text("favourite_characters")
       .array()
       .notNull()
@@ -94,6 +102,9 @@ export const stories = pgTable(
     createdAt: text("created_at").notNull(),
     status: text("status").$type<"generating" | "ready" | "failed">(),
     generationError: text("generation_error"),
+    generationJobId: text("generation_job_id"),
+    generationClaimedAt: text("generation_claimed_at"),
+    creditChargedAt: text("credit_charged_at"),
     shareToken: text("share_token"),
     visibility: text("visibility")
       .$type<StoryVisibility>()
@@ -141,6 +152,13 @@ export const storyPeople = pgTable(
     appearanceSummary: text("appearance_summary"),
     avatarTraitHash: text("avatar_trait_hash"),
     avatarGeneratedAt: text("avatar_generated_at"),
+    avatarGenerationStatus: text("avatar_generation_status").$type<
+      "queued" | "running" | "ready" | "failed"
+    >(),
+    avatarGenerationError: text("avatar_generation_error"),
+    avatarGenerationJobId: text("avatar_generation_job_id"),
+    avatarGenerationAttemptKey: text("avatar_generation_attempt_key"),
+    avatarGenerationUpdatedAt: text("avatar_generation_updated_at"),
     availableToAllProfiles: boolean("available_to_all_profiles")
       .notNull()
       .default(false),
@@ -419,6 +437,7 @@ export const locationFixtures = pgTable(
     >(),
     establishingImageError: text("establishing_image_error"),
     establishingImageJobId: text("establishing_image_job_id"),
+    views: jsonb("views").$type<LocationView[]>().notNull().default([]),
     fixedElements: jsonb("fixed_elements")
       .$type<string[]>()
       .notNull()
@@ -430,6 +449,68 @@ export const locationFixtures = pgTable(
     updatedAt: text("updated_at").notNull(),
   },
   (t) => [index("location_fixtures_user_id_idx").on(t.userId)]
+);
+
+export const processedWebhookEvents = pgTable(
+  "processed_webhook_events",
+  {
+    id: text("id").primaryKey(),
+    source: text("source").notNull(),
+    createdAt: text("created_at").notNull(),
+    // Lease state so a worker that dies between claiming and finishing does not
+    // permanently strand an event: 'pending' rows whose lease has expired can be
+    // re-claimed; only 'done' rows are treated as real duplicates.
+    status: text("status").notNull().default("done"),
+    leaseExpiresAt: text("lease_expires_at"),
+  },
+  (t) => [index("processed_webhook_events_source_idx").on(t.source)]
+);
+
+// Durable outbox for transactional emails. A row is claimed (pending) before
+// the provider send and only flipped to 'sent' after the provider confirms, so
+// emails are never silently lost on a fire-and-forget send. `dedupeKey` is
+// unique for at-most-once delivery across retries/webhook redelivery.
+export const emailOutbox = pgTable(
+  "email_outbox",
+  {
+    id: text("id").primaryKey(),
+    dedupeKey: text("dedupe_key").notNull().unique(),
+    kind: text("kind").notNull(),
+    recipient: text("recipient").notNull(),
+    status: text("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    lastError: text("last_error"),
+    createdAt: text("created_at").notNull(),
+    sentAt: text("sent_at"),
+  },
+  (t) => [index("email_outbox_status_idx").on(t.status)]
+);
+
+// Authoritative per-user credit balance (opt-in via CREDIT_LEDGER_ENABLED).
+// The balance lives in one row and is mutated with atomic single-statement
+// UPDATEs so concurrent operations cannot lose updates the way Clerk-metadata
+// read-modify-write does.
+export const userCredits = pgTable("user_credits", {
+  userId: text("user_id").primaryKey(),
+  credits: integer("credits").notNull().default(0),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// Append-only audit + idempotency log for every credit change. `dedupeKey` is
+// unique, so a grant/charge tagged with a stable key is applied at most once
+// even under retries or webhook redelivery.
+export const creditLedger = pgTable(
+  "credit_ledger",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    delta: integer("delta").notNull(),
+    reason: text("reason").notNull(),
+    dedupeKey: text("dedupe_key").notNull().unique(),
+    balanceAfter: integer("balance_after").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [index("credit_ledger_user_id_idx").on(t.userId)]
 );
 
 export const publicStoryModerationEvents = pgTable(

@@ -220,105 +220,6 @@ describe("generateCoverIllustration", () => {
     expect(prompt).toMatch(/Do not copy that page's exact pose/);
   });
 
-  it("attaches the primary saved location reference to cover generation", async () => {
-    process.env.OPENAI_API_KEY = "test-key";
-
-    vi.doMock("@/lib/print-books/storage", () => ({
-      storeBookAsset: mockStoreBookAsset,
-      isBookAssetStorageConfigured: () => true,
-    }));
-
-    vi.doMock("sharp", () => {
-      const instance = {
-        resize: vi.fn().mockReturnThis(),
-        composite: vi.fn().mockReturnThis(),
-        removeAlpha: vi.fn().mockReturnThis(),
-        raw: vi.fn().mockReturnThis(),
-        png: vi.fn().mockReturnThis(),
-        jpeg: vi.fn().mockReturnThis(),
-        rotate: vi.fn().mockReturnThis(),
-        toBuffer: vi.fn((options?: { resolveWithObject?: boolean }) =>
-          options?.resolveWithObject
-            ? Promise.resolve({
-                data: Buffer.from([128, 128, 128, 180, 180, 180]),
-                info: { channels: 3 },
-              })
-            : Promise.resolve(Buffer.from("upscaled-png"))
-        ),
-      };
-      const sharpFn = vi.fn(() => instance);
-      const sharpMock = Object.assign(sharpFn, {
-        kernel: { lanczos3: "lanczos3" },
-      });
-      return { default: sharpMock };
-    });
-
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      void init;
-      if (String(url).startsWith("https://assets.example.com/")) {
-        return {
-          ok: true,
-          arrayBuffer: async () => Buffer.from("reference").buffer,
-        };
-      }
-      return {
-        ok: true,
-        json: async () => ({
-          data: [{ b64_json: Buffer.from("image").toString("base64") }],
-        }),
-      };
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    mockStoreBookAsset.mockResolvedValue("https://example.com/cover.png");
-
-    vi.resetModules();
-    const { generateCoverIllustration } =
-      await import("@/lib/print-books/illustrations");
-
-    const result = await generateCoverIllustration({
-      project: {
-        ...createProject(),
-        locationBible: {
-          locations: [
-            {
-              id: "nursery",
-              name: "Levi's bedroom",
-              place: "Home",
-              area: "Bedroom",
-              summary: "A bedroom with a cot and a Kura single bed.",
-              fixedElements: [
-                "window on the right beside Levi's cot",
-                "IKEA Kura single bed for Bailey",
-              ],
-              lighting: "soft lamp light from the right",
-              palette: "cream, timber, and soft blue",
-              doNotChange: ["no window on the left", "no extra door"],
-              establishingImageUrl: "https://assets.example.com/nursery.png",
-            },
-          ],
-          pageLocations: { 1: "nursery", 2: "nursery" },
-        },
-      },
-      story: createStory(),
-      profile: createProfile(),
-      characterBible: createCharacterBible(),
-    });
-
-    expect(result.provider).toBe("openai");
-    const editCall = fetchMock.mock.calls.find((call) =>
-      String(call[0]).includes("/images/edits")
-    );
-    expect(editCall).toBeTruthy();
-    const body = editCall?.[1]?.body as FormData;
-    expect(body.get("prompt")).toContain("Attached setting reference image");
-    expect(body.get("prompt")).toContain("no window on the left");
-    expect(body.get("prompt")).toContain("IKEA Kura single bed");
-
-    vi.unstubAllGlobals();
-    vi.doUnmock("sharp");
-    vi.doUnmock("@/lib/print-books/storage");
-  });
-
   it("omits the interior-page continuity clause when no page art is attached", async () => {
     const { buildCoverIllustrationPrompt } =
       await import("@/lib/print-books/illustrations");
@@ -589,7 +490,7 @@ describe("generateCoverIllustration", () => {
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       void init;
-      if (String(url).startsWith("https://assets.example.com/")) {
+      if (String(url).startsWith("https://acct.blob.vercel-storage.com/")) {
         return {
           ok: true,
           arrayBuffer: async () => Buffer.from("reference").buffer,
@@ -634,7 +535,7 @@ describe("generateCoverIllustration", () => {
           name: "Glenpa",
           role: "family_friend_pet",
           relationship: "grandparent",
-          imageUrl: "https://assets.example.com/glenpa.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/glenpa.jpg",
           appearance:
             "Latest edited appearance: warm smile, dark-framed glasses, grey hair tied in a neat man bun. Previous generated reference summary, use only when it does not conflict with latest edited appearance/body build: grey-brown shoulder-length wavy hair. Illustration body-build cue: very large plus-size body build with a clearly fuller round frame.",
         },
@@ -727,7 +628,7 @@ describe("generateCoverIllustration", () => {
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       void init;
-      if (String(url).startsWith("https://assets.example.com/")) {
+      if (String(url).startsWith("https://acct.blob.vercel-storage.com/")) {
         return {
           ok: true,
           arrayBuffer: async () => Buffer.from("reference").buffer,
@@ -792,7 +693,7 @@ describe("generateCoverIllustration", () => {
           id: "profile:profile-1",
           name: "Mila",
           role: "main_child",
-          imageUrl: "https://assets.example.com/mila.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/mila.jpg",
           appearance: hugeText,
         },
         {
@@ -800,7 +701,7 @@ describe("generateCoverIllustration", () => {
           name: "Glenpa",
           role: "family_friend_pet",
           relationship: "grandparent",
-          imageUrl: "https://assets.example.com/glenpa.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/glenpa.jpg",
           appearance: hugeText,
           isStale: true,
         },
@@ -861,7 +762,7 @@ describe("generateCoverIllustration", () => {
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       void init;
-      if (String(url).startsWith("https://assets.example.com/")) {
+      if (String(url).startsWith("https://acct.blob.vercel-storage.com/")) {
         return {
           ok: true,
           arrayBuffer: async () => Buffer.from("reference").buffer,
@@ -905,7 +806,7 @@ describe("generateCoverIllustration", () => {
           id: "profile:profile-1",
           name: "Mila",
           role: "main_child",
-          imageUrl: "https://assets.example.com/mila.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/mila.jpg",
           appearance: "Curly dark hair and bright brown eyes.",
         },
         {
@@ -913,7 +814,7 @@ describe("generateCoverIllustration", () => {
           name: "Glenpa",
           role: "family_friend_pet",
           relationship: "grandparent",
-          imageUrl: "https://assets.example.com/glenpa.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/glenpa.jpg",
           appearance:
             "Warm smile, dark-framed glasses, grey hair in a neat bun.",
         },
@@ -922,7 +823,7 @@ describe("generateCoverIllustration", () => {
           name: "Poppy",
           role: "family_friend_pet",
           relationship: "friend",
-          imageUrl: "https://assets.example.com/poppy.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/poppy.jpg",
           appearance: "Red overalls and two braids.",
         },
       ],
@@ -942,7 +843,7 @@ describe("generateCoverIllustration", () => {
     expect(body.get("prompt")).not.toContain("Poppy");
     expect(
       fetchMock.mock.calls.some(
-        (call) => String(call[0]) === "https://assets.example.com/poppy.jpg"
+        (call) => String(call[0]) === "https://acct.blob.vercel-storage.com/poppy.jpg"
       )
     ).toBe(false);
 
@@ -986,7 +887,7 @@ describe("generateCoverIllustration", () => {
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       void init;
-      if (String(url).startsWith("https://assets.example.com/")) {
+      if (String(url).startsWith("https://acct.blob.vercel-storage.com/")) {
         return {
           ok: true,
           arrayBuffer: async () => Buffer.from("reference").buffer,
@@ -1057,7 +958,7 @@ describe("generateCoverIllustration", () => {
           id: "profile:profile-1",
           name: "Mila",
           role: "main_child",
-          imageUrl: "https://assets.example.com/mila.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/mila.jpg",
           appearance: "Curly dark hair and bright brown eyes.",
         },
         {
@@ -1065,7 +966,7 @@ describe("generateCoverIllustration", () => {
           name: "Glenpa",
           role: "family_friend_pet",
           relationship: "grandparent",
-          imageUrl: "https://assets.example.com/glenpa.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/glenpa.jpg",
           appearance:
             "Warm smile, dark-framed glasses, grey hair in a neat bun.",
         },
@@ -1074,7 +975,7 @@ describe("generateCoverIllustration", () => {
           name: "Poppy",
           role: "family_friend_pet",
           relationship: "friend",
-          imageUrl: "https://assets.example.com/poppy.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/poppy.jpg",
           appearance: "Red overalls and two braids.",
         },
       ],
@@ -1131,7 +1032,7 @@ describe("generateCoverIllustration", () => {
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       void init;
-      if (String(url).startsWith("https://assets.example.com/")) {
+      if (String(url).startsWith("https://acct.blob.vercel-storage.com/")) {
         return {
           ok: true,
           arrayBuffer: async () => Buffer.from("reference").buffer,
@@ -1156,12 +1057,12 @@ describe("generateCoverIllustration", () => {
       ...baseProject,
       assets: {
         ...baseProject.assets,
-        coverImageUrl: "https://assets.example.com/cover.png",
+        coverImageUrl: "https://acct.blob.vercel-storage.com/cover.png",
       },
       spreads: [
         {
           ...baseProject.spreads[0]!,
-          imageUrl: "https://assets.example.com/cover.png",
+          imageUrl: "https://acct.blob.vercel-storage.com/cover.png",
         },
         {
           id: "book-1:spread:2",
@@ -1175,8 +1076,8 @@ describe("generateCoverIllustration", () => {
           rightPageText: "",
           sceneBrief: "Mila carries her lantern through the garden path.",
           illustrationPrompt: "Mila on the garden path with her lantern.",
-          leftPageImageUrl: "https://assets.example.com/spread-2.png",
-          thumbnailUrl: "https://assets.example.com/spread-2-thumb.jpg",
+          leftPageImageUrl: "https://acct.blob.vercel-storage.com/spread-2.png",
+          thumbnailUrl: "https://acct.blob.vercel-storage.com/spread-2-thumb.jpg",
         },
       ],
     };
@@ -1206,7 +1107,7 @@ describe("generateCoverIllustration", () => {
           id: "profile:profile-1",
           name: "Mila",
           role: "main_child",
-          imageUrl: "https://assets.example.com/mila.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/mila.jpg",
           appearance: "Curly dark hair and bright brown eyes.",
         },
         {
@@ -1214,7 +1115,7 @@ describe("generateCoverIllustration", () => {
           name: "Glenpa",
           role: "family_friend_pet",
           relationship: "grandparent",
-          imageUrl: "https://assets.example.com/glenpa.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/glenpa.jpg",
           appearance:
             "Warm smile, dark-framed glasses, grey hair in a neat bun.",
         },
@@ -1235,12 +1136,12 @@ describe("generateCoverIllustration", () => {
     );
     expect(
       fetchMock.mock.calls.some(
-        (call) => String(call[0]) === "https://assets.example.com/cover.png"
+        (call) => String(call[0]) === "https://acct.blob.vercel-storage.com/cover.png"
       )
     ).toBe(true);
     expect(
       fetchMock.mock.calls.some(
-        (call) => String(call[0]) === "https://assets.example.com/spread-2.png"
+        (call) => String(call[0]) === "https://acct.blob.vercel-storage.com/spread-2.png"
       )
     ).toBe(true);
     expect(result.spread.leftPageQa).toMatchObject({
@@ -1291,7 +1192,7 @@ describe("generateCoverIllustration", () => {
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       void init;
-      if (String(url).startsWith("https://assets.example.com/")) {
+      if (String(url).startsWith("https://acct.blob.vercel-storage.com/")) {
         return {
           ok: true,
           arrayBuffer: async () => Buffer.from("reference").buffer,
@@ -1316,12 +1217,12 @@ describe("generateCoverIllustration", () => {
       ...baseProject,
       assets: {
         ...baseProject.assets,
-        coverImageUrl: "https://assets.example.com/cover.png",
+        coverImageUrl: "https://acct.blob.vercel-storage.com/cover.png",
       },
       spreads: [
         {
           ...baseProject.spreads[0]!,
-          imageUrl: "https://assets.example.com/cover.png",
+          imageUrl: "https://acct.blob.vercel-storage.com/cover.png",
         },
         {
           id: "book-1:spread:2",
@@ -1336,7 +1237,7 @@ describe("generateCoverIllustration", () => {
           sceneBrief: "Mila and Glenpa share a garden lantern walk.",
           illustrationPrompt:
             "Mila and Glenpa with the silver lantern in the garden.",
-          leftPageImageUrl: "https://assets.example.com/spread-2.png",
+          leftPageImageUrl: "https://acct.blob.vercel-storage.com/spread-2.png",
           leftPageQa: {
             provider: "openai",
             generatedAt: "2026-08-17T00:00:00.000Z",
@@ -1358,7 +1259,7 @@ describe("generateCoverIllustration", () => {
           rightPageText: "",
           sceneBrief: "Poppy enjoys a snowy mountain afternoon.",
           illustrationPrompt: "Poppy in the snow.",
-          leftPageImageUrl: "https://assets.example.com/spread-3.png",
+          leftPageImageUrl: "https://acct.blob.vercel-storage.com/spread-3.png",
           leftPageQa: {
             provider: "openai",
             generatedAt: "2026-08-17T00:00:00.000Z",
@@ -1395,7 +1296,7 @@ describe("generateCoverIllustration", () => {
           id: "profile:profile-1",
           name: "Mila",
           role: "main_child",
-          imageUrl: "https://assets.example.com/mila.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/mila.jpg",
           appearance: "Curly dark hair and bright brown eyes.",
         },
         {
@@ -1403,7 +1304,7 @@ describe("generateCoverIllustration", () => {
           name: "Glenpa",
           role: "family_friend_pet",
           relationship: "grandparent",
-          imageUrl: "https://assets.example.com/glenpa.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/glenpa.jpg",
           appearance:
             "Warm smile, dark-framed glasses, grey hair in a neat bun.",
           isStale: true,
@@ -1413,7 +1314,7 @@ describe("generateCoverIllustration", () => {
           name: "Poppy",
           role: "family_friend_pet",
           relationship: "friend",
-          imageUrl: "https://assets.example.com/poppy.jpg",
+          imageUrl: "https://acct.blob.vercel-storage.com/poppy.jpg",
           appearance: "Red overalls and two braids.",
         },
       ],
@@ -1423,17 +1324,17 @@ describe("generateCoverIllustration", () => {
 
     expect(
       fetchMock.mock.calls.some(
-        (call) => String(call[0]) === "https://assets.example.com/cover.png"
+        (call) => String(call[0]) === "https://acct.blob.vercel-storage.com/cover.png"
       )
     ).toBe(true);
     expect(
       fetchMock.mock.calls.some(
-        (call) => String(call[0]) === "https://assets.example.com/spread-2.png"
+        (call) => String(call[0]) === "https://acct.blob.vercel-storage.com/spread-2.png"
       )
     ).toBe(true);
     expect(
       fetchMock.mock.calls.some(
-        (call) => String(call[0]) === "https://assets.example.com/spread-3.png"
+        (call) => String(call[0]) === "https://acct.blob.vercel-storage.com/spread-3.png"
       )
     ).toBe(false);
     expect(result.spread.leftPageQa?.staleCharacterReferenceNames).toEqual([
@@ -1718,80 +1619,114 @@ describe("scoreContinuitySpread", () => {
     });
     expect(same).toBeGreaterThan(different);
   });
+
+  it("anchors on the canonical first interior spread over a more recent one", async () => {
+    const { scoreContinuitySpread } =
+      await import("@/lib/print-books/illustrations");
+    const firstInterior = scoreContinuitySpread({
+      spread: spread({ sequence: 5, locationId: "bedroom" }),
+      candidate: spread({ sequence: 2, locationId: "bedroom" }),
+      selectedCharacterIds: new Set(),
+    });
+    const recent = scoreContinuitySpread({
+      spread: spread({ sequence: 5, locationId: "bedroom" }),
+      candidate: spread({ sequence: 4, locationId: "bedroom" }),
+      selectedCharacterIds: new Set(),
+    });
+    expect(firstInterior).toBeGreaterThan(recent);
+  });
 });
 
-describe("generateLocationEstablishingImages", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    delete process.env.OPENAI_API_KEY;
-    delete process.env.BLOB_READ_WRITE_TOKEN;
-    delete process.env.IMAGE_PROVIDER;
-  });
+describe("selectSpreadVisualReferences", () => {
+  function makeSpread(
+    partial: Partial<BookProject["spreads"][number]>
+  ): BookProject["spreads"][number] {
+    return {
+      id: "s1",
+      sequence: 3,
+      title: "Page",
+      leftPageText: "The moon glowed softly over the quiet hills.",
+      rightPageText: "They watched the stars twinkle awake.",
+      ...partial,
+    } as BookProject["spreads"][number];
+  }
 
-  const bibleWith = (
-    locations: Array<{
-      id: string;
-      referenceImageUrl?: string;
-      establishingImageUrl?: string;
-    }>
-  ) => ({
-    locations: locations.map((loc) => ({
-      id: loc.id,
-      name: loc.id,
-      place: loc.id,
-      summary: "",
-      fixedElements: [],
-      lighting: "",
-      palette: "",
-      doNotChange: [],
-      referenceImageUrl: loc.referenceImageUrl,
-      establishingImageUrl: loc.establishingImageUrl,
-    })),
-    pageLocations: {},
-  });
+  const project = { spreads: [] } as unknown as BookProject;
 
-  it("returns the bible unchanged when generation is not configured", async () => {
-    const { generateLocationEstablishingImages } =
-      await import("@/lib/print-books/illustrations");
-    const bible = bibleWith([{ id: "bedroom" }]);
-    const result = await generateLocationEstablishingImages({
-      project: { id: "book-1", userId: "user-1" },
-      locationBible: bible,
-    });
-    expect(result?.locations[0]?.establishingImageUrl).toBeUndefined();
-    expect(mockStoreBookAsset).not.toHaveBeenCalled();
-  });
-
-  it("passes through an undefined location bible", async () => {
-    const { generateLocationEstablishingImages } =
-      await import("@/lib/print-books/illustrations");
-    const result = await generateLocationEstablishingImages({
-      project: { id: "book-1", userId: "user-1" },
-      locationBible: undefined,
-    });
-    expect(result).toBeUndefined();
-  });
-
-  it("never overwrites a location that already has an image", async () => {
-    process.env.OPENAI_API_KEY = "test-key";
-    process.env.BLOB_READ_WRITE_TOKEN = "test-token";
-    const { generateLocationEstablishingImages } =
-      await import("@/lib/print-books/illustrations");
-    const bible = bibleWith([
-      { id: "bedroom", referenceImageUrl: "https://cdn.example/photo.jpg" },
-      { id: "car", establishingImageUrl: "https://cdn.example/car.png" },
-    ]);
-    const result = await generateLocationEstablishingImages({
-      project: { id: "book-1", userId: "user-1" },
-      locationBible: bible,
-    });
-    expect(result?.locations[0]?.referenceImageUrl).toBe(
-      "https://cdn.example/photo.jpg"
+  it("keeps a named supporting character present in the page text", async () => {
+    const { selectSpreadVisualReferences } = await import(
+      "@/lib/print-books/illustrations"
     );
-    expect(result?.locations[1]?.establishingImageUrl).toBe(
-      "https://cdn.example/car.png"
+    const references = [
+      {
+        id: "profile:1",
+        name: "Bailey",
+        role: "main_child" as const,
+        imageUrl: "https://example.com/bailey.png",
+      },
+      {
+        id: "person:2",
+        name: "Zephyrine",
+        role: "family_friend_pet" as const,
+        relationship: "friend",
+        imageUrl: "https://example.com/zephyrine.png",
+      },
+    ];
+
+    const selected = selectSpreadVisualReferences({
+      project,
+      spread: makeSpread({
+        leftPageText: "Bailey and Zephyrine watched the stars together.",
+      }),
+      references,
+    });
+
+    expect(selected.map((reference) => reference.id)).toContain("person:2");
+  });
+
+  it("does not force an unmentioned supporting character into the scene", async () => {
+    const { selectSpreadVisualReferences } = await import(
+      "@/lib/print-books/illustrations"
     );
-    // Neither location needed a new asset stored.
-    expect(mockStoreBookAsset).not.toHaveBeenCalled();
+    const selected = selectSpreadVisualReferences({
+      project,
+      spread: makeSpread({}),
+      references: [
+        {
+          id: "profile:1",
+          name: "Bailey",
+          role: "main_child" as const,
+          imageUrl: "https://example.com/bailey.png",
+        },
+        {
+          id: "person:2",
+          name: "Zephyrine",
+          role: "family_friend_pet" as const,
+          relationship: "friend",
+          imageUrl: "https://example.com/zephyrine.png",
+        },
+      ],
+    });
+    expect(selected.map((reference) => reference.id)).not.toContain("person:2");
+  });
+
+  it("always includes the main child", async () => {
+    const { selectSpreadVisualReferences } = await import(
+      "@/lib/print-books/illustrations"
+    );
+    const selected = selectSpreadVisualReferences({
+      project,
+      spread: makeSpread({}),
+      references: [
+        {
+          id: "profile:1",
+          name: "Bailey",
+          role: "main_child" as const,
+          imageUrl: "https://example.com/bailey.png",
+        },
+      ],
+    });
+    expect(selected.map((reference) => reference.id)).toEqual(["profile:1"]);
   });
 });
+

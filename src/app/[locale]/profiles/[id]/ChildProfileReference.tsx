@@ -7,6 +7,12 @@ import { buttonClassName } from "@/components/ui/buttonStyles";
 import { formStyles } from "@/components/ui/formStyles";
 import { useConfirmDialog } from "@/components/ui/useConfirmDialog";
 import { isChildProfileReferenceStale } from "@/lib/characterReferenceContext";
+import {
+  delay,
+  isActiveAvatarStatus,
+  isAvatarJobResponse,
+  type AvatarGenerationEnqueueResult,
+} from "@/lib/avatarJobUtils";
 import type { ChildProfile } from "@/types";
 
 type PendingPhoto = {
@@ -17,7 +23,7 @@ type PendingPhoto = {
 };
 
 function isChildProfile(
-  value: ChildProfile | { error?: string }
+  value: ChildProfile | AvatarGenerationEnqueueResult | { error?: string }
 ): value is ChildProfile {
   return "id" in value;
 }
@@ -33,6 +39,7 @@ export default function ChildProfileReference({
   const [referenceCount, setReferenceCount] = useState(initialReferenceCount);
   const [pendingPhoto, setPendingPhoto] = useState<PendingPhoto | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [drawingJobId, setDrawingJobId] = useState<string | null>(null);
   const [redoNote, setRedoNote] = useState("");
   const [showRedo, setShowRedo] = useState(false);
   const [error, setError] = useState("");
@@ -50,6 +57,47 @@ export default function ChildProfileReference({
       })
       .catch(() => {});
   }, []);
+
+  async function waitForAvatarJob(jobId: string): Promise<ChildProfile> {
+    for (let attempt = 0; attempt < 45; attempt += 1) {
+      const res = await fetch(`/api/profiles/${profile.id}`, {
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+      if (res.ok) {
+        const next = (await res.json()) as ChildProfile;
+        if (next.avatarGenerationStatus === "failed") {
+          throw new Error(
+            next.avatarGenerationError || "Could not create the child reference."
+          );
+        }
+        if (
+          !isActiveAvatarStatus(next.avatarGenerationStatus) ||
+          next.avatarGenerationJobId !== jobId
+        ) {
+          return next;
+        }
+      }
+      await delay(2000);
+    }
+    throw new Error(
+      "The reference is still drawing in the background. Refresh this page in a moment."
+    );
+  }
+
+  async function resolveAvatarResponse(
+    data: ChildProfile | AvatarGenerationEnqueueResult | { error?: string },
+    fallback: string
+  ): Promise<ChildProfile> {
+    if (isChildProfile(data)) return data;
+    if (isAvatarJobResponse(data)) {
+      setDrawingJobId(data.jobId);
+      clearStagedPhoto();
+      setShowRedo(false);
+      return waitForAvatarJob(data.jobId);
+    }
+    throw new Error(data.error || fallback);
+  }
 
   const createReferenceCost =
     profile.avatarImageUrl || referenceCount >= 2 ? 1 : 0;
@@ -114,14 +162,22 @@ export default function ChildProfileReference({
         method: "POST",
         body: formData,
       });
-      const data = (await res.json()) as ChildProfile | { error?: string };
-      if (!res.ok || !isChildProfile(data)) {
-        const message = isChildProfile(data)
-          ? "Could not create the child reference"
-          : data.error;
-        throw new Error(message ?? "Could not create the child reference");
+      const data = (await res.json()) as
+        | ChildProfile
+        | AvatarGenerationEnqueueResult
+        | { error?: string };
+      if (!res.ok) {
+        throw new Error(
+          isChildProfile(data) || isAvatarJobResponse(data)
+            ? "Could not create the child reference"
+            : data.error || "Could not create the child reference"
+        );
       }
-      setProfile(data);
+      const nextProfile = await resolveAvatarResponse(
+        data,
+        "Could not create the child reference"
+      );
+      setProfile(nextProfile);
       if (!isRedo) setReferenceCount((current) => current + 1);
       window.dispatchEvent(new Event("storycot:credits-updated"));
       clearStagedPhoto();
@@ -129,6 +185,7 @@ export default function ChildProfileReference({
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setGenerating(false);
+      setDrawingJobId(null);
     }
   }
 
@@ -160,15 +217,22 @@ export default function ChildProfileReference({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ adjustment }),
       });
-      const data = (await res.json()) as ChildProfile | { error?: string };
-      if (!res.ok || !isChildProfile(data)) {
+      const data = (await res.json()) as
+        | ChildProfile
+        | AvatarGenerationEnqueueResult
+        | { error?: string };
+      if (!res.ok) {
         throw new Error(
-          isChildProfile(data)
+          isChildProfile(data) || isAvatarJobResponse(data)
             ? "Could not redo the child reference"
             : data.error || "Could not redo the child reference"
         );
       }
-      setProfile(data);
+      const nextProfile = await resolveAvatarResponse(
+        data,
+        "Could not redo the child reference"
+      );
+      setProfile(nextProfile);
       setRedoNote("");
       setShowRedo(false);
       window.dispatchEvent(new Event("storycot:credits-updated"));
@@ -176,6 +240,7 @@ export default function ChildProfileReference({
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setGenerating(false);
+      setDrawingJobId(null);
     }
   }
 
@@ -203,49 +268,68 @@ export default function ChildProfileReference({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ source: "description" }),
       });
-      const data = (await res.json()) as ChildProfile | { error?: string };
-      if (!res.ok || !isChildProfile(data)) {
+      const data = (await res.json()) as
+        | ChildProfile
+        | AvatarGenerationEnqueueResult
+        | { error?: string };
+      if (!res.ok) {
         throw new Error(
-          isChildProfile(data)
+          isChildProfile(data) || isAvatarJobResponse(data)
             ? "Could not create the child reference"
             : data.error || "Could not create the child reference"
         );
       }
-      setProfile(data);
+      const nextProfile = await resolveAvatarResponse(
+        data,
+        "Could not create the child reference"
+      );
+      setProfile(nextProfile);
       setReferenceCount((current) => current + 1);
       window.dispatchEvent(new Event("storycot:credits-updated"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setGenerating(false);
+      setDrawingJobId(null);
     }
   }
+
+  const isDrawing = generating && Boolean(drawingJobId);
 
   return (
     <section className="rounded-2xl border border-night-100 bg-white p-5">
       <div className="grid gap-4 md:grid-cols-[9rem_1fr]">
         <div className="overflow-hidden rounded-xl border border-night-100 bg-night-50">
-          <div
-            className={`relative aspect-square bg-cover bg-center ${
-              pendingPhoto ? "opacity-45" : ""
-            }`}
-            style={{
-              backgroundImage: profile.avatarImageUrl
-                ? `url("${profile.avatarImageUrl}")`
-                : undefined,
-            }}
-          >
-            {!profile.avatarImageUrl ? (
-              <div className="flex h-full items-center justify-center px-3 text-center text-xs font-bold text-night-300">
-                No Child Reference Yet
-              </div>
-            ) : null}
-            {pendingPhoto && profile.avatarImageUrl ? (
-              <div className="absolute inset-x-2 bottom-2 rounded-full bg-white/90 px-2 py-1 text-center text-[0.7rem] font-bold uppercase text-night-500">
-                Will Be Replaced
-              </div>
-            ) : null}
-          </div>
+          {isDrawing ? (
+            <div className="flex aspect-square animate-pulse flex-col items-center justify-center gap-2 bg-star-50 px-3 text-center">
+              <div className="h-10 w-10 rounded-full bg-star-200" />
+              <p className="text-[0.65rem] font-bold uppercase tracking-wide text-star-600">
+                Drawing…
+              </p>
+            </div>
+          ) : (
+            <div
+              className={`relative aspect-square bg-cover bg-center ${
+                pendingPhoto ? "opacity-45" : ""
+              }`}
+              style={{
+                backgroundImage: profile.avatarImageUrl
+                  ? `url("${profile.avatarImageUrl}")`
+                  : undefined,
+              }}
+            >
+              {!profile.avatarImageUrl ? (
+                <div className="flex h-full items-center justify-center px-3 text-center text-xs font-bold text-night-300">
+                  No Child Reference Yet
+                </div>
+              ) : null}
+              {pendingPhoto && profile.avatarImageUrl ? (
+                <div className="absolute inset-x-2 bottom-2 rounded-full bg-white/90 px-2 py-1 text-center text-[0.7rem] font-bold uppercase text-night-500">
+                  Will Be Replaced
+                </div>
+              ) : null}
+            </div>
+          )}
         </div>
 
         <div>
@@ -266,12 +350,22 @@ export default function ChildProfileReference({
             First 2 child references are free. Extra references or redos cost 1
             credit each.
           </p>
-          {profile.appearanceSummary ? (
+          {isDrawing ? (
+            <div className="mt-3 rounded-xl border border-star-200 bg-star-50 px-3 py-3">
+              <p className="text-sm font-bold text-star-700">
+                Drawing your reference…
+              </p>
+              <p className="mt-1 text-xs leading-5 text-star-600">
+                This usually takes 20–40 seconds. You can leave this page — it
+                will be ready when you come back.
+              </p>
+            </div>
+          ) : profile.appearanceSummary ? (
             <p className="mt-3 rounded-xl bg-night-50 px-3 py-2 text-sm leading-6 text-night-600">
               {profile.appearanceSummary}
             </p>
           ) : null}
-          {referenceIsStale ? (
+          {!isDrawing && referenceIsStale ? (
             <div className="mt-3 rounded-xl border border-star-200 bg-star-50 px-3 py-2 text-sm font-semibold leading-6 text-night-700">
               This illustrated reference may be out of date because the child
               profile has changed. Redo the reference before building new art
@@ -279,7 +373,7 @@ export default function ChildProfileReference({
             </div>
           ) : null}
 
-          {profile.avatarImageUrl ? (
+          {!isDrawing && profile.avatarImageUrl ? (
             <div className="mt-3 rounded-xl border border-night-100 bg-night-50 p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs font-bold uppercase tracking-wide text-night-400">
@@ -316,7 +410,7 @@ export default function ChildProfileReference({
                       onClick={() => void redoReference()}
                       disabled={generating || !redoNote.trim()}
                     >
-                      {generating ? "Redoing..." : "Redo Reference"}
+                      {generating ? "Submitting…" : "Redo Reference"}
                     </Button>
                     <button
                       type="button"
@@ -338,7 +432,7 @@ export default function ChildProfileReference({
             </div>
           ) : null}
 
-          {pendingPhoto ? (
+          {!isDrawing && pendingPhoto ? (
             <div className="mt-4 rounded-xl border border-star-200 bg-star-50 p-3">
               <div className="grid gap-3 sm:grid-cols-[6rem_1fr]">
                 <div
@@ -408,7 +502,7 @@ export default function ChildProfileReference({
                       onClick={() => void generateReference()}
                       disabled={generating || !pendingPhoto.consent}
                     >
-                      {generating ? "Creating..." : "Create Reference"}
+                      {generating ? "Submitting…" : "Create Reference"}
                     </Button>
                     <button
                       type="button"
@@ -427,62 +521,64 @@ export default function ChildProfileReference({
             </div>
           ) : null}
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            {!profile.avatarImageUrl ? (
-              <Button
-                size="compact"
-                onClick={() => void createReferenceFromDescription()}
-                disabled={generating}
+          {!isDrawing ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {!profile.avatarImageUrl ? (
+                <Button
+                  size="compact"
+                  onClick={() => void createReferenceFromDescription()}
+                  disabled={generating}
+                >
+                  {generating ? "Submitting…" : "Create From Profile"}
+                </Button>
+              ) : null}
+              <label
+                className={buttonClassName({
+                  variant: "secondary",
+                  size: "compact",
+                  className: generating
+                    ? "pointer-events-none opacity-60"
+                    : "cursor-pointer",
+                })}
               >
-                {generating ? "Creating..." : "Create From Profile"}
-              </Button>
-            ) : null}
-            <label
-              className={buttonClassName({
-                variant: "secondary",
-                size: "compact",
-                className: generating
-                  ? "pointer-events-none opacity-60"
-                  : "cursor-pointer",
-              })}
-            >
-              <Icon name="image" />
-              Upload Photo
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                className="sr-only"
-                disabled={generating}
-                onChange={(event) => {
-                  stagePhoto(event.target.files?.[0]);
-                  event.target.value = "";
-                }}
-              />
-            </label>
-            <label
-              className={buttonClassName({
-                variant: "secondary",
-                size: "compact",
-                className: generating
-                  ? "pointer-events-none opacity-60"
-                  : "cursor-pointer",
-              })}
-            >
-              <Icon name="image" />
-              Take Photo
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="sr-only"
-                disabled={generating}
-                onChange={(event) => {
-                  stagePhoto(event.target.files?.[0]);
-                  event.target.value = "";
-                }}
-              />
-            </label>
-          </div>
+                <Icon name="image" />
+                Upload Photo
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="sr-only"
+                  disabled={generating}
+                  onChange={(event) => {
+                    stagePhoto(event.target.files?.[0]);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+              <label
+                className={buttonClassName({
+                  variant: "secondary",
+                  size: "compact",
+                  className: generating
+                    ? "pointer-events-none opacity-60"
+                    : "cursor-pointer",
+                })}
+              >
+                <Icon name="image" />
+                Take Photo
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="sr-only"
+                  disabled={generating}
+                  onChange={(event) => {
+                    stagePhoto(event.target.files?.[0]);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+          ) : null}
 
           {error ? <p className={formStyles.error}>{error}</p> : null}
         </div>

@@ -1,17 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BookBuildJob } from "@/types/printBook";
 
-const {
-  mockCreateFunction,
-  mockGetJobById,
-  mockProcessBookBuildJob,
-  mockProcessLocationEstablishingJob,
-} = vi.hoisted(() => ({
-  mockCreateFunction: vi.fn(() => ({ id: "inngest-function" })),
-  mockGetJobById: vi.fn(),
-  mockProcessBookBuildJob: vi.fn(),
-  mockProcessLocationEstablishingJob: vi.fn(),
-}));
+const { mockCreateFunction, mockGetJobById, mockProcessBookBuildJob } =
+  vi.hoisted(() => ({
+    mockCreateFunction: vi.fn(() => ({ id: "inngest-function" })),
+    mockGetJobById: vi.fn(),
+    mockProcessBookBuildJob: vi.fn(),
+  }));
 
 vi.mock("@/lib/inngest/client", () => ({
   inngest: { createFunction: mockCreateFunction },
@@ -31,10 +26,6 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/print-books/jobs", () => ({
   processBookBuildJob: mockProcessBookBuildJob,
-}));
-
-vi.mock("@/lib/print-books/locationEstablishingJobs", () => ({
-  processLocationEstablishingJob: mockProcessLocationEstablishingJob,
 }));
 
 function createJob(status: BookBuildJob["status"] = "queued"): BookBuildJob {

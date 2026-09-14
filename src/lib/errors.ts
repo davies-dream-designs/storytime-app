@@ -51,6 +51,12 @@ export const ERROR_REGISTRY = {
     retryable: false,
     userMessage: "You're out of credits. Visit your account to top up.",
   },
+  "credits.post_charge_failed": {
+    domain: "credits",
+    severity: "warning",
+    retryable: false,
+    userMessage: "Your item is ready.",
+  },
   "story.profile_missing": {
     domain: "story",
     severity: "warning",

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { clerkClient } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { submitPrintFulfillment } from "@/lib/print-books/fulfillment";
+import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
 import {
   isPrintProductKey,
   quotePrintProduct,
@@ -15,13 +15,10 @@ import {
 import {
   sendGiftCreditsEmail,
   sendPrintOrderConfirmedEmail,
+  sendViaOutbox,
 } from "@/lib/email";
 import { logEvent } from "@/lib/logEvent";
-import type {
-  PrintBookOrder,
-  PrintFulfillment,
-  PrintOrderRecord,
-} from "@/types/printBook";
+import type { PrintBookOrder, PrintOrderRecord } from "@/types/printBook";
 
 function withoutStoredShipping(order: PrintBookOrder): PrintBookOrder {
   const safeOrder = { ...order };
@@ -29,34 +26,8 @@ function withoutStoredShipping(order: PrintBookOrder): PrintBookOrder {
   return safeOrder;
 }
 
-function withoutStoredFulfillmentPayload(
-  fulfillment: PrintFulfillment
-): PrintFulfillment {
-  const safeFulfillment = { ...fulfillment };
-  delete safeFulfillment.payload;
-  return safeFulfillment;
-}
-
 function centsToAud(value: number) {
   return Number((value / 100).toFixed(2));
-}
-
-function fulfillmentStatusToPrintOrderStatus(
-  fulfillment: PrintFulfillment
-): PrintOrderRecord["status"] {
-  switch (fulfillment.status) {
-    case "submitted":
-      return "fulfillment_submitted";
-    case "shipped":
-      return "shipped";
-    case "delivered":
-      return "delivered";
-    case "failed":
-    case "not_configured":
-      return "failed";
-    case "ready_for_manual_review":
-      return "fulfillment_pending";
-  }
 }
 
 function printOrderRecordToBookOrder(
@@ -119,6 +90,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
+  // Idempotency: Stripe retries deliveries. Claim the event id once so credit
+  // top-ups, gift referrals, fulfillment submissions and emails never repeat on
+  // redelivery. If processing throws after claiming, we release the id so the
+  // retry can run again.
+  const claimed = await db.processedWebhookEvents.claim(event.id, "stripe");
+  if (!claimed) {
+    return NextResponse.json({ received: true, duplicate: true });
+  }
+
+  try {
+    const response = await handleStripeEvent(stripe, event);
+    // Side effects succeeded — finalize the lease so redeliveries are skipped.
+    await db.processedWebhookEvents.markDone(event.id).catch(() => undefined);
+    return response;
+  } catch (err) {
+    await db.processedWebhookEvents.release(event.id).catch(() => undefined);
+    await logEvent({
+      error: err,
+      code: "webhook.processing_failed",
+      source: "stripe/webhook",
+      context: { eventId: event.id, eventType: event.type },
+    });
+    return NextResponse.json(
+      { error: "Webhook processing failed" },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleStripeEvent(stripe: Stripe, event: Stripe.Event) {
   if (event.type === "checkout.session.completed") {
     let session = event.data.object as Stripe.Checkout.Session;
     const checkoutType = session.metadata?.checkoutType ?? "credits";
@@ -267,19 +268,27 @@ export async function POST(req: NextRequest) {
               return undefined;
             }
           })();
-          void sendGiftCreditsEmail({
-            toEmail: updatedGift.recipientEmail,
-            toName: updatedGift.recipientName,
-            fromName:
-              purchaser?.firstName ??
-              purchaser?.primaryEmailAddress?.emailAddress ??
-              updatedGift.purchaserEmail ??
-              "Someone",
-            credits: updatedGift.credits,
-            message: updatedGift.message,
-            redeemUrl: `${appUrl.replace(/\/$/, "")}/gift/${updatedGift.token}`,
-            appUrl,
-          }).catch((err) => {
+          void sendViaOutbox(
+            {
+              dedupeKey: `gift:${updatedGift.id}`,
+              kind: "gift_credits",
+              recipient: updatedGift.recipientEmail,
+            },
+            () =>
+              sendGiftCreditsEmail({
+                toEmail: updatedGift.recipientEmail,
+                toName: updatedGift.recipientName,
+                fromName:
+                  purchaser?.firstName ??
+                  purchaser?.primaryEmailAddress?.emailAddress ??
+                  updatedGift.purchaserEmail ??
+                  "Someone",
+                credits: updatedGift.credits,
+                message: updatedGift.message,
+                redeemUrl: `${appUrl.replace(/\/$/, "")}/gift/${updatedGift.token}`,
+                appUrl,
+              })
+          ).catch((err) => {
             console.error("Gift email failed (non-fatal)", err);
             void logEvent({
               error: err,
@@ -305,22 +314,44 @@ export async function POST(req: NextRequest) {
             session,
             billingCountry
           );
-          const fulfillment = await submitPrintFulfillment({
-            project,
-            order: printOrder,
-          });
+          // Record the paid order (with shipping) and submit to Lulu durably in
+          // the background, so a slow/failed Lulu call can't time out the
+          // webhook or strand a paid order without an automatic retry.
           await db.printOrders.update(order.id, {
-            status: fulfillmentStatusToPrintOrderStatus(fulfillment),
+            status: "fulfillment_pending",
             paymentIntentId:
               typeof session.payment_intent === "string"
                 ? session.payment_intent
                 : undefined,
             billingCountry,
             shipping: printOrder.shipping,
-            fulfillment: withoutStoredFulfillmentPayload(fulfillment),
             paidAt: now,
             updatedAt: now,
           });
+          try {
+            await inngest.send({
+              name: INNGEST_EVENTS.printFulfillmentRequested,
+              data: { kind: "public", orderId: order.id },
+            });
+          } catch (err) {
+            await logEvent({
+              error: err,
+              code: "print.fulfillment_failed",
+              userId: order.buyerUserId,
+              entityType: "print_order",
+              entityId: order.id,
+              source: "stripe/webhook",
+              context: {
+                phase: "enqueue_fulfillment",
+                checkoutSessionId: session.id,
+              },
+            });
+            // A paid order with no fulfillment job would be stranded. Rethrow so
+            // the outer handler releases the event claim and returns 500; Stripe
+            // redelivers and this handler re-runs idempotently (the order is
+            // already paid/pending and the worker guards on externalOrderId).
+            throw err;
+          }
 
           const customerEmail = printOrder.shipping?.email ?? order.buyerEmail;
           if (customerEmail) {
@@ -330,15 +361,23 @@ export async function POST(req: NextRequest) {
             const trackPath = story?.shareToken
               ? `/s/${story.shareToken}`
               : `/public`;
-            void sendPrintOrderConfirmedEmail({
-              toEmail: customerEmail,
-              toName: printOrder.shipping?.name ?? "there",
-              storyTitle: story?.title ?? "Your story",
-              productLabel: order.productLabel,
-              amountAud: printOrder.amountAud,
-              trackUrl: `${appUrl.replace(/\/$/, "")}${trackPath}`,
-              appUrl,
-            }).catch((err) => {
+            void sendViaOutbox(
+              {
+                dedupeKey: `print_confirmed:public:${order.id}`,
+                kind: "print_confirmed",
+                recipient: customerEmail,
+              },
+              () =>
+                sendPrintOrderConfirmedEmail({
+                  toEmail: customerEmail,
+                  toName: printOrder.shipping?.name ?? "there",
+                  storyTitle: story?.title ?? "Your story",
+                  productLabel: order.productLabel,
+                  amountAud: printOrder.amountAud,
+                  trackUrl: `${appUrl.replace(/\/$/, "")}${trackPath}`,
+                  appUrl,
+                })
+            ).catch((err) => {
               console.error(
                 "Public print order confirmation email failed (non-fatal)",
                 err
@@ -362,6 +401,14 @@ export async function POST(req: NextRequest) {
       const productKey = session.metadata?.productKey;
       if (projectId && isPrintProductKey(productKey)) {
         const project = await db.bookProjects.getById(projectId);
+        // Defence in depth beyond the event ledger: never submit a second Lulu
+        // print job for a project that already has a submitted fulfillment.
+        const alreadySubmitted = Boolean(
+          project?.printOrder?.fulfillment?.externalOrderId
+        );
+        if (project && project.userId === userId && alreadySubmitted) {
+          return NextResponse.json({ received: true, alreadySubmitted: true });
+        }
         if (project && project.userId === userId) {
           const quote = quotePrintProduct(project, productKey);
           const quantity = Math.min(
@@ -400,15 +447,13 @@ export async function POST(req: NextRequest) {
             shipping: getPrintShippingAddress(session),
             paidAt: new Date().toISOString(),
           };
-          const fulfillment = await submitPrintFulfillment({
-            project,
-            order: printOrder,
-          });
+          // Persist the paid order without the shipping address (privacy) and
+          // without a fulfillment yet, then submit to Lulu durably in the
+          // background. The Lulu call is not made inline so a slow/failed
+          // provider can't time out the webhook or strand a paid order; the
+          // background job re-fetches shipping from Stripe on demand.
           await db.bookProjects.update(project.id, {
-            printOrder: {
-              ...withoutStoredShipping(printOrder),
-              fulfillment: withoutStoredFulfillmentPayload(fulfillment),
-            },
+            printOrder: withoutStoredShipping(printOrder),
             assets: {
               ...project.assets,
               ...(project.assets.digitalDownloadUnlockedAt
@@ -416,23 +461,54 @@ export async function POST(req: NextRequest) {
                 : { digitalDownloadUnlockedAt: new Date().toISOString() }),
             },
           });
+          try {
+            await inngest.send({
+              name: INNGEST_EVENTS.printFulfillmentRequested,
+              data: { kind: "owner", projectId: project.id },
+            });
+          } catch (err) {
+            await logEvent({
+              error: err,
+              code: "print.fulfillment_failed",
+              userId,
+              entityType: "book",
+              entityId: project.id,
+              source: "stripe/webhook",
+              context: {
+                phase: "enqueue_fulfillment",
+                checkoutSessionId: session.id,
+              },
+            });
+            // Rethrow so the event claim is released and Stripe redelivers; the
+            // owner order is already persisted (digital unlocked once, guarded)
+            // and re-enqueuing fulfillment is idempotent.
+            throw err;
+          }
 
           // Fire-and-forget - email failure must never break the webhook response.
           const customerEmail = printOrder.shipping?.email;
           if (customerEmail) {
             const appUrl =
               process.env.NEXT_PUBLIC_APP_URL ?? "https://storycot.com";
-            void sendPrintOrderConfirmedEmail({
-              toEmail: customerEmail,
-              toName: printOrder.shipping?.name ?? "there",
-              storyTitle:
-                (await db.stories.getById(project.sourceStoryId))?.title ??
-                "Your story",
-              productLabel: quote.label,
-              amountAud: printOrder.amountAud,
-              trackUrl: `${appUrl}/stories/${project.sourceStoryId}`,
-              appUrl,
-            }).catch((err) => {
+            void sendViaOutbox(
+              {
+                dedupeKey: `print_confirmed:owner:${project.id}`,
+                kind: "print_confirmed",
+                recipient: customerEmail,
+              },
+              async () =>
+                sendPrintOrderConfirmedEmail({
+                  toEmail: customerEmail,
+                  toName: printOrder.shipping?.name ?? "there",
+                  storyTitle:
+                    (await db.stories.getById(project.sourceStoryId))?.title ??
+                    "Your story",
+                  productLabel: quote.label,
+                  amountAud: printOrder.amountAud,
+                  trackUrl: `${appUrl}/stories/${project.sourceStoryId}`,
+                  appUrl,
+                })
+            ).catch((err) => {
               console.error(
                 "Print order confirmation email failed (non-fatal)",
                 err

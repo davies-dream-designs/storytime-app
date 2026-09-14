@@ -7,6 +7,12 @@ import { buttonClassName } from "@/components/ui/buttonStyles";
 import { formStyles } from "@/components/ui/formStyles";
 import { useConfirmDialog } from "@/components/ui/useConfirmDialog";
 import { isStoryPersonReferenceStale } from "@/lib/characterReferenceContext";
+import {
+  delay,
+  isActiveAvatarStatus,
+  isAvatarJobResponse,
+  type AvatarGenerationEnqueueResult,
+} from "@/lib/avatarJobUtils";
 import type {
   ChildProfile,
   BodyBuild,
@@ -113,7 +119,7 @@ function formFromPerson(person: StoryPerson): FormState {
 }
 
 function isStoryPerson(
-  value: StoryPerson | { error?: string }
+  value: StoryPerson | AvatarGenerationEnqueueResult | { error?: string }
 ): value is StoryPerson {
   return "id" in value;
 }
@@ -153,17 +159,33 @@ export default function StoryPeopleManager({
   const [generatingAvatarForId, setGeneratingAvatarForId] = useState<
     string | null
   >(null);
+  const [drawingAvatarForId, setDrawingAvatarForId] = useState<string | null>(
+    null
+  );
   const [redoNotes, setRedoNotes] = useState<Record<string, string>>({});
   const [redoOpenForId, setRedoOpenForId] = useState<string | null>(null);
   const [pendingPhotos, setPendingPhotos] = useState<
     Record<string, PendingPhoto>
   >({});
   const [error, setError] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [creditInfo, setCreditInfo] = useState<{
     credits: number;
     isAdmin: boolean;
   } | null>(null);
   const { confirm, ConfirmDialog } = useConfirmDialog();
+
+  function openAddModal() {
+    setForm({ ...EMPTY_FORM, profileIds: defaultProfileId ? [defaultProfileId] : [] });
+    setIsModalOpen(true);
+  }
+  function openEditModal(person: StoryPerson) {
+    setForm(formFromPerson(person));
+    setIsModalOpen(true);
+  }
+  function closeModal() {
+    setIsModalOpen(false);
+  }
 
   useEffect(() => {
     fetch("/api/user/credits")
@@ -196,6 +218,53 @@ export default function StoryPeopleManager({
 
   const newPersonReferenceCost =
     creditInfo?.isAdmin || referenceCount < 2 ? 0 : 1;
+  async function waitForAvatarJob(
+    personId: string,
+    jobId: string
+  ): Promise<StoryPerson> {
+    for (let attempt = 0; attempt < 45; attempt += 1) {
+      const res = await fetch(`/api/story-people/${personId}`, {
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+      if (res.ok) {
+        const next = (await res.json()) as StoryPerson;
+        if (next.avatarGenerationStatus === "failed") {
+          throw new Error(
+            next.avatarGenerationError ||
+              "Could not create the illustrated reference."
+          );
+        }
+        if (
+          !isActiveAvatarStatus(next.avatarGenerationStatus) ||
+          next.avatarGenerationJobId !== jobId
+        ) {
+          return next;
+        }
+      }
+      await delay(2000);
+    }
+    throw new Error(
+      "The reference is still drawing in the background. Refresh this page in a moment."
+    );
+  }
+
+  async function resolveAvatarResponse(
+    personId: string,
+    data: StoryPerson | AvatarGenerationEnqueueResult | { error?: string },
+    fallback: string
+  ): Promise<StoryPerson> {
+    if (isStoryPerson(data)) return data;
+    if (isAvatarJobResponse(data)) {
+      setDrawingAvatarForId(personId);
+      clearStagedPhoto(personId);
+      setRedoOpenForId(null);
+      return waitForAvatarJob(personId, data.jobId);
+    }
+    throw new Error(data.error || fallback);
+  }
+
+
   const newPersonReferenceCostLabel = creditInfo?.isAdmin
     ? newPersonReferenceCost > 0
       ? "0 Credits (Admin)"
@@ -304,11 +373,13 @@ export default function StoryPeopleManager({
       });
       clearStagedNewPhoto();
       setNewPersonMode("description");
+      setIsModalOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setSaving(false);
       setGeneratingAvatarForId(null);
+      setDrawingAvatarForId(null);
     }
   }
 
@@ -387,14 +458,22 @@ export default function StoryPeopleManager({
       method: "POST",
       body: formData,
     });
-    const data = (await res.json()) as StoryPerson | { error?: string };
-    if (!res.ok || !isStoryPerson(data)) {
-      const message = isStoryPerson(data)
-        ? "Could not create the illustrated reference"
-        : data.error;
-      throw new Error(message ?? "Could not create the illustrated reference");
+    const data = (await res.json()) as
+      | StoryPerson
+      | AvatarGenerationEnqueueResult
+      | { error?: string };
+    if (!res.ok) {
+      throw new Error(
+        isStoryPerson(data) || isAvatarJobResponse(data)
+          ? "Could not create the illustrated reference"
+          : data.error || "Could not create the illustrated reference"
+      );
     }
-    return data;
+    return resolveAvatarResponse(
+      person.id,
+      data,
+      "Could not create the illustrated reference"
+    );
   }
 
   async function generateAvatar(person: StoryPerson) {
@@ -440,6 +519,7 @@ export default function StoryPeopleManager({
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setGeneratingAvatarForId(null);
+      setDrawingAvatarForId(null);
     }
   }
 
@@ -471,20 +551,28 @@ export default function StoryPeopleManager({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ adjustment }),
       });
-      const data = (await res.json()) as StoryPerson | { error?: string };
-      if (!res.ok || !isStoryPerson(data)) {
+      const data = (await res.json()) as
+        | StoryPerson
+        | AvatarGenerationEnqueueResult
+        | { error?: string };
+      if (!res.ok) {
         throw new Error(
-          isStoryPerson(data)
+          isStoryPerson(data) || isAvatarJobResponse(data)
             ? "Could not redo the illustrated reference"
             : data.error || "Could not redo the illustrated reference"
         );
       }
+      const nextPerson = await resolveAvatarResponse(
+        person.id,
+        data,
+        "Could not redo the illustrated reference"
+      );
       setPeople((current) =>
         current.map((currentPerson) =>
-          currentPerson.id === data.id ? data : currentPerson
+          currentPerson.id === nextPerson.id ? nextPerson : currentPerson
         )
       );
-      if (form.id === data.id) setForm(formFromPerson(data));
+      if (form.id === nextPerson.id) setForm(formFromPerson(nextPerson));
       setRedoNotes((current) => ({ ...current, [person.id]: "" }));
       setRedoOpenForId(null);
       window.dispatchEvent(new Event("storycot:credits-updated"));
@@ -492,6 +580,7 @@ export default function StoryPeopleManager({
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setGeneratingAvatarForId(null);
+      setDrawingAvatarForId(null);
     }
   }
 
@@ -519,65 +608,63 @@ export default function StoryPeopleManager({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ source: "description" }),
       });
-      const data = (await res.json()) as StoryPerson | { error?: string };
-      if (!res.ok || !isStoryPerson(data)) {
+      const data = (await res.json()) as
+        | StoryPerson
+        | AvatarGenerationEnqueueResult
+        | { error?: string };
+      if (!res.ok) {
         throw new Error(
-          isStoryPerson(data)
+          isStoryPerson(data) || isAvatarJobResponse(data)
             ? "Could not create the illustrated reference"
             : data.error || "Could not create the illustrated reference"
         );
       }
+      const nextPerson = await resolveAvatarResponse(
+        person.id,
+        data,
+        "Could not create the illustrated reference"
+      );
       setPeople((current) =>
         current.map((currentPerson) =>
-          currentPerson.id === data.id ? data : currentPerson
+          currentPerson.id === nextPerson.id ? nextPerson : currentPerson
         )
       );
-      if (form.id === data.id) setForm(formFromPerson(data));
+      if (form.id === nextPerson.id) setForm(formFromPerson(nextPerson));
       window.dispatchEvent(new Event("storycot:credits-updated"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setGeneratingAvatarForId(null);
+      setDrawingAvatarForId(null);
     }
   }
 
-  return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr]">
-      <section className="rounded-2xl border border-night-100 bg-white p-5">
-        <h2 className="font-display text-2xl font-bold text-night-800">
-          {form.id ? "Edit Story Person" : "Add Story Person"}
-        </h2>
-        <p className="mt-1 text-sm leading-6 text-night-500">
-          Add family members, friends, pets, or original characters once and
-          reuse them across children.
-        </p>
-
-        {form.id ? (
-          <div className="mt-5 rounded-xl border border-star-200 bg-star-50 p-4">
-            <p className="text-sm font-bold text-night-700">
-              Editing {form.name} below
-            </p>
+  const formSection = (
+    <section className="rounded-2xl border border-night-100 bg-white p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-display text-2xl font-bold text-night-800">
+              {form.id ? `Edit — ${form.name}` : "Add Family & Friends"}
+            </h2>
             <p className="mt-1 text-sm leading-6 text-night-500">
-              Make changes in the matching Family & Friends card.
+              {form.id
+                ? "Update their details below, then save."
+                : "Add a family member, friend, pet, or original character."}
             </p>
-            <button
-              type="button"
-              onClick={() =>
-                setForm({
-                  ...EMPTY_FORM,
-                  profileIds: defaultProfileId ? [defaultProfileId] : [],
-                })
-              }
-              className={buttonClassName({
-                variant: "secondary",
-                size: "compact",
-                className: "mt-3",
-              })}
-            >
-              Cancel Edit
-            </button>
           </div>
-        ) : (
+          <button
+            type="button"
+            onClick={closeModal}
+            aria-label="Close"
+            className="rounded-lg p-1.5 text-night-400 transition hover:bg-night-100 hover:text-night-700"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {form.id ? null : (
           <div className="mt-5 space-y-4">
             <div>
               <p className="text-sm font-bold text-night-700">Who They Are</p>
@@ -1069,735 +1156,126 @@ export default function StoryPeopleManager({
           </div>
         )}
       </section>
+  );
 
-      <section className="space-y-3">
+  return (
+    <div>
+      {/* Modal overlay */}
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-end bg-night-900/55 px-4 pb-4 pt-10 backdrop-blur-sm sm:items-center sm:justify-center sm:p-6"
+          onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
+        >
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl">
+            {formSection}
+          </div>
+        </div>
+      )}
+
+      {/* Page header */}
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="font-display text-4xl font-bold text-night-800">Family &amp; Friends</h1>
+          <p className="mt-2 text-night-500">
+            Add reusable people, pets, and companions. Pick who appears each time you create a story.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={openAddModal}
+          className={buttonClassName({ size: "compact", className: "shrink-0" })}
+        >
+          <Icon name="plus" className="h-3.5 w-3.5" />
+          Add Family &amp; Friends
+        </button>
+      </div>
+
+      {/* People gallery */}
+      <div className={people.length > 0 ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3" : undefined}>
         {people.length > 0 ? (
           people.map((person) => (
             <article
               key={person.id}
-              className="rounded-2xl border border-night-100 bg-white p-5"
+              className="flex flex-col rounded-2xl border border-night-100 bg-white p-5"
             >
               {(() => {
-                const pendingPhoto = pendingPhotos[person.id];
                 const busy = generatingAvatarForId === person.id;
-                const editing = form.id === person.id;
-                const referenceIsStale = isStoryPersonReferenceStale(person);
+                const isDrawing = busy && drawingAvatarForId === person.id;
 
                 return (
                   <>
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex min-w-0 gap-3">
-                        {person.avatarImageUrl ? (
-                          <div
-                            className="h-12 w-12 shrink-0 rounded-full bg-cover bg-center"
-                            style={{
-                              backgroundImage: `url("${person.avatarImageUrl}")`,
-                            }}
-                            aria-hidden="true"
-                          />
-                        ) : (
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-star-200 to-moon-200 font-display text-lg font-bold text-night-800">
-                            {person.name[0]?.toUpperCase()}
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <h3 className="truncate font-display text-xl font-bold text-night-800">
-                            {person.name}
-                          </h3>
-                          <p className="text-sm capitalize text-night-400">
-                            {getStoryPersonRelationshipLabel(person)}
-                            {person.pronouns ? ` · ${person.pronouns}` : ""}
-                            {person.ageGroup &&
-                            person.ageGroup !== "not_specified"
-                              ? ` · ${getStoryPersonAgeGroupLabel(person.ageGroup)}`
-                              : ""}
-                            {person.height && person.height !== "not_specified"
-                              ? ` · ${getStoryPersonHeightLabel(person.height)}`
-                              : ""}
-                            {person.bodyBuild &&
-                            person.bodyBuild !== "not_specified"
-                              ? ` · ${getBodyBuildLabel(person.bodyBuild)} build`
-                              : ""}
-                          </p>
+                    {/* Header: avatar + name + buttons */}
+                    <div className="flex items-start gap-3">
+                      {isDrawing ? (
+                        <div className="flex h-16 w-16 shrink-0 animate-pulse items-center justify-center rounded-full bg-star-100">
+                          <div className="h-6 w-6 rounded-full bg-star-300" />
                         </div>
+                      ) : person.avatarImageUrl ? (
+                        <div
+                          className="h-16 w-16 shrink-0 rounded-full bg-cover bg-center"
+                          style={{ backgroundImage: `url("${person.avatarImageUrl}")` }}
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-star-200 to-moon-200 font-display text-xl font-bold text-night-800">
+                          {person.name[0]?.toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate font-display text-xl font-bold text-night-800">
+                          {person.name}
+                        </h3>
+                        <p className="line-clamp-2 text-sm capitalize text-night-400">
+                          {getStoryPersonRelationshipLabel(person)}
+                          {person.pronouns ? ` · ${person.pronouns}` : ""}
+                          {person.ageGroup && person.ageGroup !== "not_specified"
+                            ? ` · ${getStoryPersonAgeGroupLabel(person.ageGroup)}`
+                            : ""}
+                          {person.height && person.height !== "not_specified"
+                            ? ` · ${getStoryPersonHeightLabel(person.height)}`
+                            : ""}
+                          {person.bodyBuild && person.bodyBuild !== "not_specified"
+                            ? ` · ${getBodyBuildLabel(person.bodyBuild)} build`
+                            : ""}
+                        </p>
                       </div>
                       <div className="flex shrink-0 gap-2">
                         <button
                           type="button"
-                          onClick={() => setForm(formFromPerson(person))}
-                          className={buttonClassName({
-                            variant: "secondary",
-                            size: "compact",
-                          })}
+                          onClick={() => openEditModal(person)}
+                          className={buttonClassName({ variant: "secondary", size: "compact" })}
                         >
                           Edit
                         </button>
                         <button
                           type="button"
                           onClick={() => remove(person)}
-                          className={buttonClassName({
-                            variant: "danger",
-                            size: "compact",
-                          })}
+                          className={buttonClassName({ variant: "danger", size: "compact" })}
                         >
                           Remove
                         </button>
                       </div>
                     </div>
-                    {referenceIsStale ? (
-                      <div className="mt-3 rounded-xl border border-star-200 bg-star-50 px-3 py-2 text-sm font-semibold leading-6 text-night-700">
-                        This illustrated reference may be out of date because
-                        the profile details changed. Redo the reference before
-                        building new story art for the best match.
-                      </div>
-                    ) : null}
 
-                    {editing ? (
-                      <div className="mt-4 rounded-xl border border-star-200 bg-star-50 p-4">
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div>
-                            <label className={formStyles.subLabel}>
-                              Display Name
-                            </label>
-                            <input
-                              value={form.name}
-                              onChange={(event) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  name: event.target.value,
-                                }))
-                              }
-                              className={formStyles.field}
-                            />
-                          </div>
-                          <div>
-                            <label className={formStyles.subLabel}>
-                              Relationship
-                            </label>
-                            <select
-                              value={form.relationship}
-                              onChange={(event) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  relationship: event.target
-                                    .value as StoryPersonRelationship,
-                                  customRelationship:
-                                    event.target.value === "other"
-                                      ? current.customRelationship
-                                      : "",
-                                }))
-                              }
-                              className={formStyles.field}
-                            >
-                              {STORY_PERSON_RELATIONSHIPS.map(
-                                (relationship) => (
-                                  <option
-                                    key={relationship}
-                                    value={relationship}
-                                  >
-                                    {relationshipLabel(relationship)}
-                                  </option>
-                                )
-                              )}
-                            </select>
-                          </div>
-                          {form.relationship === "other" ? (
-                            <div>
-                              <label className={formStyles.subLabel}>
-                                Custom Relationship
-                              </label>
-                              <input
-                                value={form.customRelationship}
-                                onChange={(event) =>
-                                  setForm((current) => ({
-                                    ...current,
-                                    customRelationship: event.target.value,
-                                  }))
-                                }
-                                placeholder="Auntie's partner, godmother, family friend"
-                                className={formStyles.field}
-                              />
-                            </div>
-                          ) : null}
-                          <div>
-                            <label className={formStyles.subLabel}>
-                              Pronouns
-                            </label>
-                            <input
-                              value={form.pronouns}
-                              onChange={(event) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  pronouns: event.target.value,
-                                }))
-                              }
-                              placeholder="she/her, he/him, they/them"
-                              className={formStyles.field}
-                            />
-                          </div>
-                          <div>
-                            <label className={formStyles.subLabel}>
-                              Age Group
-                            </label>
-                            <select
-                              value={form.ageGroup}
-                              onChange={(event) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  ageGroup: event.target
-                                    .value as StoryPersonAgeGroup,
-                                }))
-                              }
-                              className={formStyles.field}
-                            >
-                              {STORY_PERSON_AGE_GROUP_OPTIONS.map((option) => (
-                                <option key={option} value={option}>
-                                  {getStoryPersonAgeGroupLabel(option)}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className={formStyles.subLabel}>
-                              Height
-                            </label>
-                            <select
-                              value={form.height}
-                              onChange={(event) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  height: event.target
-                                    .value as StoryPersonHeight,
-                                }))
-                              }
-                              className={formStyles.field}
-                            >
-                              {STORY_PERSON_HEIGHT_OPTIONS.map((option) => (
-                                <option key={option} value={option}>
-                                  {getStoryPersonHeightLabel(option)}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className={formStyles.subLabel}>
-                              Body Build
-                            </label>
-                            <select
-                              value={form.bodyBuild}
-                              onChange={(event) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  bodyBuild: event.target.value as BodyBuild,
-                                }))
-                              }
-                              className={formStyles.field}
-                            >
-                              {BODY_BUILD_OPTIONS.map((option) => (
-                                <option key={option} value={option}>
-                                  {getBodyBuildLabel(option)}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <div className="flex items-center justify-between gap-3">
-                              <label className={formStyles.subLabel}>
-                                Personality
-                              </label>
-                              <span className="text-xs font-bold text-night-300">
-                                {splitList(form.personality).length}/3
-                              </span>
-                            </div>
-                            <div className="mb-2 flex flex-wrap gap-2">
-                              {PERSONALITY_OPTIONS.map((option) => {
-                                const selected = splitList(
-                                  form.personality
-                                ).includes(option);
-                                return (
-                                  <button
-                                    key={option}
-                                    type="button"
-                                    onClick={() =>
-                                      toggleListField("personality", option)
-                                    }
-                                    className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                                      selected
-                                        ? "bg-night-700 text-moon-200"
-                                        : "bg-white text-night-600 hover:bg-night-100"
-                                    }`}
-                                  >
-                                    {option}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            <input
-                              value={form.personality}
-                              onChange={(event) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  personality: event.target.value,
-                                }))
-                              }
-                              className={formStyles.field}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                          <div>
-                            <label className={formStyles.subLabel}>
-                              Appearance
-                            </label>
-                            <textarea
-                              value={form.appearance}
-                              onChange={(event) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  appearance: event.target.value,
-                                }))
-                              }
-                              rows={3}
-                              className={formStyles.textarea}
-                            />
-                          </div>
-                          <div>
-                            <div className="flex items-center justify-between gap-3">
-                              <label className={formStyles.subLabel}>
-                                Story Role
-                              </label>
-                              <span className="text-xs font-bold text-night-300">
-                                {splitList(form.description).length}/3
-                              </span>
-                            </div>
-                            <div className="mb-2 flex flex-wrap gap-2">
-                              {STORY_ROLE_OPTIONS.map((option) => {
-                                const selected = splitList(
-                                  form.description
-                                ).includes(option);
-                                return (
-                                  <button
-                                    key={option}
-                                    type="button"
-                                    onClick={() =>
-                                      toggleListField("description", option)
-                                    }
-                                    className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                                      selected
-                                        ? "bg-night-700 text-moon-200"
-                                        : "bg-white text-night-600 hover:bg-night-100"
-                                    }`}
-                                  >
-                                    {option}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            <textarea
-                              value={form.description}
-                              onChange={(event) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  description: event.target.value,
-                                }))
-                              }
-                              rows={3}
-                              className={formStyles.textarea}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="mt-3 rounded-xl border border-night-100 bg-white p-3">
-                          <label className="flex items-start gap-3 text-sm font-semibold text-night-700">
-                            <input
-                              type="checkbox"
-                              checked={form.availableToAllProfiles}
-                              onChange={(event) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  availableToAllProfiles: event.target.checked,
-                                }))
-                              }
-                              className="mt-1 h-4 w-4 rounded border-night-300"
-                            />
-                            Available For All Children
-                          </label>
-                          {!form.availableToAllProfiles ? (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {profiles.map((profile) => (
-                                <button
-                                  key={profile.id}
-                                  type="button"
-                                  onClick={() => toggleProfile(profile.id)}
-                                  className={`rounded-full px-3 py-1.5 text-sm font-bold transition ${
-                                    form.profileIds.includes(profile.id)
-                                      ? "bg-night-700 text-moon-200"
-                                      : "bg-night-50 text-night-600 hover:bg-night-100"
-                                  }`}
-                                >
-                                  {profile.name}
-                                </button>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <Button
-                            size="compact"
-                            onClick={submit}
-                            disabled={saving || !form.name.trim()}
-                          >
-                            {saving ? "Saving..." : "Save Changes"}
-                          </Button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setForm({
-                                ...EMPTY_FORM,
-                                profileIds: defaultProfileId
-                                  ? [defaultProfileId]
-                                  : [],
-                              })
-                            }
-                            className={buttonClassName({
-                              variant: "secondary",
-                              size: "compact",
-                            })}
-                            disabled={saving}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {!editing ? (
-                      <div className="mt-4 grid gap-3 text-sm leading-6 text-night-600 sm:grid-cols-2">
+                    {/* Personality + Role summary */}
+                    {(person.personality || person.description) && (
+                      <div className="mt-4 grid gap-2 text-sm leading-5 text-night-600 sm:grid-cols-2">
                         {person.personality ? (
-                          <p>
-                            <span className="font-bold text-night-700">
-                              Personality:
-                            </span>{" "}
+                          <p className="line-clamp-3">
+                            <span className="font-bold text-night-700">Personality: </span>
                             {person.personality}
                           </p>
                         ) : null}
                         {person.description ? (
-                          <p>
-                            <span className="font-bold text-night-700">
-                              Role:
-                            </span>{" "}
+                          <p className="line-clamp-3">
+                            <span className="font-bold text-night-700">Role: </span>
                             {person.description}
                           </p>
                         ) : null}
-                        {person.appearance ? (
-                          <p className="sm:col-span-2">
-                            <span className="font-bold text-night-700">
-                              Appearance:
-                            </span>{" "}
-                            {person.appearance}
-                          </p>
-                        ) : null}
                       </div>
-                    ) : null}
+                    )}
 
-                    <div className="mt-4 rounded-xl border border-night-100 bg-night-50 p-3">
-                      <div className="grid gap-4 md:grid-cols-[8rem_1fr]">
-                        <div className="overflow-hidden rounded-xl border border-night-100 bg-white">
-                          <div
-                            className={`relative aspect-square bg-cover bg-center ${
-                              pendingPhoto ? "opacity-45" : ""
-                            }`}
-                            style={{
-                              backgroundImage: person.avatarImageUrl
-                                ? `url("${person.avatarImageUrl}")`
-                                : undefined,
-                            }}
-                          >
-                            {!person.avatarImageUrl ? (
-                              <div className="flex h-full items-center justify-center px-3 text-center text-xs font-bold text-night-300">
-                                No Reference Yet
-                              </div>
-                            ) : null}
-                            {pendingPhoto && person.avatarImageUrl ? (
-                              <div className="absolute inset-x-2 bottom-2 rounded-full bg-white/90 px-2 py-1 text-center text-[0.7rem] font-bold uppercase text-night-500">
-                                Will Be Replaced
-                              </div>
-                            ) : null}
-                          </div>
-                        </div>
 
-                        <div>
-                          <p className="text-sm font-bold text-night-700">
-                            Illustrated Reference
-                          </p>
-                          <p className="mt-1 text-xs leading-5 text-night-500">
-                            Upload or take a photo, preview it here, then create
-                            a Storycot-style reference. The source photo is used
-                            once and is not stored.
-                          </p>
-                          <p className="mt-2 text-xs font-semibold leading-5 text-night-500">
-                            Use a clear, well-lit photo with just this person or
-                            pet where possible. Busy backgrounds, other people,
-                            text, branded clothes, or toys can make the
-                            illustrated reference drift.
-                          </p>
-                          <p className="mt-2 text-xs font-bold uppercase tracking-wide text-night-400">
-                            First 2 Family & Friends references are free. Extra
-                            references or redos cost 1 credit each.
-                          </p>
-
-                          {person.avatarImageUrl ? (
-                            <div className="mt-3 rounded-xl border border-night-100 bg-white p-3">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <p className="text-xs font-bold uppercase tracking-wide text-night-400">
-                                  Redo Current Reference:{" "}
-                                  {creditInfo?.isAdmin
-                                    ? "0 Credits (Admin)"
-                                    : "1 Credit"}
-                                </p>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setRedoOpenForId((current) =>
-                                      current === person.id ? null : person.id
-                                    )
-                                  }
-                                  className={buttonClassName({
-                                    variant: "secondary",
-                                    size: "compact",
-                                  })}
-                                  disabled={busy}
-                                >
-                                  Redo
-                                </button>
-                              </div>
-                              {redoOpenForId === person.id ? (
-                                <div className="mt-3">
-                                  <textarea
-                                    value={redoNotes[person.id] ?? ""}
-                                    onChange={(event) =>
-                                      setRedoNotes((current) => ({
-                                        ...current,
-                                        [person.id]: event.target.value.slice(
-                                          0,
-                                          240
-                                        ),
-                                      }))
-                                    }
-                                    rows={2}
-                                    placeholder="Example: less broad, softer smile, closer hair colour, keep the glasses."
-                                    className={formStyles.textarea}
-                                    disabled={busy}
-                                  />
-                                  <div className="mt-2 flex flex-wrap gap-2">
-                                    <Button
-                                      size="compact"
-                                      onClick={() => void redoAvatar(person)}
-                                      disabled={
-                                        busy ||
-                                        !(redoNotes[person.id] ?? "").trim()
-                                      }
-                                    >
-                                      {busy ? "Redoing..." : "Redo Reference"}
-                                    </Button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setRedoOpenForId(null);
-                                        setRedoNotes((current) => ({
-                                          ...current,
-                                          [person.id]: "",
-                                        }));
-                                      }}
-                                      className={buttonClassName({
-                                        variant: "secondary",
-                                        size: "compact",
-                                      })}
-                                      disabled={busy}
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : null}
-                            </div>
-                          ) : null}
-
-                          {pendingPhoto ? (
-                            <div className="mt-3 rounded-xl border border-star-200 bg-white p-3">
-                              <div className="grid gap-3 sm:grid-cols-[6rem_1fr]">
-                                <div
-                                  className="aspect-square rounded-lg bg-cover bg-center"
-                                  style={{
-                                    backgroundImage: `url("${pendingPhoto.previewUrl}")`,
-                                  }}
-                                  aria-label="Selected source photo preview"
-                                />
-                                <div>
-                                  <p className="text-sm font-bold text-night-700">
-                                    Photo Preview
-                                  </p>
-                                  <p className="mt-1 text-xs leading-5 text-night-500">
-                                    This photo has not been saved. It will be
-                                    used once to create the illustrated
-                                    reference.
-                                  </p>
-                                  <label className="mt-3 block text-xs font-bold uppercase tracking-wide text-night-400">
-                                    Optional Adjustment
-                                  </label>
-                                  <textarea
-                                    value={pendingPhoto.adjustment}
-                                    onChange={(event) =>
-                                      setPendingPhotos((current) => ({
-                                        ...current,
-                                        [person.id]: {
-                                          ...pendingPhoto,
-                                          adjustment: event.target.value,
-                                        },
-                                      }))
-                                    }
-                                    rows={2}
-                                    maxLength={240}
-                                    placeholder="Example: less broad, softer smile, darker hair, keep the same glasses."
-                                    className={formStyles.textarea}
-                                    disabled={busy}
-                                  />
-                                  <label className="mt-3 flex items-start gap-2 text-xs font-semibold leading-5 text-night-600">
-                                    <input
-                                      type="checkbox"
-                                      checked={pendingPhoto.consent}
-                                      onChange={(event) =>
-                                        setPendingPhotos((current) => ({
-                                          ...current,
-                                          [person.id]: {
-                                            ...pendingPhoto,
-                                            consent: event.target.checked,
-                                          },
-                                        }))
-                                      }
-                                      className="mt-1 h-4 w-4 rounded border-night-300"
-                                      disabled={busy}
-                                    />
-                                    I have permission to use this photo and
-                                    understand it will be used once to create an
-                                    illustrated Storycot reference.
-                                  </label>
-                                  <div className="mt-3 flex flex-wrap gap-2">
-                                    <p className="w-full text-xs font-bold uppercase tracking-wide text-night-400">
-                                      {person.avatarImageUrl
-                                        ? creditInfo?.isAdmin
-                                          ? "Redo Cost: 0 Credits (Admin)"
-                                          : "Redo Cost: 1 Credit"
-                                        : `Reference Cost: ${getAvatarCreateCostLabel(
-                                            person
-                                          )} (${Math.min(
-                                            referenceCount,
-                                            2
-                                          )}/2 Free Used)`}
-                                    </p>
-                                    <Button
-                                      size="compact"
-                                      onClick={() =>
-                                        void generateAvatar(person)
-                                      }
-                                      disabled={busy || !pendingPhoto.consent}
-                                    >
-                                      {busy
-                                        ? "Creating..."
-                                        : "Create Reference"}
-                                    </Button>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        clearStagedPhoto(person.id)
-                                      }
-                                      className={buttonClassName({
-                                        variant: "secondary",
-                                        size: "compact",
-                                      })}
-                                      disabled={busy}
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ) : null}
-
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {!person.avatarImageUrl ? (
-                              <Button
-                                size="compact"
-                                onClick={() =>
-                                  void createAvatarFromDescription(person)
-                                }
-                                disabled={busy}
-                              >
-                                {busy
-                                  ? "Creating..."
-                                  : "Create From Description"}
-                              </Button>
-                            ) : null}
-                            <label
-                              className={buttonClassName({
-                                variant: "secondary",
-                                size: "compact",
-                                className: busy
-                                  ? "pointer-events-none opacity-60"
-                                  : "cursor-pointer",
-                              })}
-                            >
-                              <Icon name="image" />
-                              Upload Photo
-                              <input
-                                type="file"
-                                accept="image/png,image/jpeg,image/webp"
-                                className="sr-only"
-                                disabled={busy}
-                                onChange={(event) => {
-                                  stagePhoto(person, event.target.files?.[0]);
-                                  event.target.value = "";
-                                }}
-                              />
-                            </label>
-                            <label
-                              className={buttonClassName({
-                                variant: "secondary",
-                                size: "compact",
-                                className: busy
-                                  ? "pointer-events-none opacity-60"
-                                  : "cursor-pointer",
-                              })}
-                            >
-                              <Icon name="image" />
-                              Take Photo
-                              <input
-                                type="file"
-                                accept="image/*"
-                                capture="environment"
-                                className="sr-only"
-                                disabled={busy}
-                                onChange={(event) => {
-                                  stagePhoto(person, event.target.files?.[0]);
-                                  event.target.value = "";
-                                }}
-                              />
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <p className="mt-4 rounded-full bg-night-50 px-3 py-1 text-xs font-semibold text-night-500">
-                      {person.availableToAllProfiles
-                        ? "Available for all children"
-                        : `Linked to ${person.profileIds.length} child profile${
-                            person.profileIds.length === 1 ? "" : "s"
-                          }`}
-                    </p>
                   </>
                 );
               })()}
@@ -1807,15 +1285,23 @@ export default function StoryPeopleManager({
           <div className="rounded-2xl border-2 border-dashed border-night-200 p-8 text-center">
             <Icon name="profile" className="mx-auto h-8 w-8 text-star-500" />
             <p className="mt-3 font-display font-bold text-night-700">
-              No Family & Friends Yet
+              No one added yet
             </p>
             <p className="mt-1 text-sm leading-6 text-night-500">
               Start with Mum, Dad, a grandparent, sibling, or pet. You can pick
               who appears each time you make a story.
             </p>
+            <button
+              type="button"
+              onClick={openAddModal}
+              className={buttonClassName({ size: "compact", className: "mt-4" })}
+            >
+              <Icon name="plus" className="h-3.5 w-3.5" />
+              Add Family & Friends
+            </button>
           </div>
         )}
-      </section>
+      </div>
       <ConfirmDialog />
     </div>
   );

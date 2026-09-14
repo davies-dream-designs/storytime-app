@@ -78,6 +78,11 @@ function rowToProfile(row: ProfileRow): ChildProfile {
     appearanceSummary: row.appearanceSummary ?? undefined,
     avatarTraitHash: row.avatarTraitHash ?? undefined,
     avatarGeneratedAt: row.avatarGeneratedAt ?? undefined,
+    avatarGenerationStatus: row.avatarGenerationStatus ?? undefined,
+    avatarGenerationError: row.avatarGenerationError ?? undefined,
+    avatarGenerationJobId: row.avatarGenerationJobId ?? undefined,
+    avatarGenerationAttemptKey: row.avatarGenerationAttemptKey ?? undefined,
+    avatarGenerationUpdatedAt: row.avatarGenerationUpdatedAt ?? undefined,
     favouriteCharacters: row.favouriteCharacters ?? [],
     favouriteActivities: row.favouriteActivities ?? [],
     favouriteAnimals: row.favouriteAnimals ?? [],
@@ -100,6 +105,11 @@ function profileToRow(p: ChildProfile) {
     appearanceSummary: p.appearanceSummary ?? null,
     avatarTraitHash: p.avatarTraitHash ?? null,
     avatarGeneratedAt: p.avatarGeneratedAt ?? null,
+    avatarGenerationStatus: p.avatarGenerationStatus ?? null,
+    avatarGenerationError: p.avatarGenerationError ?? null,
+    avatarGenerationJobId: p.avatarGenerationJobId ?? null,
+    avatarGenerationAttemptKey: p.avatarGenerationAttemptKey ?? null,
+    avatarGenerationUpdatedAt: p.avatarGenerationUpdatedAt ?? null,
     favouriteCharacters: p.favouriteCharacters,
     favouriteActivities: p.favouriteActivities,
     favouriteAnimals: p.favouriteAnimals,
@@ -134,6 +144,9 @@ function rowToStory(row: StoryRow): Story {
     createdAt: row.createdAt,
     status: row.status ?? undefined,
     generationError: row.generationError ?? undefined,
+    generationJobId: row.generationJobId ?? undefined,
+    generationClaimedAt: row.generationClaimedAt ?? undefined,
+    creditChargedAt: row.creditChargedAt ?? undefined,
     shareToken: row.shareToken ?? undefined,
     visibility: row.visibility,
     publicReviewStatus: row.publicReviewStatus,
@@ -167,6 +180,9 @@ function storyToRow(s: Story) {
     createdAt: s.createdAt,
     status: s.status ?? null,
     generationError: s.generationError ?? null,
+    generationJobId: s.generationJobId ?? null,
+    generationClaimedAt: s.generationClaimedAt ?? null,
+    creditChargedAt: s.creditChargedAt ?? null,
     shareToken: s.shareToken ?? null,
     visibility: s.visibility ?? "private",
     publicReviewStatus: s.publicReviewStatus ?? "not_submitted",
@@ -200,6 +216,11 @@ function rowToStoryPerson(
     appearanceSummary: row.appearanceSummary ?? undefined,
     avatarTraitHash: row.avatarTraitHash ?? undefined,
     avatarGeneratedAt: row.avatarGeneratedAt ?? undefined,
+    avatarGenerationStatus: row.avatarGenerationStatus ?? undefined,
+    avatarGenerationError: row.avatarGenerationError ?? undefined,
+    avatarGenerationJobId: row.avatarGenerationJobId ?? undefined,
+    avatarGenerationAttemptKey: row.avatarGenerationAttemptKey ?? undefined,
+    avatarGenerationUpdatedAt: row.avatarGenerationUpdatedAt ?? undefined,
     availableToAllProfiles: row.availableToAllProfiles,
     profileIds,
     createdAt: row.createdAt,
@@ -225,6 +246,11 @@ function storyPersonToRow(person: StoryPerson) {
     appearanceSummary: person.appearanceSummary ?? null,
     avatarTraitHash: person.avatarTraitHash ?? null,
     avatarGeneratedAt: person.avatarGeneratedAt ?? null,
+    avatarGenerationStatus: person.avatarGenerationStatus ?? null,
+    avatarGenerationError: person.avatarGenerationError ?? null,
+    avatarGenerationJobId: person.avatarGenerationJobId ?? null,
+    avatarGenerationAttemptKey: person.avatarGenerationAttemptKey ?? null,
+    avatarGenerationUpdatedAt: person.avatarGenerationUpdatedAt ?? null,
     availableToAllProfiles: person.availableToAllProfiles,
     createdAt: person.createdAt,
     updatedAt: person.updatedAt,
@@ -244,6 +270,7 @@ function rowToLocationFixture(row: LocationFixtureRow): LocationFixture {
     establishingImageStatus: row.establishingImageStatus ?? undefined,
     establishingImageError: row.establishingImageError ?? undefined,
     establishingImageJobId: row.establishingImageJobId ?? undefined,
+    views: row.views && row.views.length ? row.views : undefined,
     fixedElements: row.fixedElements ?? [],
     doNotChange: row.doNotChange ?? [],
     lighting: row.lighting ?? undefined,
@@ -266,6 +293,7 @@ function locationFixtureToRow(fixture: LocationFixture) {
     establishingImageStatus: fixture.establishingImageStatus ?? null,
     establishingImageError: fixture.establishingImageError ?? null,
     establishingImageJobId: fixture.establishingImageJobId ?? null,
+    views: fixture.views ?? [],
     fixedElements: fixture.fixedElements,
     doNotChange: fixture.doNotChange,
     lighting: fixture.lighting ?? null,
@@ -273,6 +301,37 @@ function locationFixtureToRow(fixture: LocationFixture) {
     createdAt: fixture.createdAt,
     updatedAt: fixture.updatedAt,
   };
+}
+
+/** Map only the provided fixture fields to row columns (for CAS updates). */
+function locationFixtureRowUpdates(
+  updates: Partial<LocationFixture>
+): Record<string, unknown> {
+  const row: Record<string, unknown> = {};
+  const set = (key: string, value: unknown) => {
+    if (value !== undefined) row[key] = value;
+  };
+  if ("area" in updates) set("area", updates.area ?? null);
+  if ("summary" in updates) set("summary", updates.summary ?? null);
+  if ("notes" in updates) set("notes", updates.notes ?? null);
+  if ("place" in updates) set("place", updates.place);
+  if ("referenceImageUrl" in updates)
+    set("referenceImageUrl", updates.referenceImageUrl ?? null);
+  if ("establishingImageUrl" in updates)
+    set("establishingImageUrl", updates.establishingImageUrl ?? null);
+  if ("establishingImageStatus" in updates)
+    set("establishingImageStatus", updates.establishingImageStatus ?? null);
+  if ("establishingImageError" in updates)
+    set("establishingImageError", updates.establishingImageError ?? null);
+  if ("establishingImageJobId" in updates)
+    set("establishingImageJobId", updates.establishingImageJobId ?? null);
+  if ("views" in updates) set("views", updates.views ?? []);
+  if ("fixedElements" in updates) set("fixedElements", updates.fixedElements);
+  if ("doNotChange" in updates) set("doNotChange", updates.doNotChange);
+  if ("lighting" in updates) set("lighting", updates.lighting ?? null);
+  if ("palette" in updates) set("palette", updates.palette ?? null);
+  if ("updatedAt" in updates) set("updatedAt", updates.updatedAt);
+  return row;
 }
 
 function profileIdsByPersonId(
@@ -597,6 +656,101 @@ export const db = {
         .where(eq(schema.profiles.id, id));
       return rows[0] ? rowToProfile(rows[0]) : undefined;
     },
+    async markAvatarGeneration(
+      id: string,
+      updates: Pick<
+        ChildProfile,
+        | "avatarGenerationStatus"
+        | "avatarGenerationError"
+        | "avatarGenerationJobId"
+        | "avatarGenerationAttemptKey"
+        | "avatarGenerationUpdatedAt"
+      >
+    ): Promise<ChildProfile | undefined> {
+      const rows = await getClient()
+        .update(schema.profiles)
+        .set({
+          avatarGenerationStatus: updates.avatarGenerationStatus ?? null,
+          avatarGenerationError: updates.avatarGenerationError ?? null,
+          avatarGenerationJobId: updates.avatarGenerationJobId ?? null,
+          avatarGenerationAttemptKey: updates.avatarGenerationAttemptKey ?? null,
+          avatarGenerationUpdatedAt:
+            updates.avatarGenerationUpdatedAt ?? new Date().toISOString(),
+        })
+        .where(eq(schema.profiles.id, id))
+        .returning();
+      return rows[0] ? rowToProfile(rows[0]) : undefined;
+    },
+    async markAvatarGenerationIfCurrent(
+      id: string,
+      userId: string,
+      jobId: string,
+      updates: Pick<
+        ChildProfile,
+        | "avatarGenerationStatus"
+        | "avatarGenerationError"
+        | "avatarGenerationJobId"
+        | "avatarGenerationAttemptKey"
+        | "avatarGenerationUpdatedAt"
+      >
+    ): Promise<ChildProfile | undefined> {
+      const rows = await getClient()
+        .update(schema.profiles)
+        .set({
+          avatarGenerationStatus: updates.avatarGenerationStatus ?? null,
+          avatarGenerationError: updates.avatarGenerationError ?? null,
+          avatarGenerationJobId: updates.avatarGenerationJobId ?? null,
+          avatarGenerationAttemptKey: updates.avatarGenerationAttemptKey ?? null,
+          avatarGenerationUpdatedAt:
+            updates.avatarGenerationUpdatedAt ?? new Date().toISOString(),
+        })
+        .where(
+          and(
+            eq(schema.profiles.id, id),
+            eq(schema.profiles.userId, userId),
+            eq(schema.profiles.avatarGenerationJobId, jobId)
+          )
+        )
+        .returning();
+      return rows[0] ? rowToProfile(rows[0]) : undefined;
+    },
+    async completeAvatarGenerationIfCurrent(
+      id: string,
+      userId: string,
+      jobId: string,
+      updates: Pick<
+        ChildProfile,
+        | "avatarImageUrl"
+        | "appearanceSummary"
+        | "appearance"
+        | "avatarTraitHash"
+        | "avatarGeneratedAt"
+      >
+    ): Promise<ChildProfile | undefined> {
+      const now = new Date().toISOString();
+      const rows = await getClient()
+        .update(schema.profiles)
+        .set({
+          avatarImageUrl: updates.avatarImageUrl ?? null,
+          appearanceSummary: updates.appearanceSummary ?? null,
+          appearance: updates.appearance ?? null,
+          avatarTraitHash: updates.avatarTraitHash ?? null,
+          avatarGeneratedAt: updates.avatarGeneratedAt ?? now,
+          avatarGenerationStatus: "ready",
+          avatarGenerationError: null,
+          avatarGenerationJobId: null,
+          avatarGenerationUpdatedAt: now,
+        })
+        .where(
+          and(
+            eq(schema.profiles.id, id),
+            eq(schema.profiles.userId, userId),
+            eq(schema.profiles.avatarGenerationJobId, jobId)
+          )
+        )
+        .returning();
+      return rows[0] ? rowToProfile(rows[0]) : undefined;
+    },
     async create(profile: ChildProfile): Promise<void> {
       await getClient().insert(schema.profiles).values(profileToRow(profile));
     },
@@ -701,6 +855,54 @@ export const db = {
         .set({ shareToken: token })
         .where(eq(schema.stories.id, id));
     },
+    /**
+     * Atomically claims a still-generating story for one generator. Succeeds
+     * only if the story is generating and either unclaimed or the previous
+     * claim is older than `staleBefore` (so a wedged generator can be retried).
+     * Returns the claimed story, or undefined if another live generator owns it.
+     */
+    async claimGeneration(
+      id: string,
+      jobId: string,
+      claimedAt: string,
+      staleBefore: string
+    ): Promise<Story | undefined> {
+      const rows = await getClient()
+        .update(schema.stories)
+        .set({ generationJobId: jobId, generationClaimedAt: claimedAt })
+        .where(
+          and(
+            eq(schema.stories.id, id),
+            eq(schema.stories.status, "generating"),
+            or(
+              isNull(schema.stories.generationClaimedAt),
+              lt(schema.stories.generationClaimedAt, staleBefore)
+            )
+          )
+        )
+        .returning();
+      return rows[0] ? rowToStory(rows[0]) : undefined;
+    },
+    /**
+     * Heartbeat for the current owner: refreshes `generationClaimedAt` only if
+     * this job still holds the claim. Lets a healthy generator keep its claim
+     * fresh so the durable fallback's short stale window never races it.
+     */
+    async refreshGenerationClaim(
+      id: string,
+      jobId: string,
+      claimedAt: string
+    ): Promise<void> {
+      await getClient()
+        .update(schema.stories)
+        .set({ generationClaimedAt: claimedAt })
+        .where(
+          and(
+            eq(schema.stories.id, id),
+            eq(schema.stories.generationJobId, jobId)
+          )
+        );
+    },
     async delete(id: string): Promise<boolean> {
       const story = await this.getById(id);
       if (!story) return false;
@@ -792,6 +994,108 @@ export const db = {
       return rowToStoryPerson(
         row,
         links.map((link) => link.profileId)
+      );
+    },
+    async markAvatarGeneration(
+      id: string,
+      updates: Pick<
+        StoryPerson,
+        | "avatarGenerationStatus"
+        | "avatarGenerationError"
+        | "avatarGenerationJobId"
+        | "avatarGenerationAttemptKey"
+        | "avatarGenerationUpdatedAt"
+      >
+    ): Promise<void> {
+      const now = new Date().toISOString();
+      await getClient()
+        .update(schema.storyPeople)
+        .set({
+          avatarGenerationStatus: updates.avatarGenerationStatus ?? null,
+          avatarGenerationError: updates.avatarGenerationError ?? null,
+          avatarGenerationJobId: updates.avatarGenerationJobId ?? null,
+          avatarGenerationAttemptKey: updates.avatarGenerationAttemptKey ?? null,
+          avatarGenerationUpdatedAt: updates.avatarGenerationUpdatedAt ?? now,
+          updatedAt: now,
+        })
+        .where(eq(schema.storyPeople.id, id));
+    },
+    async markAvatarGenerationIfCurrent(
+      id: string,
+      userId: string,
+      jobId: string,
+      updates: Pick<
+        StoryPerson,
+        | "avatarGenerationStatus"
+        | "avatarGenerationError"
+        | "avatarGenerationJobId"
+        | "avatarGenerationAttemptKey"
+        | "avatarGenerationUpdatedAt"
+      >
+    ): Promise<void> {
+      const now = new Date().toISOString();
+      await getClient()
+        .update(schema.storyPeople)
+        .set({
+          avatarGenerationStatus: updates.avatarGenerationStatus ?? null,
+          avatarGenerationError: updates.avatarGenerationError ?? null,
+          avatarGenerationJobId: updates.avatarGenerationJobId ?? null,
+          avatarGenerationAttemptKey: updates.avatarGenerationAttemptKey ?? null,
+          avatarGenerationUpdatedAt: updates.avatarGenerationUpdatedAt ?? now,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(schema.storyPeople.id, id),
+            eq(schema.storyPeople.userId, userId),
+            eq(schema.storyPeople.avatarGenerationJobId, jobId)
+          )
+        );
+    },
+    async completeAvatarGenerationIfCurrent(
+      id: string,
+      userId: string,
+      jobId: string,
+      updates: Pick<
+        StoryPerson,
+        | "avatarImageUrl"
+        | "appearanceSummary"
+        | "appearance"
+        | "avatarTraitHash"
+        | "avatarGeneratedAt"
+      >
+    ): Promise<StoryPerson | undefined> {
+      const now = new Date().toISOString();
+      const rows = await getClient()
+        .update(schema.storyPeople)
+        .set({
+          avatarImageUrl: updates.avatarImageUrl ?? null,
+          appearanceSummary: updates.appearanceSummary ?? null,
+          appearance: updates.appearance ?? "",
+          avatarTraitHash: updates.avatarTraitHash ?? null,
+          avatarGeneratedAt: updates.avatarGeneratedAt ?? now,
+          avatarGenerationStatus: "ready",
+          avatarGenerationError: null,
+          avatarGenerationJobId: null,
+          avatarGenerationUpdatedAt: now,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(schema.storyPeople.id, id),
+            eq(schema.storyPeople.userId, userId),
+            eq(schema.storyPeople.avatarGenerationJobId, jobId)
+          )
+        )
+        .returning();
+      if (!rows[0]) return undefined;
+      const links = await getClient()
+        .select()
+        .from(schema.storyPersonProfiles)
+        .where(eq(schema.storyPersonProfiles.storyPersonId, id));
+      return rowToStoryPerson(
+        rows[0],
+        links.map((l) => l.profileId)
       );
     },
     async create(person: StoryPerson): Promise<void> {
@@ -955,6 +1259,37 @@ export const db = {
         .where(eq(schema.locationFixtures.id, id))
         .returning({ id: schema.locationFixtures.id });
       return result.length > 0;
+    },
+    /**
+     * Compare-and-swap fixture update: only writes when the stored job id still
+     * matches `expectedJobId` (and owner matches). Returns the updated fixture,
+     * or undefined when a newer job/edit has superseded this one. Prevents a
+     * slow background job from overwriting a newer upload or a deletion.
+     */
+    async updateIfJob(
+      id: string,
+      expectedJobId: string,
+      userId: string,
+      updates: Partial<LocationFixture>
+    ): Promise<LocationFixture | undefined> {
+      const result = await getClient()
+        .update(schema.locationFixtures)
+        .set(
+          locationFixtureRowUpdates({
+            ...updates,
+            updatedAt: new Date().toISOString(),
+          })
+        )
+        .where(
+          and(
+            eq(schema.locationFixtures.id, id),
+            eq(schema.locationFixtures.userId, userId),
+            eq(schema.locationFixtures.establishingImageJobId, expectedJobId)
+          )
+        )
+        .returning();
+      const row = result[0];
+      return row ? rowToLocationFixture(row) : undefined;
     },
   },
 
@@ -1756,6 +2091,211 @@ export const db = {
           )
         )
         .orderBy(desc(schema.publicStoryModerationEvents.createdAt));
+    },
+    // Returns IDs of stories that have ever been awarded a monthly reward,
+    // so they can be excluded from future monthly runs.
+    async listAllRewardedStoryIds(): Promise<Set<string>> {
+      const rows = await getClient()
+        .select({ storyId: schema.publicStoryModerationEvents.storyId })
+        .from(schema.publicStoryModerationEvents)
+        .where(eq(schema.publicStoryModerationEvents.action, "reward_granted"));
+      return new Set(rows.map((r) => r.storyId));
+    },
+  },
+
+  processedWebhookEvents: {
+    /**
+     * Leases a webhook event id for processing. Returns true only when the
+     * caller now owns a fresh lease and should run the side effects:
+     *  - first ever delivery: inserts a `pending` row with a lease, or
+     *  - a previous worker died mid-processing: steals a `pending` row whose
+     *    lease has expired.
+     * Returns false for a genuine duplicate (`done`) or while another worker's
+     * lease is still active, so external side effects never repeat.
+     *
+     * Callers MUST call `markDone(id)` after side effects succeed, and
+     * `release(id)` on a known failure so redelivery can retry immediately.
+     */
+    async claim(
+      id: string,
+      source: string,
+      leaseMs = 5 * 60 * 1000
+    ): Promise<boolean> {
+      const now = new Date();
+      const leaseExpiresAt = new Date(now.getTime() + leaseMs).toISOString();
+      const inserted = await getClient()
+        .insert(schema.processedWebhookEvents)
+        .values({
+          id,
+          source,
+          createdAt: now.toISOString(),
+          status: "pending",
+          leaseExpiresAt,
+        })
+        .onConflictDoNothing({ target: schema.processedWebhookEvents.id })
+        .returning({ id: schema.processedWebhookEvents.id });
+      if (inserted.length > 0) return true;
+
+      // Row already exists — only steal it if it's a stale pending lease.
+      const stolen = await getClient()
+        .update(schema.processedWebhookEvents)
+        .set({ leaseExpiresAt, source })
+        .where(
+          and(
+            eq(schema.processedWebhookEvents.id, id),
+            eq(schema.processedWebhookEvents.status, "pending"),
+            lt(schema.processedWebhookEvents.leaseExpiresAt, now.toISOString())
+          )
+        )
+        .returning({ id: schema.processedWebhookEvents.id });
+      return stolen.length > 0;
+    },
+    /**
+     * Marks a claimed event as fully processed so future deliveries are treated
+     * as duplicates and skipped.
+     */
+    async markDone(id: string): Promise<void> {
+      await getClient()
+        .update(schema.processedWebhookEvents)
+        .set({ status: "done", leaseExpiresAt: null })
+        .where(eq(schema.processedWebhookEvents.id, id));
+    },
+    /**
+     * Releases a claimed-but-unfinished event so it can be retried immediately.
+     * Used when processing fails after claiming.
+     */
+    async release(id: string): Promise<void> {
+      await getClient()
+        .delete(schema.processedWebhookEvents)
+        .where(eq(schema.processedWebhookEvents.id, id));
+    },
+  },
+
+  emailOutbox: {
+    /**
+     * Claims a slot for an email before it is sent. Returns the row id when this
+     * caller now owns the pending row (first time for this dedupeKey), or
+     * `null` when the email was already enqueued/sent (duplicate). Claim-before-
+     * send means a crash between send and mark leaves a `pending` row that can
+     * be reconciled rather than silently lost.
+     */
+    async enqueue(input: {
+      dedupeKey: string;
+      kind: string;
+      recipient: string;
+    }): Promise<string | null> {
+      const id = crypto.randomUUID();
+      const inserted = await getClient()
+        .insert(schema.emailOutbox)
+        .values({
+          id,
+          dedupeKey: input.dedupeKey,
+          kind: input.kind,
+          recipient: input.recipient,
+          status: "pending",
+          attempts: 1,
+          createdAt: new Date().toISOString(),
+        })
+        .onConflictDoNothing({ target: schema.emailOutbox.dedupeKey })
+        .returning({ id: schema.emailOutbox.id });
+      return inserted[0]?.id ?? null;
+    },
+    async markSent(id: string): Promise<void> {
+      await getClient()
+        .update(schema.emailOutbox)
+        .set({ status: "sent", sentAt: new Date().toISOString() })
+        .where(eq(schema.emailOutbox.id, id));
+    },
+    async markFailed(id: string, error: string): Promise<void> {
+      await getClient()
+        .update(schema.emailOutbox)
+        .set({ status: "failed", lastError: error.slice(0, 500) })
+        .where(eq(schema.emailOutbox.id, id));
+    },
+  },
+
+  userCredits: {
+    async getBalance(userId: string): Promise<number | undefined> {
+      const rows = await getClient()
+        .select()
+        .from(schema.userCredits)
+        .where(eq(schema.userCredits.userId, userId));
+      return rows[0]?.credits;
+    },
+    /**
+     * Ensures a balance row exists, seeding it from the given value only on
+     * first creation (never overwriting an existing authoritative balance).
+     */
+    async ensureSeeded(userId: string, seed: number): Promise<number> {
+      const now = new Date().toISOString();
+      await getClient()
+        .insert(schema.userCredits)
+        .values({ userId, credits: Math.max(0, seed), updatedAt: now })
+        .onConflictDoNothing({ target: schema.userCredits.userId });
+      const rows = await getClient()
+        .select()
+        .from(schema.userCredits)
+        .where(eq(schema.userCredits.userId, userId));
+      return rows[0]?.credits ?? Math.max(0, seed);
+    },
+    /**
+     * Applies a credit change atomically and idempotently.
+     *
+     * The `dedupeKey` uniqueness guarantees an at-most-once application: if the
+     * ledger row already exists, the balance is NOT touched and the current
+     * balance is returned. Otherwise the balance is bumped with a single
+     * `UPDATE ... credits = GREATEST(0, credits + delta) RETURNING`, and the
+     * ledger row is written with the resulting balance.
+     *
+     * Returns `{ balance, applied }`.
+     */
+    async applyDelta(input: {
+      userId: string;
+      delta: number;
+      reason: string;
+      dedupeKey: string;
+    }): Promise<{ balance: number; applied: boolean }> {
+      const client = getClient();
+      const now = new Date().toISOString();
+
+      // Reserve the dedupe key first. If it already exists, this is a duplicate.
+      const reserved = await client
+        .insert(schema.creditLedger)
+        .values({
+          id: crypto.randomUUID(),
+          userId: input.userId,
+          delta: input.delta,
+          reason: input.reason,
+          dedupeKey: input.dedupeKey,
+          balanceAfter: 0,
+          createdAt: now,
+        })
+        .onConflictDoNothing({ target: schema.creditLedger.dedupeKey })
+        .returning({ id: schema.creditLedger.id });
+
+      if (reserved.length === 0) {
+        const current = await this.getBalance(input.userId);
+        return { balance: current ?? 0, applied: false };
+      }
+
+      const updated = await client
+        .update(schema.userCredits)
+        .set({
+          credits: sql`GREATEST(0, ${schema.userCredits.credits} + ${input.delta})`,
+          updatedAt: now,
+        })
+        .where(eq(schema.userCredits.userId, input.userId))
+        .returning({ credits: schema.userCredits.credits });
+
+      const balance = updated[0]?.credits ?? 0;
+
+      // Backfill the ledger row's resulting balance for auditability.
+      await client
+        .update(schema.creditLedger)
+        .set({ balanceAfter: balance })
+        .where(eq(schema.creditLedger.id, reserved[0].id));
+
+      return { balance, applied: true };
     },
   },
 };

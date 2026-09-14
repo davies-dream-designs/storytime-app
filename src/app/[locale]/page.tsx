@@ -8,6 +8,7 @@ import LanguageSwitcher from '@/components/LanguageSwitcher'
 import RefCapture from '@/components/RefCapture'
 import Icon, { type IconName } from '@/components/ui/Icon'
 import { getLocale } from 'next-intl/server'
+import { db } from '@/lib/db'
 
 export default async function Home() {
   const { userId } = await auth()
@@ -28,25 +29,38 @@ export default async function Home() {
   ] satisfies Array<{ icon: IconName; title: string; body: string }>
 
   const arcSteps = [
-    { num: '1', label: t('arc.introduction'), icon: '🌅' },
-    { num: '2', label: t('arc.adventure'), icon: '🗺️' },
-    { num: '3', label: t('arc.growth'), icon: '🌱' },
-    { num: '4', label: t('arc.resolution'), icon: '⭐' },
-    { num: '5', label: t('arc.bedtime'), icon: '😴' },
+    { num: '1', label: t('arc.introduction'), icon: 'profile' as const },
+    { num: '2', label: t('arc.adventure'), icon: 'image' as const },
+    { num: '3', label: t('arc.growth'), icon: 'sparkle' as const },
+    { num: '4', label: t('arc.resolution'), icon: 'book' as const },
+    { num: '5', label: t('arc.bedtime'), icon: 'download' as const },
   ]
 
   const themes = [
-    ['💛', t('themes.kindness')],
-    ['🦁', t('themes.bravery')],
-    ['🤝', t('themes.sharing')],
-    ['🌈', t('themes.tryingNewThings')],
-    ['💭', t('themes.dealingWithEmotions')],
-    ['👫', t('themes.friendship')],
-    ['🌿', t('themes.patience')],
-    ['✅', t('themes.honesty')],
-    ['🙏', t('themes.gratitude')],
-    ['💪', t('themes.perseverance')],
+    t('themes.kindness'),
+    t('themes.bravery'),
+    t('themes.sharing'),
+    t('themes.tryingNewThings'),
+    t('themes.dealingWithEmotions'),
+    t('themes.friendship'),
+    t('themes.patience'),
+    t('themes.honesty'),
+    t('themes.gratitude'),
+    t('themes.perseverance'),
   ]
+
+  // Fetch real story illustrations from public gallery
+  let showcaseStories: Array<{ id: string; title: string; theme: string; thumbnailUrl: string }> = []
+  try {
+    const stories = await db.stories.getPublicGallery(20)
+    const thumbnails = await db.bookProjects.getPublicThumbnailsByStoryIds(stories.map(s => s.id))
+    showcaseStories = stories
+      .filter(s => thumbnails[s.id])
+      .slice(0, 8)
+      .map(s => ({ id: s.id, title: s.title, theme: s.theme, thumbnailUrl: thumbnails[s.id]! }))
+  } catch {
+    // DB unavailable in some environments — showcase just won't render
+  }
 
   return (
     <main id="main-content" tabIndex={-1} className="overflow-x-hidden">
@@ -156,11 +170,14 @@ export default async function Home() {
           <p className="mt-4 text-night-200">{t('arcSub')}</p>
           <div className="mt-14 grid grid-cols-5 gap-2 sm:gap-4">
             {arcSteps.map((step) => (
-              <div key={step.num} className="flex flex-col items-center gap-2">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-moon-400/20 text-2xl">
-                  {step.icon}
+              <div key={step.num} className="flex flex-col items-center gap-3">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-moon-400/20 ring-1 ring-moon-400/30">
+                  <Icon name={step.icon} className="h-7 w-7 text-moon-300" />
                 </div>
-                <p className="text-xs font-bold text-moon-300 sm:text-sm">{step.label}</p>
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-moon-400/30">
+                  <span className="text-xs font-bold text-moon-200">{step.num}</span>
+                </div>
+                <p className="text-center text-xs font-bold text-moon-300 sm:text-sm">{step.label}</p>
               </div>
             ))}
           </div>
@@ -178,16 +195,65 @@ export default async function Home() {
           </p>
         </div>
         <div className="mt-12 flex flex-wrap justify-center gap-3">
-          {themes.map(([icon, theme]) => (
+          {themes.map((theme) => (
             <span
               key={theme}
-              className="flex items-center gap-2 rounded-full border border-night-100 bg-white px-5 py-2.5 text-sm font-bold text-night-600 shadow-sm"
+              className="rounded-full border border-night-100 bg-white px-5 py-2.5 text-sm font-bold text-night-600 shadow-sm"
             >
-              <span>{icon}</span> {theme}
+              {theme}
             </span>
           ))}
         </div>
       </section>
+
+      {/* Story illustration showcase */}
+      {showcaseStories.length > 0 && (
+        <section className="bg-night-50 py-24">
+          <div className="mx-auto max-w-6xl px-5">
+            <div className="text-center mb-12">
+              <p className="text-sm font-bold uppercase tracking-wide text-star-600">Real stories</p>
+              <h2 className="mt-2 font-display text-4xl font-bold text-night-800">
+                From families like yours
+              </h2>
+              <p className="mt-4 text-lg text-night-500">
+                Every illustration is created specifically for your child&apos;s story.
+              </p>
+            </div>
+            <div className="columns-2 gap-4 md:columns-3 lg:columns-4">
+              {showcaseStories.map((story) => (
+                <Link
+                  key={story.id}
+                  href="/public"
+                  className="group mb-4 block break-inside-avoid overflow-hidden rounded-2xl border border-night-100 bg-white shadow-sm transition hover:shadow-md hover:-translate-y-0.5"
+                >
+                  <div className="relative w-full overflow-hidden">
+                    <Image
+                      src={story.thumbnailUrl}
+                      alt={story.title}
+                      width={400}
+                      height={400}
+                      className="w-full object-cover transition group-hover:scale-105"
+                      sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 50vw"
+                    />
+                  </div>
+                  <div className="p-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-star-600">{story.theme}</p>
+                    <p className="mt-0.5 line-clamp-2 text-sm font-bold text-night-800">{story.title}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <div className="mt-10 text-center">
+              <Link
+                href="/public"
+                className="rounded-full border border-night-200 bg-white px-8 py-3 text-sm font-bold text-night-700 shadow-sm transition hover:border-night-300 hover:shadow-md"
+              >
+                Browse the full gallery →
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* CTA */}
       <section className="bg-gradient-to-b from-night-700 to-night-900 py-24 text-center">

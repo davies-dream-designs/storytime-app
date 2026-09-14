@@ -59,6 +59,7 @@ export function deriveBeatsFromStory(story: Story): Beat[] {
       visualIntent,
       mood: inferMood(purpose),
       isQuietBeat: isQuietBeat(purpose),
+      sourcePageNumbers: [page.pageNumber],
     }
   })
 }

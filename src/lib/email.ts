@@ -1,9 +1,39 @@
 import { Resend } from "resend";
+import { db } from "@/lib/db";
 
 function getClient(): Resend | null {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return null;
   return new Resend(apiKey);
+}
+
+/**
+ * Durable send: records the email in the DB outbox (claim-before-send, unique
+ * by `dedupeKey`), performs the send, then marks the row sent/failed based on
+ * the provider result. Guarantees at-most-once delivery for a given key and
+ * that an email is only marked "sent" after the provider actually accepted it.
+ *
+ * Returns true if the email was sent on this call, false if it was a duplicate
+ * (already enqueued/sent). Re-throws provider errors after recording the
+ * failure so callers can decide whether to fail the request (e.g. return 500
+ * for a webhook so it is retried).
+ */
+export async function sendViaOutbox(
+  meta: { dedupeKey: string; kind: string; recipient: string },
+  send: () => Promise<void>
+): Promise<boolean> {
+  const rowId = await db.emailOutbox.enqueue(meta);
+  if (!rowId) return false; // duplicate — already handled
+  try {
+    await send();
+    await db.emailOutbox.markSent(rowId);
+    return true;
+  } catch (err) {
+    await db.emailOutbox
+      .markFailed(rowId, err instanceof Error ? err.message : String(err))
+      .catch(() => undefined);
+    throw err;
+  }
 }
 
 function escapeHtml(value: string): string {

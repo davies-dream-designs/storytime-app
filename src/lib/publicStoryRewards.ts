@@ -1,16 +1,12 @@
-import type { StoryPreset } from "@/types";
-
-export type PublicStoryRewardCategory = {
-  key: "all" | StoryPreset;
+export type PublicStoryRewardTier = {
+  place: 1 | 2 | 3;
   label: string;
   credits: number;
+  emoji: string;
 };
 
-export const PUBLIC_STORY_REWARD_CATEGORIES: PublicStoryRewardCategory[] = [
-  { key: "all", label: "Overall winner", credits: 8 },
-  { key: "baby-drift", label: "Baby bedtime", credits: 3 },
-  { key: "toddler-tale", label: "Toddler tales", credits: 3 },
-  { key: "preschool-story", label: "Preschool stories", credits: 3 },
-  { key: "big-kid-chapter", label: "Big kid chapters", credits: 3 },
-  { key: "young-reader-classic", label: "Young readers", credits: 3 },
+export const PUBLIC_STORY_REWARD_TIERS: PublicStoryRewardTier[] = [
+  { place: 1, label: "1st place", credits: 10, emoji: "🥇" },
+  { place: 2, label: "2nd place", credits: 5,  emoji: "🥈" },
+  { place: 3, label: "3rd place", credits: 3,  emoji: "🥉" },
 ];

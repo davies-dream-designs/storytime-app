@@ -9,7 +9,8 @@ import {
   getStoryPersonHeightLabel,
   getStoryPersonRelationshipLabel,
 } from "@/types";
-import { deleteBookAssetUrls, storeBookAsset } from "@/lib/print-books/storage";
+import { storeBookAsset } from "@/lib/print-books/storage";
+import { fetchAllowedMediaBuffer } from "@/lib/safeMediaFetch";
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 const ALLOWED_CONTENT_TYPES = new Set([
@@ -286,11 +287,17 @@ export async function normalizeUploadForOpenAI(file: File): Promise<Buffer> {
     .toBuffer();
 }
 
+const OPENAI_BASE = () =>
+  (process.env.OPENAI_API_BASE_URL ?? "https://api.openai.com/v1").replace(
+    /\/$/,
+    ""
+  );
+
 async function generateImageFromText(prompt: string): Promise<Buffer> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
 
-  const response = await fetch("https://api.openai.com/v1/images/generations", {
+  const response = await fetch(`${OPENAI_BASE()}/images/generations`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -323,6 +330,11 @@ async function generateImageFromText(prompt: string): Promise<Buffer> {
 export async function generateEditedImage(input: {
   image: Buffer;
   prompt: string;
+  /** "high" preserves the input image's layout/detail far better (gpt-image-1). */
+  inputFidelity?: "high" | "low";
+  quality?: "low" | "medium" | "high";
+  /** "transparent" returns a PNG with an alpha channel (no baked background). */
+  background?: "transparent";
 }): Promise<Buffer> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
@@ -344,9 +356,16 @@ export async function generateEditedImage(input: {
   );
   formData.append("prompt", input.prompt);
   formData.append("size", "1024x1024");
-  formData.append("quality", "medium");
+  formData.append("quality", input.quality ?? "medium");
+  if (input.inputFidelity) {
+    formData.append("input_fidelity", input.inputFidelity);
+  }
+  if (input.background === "transparent") {
+    formData.append("output_format", "png");
+    formData.append("background", "transparent");
+  }
 
-  const response = await fetch("https://api.openai.com/v1/images/edits", {
+  const response = await fetch(`${OPENAI_BASE()}/images/edits`, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}` },
     body: formData,
@@ -368,15 +387,12 @@ export async function generateEditedImage(input: {
 }
 
 async function loadReferenceImage(url: string): Promise<Buffer> {
-  if (url.startsWith("data:")) {
-    const base64 = url.split(",", 2)[1];
-    if (!base64) throw new Error("Reference image is unavailable");
-    return Buffer.from(base64, "base64");
+  try {
+    const { buffer } = await fetchAllowedMediaBuffer(url);
+    return buffer;
+  } catch {
+    throw new Error("Reference image is unavailable");
   }
-
-  const response = await fetch(url);
-  if (!response.ok) throw new Error("Reference image is unavailable");
-  return Buffer.from(await response.arrayBuffer());
 }
 
 function parseAnalysis(raw: string): PhotoAnalysis {
@@ -476,17 +492,6 @@ export function buildStoryPersonAppearanceSummary(person: StoryPerson): string {
     .join(" ");
 }
 
-async function deletePreviousReference(url?: string) {
-  if (!url) return;
-  try {
-    await deleteBookAssetUrls([url]);
-  } catch (err) {
-    console.warn("Could not delete previous illustrated reference.", {
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
-}
-
 function buildAdjustedSummary(summary: string, adjustment?: string): string {
   const cleanSummary = summary.trim();
   const cleanAdjustment = adjustment?.trim();
@@ -572,7 +577,6 @@ export async function createStoryPersonAvatar(input: {
     contentType: "image/jpeg",
   });
 
-  await deletePreviousReference(input.person.avatarImageUrl);
 
   const appearance = input.person.appearance.trim() || analysis.appearance;
 
@@ -610,7 +614,6 @@ export async function createStoryPersonAvatarFromDescription(input: {
     contentType: "image/jpeg",
   });
 
-  await deletePreviousReference(input.person.avatarImageUrl);
   const nextAppearance =
     appearance || buildStoryPersonAppearanceSummary(input.person);
 
@@ -663,7 +666,6 @@ export async function redoStoryPersonAvatar(input: {
     contentType: "image/jpeg",
   });
 
-  await deletePreviousReference(input.person.avatarImageUrl);
   const appearance = buildAdjustedAppearance(
     input.person.appearance,
     adjustment
@@ -716,7 +718,6 @@ export async function createChildProfileAvatar(input: {
     contentType: "image/jpeg",
   });
 
-  await deletePreviousReference(input.profile.avatarImageUrl);
 
   return {
     avatarImageUrl,
@@ -753,7 +754,6 @@ export async function createChildProfileAvatarFromDescription(input: {
     contentType: "image/jpeg",
   });
 
-  await deletePreviousReference(input.profile.avatarImageUrl);
 
   return {
     avatarImageUrl,
@@ -812,7 +812,6 @@ export async function redoChildProfileAvatar(input: {
     contentType: "image/jpeg",
   });
 
-  await deletePreviousReference(input.profile.avatarImageUrl);
 
   return {
     avatarImageUrl,

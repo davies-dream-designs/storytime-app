@@ -6,10 +6,8 @@ import type {
   BookSpread,
   BookSpreadLayoutType,
   CharacterBible,
-  LocationBible,
 } from "@/types/printBook";
 import { buildIllustrationDirection } from "@/lib/print-books/characterBible";
-import { stampSpreadLocations } from "@/lib/print-books/locationBible";
 import {
   getStorycotIllustratedStorySpreadCountForAgeBand,
   getStorycotPageCountForAgeBand,
@@ -195,7 +193,8 @@ function createSpread(
   rightPageText: string,
   sceneBrief: string,
   illustrationPrompt: string,
-  title?: string
+  title?: string,
+  sourcePageNumbers?: number[]
 ): BookSpread {
   return {
     id: `${bookProjectId}:spread:${sequence}`,
@@ -209,6 +208,9 @@ function createSpread(
     rightPageText,
     sceneBrief,
     illustrationPrompt,
+    ...(sourcePageNumbers && sourcePageNumbers.length
+      ? { sourcePageNumbers }
+      : {}),
   };
 }
 
@@ -333,6 +335,7 @@ function combineBeatGroup(beats: Beat[], sequence: number): Beat {
     visualIntent,
     mood: lastBeat.mood,
     isQuietBeat: beats.every((beat) => beat.isQuietBeat),
+    sourcePageNumbers: beats.flatMap((beat) => beat.sourcePageNumbers ?? []),
   };
 }
 
@@ -467,7 +470,9 @@ function createStoryExpansionSpread(input: {
         role.illustrationPrompt,
         characterBible,
         `${role.leftPageText} ${role.rightPageText} ${role.sceneBrief}`
-      )
+      ),
+      undefined,
+      sourceBeat.sourcePageNumbers
     );
   }
 
@@ -518,7 +523,9 @@ function createStoryExpansionSpread(input: {
           characterBible,
           `${role.leftPageText} ${role.rightPageText} ${role.sceneBrief}`
         )
-      : ""
+      : "",
+    undefined,
+    sourceBeat.sourcePageNumbers
   );
 }
 
@@ -578,7 +585,9 @@ function createStorySpreads(
         buildSceneBrief(beat),
         shouldIllustrate
           ? withCharacterBiblePrompt(beat.visualIntent, characterBible, sceneSoFar)
-          : ""
+          : "",
+        undefined,
+        beat.sourcePageNumbers
       )
     );
 
@@ -650,7 +659,6 @@ export function composePrintBookSpreads(input: {
   ageBand: AgeBand;
   beats: Beat[];
   characterBible?: CharacterBible;
-  locationBible?: LocationBible;
 }): BookSpread[] {
   const {
     bookProjectId,
@@ -659,7 +667,6 @@ export function composePrintBookSpreads(input: {
     ageBand,
     beats,
     characterBible,
-    locationBible,
   } = input;
   const pageCount = getStorycotPageCountForAgeBand(ageBand);
 
@@ -683,7 +690,7 @@ export function composePrintBookSpreads(input: {
     ),
   ];
 
-  return stampSpreadLocations(spreads, story, locationBible);
+  return spreads;
 }
 
 export function createEmptyBookProject(input: {

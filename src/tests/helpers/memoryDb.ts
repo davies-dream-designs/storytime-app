@@ -14,6 +14,17 @@ export function createMemoryDb() {
   const bookBuildJobMap = new Map<string, BookBuildJob>();
   const printOrderMap = new Map<string, PrintOrderRecord>();
   const emailClaimSet = new Set<string>();
+  const processedWebhookEventLeases = new Map<
+    string,
+    { status: "pending" | "done"; leaseExpiresAt: number }
+  >();
+  const userCreditsMap = new Map<string, number>();
+  const creditLedgerDedupeKeys = new Set<string>();
+  const emailOutboxDedupeKeys = new Set<string>();
+  const emailOutboxRows = new Map<
+    string,
+    { status: "pending" | "sent" | "failed"; kind: string; lastError?: string }
+  >();
 
   const db = {
     _reset() {
@@ -25,6 +36,11 @@ export function createMemoryDb() {
       bookBuildJobMap.clear();
       printOrderMap.clear();
       emailClaimSet.clear();
+      processedWebhookEventLeases.clear();
+      userCreditsMap.clear();
+      creditLedgerDedupeKeys.clear();
+      emailOutboxDedupeKeys.clear();
+      emailOutboxRows.clear();
     },
 
     profiles: {
@@ -87,6 +103,36 @@ export function createMemoryDb() {
       async setShareToken(id: string, token: string): Promise<void> {
         const current = storyMap.get(id);
         if (current) storyMap.set(id, { ...current, shareToken: token });
+      },
+      async claimGeneration(
+        id: string,
+        jobId: string,
+        claimedAt: string,
+        staleBefore: string
+      ): Promise<Story | undefined> {
+        const current = storyMap.get(id);
+        if (!current || current.status !== "generating") return undefined;
+        const claimIsFresh =
+          current.generationClaimedAt != null &&
+          current.generationClaimedAt >= staleBefore;
+        if (claimIsFresh) return undefined;
+        const next = {
+          ...current,
+          generationJobId: jobId,
+          generationClaimedAt: claimedAt,
+        };
+        storyMap.set(id, next);
+        return next;
+      },
+      async refreshGenerationClaim(
+        id: string,
+        jobId: string,
+        claimedAt: string
+      ): Promise<void> {
+        const current = storyMap.get(id);
+        if (current && current.generationJobId === jobId) {
+          storyMap.set(id, { ...current, generationClaimedAt: claimedAt });
+        }
       },
       async delete(id: string): Promise<boolean> {
         if (!storyMap.has(id)) return false;
@@ -351,6 +397,90 @@ export function createMemoryDb() {
         };
         bookBuildJobMap.set(id, next);
         return next;
+      },
+    },
+
+    processedWebhookEvents: {
+      // Accepts the real db's (id, source?, leaseMs?) signature; extras ignored.
+      async claim(id: string, ..._rest: unknown[]): Promise<boolean> {
+        void _rest;
+        const existing = processedWebhookEventLeases.get(id);
+        const now = Date.now();
+        if (!existing) {
+          processedWebhookEventLeases.set(id, {
+            status: "pending",
+            leaseExpiresAt: now + 5 * 60 * 1000,
+          });
+          return true;
+        }
+        if (existing.status === "pending" && existing.leaseExpiresAt < now) {
+          existing.leaseExpiresAt = now + 5 * 60 * 1000;
+          return true;
+        }
+        return false;
+      },
+      async markDone(id: string): Promise<void> {
+        const existing = processedWebhookEventLeases.get(id);
+        if (existing) existing.status = "done";
+      },
+      async release(id: string): Promise<void> {
+        processedWebhookEventLeases.delete(id);
+      },
+    },
+
+    emailOutbox: {
+      async enqueue(input: {
+        dedupeKey: string;
+        kind: string;
+        recipient: string;
+      }): Promise<string | null> {
+        if (emailOutboxDedupeKeys.has(input.dedupeKey)) return null;
+        emailOutboxDedupeKeys.add(input.dedupeKey);
+        const id = `outbox-${emailOutboxDedupeKeys.size}`;
+        emailOutboxRows.set(id, { status: "pending", kind: input.kind });
+        return id;
+      },
+      async markSent(id: string): Promise<void> {
+        const row = emailOutboxRows.get(id);
+        if (row) row.status = "sent";
+      },
+      async markFailed(id: string, error: string): Promise<void> {
+        const row = emailOutboxRows.get(id);
+        if (row) {
+          row.status = "failed";
+          row.lastError = error;
+        }
+      },
+    },
+
+    userCredits: {
+      async getBalance(userId: string): Promise<number | undefined> {
+        return userCreditsMap.get(userId);
+      },
+      async ensureSeeded(userId: string, seed: number): Promise<number> {
+        const existing = userCreditsMap.get(userId);
+        if (typeof existing === "number") return existing;
+        const value = Math.max(0, seed);
+        userCreditsMap.set(userId, value);
+        return value;
+      },
+      async applyDelta(input: {
+        userId: string;
+        delta: number;
+        reason: string;
+        dedupeKey: string;
+      }): Promise<{ balance: number; applied: boolean }> {
+        if (creditLedgerDedupeKeys.has(input.dedupeKey)) {
+          return {
+            balance: userCreditsMap.get(input.userId) ?? 0,
+            applied: false,
+          };
+        }
+        creditLedgerDedupeKeys.add(input.dedupeKey);
+        const current = userCreditsMap.get(input.userId) ?? 0;
+        const balance = Math.max(0, current + input.delta);
+        userCreditsMap.set(input.userId, balance);
+        return { balance, applied: true };
       },
     },
   };

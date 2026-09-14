@@ -11,6 +11,7 @@ const { mockAuth, mockClerkClient, mockDb, mockStreamStory } = vi.hoisted(() => 
       getById: vi.fn(),
       getByProfileId: vi.fn(),
       update: vi.fn(),
+      claimGeneration: vi.fn(),
     },
     profiles: {
       getById: vi.fn(),
@@ -36,7 +37,11 @@ vi.mock("@/lib/db", () => ({
 }));
 
 vi.mock("@vercel/kv", () => ({
-  kv: { del: vi.fn() },
+  kv: {
+    del: vi.fn(),
+    get: vi.fn(async () => null),
+    set: vi.fn(async () => undefined),
+  },
 }));
 
 vi.mock("@/lib/storyGenerator", () => ({
@@ -87,6 +92,12 @@ describe("POST /api/stories/[id]/stream cast continuity", () => {
       status: "generating",
     });
     mockDb.stories.getByProfileId.mockResolvedValue([]);
+    mockDb.stories.claimGeneration.mockImplementation(async () => ({
+      id: "story-1",
+      userId: "user-1",
+      profileId: "profile-1",
+      status: "generating",
+    }));
     mockDb.stories.update.mockImplementation(async (_id: string, updates: object) => ({
       id: "story-1",
       ...updates,

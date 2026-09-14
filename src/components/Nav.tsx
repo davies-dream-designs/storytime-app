@@ -69,16 +69,14 @@ export default function Nav() {
     { href: "/dashboard", label: t("dashboard"), icon: "dashboard" },
     { href: "/profiles", label: t("profilesMobile"), icon: "profile" },
     { href: "/family", label: "Family & Friends", icon: "profile" },
-    { href: "/locations", label: "Locations", icon: "image" },
     { href: "/stories", label: t("storiesMobile"), icon: "book" },
     { href: "/account", label: t("accountMobile"), icon: "account" },
   ] satisfies Array<{ href: string; label: string; icon: IconName }>;
+  // Desktop nav shows only the 4 core section links — public/utility links stay in the drawer
   const desktopAuthedLinks = [
     { href: "/profiles", label: t("profiles"), icon: "profile" },
-    { href: "/family", label: "Family & Friends", icon: "profile" },
-    { href: "/locations", label: "Locations", icon: "image" },
+    { href: "/family", label: "Family", icon: "profile" },
     { href: "/stories", label: t("stories"), icon: "book" },
-    { href: "/stories/new", label: t("newStory"), icon: "plus" },
   ] satisfies Array<{ href: string; label: string; icon: IconName }>;
   const renderMobileLink = (item: {
     href: string;
@@ -116,7 +114,7 @@ export default function Nav() {
     <header className="sticky top-0 z-30 border-b border-night-100 bg-parchment/90 backdrop-blur">
       <nav
         aria-label="Site navigation"
-        className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 pr-6"
+        className="mx-auto flex max-w-6xl items-center px-5 py-4 pr-6"
       >
         <Link
           href={logoHref}
@@ -134,30 +132,11 @@ export default function Nav() {
           Storycot
         </Link>
 
-        {/* Desktop nav (collapsed into the hamburger drawer at all widths) */}
-        <div className="hidden items-center gap-1">
+        {/* Desktop nav — visible at lg+, hidden on mobile (hamburger drawer handles mobile) */}
+        <div className="hidden lg:flex items-center gap-1 ml-6">
           {isSignedIn ? (
             <>
               {desktopAuthedLinks.map(renderDesktopLink)}
-              <Link
-                href="/account"
-                aria-current={isActive("/account") ? "page" : undefined}
-                className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-bold transition ${isActive("/account") ? "bg-night-700 text-moon-200 shadow-sm shadow-night-700/20" : "text-night-500 hover:bg-night-100"}`}
-                aria-label={t("accountCredits")}
-              >
-                <Icon name="account" />
-                {creditInfo && !creditInfo.isAdmin ? (
-                  <span
-                    className={`min-w-[1.25rem] rounded-full px-1 text-center text-xs ${
-                      creditInfo.credits === 0
-                        ? "bg-red-100 text-red-600"
-                        : "bg-night-100 text-night-600"
-                    }`}
-                  >
-                    {creditInfo.credits}
-                  </span>
-                ) : null}
-              </Link>
               {creditInfo?.isAdmin ? (
                 <Link
                   href="/admin"
@@ -168,25 +147,16 @@ export default function Nav() {
                   <span>Admin</span>
                 </Link>
               ) : null}
-              {publicLinks.map(renderDesktopLink)}
-              <LanguageSwitcher />
-              <UserButton />
             </>
           ) : (
             <>
               {publicLinks.map(renderDesktopLink)}
-              <LanguageSwitcher />
-              <SignInButton mode="modal">
-                <button className={buttonClassName({ size: "compact" })}>
-                  {t("signIn")}
-                </button>
-              </SignInButton>
             </>
           )}
         </div>
 
-        {/* Collapsed bar: language + auth + hamburger (all widths) */}
-        <div className="flex items-center gap-3">
+        {/* Right bar: always visible — language, credits, user, hamburger (mobile) */}
+        <div className="ml-auto flex items-center gap-3">
           <LanguageSwitcher />
           {isSignedIn ? (
             <>
@@ -205,6 +175,13 @@ export default function Nav() {
                 </Link>
               ) : null}
               <UserButton />
+              <Link
+                href="/stories/new"
+                className={`hidden lg:inline-flex ${buttonClassName({ size: "compact" })}`}
+              >
+                <Icon name="plus" className="h-3.5 w-3.5" />
+                {t("newStory")}
+              </Link>
             </>
           ) : (
             <SignInButton mode="modal">
@@ -250,9 +227,10 @@ export default function Nav() {
         </div>
       </nav>
 
-      {/* Drawer (all widths) */}
+      {/* Drawer (all widths) — 1-col on mobile, 2-col grid on desktop */}
       {open && (
-        <div className="border-t border-night-100 bg-parchment/95 backdrop-blur px-4 py-3 flex flex-col gap-1">
+        <div className="border-t border-night-100 bg-parchment/95 backdrop-blur px-4 py-3">
+          <div className="mx-auto max-w-6xl grid gap-1 lg:grid-cols-2">
           {isSignedIn ? (
             <>
               {mobileLinks
@@ -298,12 +276,13 @@ export default function Nav() {
             href="/stories/new"
             onClick={() => setOpen(false)}
             className={buttonClassName({
-              className: "mt-2 w-full gap-2",
+              className: "mt-2 w-full gap-2 lg:col-span-2",
             })}
           >
             <Icon name="plus" />
             {t("newStory")}
           </Link>
+          </div>
         </div>
       )}
     </header>

@@ -278,6 +278,9 @@ export default function AppearanceFields({
         </p>
       </div>
 
+      {/* Core and Features side-by-side at desktop */}
+      <div className="lg:grid lg:grid-cols-2 lg:gap-6">
+
       <div className="space-y-5 rounded-2xl bg-night-50/50 p-4">
         <div>
           <h3 className="font-display text-lg font-bold text-night-700">
@@ -496,6 +499,8 @@ export default function AppearanceFields({
           onChange={(expressionVibes) => patch({ expressionVibes })}
         />
       </div>
+
+      </div>{/* end 2-col grid */}
 
       <div className="space-y-3 rounded-2xl bg-night-50/50 p-4">
         <div>

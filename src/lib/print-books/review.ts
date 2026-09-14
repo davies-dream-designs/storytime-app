@@ -15,6 +15,10 @@ export interface SpreadPreview {
   rightPageImageUrl?: string;
   leftPageImageError?: string;
   rightPageImageError?: string;
+  leftPageImageStatus?: BookSpread["leftPageImageStatus"];
+  rightPageImageStatus?: BookSpread["rightPageImageStatus"];
+  leftPageImageJobId?: string;
+  rightPageImageJobId?: string;
   leftPageQa?: IllustrationGenerationMetadata;
   rightPageQa?: IllustrationGenerationMetadata;
 }
@@ -104,6 +108,10 @@ export function toSpreadPreview(spread: BookSpread): SpreadPreview {
     rightPageImageUrl: spread.rightPageImageUrl,
     leftPageImageError: spread.leftPageImageError,
     rightPageImageError: spread.rightPageImageError,
+    leftPageImageStatus: spread.leftPageImageStatus,
+    rightPageImageStatus: spread.rightPageImageStatus,
+    leftPageImageJobId: spread.leftPageImageJobId,
+    rightPageImageJobId: spread.rightPageImageJobId,
     leftPageQa: spread.leftPageQa,
     rightPageQa: spread.rightPageQa,
   };

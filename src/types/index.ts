@@ -22,6 +22,8 @@ export function sanitizeChildGender(value: unknown): ChildGender {
     : "not_specified";
 }
 
+export type AvatarGenerationStatus = "queued" | "running" | "ready" | "failed";
+
 export interface ChildProfile {
   id: string;
   userId: string;
@@ -34,6 +36,11 @@ export interface ChildProfile {
   appearanceSummary?: string;
   avatarTraitHash?: string;
   avatarGeneratedAt?: string;
+  avatarGenerationStatus?: AvatarGenerationStatus;
+  avatarGenerationError?: string;
+  avatarGenerationJobId?: string;
+  avatarGenerationAttemptKey?: string;
+  avatarGenerationUpdatedAt?: string;
   favouriteCharacters: string[];
   favouriteActivities: string[];
   favouriteAnimals: string[];
@@ -184,6 +191,12 @@ export interface Story {
   createdAt: string;
   status?: "generating" | "ready" | "failed";
   generationError?: string;
+  /** Id of the durable Inngest job that owns this story's generation. */
+  generationJobId?: string;
+  /** When a generator last claimed this story; used to detect stale claims. */
+  generationClaimedAt?: string;
+  /** Set once the story-credit has been deducted, so retries never re-charge. */
+  creditChargedAt?: string;
   shareToken?: string;
   visibility?: StoryVisibility;
   publicReviewStatus?: PublicReviewStatus;
@@ -245,6 +258,11 @@ export interface StoryPerson {
   appearanceSummary?: string;
   avatarTraitHash?: string;
   avatarGeneratedAt?: string;
+  avatarGenerationStatus?: AvatarGenerationStatus;
+  avatarGenerationError?: string;
+  avatarGenerationJobId?: string;
+  avatarGenerationAttemptKey?: string;
+  avatarGenerationUpdatedAt?: string;
   availableToAllProfiles: boolean;
   profileIds: string[];
   createdAt: string;

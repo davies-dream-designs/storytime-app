@@ -72,7 +72,12 @@ export async function POST() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://storycot.com";
-  const webhookUrl = `${appUrl}/api/lulu/webhook`;
+  // Register with the shared-secret token when configured so the callback route
+  // can authenticate inbound Lulu status updates.
+  const webhookToken = process.env.LULU_WEBHOOK_TOKEN;
+  const webhookUrl = webhookToken
+    ? `${appUrl}/api/lulu/webhook?token=${encodeURIComponent(webhookToken)}`
+    : `${appUrl}/api/lulu/webhook`;
   const luluBase = getLuluBaseUrl();
 
   try {

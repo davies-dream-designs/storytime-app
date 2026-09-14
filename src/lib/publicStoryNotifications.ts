@@ -26,20 +26,29 @@ export async function notifyPublicStoryOwner(input: {
   actionPath: string;
   actionLabel: string;
 }): Promise<void> {
-  const toEmail = await getOwnerEmail(input.story.userId);
-  if (!toEmail) return;
+  // Best-effort: this runs AFTER the moderation/vote state is already committed,
+  // so a transient email failure must never turn a successful action into a 500.
+  try {
+    const toEmail = await getOwnerEmail(input.story.userId);
+    if (!toEmail) return;
 
-  const appUrl = getAppUrl(input.origin);
-  const actionUrl = `${appUrl.replace(/\/+$/, "")}/${input.actionPath.replace(/^\/+/, "")}`;
-  await sendPublicStoryNotificationEmail({
-    toEmail,
-    toName: storyOwnerName(input.story),
-    storyTitle: input.story.title,
-    subject: input.subject,
-    headline: input.headline,
-    body: input.body,
-    actionUrl,
-    actionLabel: input.actionLabel,
-    appUrl,
-  });
+    const appUrl = getAppUrl(input.origin);
+    const actionUrl = `${appUrl.replace(/\/+$/, "")}/${input.actionPath.replace(/^\/+/, "")}`;
+    await sendPublicStoryNotificationEmail({
+      toEmail,
+      toName: storyOwnerName(input.story),
+      storyTitle: input.story.title,
+      subject: input.subject,
+      headline: input.headline,
+      body: input.body,
+      actionUrl,
+      actionLabel: input.actionLabel,
+      appUrl,
+    });
+  } catch (err) {
+    console.error("notifyPublicStoryOwner failed; action already persisted.", {
+      storyId: input.story.id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }

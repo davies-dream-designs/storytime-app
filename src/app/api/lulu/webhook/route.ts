@@ -5,7 +5,25 @@ import { sendShippedEmail, sendViaOutbox } from "@/lib/email";
 import { logEvent } from "@/lib/logEvent";
 import type { PrintFulfillment } from "@/types/printBook";
 
-// Lulu does not sign webhook payloads - no secret verification needed.
+// Lulu does not HMAC-sign webhook payloads, so we authenticate the callback
+// with a shared secret we control: the webhook is registered with a `token`
+// query param (see admin/lulu/register-webhook) that must match
+// LULU_WEBHOOK_TOKEN. When the env is unset we allow the call but log a warning,
+// so deploying this code never breaks an already-registered (tokenless) webhook
+// before the secret is configured and the webhook re-registered.
+function isAuthenticLuluCallback(req: NextRequest): boolean {
+  const expected = process.env.LULU_WEBHOOK_TOKEN;
+  if (!expected) {
+    console.warn(
+      "LULU_WEBHOOK_TOKEN is not set; accepting Lulu webhook without authentication. Set it and re-register the webhook to enable verification."
+    );
+    return true;
+  }
+  const provided =
+    req.nextUrl.searchParams.get("token") ??
+    req.headers.get("x-storycot-webhook-token");
+  return provided === expected;
+}
 
 /**
  * Owner (self-purchase) print orders never store the buyer's shipping details,
@@ -62,6 +80,10 @@ type LuluWebhookPayload = {
 };
 
 export async function POST(req: NextRequest) {
+  if (!isAuthenticLuluCallback(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const body = await req.text();
 
   let payload: LuluWebhookPayload;

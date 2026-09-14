@@ -222,3 +222,60 @@ describe("Lulu webhook handler order resolution", () => {
     expect(mockDb.printOrders.update).not.toHaveBeenCalled();
   });
 });
+
+describe("Lulu webhook handler authentication", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    delete process.env.LULU_WEBHOOK_TOKEN;
+  });
+
+  function statusChanged() {
+    return {
+      event: "print_job.status.changed",
+      data: {
+        id: "lulu-job-1",
+        external_id: "storycot-project-1",
+        status: { name: "SHIPPED" },
+      },
+    };
+  }
+
+  it("rejects a callback with no token when LULU_WEBHOOK_TOKEN is set", async () => {
+    process.env.LULU_WEBHOOK_TOKEN = "s3cret";
+    const { POST } = await import("@/app/api/lulu/webhook/route");
+    const res = await POST(callback(statusChanged()));
+    expect(res.status).toBe(401);
+    expect(mockDb.bookProjects.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects a callback with a wrong token", async () => {
+    process.env.LULU_WEBHOOK_TOKEN = "s3cret";
+    const { POST } = await import("@/app/api/lulu/webhook/route");
+    const req = new NextRequest(
+      "http://localhost/api/lulu/webhook?token=nope",
+      { method: "POST", body: JSON.stringify(statusChanged()) }
+    );
+    const res = await POST(req);
+    expect(res.status).toBe(401);
+  });
+
+  it("accepts a callback with the matching token", async () => {
+    process.env.LULU_WEBHOOK_TOKEN = "s3cret";
+    mockDb.bookProjects.getById.mockResolvedValue(undefined);
+    const { POST } = await import("@/app/api/lulu/webhook/route");
+    const req = new NextRequest(
+      "http://localhost/api/lulu/webhook?token=s3cret",
+      { method: "POST", body: JSON.stringify(statusChanged()) }
+    );
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+  });
+
+  it("accepts a callback when no token is configured (backwards compatible)", async () => {
+    mockDb.bookProjects.getById.mockResolvedValue(undefined);
+    const { POST } = await import("@/app/api/lulu/webhook/route");
+    const res = await POST(callback(statusChanged()));
+    expect(res.status).toBe(200);
+  });
+});

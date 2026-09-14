@@ -99,7 +99,6 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
       ageBand: project.ageBand,
       beats: project.beats,
       characterBible,
-      locationBible: undefined,
     });
 
     return db.bookProjects.update(project.id, {

@@ -9,20 +9,9 @@ import type {
   CharacterVisualReference,
   ContinuityVisualReference,
   IllustrationGenerationMetadata,
-  LocationBible,
-  LocationVisualReference,
-  SceneLocation,
 } from "@/types/printBook";
 import { BOOK_SPEC } from "@/lib/print-books/bookConfig";
 import { buildIllustrationDirection } from "@/lib/print-books/characterBible";
-import {
-  buildLocationDirection,
-  buildSleepFurnitureDirection,
-  resolveSpreadLocation,
-  resolveSpreadLocationReference,
-  resolveSpreadLocationView,
-} from "@/lib/print-books/locationBible";
-import { generateEditedImage } from "@/lib/storyPeopleAvatars";
 import {
   isBookAssetStorageConfigured,
   storeBookAsset,
@@ -54,31 +43,6 @@ export function isGeneratedIllustrationConfigured(): boolean {
 export function getIllustrationConcurrency(): number {
   const val = parseInt(process.env.ILLUSTRATION_CONCURRENCY ?? "3", 10);
   return isNaN(val) || val < 1 ? 3 : Math.min(val, 20);
-}
-
-// ---------------------------------------------------------------------------
-// A2 two-pass location rendering (custom saved locations only, behind a flag)
-// ---------------------------------------------------------------------------
-
-// "a2_custom" enables the two-pass render (empty room background + characters
-// drawn into it) for custom saved locations. Anything else keeps the legacy
-// single composite reference-sheet path.
-export function getLocationRenderMode(): "legacy" | "a2_custom" {
-  return process.env.LOCATION_RENDER_MODE === "a2_custom"
-    ? "a2_custom"
-    : "legacy";
-}
-
-// A location is CUSTOM when it is explicitly bound to a saved fixture AND its
-// establishing image is a real (non-inline) URL we can fetch and reuse.
-export function isCustomSavedLocation(location: SceneLocation): boolean {
-  return (
-    typeof location.fixtureId === "string" &&
-    location.fixtureId.length > 0 &&
-    typeof location.establishingImageUrl === "string" &&
-    location.establishingImageUrl.length > 0 &&
-    !location.establishingImageUrl.startsWith("data:")
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -236,55 +200,6 @@ function getCoverSpread(spreads: BookSpread[]): BookSpread | undefined {
   );
 }
 
-function getLocationReferenceImageUrl(
-  location: SceneLocation
-): string | undefined {
-  return location.establishingImageUrl ?? location.referenceImageUrl;
-}
-
-function getPrimaryCoverLocation(input: {
-  project: Pick<BookProject, "locationBible">;
-  coverSpread?: BookSpread;
-}): SceneLocation | undefined {
-  const bible = input.project.locationBible;
-  if (!bible?.locations.length) return undefined;
-
-  const spreadLocation = input.coverSpread
-    ? resolveSpreadLocation(bible, input.coverSpread)
-    : undefined;
-  if (spreadLocation) return spreadLocation;
-
-  const usageCount = new Map<string, number>();
-  for (const locationId of Object.values(bible.pageLocations)) {
-    usageCount.set(locationId, (usageCount.get(locationId) ?? 0) + 1);
-  }
-
-  return [...bible.locations]
-    .filter((location) => getLocationReferenceImageUrl(location))
-    .sort(
-      (a, b) => (usageCount.get(b.id) ?? 0) - (usageCount.get(a.id) ?? 0)
-    )[0];
-}
-
-function buildLocationVisualReference(
-  location: SceneLocation | undefined
-): LocationVisualReference | undefined {
-  if (!location) return undefined;
-  const imageUrl = getLocationReferenceImageUrl(location);
-  if (!imageUrl) return undefined;
-  const sleepFurnitureDirection = buildSleepFurnitureDirection(location);
-  return {
-    id: `location:${location.id}`,
-    label: [
-      `Established view of ${location.name} — exact room layout, doors, windows, furniture, bed types, colours, and object orientation are authoritative`,
-      sleepFurnitureDirection,
-    ]
-      .filter(Boolean)
-      .join(" "),
-    imageUrl,
-  };
-}
-
 const OPENAI_IMAGE_PROMPT_MAX_CHARS = 32000;
 const OPENAI_IMAGE_REFERENCE_PROMPT_BUDGET = 3500;
 const OPENAI_IMAGE_CORE_PROMPT_BUDGET =
@@ -375,14 +290,10 @@ export function buildCoverIllustrationPrompt(input: {
   profile: ChildProfile;
   characterBible: CharacterBible;
   coverSpread?: BookSpread;
-  coverLocation?: SceneLocation;
   continuityReferences?: ContinuityVisualReference[];
   omitSceneDetails?: boolean;
 }): string {
-  const { story, profile, characterBible, coverSpread, coverLocation } = input;
-  const coverLocationDirection = coverLocation
-    ? `Cover setting source of truth: use ${coverLocation.name}. ${buildLocationDirection(coverLocation)} The attached setting reference is authoritative; do not invent extra doors, windows, bed shapes, cot/bed types, furniture, or structural details that are not in that reference.`
-    : "";
+  const { story, profile, characterBible, coverSpread } = input;
   const continuityReferenceLabels = (input.continuityReferences ?? [])
     .map((reference) => reference.label)
     .filter(Boolean)
@@ -415,14 +326,6 @@ export function buildCoverIllustrationPrompt(input: {
             ? [
                 `Attached interior page art (${continuityReferenceLabels}) is the source of truth for each character's clothing, footwear, hair, and colours - match it, but not its pose, crop, or background.`,
                 `Match each character's clothing and look to the attached interior page art (${continuityReferenceLabels}).`,
-              ]
-            : [""],
-        },
-        {
-          variants: coverLocationDirection
-            ? [
-                coverLocationDirection,
-                `Use the attached setting reference for ${coverLocation?.name}: keep the exact room structure, window/door placement, bed/cot types, furniture layout, colours, and object orientation.`,
               ]
             : [""],
         },
@@ -471,14 +374,6 @@ export function buildCoverIllustrationPrompt(input: {
           ? [
               `Approved interior page art is attached as a reference (${continuityReferenceLabels}). This interior page is the source of truth for each character's actual clothing and overall look on the cover: match the same outfit (for example the same overalls, dress, or jumper), footwear, hairstyle, and colours the characters wear in that interior page, so the cover clearly belongs to the same book. Do not copy that page's exact pose, camera angle, crop, or background - only its established character look and clothing.`,
               `Attached interior page art (${continuityReferenceLabels}) is the source of truth for each character's clothing and look on the cover: match the same outfit, footwear, hair, and colours from that page, but not its pose, crop, or background.`,
-            ]
-          : [""],
-      },
-      {
-        variants: coverLocationDirection
-          ? [
-              coverLocationDirection,
-              `Use the attached setting reference for ${coverLocation?.name}: keep exact doors, windows, bed/cot types, furniture positions, colours, and object orientation; do not add a door, window, cot, or bed that is not present in the reference.`,
             ]
           : [""],
       },
@@ -633,7 +528,6 @@ function createPlaceholderPageSvg(input: {
 
 const MAX_VISUAL_REFERENCES_PER_IMAGE = 6;
 const MAX_CONTINUITY_REFERENCES_PER_IMAGE = 3;
-const MAX_LOCATION_REFERENCES_PER_IMAGE = 1;
 // Each reference is drawn into a square cell on the conditioning sheet. 768px
 // (vs the old 384px) preserves enough facial detail for the image model to hold
 // a likeness across pages; the sheet PNG only feeds /v1/images/edits and is
@@ -649,13 +543,12 @@ const SUPPORTING_CAST_WEAK_MATCH_SCORE = 12;
 
 type ImageConditionReference =
   | ({ kind: "character" } & CharacterVisualReference)
-  | ({ kind: "continuity" } & ContinuityVisualReference)
-  | ({ kind: "location" } & LocationVisualReference);
+  | ({ kind: "continuity" } & ContinuityVisualReference);
 
 async function loadReferenceImageBuffer(input: {
   id: string;
   imageUrl: string;
-  kind: "character" | "continuity" | "location";
+  kind: "character" | "continuity";
 }): Promise<Buffer | null> {
   try {
     const { buffer: source } = await fetchAllowedMediaBuffer(input.imageUrl);
@@ -682,12 +575,10 @@ async function loadReferenceImageBuffer(input: {
 async function buildIllustrationConditioningSheet(input: {
   visualReferences?: CharacterVisualReference[];
   continuityReferences?: ContinuityVisualReference[];
-  locationReferences?: LocationVisualReference[];
 }): Promise<{
   image: Buffer;
   visualReferences: CharacterVisualReference[];
   continuityReferences: ContinuityVisualReference[];
-  locationReferences: LocationVisualReference[];
 } | null> {
   const selectedCharacters = (input.visualReferences ?? [])
     .filter((reference) => reference.imageUrl)
@@ -695,17 +586,10 @@ async function buildIllustrationConditioningSheet(input: {
   const selectedContinuity = (input.continuityReferences ?? [])
     .filter((reference) => reference.imageUrl)
     .slice(0, MAX_CONTINUITY_REFERENCES_PER_IMAGE);
-  const selectedLocations = (input.locationReferences ?? [])
-    .filter((reference) => reference.imageUrl)
-    .slice(0, MAX_LOCATION_REFERENCES_PER_IMAGE);
   const selected: ImageConditionReference[] = [
     ...selectedCharacters.map((reference) => ({
       ...reference,
       kind: "character" as const,
-    })),
-    ...selectedLocations.map((reference) => ({
-      ...reference,
-      kind: "location" as const,
     })),
     ...selectedContinuity.map((reference) => ({
       ...reference,
@@ -783,27 +667,12 @@ async function buildIllustrationConditioningSheet(input: {
         source: item.reference.source,
         sequence: item.reference.sequence,
       })),
-    locationReferences: usable
-      .filter(
-        (
-          item
-        ): item is {
-          reference: LocationVisualReference & { kind: "location" };
-          image: Buffer;
-        } => item.reference.kind === "location"
-      )
-      .map((item) => ({
-        id: item.reference.id,
-        label: item.reference.label,
-        imageUrl: item.reference.imageUrl,
-      })),
   };
 }
 
 function buildVisualReferencePrompt(input: {
   visualReferences?: CharacterVisualReference[];
   continuityReferences?: ContinuityVisualReference[];
-  locationReferences?: LocationVisualReference[];
 }): string {
   const referenceList = (input.visualReferences ?? [])
     .map((reference, index) => {
@@ -822,9 +691,6 @@ function buildVisualReferencePrompt(input: {
   const continuityList = (input.continuityReferences ?? [])
     .map((reference, index) => `${index + 1}. ${reference.label}`)
     .join(" ");
-  const locationList = (input.locationReferences ?? [])
-    .map((reference) => reference.label)
-    .join(" ");
 
   return fitPromptSegments(
     [
@@ -835,16 +701,6 @@ function buildVisualReferencePrompt(input: {
             : "",
           referenceList
             ? `Attached character reference sheet order: ${clampPromptText(referenceList, 900)}`
-            : "",
-        ],
-      },
-      {
-        variants: [
-          locationList
-            ? `Attached setting reference image (${locationList}) is the authoritative setting blueprint. Match its exact room layout, doors, windows, bed types, furniture positions, colours, and object orientation for the background; do not invent, remove, or move doors/windows/beds. Draw characters from their own references, not from this setting image.`
-            : "",
-          locationList
-            ? `Attached setting reference image (${locationList}) is authoritative: keep the same doors, windows, bed types, furniture positions, colours, and object orientation.`
             : "",
         ],
       },
@@ -875,6 +731,16 @@ function buildVisualReferencePrompt(input: {
             : "",
           referenceList
             ? "When a selected child, family member, friend, or pet appears, keep their reference face, skin tone, hair, and markings clearly recognisable."
+            : "",
+        ],
+      },
+      {
+        variants: [
+          referenceList
+            ? "The identity lock applies ONLY to the named reference characters. Any other person in the scene — an incidental, background, distant, crowd, or unnamed child or adult the story does not name as a reference character — is a different, brand-new person. Do NOT give them a reference character's face, hair, or identity: draw them as a clearly distinct generic person so they are not mistaken for a cast member."
+            : "",
+          referenceList
+            ? "Identity lock applies only to the named reference characters. Draw any incidental, background, distant, or unnamed person as a clearly distinct generic person — never reuse a reference character's face or identity for them."
             : "",
         ],
       },
@@ -977,16 +843,10 @@ async function buildOpenAIImageEditBody(input: {
   size: "1024x1024";
   visualReferences?: CharacterVisualReference[];
   continuityReferences?: ContinuityVisualReference[];
-  locationReferences?: LocationVisualReference[];
-  // When present, A2 pass 2: send the pre-rendered empty room as image 1 and
-  // the character-only conditioning sheet as image 2, both as repeated
-  // `image[]` form fields, and draw the characters into the room.
-  backgroundImage?: Buffer;
 }): Promise<FormData> {
   const sheet = await buildIllustrationConditioningSheet({
     visualReferences: input.visualReferences,
     continuityReferences: input.continuityReferences,
-    locationReferences: input.locationReferences,
   });
   if (!sheet) {
     throw new AppError("book.reference_image_unavailable", {
@@ -1004,35 +864,7 @@ async function buildOpenAIImageEditBody(input: {
   const referencePrompt = buildVisualReferencePrompt({
     visualReferences: sheet.visualReferences,
     continuityReferences: sheet.continuityReferences,
-    locationReferences: sheet.locationReferences,
   });
-
-  if (input.backgroundImage) {
-    const backgroundFile = new File(
-      [bufferToArrayBuffer(input.backgroundImage)],
-      "storycot-location-background.png",
-      { type: "image/png" }
-    );
-    formData.append("image[]", backgroundFile);
-    formData.append("image[]", sheetFile);
-    formData.append("model", input.model);
-    const a2Prompt = [
-      "Two images are attached. Image 1 is the established illustration of this exact room — keep its existing art style, layout, furniture, doors, windows, appliances, and colours exactly as drawn; do not restyle, blur, simplify, or reinvent the room.",
-      "Image 2 is the character reference sheet — add those characters INTO the room from image 1 at high quality, preserving their faces and identity from image 2, without changing the room's fixed objects or their positions.",
-      referencePrompt,
-      input.prompt,
-    ]
-      .filter(Boolean)
-      .join(" ");
-    formData.append(
-      "prompt",
-      clampPromptText(a2Prompt, OPENAI_IMAGE_PROMPT_MAX_CHARS)
-    );
-    formData.append("size", input.size);
-    formData.append("input_fidelity", "high");
-    formData.append("quality", "high");
-    return formData;
-  }
 
   formData.append("image", sheetFile);
   formData.append("model", input.model);
@@ -1147,8 +979,6 @@ async function generateOpenAIImage(input: {
   size: "1024x1024";
   visualReferences?: CharacterVisualReference[];
   continuityReferences?: ContinuityVisualReference[];
-  locationReferences?: LocationVisualReference[];
-  backgroundImage?: Buffer;
 }): Promise<Buffer> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -1167,9 +997,7 @@ async function generateOpenAIImage(input: {
     for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
       const useConditioningReferences = Boolean(
         input.visualReferences?.length ||
-        input.continuityReferences?.length ||
-        input.locationReferences?.length ||
-        input.backgroundImage
+        input.continuityReferences?.length
       );
       const body = useConditioningReferences
         ? await buildOpenAIImageEditBody({
@@ -1178,8 +1006,6 @@ async function generateOpenAIImage(input: {
             size: input.size,
             visualReferences: input.visualReferences,
             continuityReferences: input.continuityReferences,
-            locationReferences: input.locationReferences,
-            backgroundImage: input.backgroundImage,
           })
         : JSON.stringify({
             model,
@@ -1263,14 +1089,10 @@ async function generateBaseImage(input: {
   prompt: string;
   visualReferences?: CharacterVisualReference[];
   continuityReferences?: ContinuityVisualReference[];
-  locationReferences?: LocationVisualReference[];
-  backgroundImage?: Buffer;
 }): Promise<Buffer> {
   if (
     input.visualReferences?.length ||
-    input.continuityReferences?.length ||
-    input.locationReferences?.length ||
-    input.backgroundImage
+    input.continuityReferences?.length
   ) {
     try {
       return await generateOpenAIImage({
@@ -1278,8 +1100,6 @@ async function generateBaseImage(input: {
         size: BOOK_SPEC.coverIllustrationOpenAISize,
         visualReferences: input.visualReferences,
         continuityReferences: input.continuityReferences,
-        locationReferences: input.locationReferences,
-        backgroundImage: input.backgroundImage,
       });
     } catch (error) {
       if (!(error instanceof AppError)) throw error;
@@ -1301,219 +1121,10 @@ async function generateAndUpscale(input: {
   prompt: string;
   visualReferences?: CharacterVisualReference[];
   continuityReferences?: ContinuityVisualReference[];
-  locationReferences?: LocationVisualReference[];
-  backgroundImage?: Buffer;
 }): Promise<Buffer> {
   const png = await generateBaseImage(input);
   await assertUsableGeneratedImage(png);
   return upscaleImageBuffer(png);
-}
-
-// ---------------------------------------------------------------------------
-// A2 true compositing ("Option B") for custom saved locations
-// ---------------------------------------------------------------------------
-
-const COMPOSITE_FRAME_PX = 1024;
-// Characters occupy the lower band of the frame so the saved room reads above
-// and behind them. Values are fractions of the square frame.
-const COMPOSITE_CHARACTER_WIDTH_RATIO = 0.8;
-const COMPOSITE_CHARACTER_HEIGHT_RATIO = 0.7;
-
-// Prompt for the character-only layer: full-scene characters on a transparent
-// canvas, with NO room, floor, or furniture so compositing keeps the saved
-// room pixels untouched.
-function buildTransparentCharacterLayerPrompt(basePrompt: string): string {
-  return [
-    "Draw ONLY the full-scene characters described below, posed for this moment, with a fully transparent background.",
-    "No room, no walls, no floor, no furniture, no props that are not held by a character, no ground, no shadow — transparent background only.",
-    "Render the characters head-to-toe at high quality, centred, matching the attached reference faces and continuity.",
-    basePrompt,
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
-
-// Render the scene's characters on a transparent background using the existing
-// character conditioning sheet path (characters + continuity, NO location).
-async function renderTransparentCharacterLayer(input: {
-  prompt: string;
-  visualReferences?: CharacterVisualReference[];
-  continuityReferences?: ContinuityVisualReference[];
-}): Promise<Buffer> {
-  const sheet = await buildIllustrationConditioningSheet({
-    visualReferences: input.visualReferences,
-    continuityReferences: input.continuityReferences,
-  });
-  if (!sheet) {
-    throw new AppError("book.reference_image_unavailable", {
-      message: "No usable character reference images could be loaded.",
-    });
-  }
-  const referencePrompt = buildVisualReferencePrompt({
-    visualReferences: sheet.visualReferences,
-    continuityReferences: sheet.continuityReferences,
-  });
-  const prompt = clampPromptText(
-    [referencePrompt, buildTransparentCharacterLayerPrompt(input.prompt)]
-      .filter(Boolean)
-      .join(" "),
-    OPENAI_IMAGE_PROMPT_MAX_CHARS
-  );
-  return generateEditedImage({
-    image: sheet.image,
-    prompt,
-    inputFidelity: "high",
-    quality: "high",
-    background: "transparent",
-  });
-}
-
-// A soft, semi-transparent elliptical contact shadow rasterised via an inline
-// SVG blur so we never depend on sharp.blur() (keeps the mock surface small).
-function buildContactShadowSvg(width: number, height: number): string {
-  const rx = Math.round(width * 0.34);
-  const ry = Math.round(height * 0.32);
-  const cx = Math.round(width / 2);
-  const cy = Math.round(height / 2);
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><defs><filter id="b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="18"/></filter></defs><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="rgba(0,0,0,0.32)" filter="url(#b)"/></svg>`;
-}
-
-// Composite the saved room background and the transparent character layer into
-// the final book frame. The room pixels are only resized (cover) — never sent
-// through another image edit — so the saved location stays untouched.
-async function compositeCharactersOntoBackground(input: {
-  background: Buffer;
-  characterLayer: Buffer;
-  spreadSequence: number;
-}): Promise<Buffer> {
-  const frame = COMPOSITE_FRAME_PX;
-  const charW = Math.round(frame * COMPOSITE_CHARACTER_WIDTH_RATIO);
-  const charH = Math.round(frame * COMPOSITE_CHARACTER_HEIGHT_RATIO);
-
-  const backgroundBase = await sharp(input.background)
-    .resize(frame, frame, { fit: "cover" })
-    .png({ compressionLevel: 8 })
-    .toBuffer();
-
-  const characterBox = await sharp(input.characterLayer)
-    .resize(charW, charH, {
-      fit: "inside",
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    })
-    .png({ compressionLevel: 8 })
-    .toBuffer();
-
-  // Horizontally centre, then nudge by a simple per-spread rule so repeated
-  // rooms don't stack characters in the exact same spot.
-  const offset = ((input.spreadSequence % 3) - 1) * 40;
-  const rawLeft = Math.round((frame - charW) / 2) + offset;
-  const left = Math.min(Math.max(rawLeft, 0), frame - charW);
-  const top = frame - charH;
-
-  const shadowH = Math.round(frame * 0.16);
-  const shadow = Buffer.from(buildContactShadowSvg(charW, shadowH));
-  const shadowLeft = left;
-  const shadowTop = frame - shadowH - Math.round(frame * 0.02);
-
-  return sharp(backgroundBase)
-    .composite([
-      { input: shadow, left: shadowLeft, top: shadowTop },
-      { input: characterBox, left, top },
-    ])
-    .png({ compressionLevel: 7 })
-    .toBuffer();
-}
-
-// Full A2 compositing pipeline: pick the per-spread saved room angle, render a
-// transparent character layer, composite, and upscale to the print target.
-// Returns the upscaled PNG plus the chosen view id for QA metadata.
-async function renderCompositeLocationSpread(input: {
-  location: SceneLocation;
-  spreadSequence: number;
-  prompt: string;
-  visualReferences?: CharacterVisualReference[];
-  continuityReferences?: ContinuityVisualReference[];
-}): Promise<{ upscaled: Buffer; locationViewId?: string }> {
-  const view = resolveSpreadLocationView(input.location, {
-    sequence: input.spreadSequence,
-  });
-  if (!view) {
-    throw new AppError("book.reference_image_unavailable", {
-      message: "Custom location has no usable background view.",
-    });
-  }
-
-  const { buffer: background } = await fetchAllowedMediaBuffer(view.imageUrl);
-  const characterLayer = await renderTransparentCharacterLayer({
-    prompt: input.prompt,
-    visualReferences: input.visualReferences,
-    continuityReferences: input.continuityReferences,
-  });
-
-  const composited = await compositeCharactersOntoBackground({
-    background,
-    characterLayer,
-    spreadSequence: input.spreadSequence,
-  });
-  await assertUsableGeneratedImage(composited);
-  const upscaled = await upscaleImageBuffer(composited);
-  return { upscaled, locationViewId: view.id };
-}
-
-function buildEstablishingImagePrompt(location: SceneLocation): string {
-  return [
-    `A children's picture-book illustration establishing shot of "${location.name}" — an empty scene with no people or characters.`,
-    "Show the whole space clearly in a neutral, eye-level, straight-on view so it can be used as the canonical reference for this location.",
-    buildLocationDirection(location),
-    "Soft, warm, storybook style. No text, no watermark, no characters.",
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
-
-/**
- * Generate a canonical "establishing" image once per location that has no
- * reference image yet, so every spread set there can anchor to the same room
- * layout and object orientation. Returns an updated LocationBible; failures for
- * any single location are non-fatal and leave that location unchanged.
- */
-export async function generateLocationEstablishingImages(input: {
-  project: Pick<BookProject, "id" | "userId">;
-  locationBible: LocationBible | undefined;
-}): Promise<LocationBible | undefined> {
-  const { locationBible, project } = input;
-  if (!locationBible?.locations.length) return locationBible;
-  if (!isBookAssetStorageConfigured() || !isOpenAIConfigured()) {
-    return locationBible;
-  }
-
-  const locations = await Promise.all(
-    locationBible.locations.map(async (location) => {
-      if (location.referenceImageUrl || location.establishingImageUrl) {
-        return location;
-      }
-      try {
-        const png = await generateAndUpscale({
-          prompt: buildEstablishingImagePrompt(location),
-        });
-        const establishingImageUrl = await storeBookAsset({
-          pathname: `book-locations/${project.userId}/${project.id}/${location.id}-establishing-${Date.now()}.png`,
-          body: png,
-          contentType: "image/png",
-        });
-        return { ...location, establishingImageUrl };
-      } catch (err) {
-        console.warn(
-          `Establishing image for location "${location.name}" failed (${
-            err instanceof Error ? err.message : "unknown error"
-          }) - continuing without it.`
-        );
-        return location;
-      }
-    })
-  );
-
-  return { ...locationBible, locations };
 }
 
 // ---------------------------------------------------------------------------
@@ -1920,20 +1531,10 @@ function buildIllustrationQaMetadata(input: {
   referenceSnapshotKey?: string;
   correctionNote?: string;
   pageTextOmitted?: boolean;
-  locationRenderMode?: "legacy" | "a2_custom";
-  locationReferenceId?: string;
-  backgroundRendered?: boolean;
-  compositeMode?: boolean;
-  locationViewId?: string;
 }): IllustrationGenerationMetadata {
   return {
     provider: input.provider,
     generatedAt: new Date().toISOString(),
-    locationRenderMode: input.locationRenderMode,
-    locationReferenceId: input.locationReferenceId,
-    backgroundRendered: input.backgroundRendered,
-    compositeMode: input.compositeMode,
-    locationViewId: input.locationViewId,
     referenceSnapshotKey: input.referenceSnapshotKey,
     characterReferenceIds: input.characterReferences.map(
       (reference) => reference.id
@@ -1987,7 +1588,6 @@ function buildPageIllustrationPrompt(input: {
   // the render-time direction by it stays aligned with the story's progress and
   // keeps a companion drawn only once the story has introduced it.
   const cumulativeSceneText = buildSpreadReferenceHaystack(spread);
-  const spreadLocation = resolveSpreadLocation(project.locationBible, spread);
   const latestReferenceContext = buildLatestReferenceContext(
     input.visualReferences
   );
@@ -2035,15 +1635,6 @@ function buildPageIllustrationPrompt(input: {
         ],
       },
       {
-        variants: spreadLocation
-          ? [
-              buildLocationDirection(spreadLocation),
-              buildLocationDirection(spreadLocation, { compact: true }),
-              "",
-            ]
-          : [""],
-      },
-      {
         variants: pageMoment
           ? [
               `Story moment constraints, image-safe summary: ${pageMoment}. Preserve scene state exactly: which characters are present, what each character is doing, what each object or pet is doing, who is holding or not holding each object, where every important object/person/pet is located, and what has or has not happened yet. Do not move objects, pets, toys, books, gifts, food, clothing, or story props into a character's hands, onto the floor, into the background, or out of the scene unless this exact moment says so.`,
@@ -2069,24 +1660,18 @@ function buildPageIllustrationPrompt(input: {
       {
         variants: selectedReferenceNames
           ? [
-              `Selected cast for this spread: ${selectedReferenceNames}. Keep to this cast unless the story moment above clearly requires another named character.`,
-              `Selected cast for this spread: ${selectedReferenceNames}. Keep to this cast unless the story moment clearly requires another named character.`,
+              `Selected cast for this spread: ${selectedReferenceNames}. Only these named characters use the reference faces. If the story moment includes any other person (incidental, background, distant, or unnamed), draw them as a distinct generic person, not as one of the selected cast.`,
+              `Selected cast for this spread: ${selectedReferenceNames}. Only these named characters use the reference faces; draw any other, unnamed person as a distinct generic person.`,
             ]
           : [""],
       },
       {
         variants: continuityReferenceLabels
-          ? spreadLocation
-            ? [
-                `Approved continuity art references available: ${continuityReferenceLabels}. Use them to preserve established likeness, outfits, recurring props, companion markings, and — when the reference is set in this same location — the room, furniture, props, their positions, and the light source. You may vary the camera angle, pose, and crop, but keep the setting consistent with references from this location. If these continuity images conflict with the latest selected cast references or current story moment, the latest selected cast references and current story moment win.`,
-                `Approved continuity art references available: ${continuityReferenceLabels}. Preserve likeness, outfits, props, and — for the same location — the room, furniture, positions, and lighting; vary only the camera angle and pose. If they conflict with the latest selected cast references or current story moment, the latest wins.`,
-                `Approved continuity art references available: ${continuityReferenceLabels}.`,
-              ]
-            : [
-                `Approved continuity art references available: ${continuityReferenceLabels}. Use them only to preserve established likeness, outfits, recurring props, companion markings, and broad environment continuity when the same child, companion, or location reappears. Do not copy their exact composition, camera angle, pose, crop, or background layout. If these continuity images conflict with the latest selected cast references or current story moment, the latest selected cast references and current story moment win.`,
-                `Approved continuity art references available: ${continuityReferenceLabels}. Use them only to preserve established likeness, outfits, props, companion markings, and broad environment continuity. If they conflict with the latest selected cast references or current story moment, the latest selected cast references and current story moment win.`,
-                `Approved continuity art references available: ${continuityReferenceLabels}.`,
-              ]
+          ? [
+              `Approved continuity art references available: ${continuityReferenceLabels}. Use them only to preserve established likeness, outfits, recurring props, companion markings, and broad environment continuity when the same child, companion, or location reappears. Do not copy their exact composition, camera angle, pose, crop, or background layout. If these continuity images conflict with the latest selected cast references or current story moment, the latest selected cast references and current story moment win.`,
+              `Approved continuity art references available: ${continuityReferenceLabels}. Use them only to preserve established likeness, outfits, props, companion markings, and broad environment continuity. If they conflict with the latest selected cast references or current story moment, the latest selected cast references and current story moment win.`,
+              `Approved continuity art references available: ${continuityReferenceLabels}.`,
+            ]
           : [""],
       },
       {
@@ -2115,15 +1700,10 @@ function buildPageIllustrationPrompt(input: {
           : [""],
       },
       {
-        variants: spreadLocation
-          ? [
-              "Illustrate this specific story moment. Scene fidelity is higher priority than a convenient character pose: the depicted object locations, who is holding what, character actions, setting detail, sequence of events, and emotional tone must match the story moment constraints, scene brief, illustration direction, and setting above. Vary the camera angle and composition from other pages for visual interest, but keep the room, furniture, props, their positions, and the light source consistent with other pages set in this same location. Keep every selected/reference character's face shape, apparent age, hair or fur, skin tone, glasses, latest body build, and core outfit or markings consistent with the latest overrides, not stale generated artwork. No text, lettering, or page numbers inside the art.",
-              "Illustrate this exact story moment. Match the described actions, props, locations, sequence, and emotional tone, and keep the setting consistent with other pages in this location while varying the camera angle. Keep selected/reference characters visually consistent with the latest overrides, not stale artwork. No text, lettering, or page numbers inside the art.",
-            ]
-          : [
-              "Illustrate this specific story moment. Scene fidelity is higher priority than a convenient character pose: the depicted object locations, who is holding what, character actions, setting detail, sequence of events, and emotional tone must match the story moment constraints, scene brief, and illustration direction above. This image must look meaningfully different from every other page in the book. Keep every selected/reference character's face shape, apparent age, hair or fur, skin tone, glasses, latest body build, and core outfit or markings consistent with the latest overrides, not stale generated artwork. No text, lettering, or page numbers inside the art.",
-              "Illustrate this exact story moment. Match the described actions, props, locations, sequence, and emotional tone. Keep selected/reference characters visually consistent with the latest overrides, not stale artwork. No text, lettering, or page numbers inside the art.",
-            ],
+        variants: [
+          "Illustrate this specific story moment. Scene fidelity is higher priority than a convenient character pose: the depicted object locations, who is holding what, character actions, setting detail, sequence of events, and emotional tone must match the story moment constraints, scene brief, and illustration direction above. This image must look meaningfully different from every other page in the book. Keep every selected/reference character's face shape, apparent age, hair or fur, skin tone, glasses, latest body build, and core outfit or markings consistent with the latest overrides, not stale generated artwork. No text, lettering, or page numbers inside the art.",
+          "Illustrate this exact story moment. Match the described actions, props, locations, sequence, and emotional tone. Keep selected/reference characters visually consistent with the latest overrides, not stale artwork. No text, lettering, or page numbers inside the art.",
+        ],
       },
     ],
     OPENAI_IMAGE_CORE_PROMPT_BUDGET
@@ -2195,44 +1775,16 @@ export async function generateCoverIllustration(input: {
   provider: "openai" | "placeholder";
 }> {
   const coverSpread = getCoverSpread(input.project.spreads);
-  const coverLocation = getPrimaryCoverLocation({
-    project: input.project,
-    coverSpread,
-  });
-  const locationReference = buildLocationVisualReference(coverLocation);
-  const locationReferences = locationReference
-    ? [locationReference]
-    : undefined;
   const prompt = buildCoverIllustrationPrompt({
     ...input,
     coverSpread,
-    coverLocation,
   });
 
-  // A2 ("Option B"): composite a transparent character layer onto the saved
-  // establishing illustration when the cover location is a custom saved room.
-  const useA2 =
-    getLocationRenderMode() === "a2_custom" &&
-    Boolean(coverLocation) &&
-    isCustomSavedLocation(coverLocation!);
-  const effectiveLocationReferences = useA2 ? undefined : locationReferences;
-
   const produceUpscaled = async (promptToUse: string): Promise<Buffer> => {
-    if (useA2 && coverLocation) {
-      const { upscaled } = await renderCompositeLocationSpread({
-        location: coverLocation,
-        spreadSequence: coverSpread?.sequence ?? 0,
-        prompt: promptToUse,
-        visualReferences: input.visualReferences,
-        continuityReferences: input.continuityReferences,
-      });
-      return upscaled;
-    }
     return generateAndUpscale({
       prompt: promptToUse,
       visualReferences: input.visualReferences,
       continuityReferences: input.continuityReferences,
-      locationReferences: effectiveLocationReferences,
     });
   };
 
@@ -2284,7 +1836,6 @@ export async function generateCoverIllustration(input: {
       );
       const fallbackPrompt = buildCoverIllustrationPrompt({
         ...input,
-        coverLocation,
         omitSceneDetails: true,
       });
       try {
@@ -2424,42 +1975,11 @@ export async function generateSpreadPageIllustration(input: {
     spread,
     selectedCharacterReferences: spreadVisualReferences,
   });
-  const locationReference = resolveSpreadLocationReference(
-    project.locationBible,
-    spread
-  );
-  const locationReferences = locationReference
-    ? [locationReference]
-    : undefined;
-
-  // A2 ("Option B"): for custom saved locations, use the saved establishing
-  // illustration directly as the background and composite a transparent
-  // character layer onto it. The room pixels are never regenerated.
-  const spreadLocation = resolveSpreadLocation(project.locationBible, spread);
-  const useA2 =
-    getLocationRenderMode() === "a2_custom" &&
-    Boolean(spreadLocation) &&
-    isCustomSavedLocation(spreadLocation!);
-  const effectiveLocationReferences = useA2 ? undefined : locationReferences;
-  let compositeViewId: string | undefined;
-
   const produceUpscaled = async (promptToUse: string): Promise<Buffer> => {
-    if (useA2 && spreadLocation) {
-      const { upscaled, locationViewId } = await renderCompositeLocationSpread({
-        location: spreadLocation,
-        spreadSequence: spread.sequence,
-        prompt: promptToUse,
-        visualReferences: spreadVisualReferences,
-        continuityReferences,
-      });
-      compositeViewId = locationViewId;
-      return upscaled;
-    }
     return generateAndUpscale({
       prompt: promptToUse,
       visualReferences: spreadVisualReferences,
       continuityReferences,
-      locationReferences: effectiveLocationReferences,
     });
   };
 
@@ -2474,11 +1994,6 @@ export async function generateSpreadPageIllustration(input: {
       referenceSnapshotKey: input.referenceSnapshotKey,
       correctionNote: input.correctionNote,
       pageTextOmitted: options.pageTextOmitted,
-      locationRenderMode: useA2 ? "a2_custom" : "legacy",
-      locationReferenceId: locationReference?.id,
-      backgroundRendered: useA2 ? true : undefined,
-      compositeMode: useA2 ? true : undefined,
-      locationViewId: compositeViewId,
     });
   const prompt = buildPageIllustrationPrompt({
     ...input,

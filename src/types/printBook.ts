@@ -249,12 +249,6 @@ export interface ContinuityVisualReference {
   sequence?: number;
 }
 
-export interface LocationVisualReference {
-  id: string;
-  label: string;
-  imageUrl: string;
-}
-
 export interface IllustrationGenerationMetadata {
   provider: "openai" | "placeholder";
   generatedAt: string;
@@ -266,13 +260,6 @@ export interface IllustrationGenerationMetadata {
   staleCharacterReferenceNames?: string[];
   correctionNote?: string;
   pageTextOmitted?: boolean;
-  locationRenderMode?: "legacy" | "a2_custom";
-  locationReferenceId?: string;
-  backgroundRendered?: boolean;
-  /** True when the frame was produced by true background+character compositing. */
-  compositeMode?: boolean;
-  /** The location view (angle) whose illustration was used as the background. */
-  locationViewId?: string;
 }
 
 export interface BookSpread {

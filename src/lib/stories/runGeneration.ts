@@ -6,6 +6,8 @@ import { StoryGenerationError, streamStory } from "@/lib/storyGenerator";
 import {
   assessGeneratedStoryIp,
   assessProfileIp,
+  originalizeProseText,
+  originalizeReferenceTerm,
   profileIpErrorResponse,
 } from "@/lib/ipGuardrails";
 import { logEvent } from "@/lib/logEvent";
@@ -206,15 +208,27 @@ export async function runStoryGeneration(
       }
     );
 
-    const wordCount = generated.pages.reduce(
+    // Scrub any branded/trademarked references out of the generated prose and
+    // title before persisting, so on-screen and printed reading text stay
+    // original. Newlines are preserved (they carry paragraph breaks). The IP
+    // assessment below then runs on the cleaned story, so print is only blocked
+    // if something survives redaction (an unknown brand / source-style phrase).
+    const cleanedTitle = originalizeReferenceTerm(generated.title);
+    const cleanedPages: StoryPage[] = generated.pages.map((page) => ({
+      ...page,
+      text: originalizeProseText(page.text),
+      illustrationPrompt: originalizeProseText(page.illustrationPrompt),
+    }));
+
+    const wordCount = cleanedPages.reduce(
       (acc, page) => acc + page.text.split(/\s+/).filter(Boolean).length,
       0
     );
 
     const finalStory: Story = {
       ...story,
-      title: generated.title,
-      pages: generated.pages,
+      title: cleanedTitle,
+      pages: cleanedPages,
       wordCount,
       status: "ready",
       generationError: undefined,

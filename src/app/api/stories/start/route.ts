@@ -108,6 +108,7 @@ export async function POST(req: NextRequest) {
     storyPreset: storyPreset ?? "preschool-story",
     storyPersonIds: selectedStoryPeople.map((person) => person.id),
     ipPolicy,
+    locale: locale ?? "en",
     createdAt: new Date().toISOString(),
     status: "generating",
   };

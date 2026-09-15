@@ -99,6 +99,7 @@ export const stories = pgTable(
     storyPreset: text("story_preset").$type<StoryPreset>(),
     storyPersonIds: text("story_person_ids").array().notNull().default([]),
     ipPolicy: jsonb("ip_policy").$type<StoryIpPolicy>(),
+    locale: text("locale"),
     createdAt: text("created_at").notNull(),
     status: text("status").$type<"generating" | "ready" | "failed">(),
     generationError: text("generation_error"),

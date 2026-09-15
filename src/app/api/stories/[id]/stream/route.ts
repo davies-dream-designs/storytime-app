@@ -126,7 +126,12 @@ export async function POST(
     return new Response("No credits remaining", { status: 402 });
   }
 
-  const locale = req.nextUrl.searchParams.get("locale") ?? undefined;
+  // The story's persisted language is authoritative so regenerating from a
+  // different-language browser tab never flips a Spanish story into English.
+  // Fall back to the request locale only for legacy rows created before the
+  // column existed.
+  const locale =
+    story.locale ?? req.nextUrl.searchParams.get("locale") ?? undefined;
 
   // Atomically claim this story so a second tab or the durable Inngest fallback
   // never generates (and double-charges) in parallel. If the claim fails, this

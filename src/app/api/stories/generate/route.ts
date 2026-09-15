@@ -144,6 +144,7 @@ export async function POST(req: NextRequest) {
     notes: ipPolicy.originalizedNotes ?? notes ?? "",
     storyPersonIds: selectedStoryPeople.map((person) => person.id),
     ipPolicy,
+    locale: locale ?? "en",
     createdAt: new Date().toISOString(),
     status: "ready",
   };

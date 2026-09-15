@@ -12,6 +12,10 @@ import {
   buildChildCanonicalAppearanceContext,
   buildStoryPersonCanonicalAppearanceContext,
 } from "@/lib/characterReferenceContext";
+import {
+  originalizeReferenceTerm,
+  originalizeReferenceTerms,
+} from "@/lib/ipGuardrails";
 
 let client: Anthropic | undefined;
 
@@ -101,17 +105,17 @@ ${buildGenderPromptLine(profile)}
 - Generated reference summary: ${profile.appearanceSummary || "No generated reference summary provided."}
 - Generated reference image: ${profile.avatarImageUrl ? "available for profile consistency" : "not available"}
 - Keep consistent: ${buildChildAppearanceDoNotChange(profile.appearance).join(", ") || "none"}
-- Favourite toys: ${(profile.favouriteCharacters ?? []).join(", ") || "none"}
-- Favourite activities: ${(profile.favouriteActivities ?? []).join(", ") || "none"}
-- Favourite animals: ${(profile.favouriteAnimals ?? []).join(", ") || "none"}
-- Favourite places: ${(profile.favouritePlaces ?? []).join(", ") || "none"}
-- Themes or lessons: ${(profile.lessons ?? []).join(", ") || "none"}
+- Favourite toys: ${originalizeReferenceTerms(profile.favouriteCharacters ?? []).join(", ") || "none"}
+- Favourite activities: ${originalizeReferenceTerms(profile.favouriteActivities ?? []).join(", ") || "none"}
+- Favourite animals: ${originalizeReferenceTerms(profile.favouriteAnimals ?? []).join(", ") || "none"}
+- Favourite places: ${originalizeReferenceTerms(profile.favouritePlaces ?? []).join(", ") || "none"}
+- Themes or lessons: ${originalizeReferenceTerms(profile.lessons ?? []).join(", ") || "none"}
 
 Story context:
-- Title: ${story.title}
-- Theme: ${story.theme || "gentle bedtime adventure"}
-- Premise: ${story.premise || "Not provided"}
-- Notes: ${story.notes || "None"}
+- Title: ${originalizeReferenceTerm(story.title)}
+- Theme: ${originalizeReferenceTerm(story.theme || "") || "gentle bedtime adventure"}
+- Premise: ${originalizeReferenceTerm(story.premise || "") || "Not provided"}
+- Notes: ${originalizeReferenceTerm(story.notes || "") || "None"}
 
 Saved supporting characters:
 ${buildCharacterList(characters)}

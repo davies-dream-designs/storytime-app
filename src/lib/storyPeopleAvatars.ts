@@ -11,6 +11,7 @@ import {
 } from "@/types";
 import { storeBookAsset } from "@/lib/print-books/storage";
 import { fetchAllowedMediaBuffer } from "@/lib/safeMediaFetch";
+import { originalizeReferenceTerm } from "@/lib/ipGuardrails";
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 const ALLOWED_CONTENT_TYPES = new Set([
@@ -100,9 +101,11 @@ export function buildStoryPersonAvatarPrompt(
     `Relationship context: ${getStoryPersonRelationshipLabel(person)}.`,
     "Use relationship, name, and pronoun data only as private context outside the image; never draw words, labels, or name tags.",
     person.description
-      ? `Role notes for behaviour/context only: ${person.description}.`
+      ? `Role notes for behaviour/context only: ${originalizeReferenceTerm(person.description)}.`
       : "",
-    person.personality ? `Personality: ${person.personality}.` : "",
+    person.personality
+      ? `Personality: ${originalizeReferenceTerm(person.personality)}.`
+      : "",
     person.ageGroup && person.ageGroup !== "not_specified"
       ? `Age group context: ${getStoryPersonAgeGroupLabel(person.ageGroup)}. Preserve this broad life stage without making the person look older or younger than requested.`
       : "",
@@ -148,13 +151,13 @@ export function buildStoryPersonDescriptionAvatarPrompt(
     `Relationship context: ${getStoryPersonRelationshipLabel(person)}.`,
     "Use profile details only as private generation context; never draw words, labels, names, relationship labels, or name tags.",
     person.appearance.trim()
-      ? `Current appearance description: ${person.appearance.trim()}.`
+      ? `Current appearance description: ${originalizeReferenceTerm(person.appearance)}.`
       : "",
     person.description.trim()
-      ? `Role notes for behaviour/context only: ${person.description.trim()}.`
+      ? `Role notes for behaviour/context only: ${originalizeReferenceTerm(person.description)}.`
       : "",
     person.personality.trim()
-      ? `Personality: ${person.personality.trim()}.`
+      ? `Personality: ${originalizeReferenceTerm(person.personality)}.`
       : "",
     person.ageGroup && person.ageGroup !== "not_specified"
       ? `Age group context: ${getStoryPersonAgeGroupLabel(person.ageGroup)}. Preserve this broad life stage without making the person look older or younger than requested.`
@@ -471,7 +474,7 @@ async function analyzePhoto(input: {
 
 export function buildStoryPersonAppearanceSummary(person: StoryPerson): string {
   return [
-    person.appearance.trim(),
+    originalizeReferenceTerm(person.appearance),
     person.ageGroup && person.ageGroup !== "not_specified"
       ? `Age group: ${getStoryPersonAgeGroupLabel(person.ageGroup)}.`
       : "",
@@ -482,7 +485,7 @@ export function buildStoryPersonAppearanceSummary(person: StoryPerson): string {
       ? `Body build: ${getBodyBuildLabel(person.bodyBuild)}.`
       : "",
     person.personality.trim()
-      ? `Personality: ${person.personality.trim()}.`
+      ? `Personality: ${originalizeReferenceTerm(person.personality)}.`
       : "",
     person.relationship
       ? `Relationship: ${getStoryPersonRelationshipLabel(person)}.`
@@ -560,7 +563,7 @@ export async function createStoryPersonAvatar(input: {
     prompt: [
       buildStoryPersonAvatarPrompt(input.person, input.adjustment),
       analysis.appearance
-        ? `Additional visible reference details from photo: ${analysis.appearance}. These details are visual guidance only and must not be rendered as visible writing.`
+        ? `Additional visible reference details from photo: ${originalizeReferenceTerm(analysis.appearance)}. These details are visual guidance only and must not be rendered as visible writing.`
         : "",
     ]
       .filter(Boolean)

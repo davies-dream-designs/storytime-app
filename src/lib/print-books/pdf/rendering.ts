@@ -26,13 +26,19 @@ import {
   pickPlaceholderTheme,
   type PlaceholderTheme,
 } from "./placeholders";
+import { getPdfChromeLabels } from "./chromeLabels";
 
 // Deterministic UTC date for the printed keepsake (e.g. "3 March 2026"),
-// so the same book always prints the same date regardless of server locale.
-export function formatCreatedOnDate(isoDate: string): string {
+// formatted in the book's own language so the date reads naturally alongside
+// the localized prose. Timezone is pinned to UTC so the same book always prints
+// the same date regardless of server locale.
+export function formatCreatedOnDate(
+  isoDate: string,
+  dateLocale = "en-GB"
+): string {
   const date = new Date(isoDate);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat(dateLocale, {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -181,8 +187,9 @@ export async function drawHalfTitlePage(input: {
     size: 28,
     color: theme.ink,
   });
+  const labels = getPdfChromeLabels(story.locale);
   if (profile.name) {
-    page.drawText(`For ${profile.name}`, {
+    page.drawText(labels.forName(profile.name), {
       x: pageWidth * 0.16,
       y: pageHeight * 0.52,
       font: serif,
@@ -190,7 +197,7 @@ export async function drawHalfTitlePage(input: {
       color: rgb(0.34, 0.35, 0.4),
     });
   }
-  page.drawText("Personalised bedtime stories", {
+  page.drawText(labels.tagline, {
     x: pageWidth * 0.16,
     y: pageHeight * 0.14,
     font: serif,
@@ -357,7 +364,7 @@ export async function drawDigitalCoverPage(input: {
     size: 28,
     color: rgb(0.99, 0.96, 0.88),
   });
-  page.drawText(`Created for ${profile.name}`, {
+  page.drawText(getPdfChromeLabels(story.locale).createdForName(profile.name), {
     x: safeMargin + 8,
     y: bandTop - 102,
     font: serif,
@@ -414,14 +421,15 @@ export async function drawTitlePage(input: {
     size: 30,
     color: theme.ink,
   });
-  page.drawText(`Created for ${profile.name}`, {
+  const titleLabels = getPdfChromeLabels(story.locale);
+  page.drawText(titleLabels.createdForName(profile.name), {
     x: pageWidth * 0.14,
     y: pageHeight * 0.5,
     font: serif,
     size: 16,
     color: rgb(0.33, 0.34, 0.4),
   });
-  page.drawText("Personalised bedtime stories made for home reading", {
+  page.drawText(titleLabels.taglineLong, {
     x: pageWidth * 0.14,
     y: pageHeight * 0.18,
     font: serif,
@@ -436,13 +444,15 @@ export async function drawCopyrightPage(input: {
   pageWidth: number;
   pageHeight: number;
   project: BookProject;
+  locale?: string;
   serifBold: Awaited<ReturnType<PDFDocument["embedFont"]>>;
   serif: Awaited<ReturnType<PDFDocument["embedFont"]>>;
   sans: Awaited<ReturnType<PDFDocument["embedFont"]>>;
   sansBold: Awaited<ReturnType<PDFDocument["embedFont"]>>;
 }) {
-  const { pdfDoc, page, pageWidth, pageHeight, project, sans, sansBold } =
+  const { pdfDoc, page, pageWidth, pageHeight, project, locale, sans, sansBold } =
     input;
+  const labels = getPdfChromeLabels(locale);
   drawPageBackground(page, pageWidth, pageHeight, rgb(0.99, 0.98, 0.95));
   await drawBrandWordmark({
     pdfDoc,
@@ -454,7 +464,7 @@ export async function drawCopyrightPage(input: {
     font: sansBold,
   });
   page.drawText(
-    `Copyright © ${new Date(project.createdAt).getUTCFullYear()} Storycot`,
+    labels.copyright(new Date(project.createdAt).getUTCFullYear()),
     {
       x: pageWidth * 0.12,
       y: pageHeight * 0.28,
@@ -463,13 +473,18 @@ export async function drawCopyrightPage(input: {
       color: BRAND_PURPLE,
     }
   );
-  page.drawText(`Created on ${formatCreatedOnDate(project.createdAt)}`, {
-    x: pageWidth * 0.12,
-    y: pageHeight * 0.255,
-    font: sans,
-    size: 10,
-    color: rgb(0.34, 0.35, 0.4),
-  });
+  page.drawText(
+    labels.createdOn(
+      formatCreatedOnDate(project.createdAt, labels.dateLocale)
+    ),
+    {
+      x: pageWidth * 0.12,
+      y: pageHeight * 0.255,
+      font: sans,
+      size: 10,
+      color: rgb(0.34, 0.35, 0.4),
+    }
+  );
   page.drawText(BOOK_SPEC.trimLabel, {
     x: pageWidth * 0.12,
     y: pageHeight * 0.24,

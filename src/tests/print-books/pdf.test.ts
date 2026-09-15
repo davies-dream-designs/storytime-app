@@ -215,6 +215,48 @@ describe("formatCreatedOnDate", () => {
     );
     expect(formatCreatedOnDate("not-a-date")).toBe("");
   });
+
+  it("formats the date in the book's own language", async () => {
+    const { formatCreatedOnDate } = await import(
+      "@/lib/print-books/pdf/rendering"
+    );
+    expect(formatCreatedOnDate("2026-07-15T00:00:00.000Z", "es-ES")).toBe(
+      "15 de julio de 2026"
+    );
+  });
+});
+
+describe("PDF font selection for non-Latin scripts", () => {
+  it("routes CJK locales to the Noto CJK font", async () => {
+    const { localeNeedsCjkFont } = await import(
+      "@/lib/print-books/pdf/fonts"
+    );
+    expect(localeNeedsCjkFont("zh")).toBe(true);
+    expect(localeNeedsCjkFont("ja")).toBe(true);
+    expect(localeNeedsCjkFont("en")).toBe(false);
+    expect(localeNeedsCjkFont("ru")).toBe(false);
+    expect(localeNeedsCjkFont(undefined)).toBe(false);
+  });
+
+  it("embeds a font that can encode Chinese and Japanese glyphs without tofu", async () => {
+    const { loadEmbeddedPdfFonts } = await import(
+      "@/lib/print-books/pdf/fonts"
+    );
+    const doc = await PDFDocument.create();
+    const fonts = await loadEmbeddedPdfFonts(doc, "zh");
+    // encodeText throws if a glyph is missing (i.e. would render as .notdef).
+    expect(() => fonts.serif.encodeText("小狐狸在月光下的森林里散步")).not.toThrow();
+    expect(() => fonts.sans.encodeText("むかしむかし、キツネがいました")).not.toThrow();
+  });
+
+  it("keeps Latin locales on the Liberation fonts", async () => {
+    const { loadEmbeddedPdfFonts } = await import(
+      "@/lib/print-books/pdf/fonts"
+    );
+    const doc = await PDFDocument.create();
+    const fonts = await loadEmbeddedPdfFonts(doc, "en");
+    expect(() => fonts.serif.encodeText("Hello world")).not.toThrow();
+  });
 });
 
 describe("generateBookPdfs", () => {

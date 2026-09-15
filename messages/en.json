@@ -28,8 +28,8 @@
     "tryAgainButton": "Try again"
   },
   "home": {
-    "hero": "Sleepy Bedtime Stories Made Just For Them.",
-    "heroSub": "Create calming, personalised bedtime stories starring your child - with their favourite toys, animals, and gentle adventures woven into every page. Read them aloud, listen with narrated audio, or order a real hardcover book.",
+    "hero": "Their little world. An extraordinary story.",
+    "heroSub": "Their favourite toy. Their wildest little idea. A bedtime adventure with your child at its heart — ready to read together, illustrate, and turn into a keepsake.",
     "ctaCreate": "Create your first story",
     "ctaBrowse": "Explore the gallery",
     "featureTitle": "A story that's theirs alone",
@@ -76,7 +76,39 @@
       "bedtime": "Bedtime"
     },
     "feature5Title": "Voice Narration",
-    "feature5Desc": "Tap play and the story reads itself aloud - with each word lighting up as it is spoken. Perfect for bedtime on any device."
+    "feature5Desc": "Tap play and the story reads itself aloud - with each word lighting up as it is spoken. Perfect for bedtime on any device.",
+    "landing": {
+      "eyebrow": "A little them. A lot of wonder.",
+      "preview": "Step inside a story",
+      "introTitle": "It starts with someone you know.",
+      "introBody": "A familiar face. A much-loved toy. The little details only you know. Tell us about your child, and give them a place at the heart of the adventure.",
+      "chapterOne": "01 / Their world",
+      "chapterTwo": "02 / A little wonder",
+      "adventureTitle": "Then, the ordinary becomes extraordinary.",
+      "adventureBody": "A woodland path becomes a moonlit adventure. Their trusty companion comes too. Choose a gentle theme, then bring the story to life with illustrations made for its pages.",
+      "excerpt": "The forest was enormous. But with a friend beside her, she felt just a little bit bigger.",
+      "exampleLabel": "An imagined Storycot adventure",
+      "chapterThree": "03 / Home, together",
+      "bedtimeTitle": "Every adventure finds its way home.",
+      "bedtimeBody": "Back to a familiar cuddle, a quieter room, and one more page together. A story to read tonight — and return to on another night.",
+      "keepsakeTitle": "From “that’s me!” to “read it again.”",
+      "keepsakeBody": "Start with a story. Add illustrations when you’re ready. Keep it on screen, unlock a digital edition, or order a hardcover to hold onto.",
+      "pricing": "Start with 3 free credits. Stories cost 1 credit; illustrations cost extra. Digital editions and printed books are separate purchases. Printed delivery is available in Australia.",
+      "artNote": "Illustrative examples. Your story and artwork are generated individually; results vary.",
+      "galleryEyebrow": "Made with Storycot",
+      "galleryTitle": "Small heroes. Entirely their own stories.",
+      "galleryBody": "Explore illustrated stories shared by the Storycot community.",
+      "finalTitle": "Tonight, let them be the story.",
+      "finalBody": "Their name. Their favourites. A whole new world to explore together.",
+      "freeNote": "3 free credits to begin",
+      "heroAlt": "A child and a small fox discover a glowing storybook in a moonlit woodland.",
+      "portraitAlt": "A child in a rust-coloured jumper holds her well-loved toy fox.",
+      "adventureAlt": "The child and her fox companion cross a woodland stream beneath glowing trees.",
+      "bedtimeAlt": "A parent and child read together in a softly lit bedroom.",
+      "help": "Help & FAQ",
+      "privacy": "Privacy",
+      "terms": "Terms"
+    }
   },
   "dashboard": {
     "statProfiles": "Children",

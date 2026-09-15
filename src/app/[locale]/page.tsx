@@ -1,300 +1,332 @@
-import Image from 'next/image'
-import { Suspense } from 'react'
-import { auth } from '@clerk/nextjs/server'
-import { redirect } from 'next/navigation'
-import { getTranslations } from 'next-intl/server'
-import { Link } from '@/i18n/navigation'
-import LanguageSwitcher from '@/components/LanguageSwitcher'
-import RefCapture from '@/components/RefCapture'
-import Icon, { type IconName } from '@/components/ui/Icon'
-import { getLocale } from 'next-intl/server'
-import { db } from '@/lib/db'
+import Image from "next/image";
+import { Suspense } from "react";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import { getLocale, getTranslations } from "next-intl/server";
+import { Link } from "@/i18n/navigation";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import RefCapture from "@/components/RefCapture";
+import { db } from "@/lib/db";
+
+const primaryLink =
+  "inline-flex min-h-12 items-center justify-center rounded-full bg-[#f0c88e] px-7 py-3.5 text-sm font-bold text-[#193d38] transition hover:bg-[#ffdfaf] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-current";
+const heading =
+  "font-serif text-4xl leading-[1.08] tracking-[-0.035em] sm:text-5xl lg:text-6xl";
+const eyebrow = "text-xs font-bold uppercase tracking-[0.18em]";
 
 export default async function Home() {
-  const { userId } = await auth()
+  const { userId } = await auth();
   if (userId) {
-    const locale = await getLocale()
-    redirect(`/${locale}/dashboard`)
+    const locale = await getLocale();
+    redirect(`/${locale}/dashboard`);
   }
 
-  const t = await getTranslations('home')
-
-  const features = [
-    { icon: 'profile', title: t('feature1Title'), body: t('feature1Desc') },
-    { icon: 'sparkle', title: t('feature2Title'), body: t('feature2Desc') },
-    { icon: 'image', title: t('feature3Title'), body: t('feature3Desc') },
-    { icon: 'download', title: t('feature5Title'), body: t('feature5Desc') },
-    { icon: 'book', title: t('feature4Title'), body: t('feature4Desc') },
-    { icon: 'share', title: t('feature6Title'), body: t('feature6Desc') },
-  ] satisfies Array<{ icon: IconName; title: string; body: string }>
-
-  const arcSteps = [
-    { num: '1', label: t('arc.introduction'), icon: 'profile' as const },
-    { num: '2', label: t('arc.adventure'), icon: 'image' as const },
-    { num: '3', label: t('arc.growth'), icon: 'sparkle' as const },
-    { num: '4', label: t('arc.resolution'), icon: 'book' as const },
-    { num: '5', label: t('arc.bedtime'), icon: 'download' as const },
-  ]
-
-  const themes = [
-    t('themes.kindness'),
-    t('themes.bravery'),
-    t('themes.sharing'),
-    t('themes.tryingNewThings'),
-    t('themes.dealingWithEmotions'),
-    t('themes.friendship'),
-    t('themes.patience'),
-    t('themes.honesty'),
-    t('themes.gratitude'),
-    t('themes.perseverance'),
-  ]
-
-  // Fetch real story illustrations from public gallery
-  let showcaseStories: Array<{ id: string; title: string; theme: string; thumbnailUrl: string }> = []
+  const t = await getTranslations("home");
+  let showcaseStories: Array<{
+    id: string;
+    title: string;
+    thumbnailUrl: string;
+  }> = [];
   try {
-    const stories = await db.stories.getPublicGallery(20)
-    const thumbnails = await db.bookProjects.getPublicThumbnailsByStoryIds(stories.map(s => s.id))
+    const stories = await db.stories.getPublicGallery(12);
+    const thumbnails = await db.bookProjects.getPublicThumbnailsByStoryIds(
+      stories.map((story) => story.id)
+    );
     showcaseStories = stories
-      .filter(s => thumbnails[s.id])
-      .slice(0, 8)
-      .map(s => ({ id: s.id, title: s.title, theme: s.theme, thumbnailUrl: thumbnails[s.id]! }))
+      .filter((story) => thumbnails[story.id])
+      .slice(0, 3)
+      .map((story) => ({
+        id: story.id,
+        title: story.title,
+        thumbnailUrl: thumbnails[story.id]!,
+      }));
   } catch {
-    // DB unavailable in some environments — showcase just won't render
+    // The public landing page remains available during a gallery outage.
   }
 
   return (
-    <main id="main-content" tabIndex={-1} className="overflow-x-hidden">
-      <Suspense><RefCapture /></Suspense>
-      {/* Nav */}
-      <header className="absolute inset-x-0 top-0 z-30">
-        <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
-          <Link href="/" className="flex items-center gap-2 font-display text-2xl font-bold text-white">
-            <Image src="/icon-dark.svg" alt="" width={36} height={36} className="rounded-xl" aria-hidden />
-            Storycot
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="overflow-x-clip bg-[#faf6ed] text-[#193d38] selection:bg-[#f0c88e]"
+    >
+      <Suspense>
+        <RefCapture />
+      </Suspense>
+      <header className="border-b border-[#193d38]/10">
+        <nav
+          aria-label="Storycot"
+          className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-5 py-5 sm:px-10"
+        >
+          <Link
+            href="/"
+            className="font-serif text-3xl font-bold tracking-tight"
+          >
+            storycot<span className="text-[#a65335]">.</span>
           </Link>
-          <div className="flex items-center gap-3">
-            <LanguageSwitcher variant="dark" />
+          <div className="flex items-center gap-3 sm:gap-6">
+            <a
+              href="#story"
+              className="hidden text-sm font-semibold underline-offset-4 hover:underline md:block"
+            >
+              {t("landing.preview")}
+            </a>
+            <LanguageSwitcher />
             <Link
               href="/dashboard"
-              className="rounded-full bg-moon-400 px-5 py-2.5 text-sm font-bold text-night-900 transition hover:bg-moon-300"
+              className="rounded-full border border-[#193d38]/30 px-4 py-2.5 text-xs font-bold hover:bg-[#193d38]/5 sm:px-6 sm:text-sm"
             >
-              {t('openApp')}
+              {t("openApp")}
             </Link>
           </div>
         </nav>
       </header>
 
-      {/* Hero */}
-      <section className="relative min-h-screen bg-gradient-to-b from-night-900 via-night-800 to-night-700 flex items-center">
-        {/* Stars */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-          {[
-            [15, 12], [35, 8], [55, 18], [72, 5], [88, 14],
-            [8, 35], [25, 42], [45, 30], [65, 45], [82, 38],
-            [18, 62], [40, 55], [60, 68], [78, 58], [92, 72],
-          ].map(([x, y], i) => (
-            <div
-              key={i}
-              className="animate-twinkle absolute h-1 w-1 rounded-full bg-moon-200"
-              style={{
-                left: `${x}%`,
-                top: `${y}%`,
-                animationDelay: `${i * 0.3}s`,
-                opacity: 0.6 + (i % 3) * 0.15,
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Moon */}
-        <div className="pointer-events-none absolute right-10 top-16 h-24 w-24 rounded-full bg-moon-200 opacity-20 blur-xl" aria-hidden />
-        <div className="pointer-events-none absolute right-12 top-18 h-20 w-20 rounded-full bg-moon-300 opacity-30" aria-hidden />
-
-        <div className="relative mx-auto max-w-5xl px-5 py-32 text-center">
-          <div className="animate-drift mb-6 flex justify-center" aria-hidden>
-            <Image src="/icon-dark.svg" alt="" width={120} height={120} className="rounded-3xl shadow-2xl shadow-night-900/50" />
+      <section className="relative isolate bg-[#153c37] text-[#faf6ed]">
+        <div className="relative mx-auto grid max-w-[1600px] lg:min-h-[720px] lg:grid-cols-[0.92fr_1.08fr]">
+          <div className="relative z-10 flex flex-col justify-center px-6 pb-10 pt-14 sm:px-12 sm:py-20 lg:py-24 lg:pl-16 xl:pl-24">
+            <p className={`${eyebrow} mb-6 text-[#f0c88e]`}>
+              {t("landing.eyebrow")}
+            </p>
+            <h1 className="max-w-xl text-balance font-serif text-[clamp(3.1rem,5.2vw,5.5rem)] leading-[0.99] tracking-[-0.045em]">
+              {t("hero")}
+            </h1>
+            <p className="mt-7 max-w-md text-base leading-relaxed text-[#e0e8dc] sm:text-lg">
+              {t("heroSub")}
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
+              <Link href="/dashboard" className={primaryLink}>
+                {t("ctaCreate")}
+              </Link>
+              <a
+                href="#story"
+                className="py-3 text-sm font-semibold underline decoration-[#f0c88e]/60 underline-offset-8 hover:decoration-[#f0c88e]"
+              >
+                {t("landing.preview")}
+              </a>
+            </div>
+            <p className="mt-5 text-xs text-[#cad7cf]">
+              {t("landing.freeNote")}
+            </p>
           </div>
-          <h1 className="font-display text-5xl font-bold leading-tight text-white sm:text-6xl lg:text-7xl">
-            {t('hero')}
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-night-200 sm:text-xl">
-            {t('heroSub')}
+          <div className="relative min-h-[330px] sm:min-h-[480px] lg:min-h-full">
+            <Image
+              src="/landing/woodland.webp"
+              alt={t("landing.heroAlt")}
+              fill
+              priority
+              sizes="(min-width: 1024px) 55vw, 100vw"
+              className="object-cover object-[65%_center]"
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#153c37] via-transparent to-transparent lg:bg-gradient-to-r"
+            />
+            <p className="absolute bottom-5 right-5 max-w-64 rounded-sm bg-[#153c37]/85 px-3 py-2 text-right text-[11px] leading-relaxed text-white">
+              {t("landing.exampleLabel")}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="story"
+        className="scroll-mt-8 mx-auto grid max-w-6xl items-center gap-10 px-6 py-20 sm:px-10 sm:py-28 md:grid-cols-2 md:gap-20"
+      >
+        <figure className="relative mx-auto w-full max-w-[390px]">
+          <div
+            aria-hidden
+            className="absolute -inset-3 rotate-[-3deg] rounded-t-[160px] bg-[#e9ddc8]"
+          />
+          <Image
+            src="/landing/portrait.webp"
+            alt={t("landing.portraitAlt")}
+            width={1024}
+            height={1536}
+            sizes="(min-width: 768px) 390px, 85vw"
+            className="relative aspect-[4/5] w-full rounded-t-[160px] object-cover object-center"
+          />
+          <figcaption className="relative mt-6 text-center font-serif text-lg italic text-[#695f4e]">
+            {t("landing.chapterOne")}
+          </figcaption>
+        </figure>
+        <div>
+          <p className={`${eyebrow} mb-5 text-[#a65335]`}>
+            {t("landing.chapterOne")}
           </p>
-          <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-            <Link
-              href="/dashboard"
-              className="rounded-full bg-moon-400 px-8 py-4 text-lg font-bold text-night-900 transition hover:bg-moon-300 hover:scale-105"
-            >
-              {t('ctaCreate')}
-            </Link>
+          <h2 className={`${heading} max-w-md text-balance`}>
+            {t("landing.introTitle")}
+          </h2>
+          <p className="mt-6 max-w-md text-lg leading-relaxed text-[#56655b]">
+            {t("landing.introBody")}
+          </p>
+          <Link
+            href="/dashboard"
+            className="mt-7 inline-block border-b border-[#193d38] pb-1 text-sm font-bold hover:text-[#a65335]"
+          >
+            {t("ctaCreate")}
+          </Link>
+        </div>
+      </section>
+
+      <section className="bg-[#e9eee5] pb-16 pt-16 sm:pb-24 sm:pt-24">
+        <div className="mx-auto grid max-w-6xl gap-6 px-6 pb-10 sm:px-10 md:grid-cols-2 md:items-end md:gap-16">
+          <div>
+            <p className={`${eyebrow} mb-5 text-[#73523d]`}>
+              {t("landing.chapterTwo")}
+            </p>
+            <h2 className={`${heading} text-balance`}>
+              {t("landing.adventureTitle")}
+            </h2>
+          </div>
+          <p className="max-w-md text-lg leading-relaxed text-[#56655b]">
+            {t("landing.adventureBody")}
+          </p>
+        </div>
+        <figure className="mx-auto max-w-[1360px] px-3 sm:px-10">
+          <Image
+            src="/landing/adventure.webp"
+            alt={t("landing.adventureAlt")}
+            width={1536}
+            height={1024}
+            sizes="(min-width: 1360px) 1280px, 100vw"
+            className="aspect-[3/2] w-full rounded-[3px] object-cover sm:aspect-[16/9]"
+          />
+          <figcaption className="mx-auto mt-8 max-w-2xl px-4 text-center">
+            <p className="font-serif text-2xl italic leading-snug sm:text-3xl">
+              “{t("landing.excerpt")}”
+            </p>
+            <p className="mt-4 text-xs text-[#56655b]">
+              {t("landing.exampleLabel")}
+            </p>
+          </figcaption>
+        </figure>
+      </section>
+
+      <section className="mx-auto grid max-w-7xl items-center gap-10 px-6 py-20 sm:px-10 sm:py-28 md:grid-cols-[0.8fr_1.2fr] md:gap-16">
+        <div>
+          <p className={`${eyebrow} mb-5 text-[#a65335]`}>
+            {t("landing.chapterThree")}
+          </p>
+          <h2 className={`${heading} text-balance`}>
+            {t("landing.bedtimeTitle")}
+          </h2>
+          <p className="mt-6 text-lg leading-relaxed text-[#56655b]">
+            {t("landing.bedtimeBody")}
+          </p>
+        </div>
+        <Image
+          src="/landing/bedtime.webp"
+          alt={t("landing.bedtimeAlt")}
+          width={1536}
+          height={1024}
+          sizes="(min-width: 768px) 55vw, 100vw"
+          className="aspect-[6/5] w-full rounded-t-[100px] object-cover sm:rounded-t-[180px]"
+        />
+      </section>
+
+      <section className="border-y border-[#193d38]/15 bg-[#f1e9da] px-6 py-16 text-center sm:py-20">
+        <div className="mx-auto max-w-3xl">
+          <h2 className={`${heading} text-balance`}>
+            {t("landing.keepsakeTitle")}
+          </h2>
+          <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-[#56655b]">
+            {t("landing.keepsakeBody")}
+          </p>
+          <p className="mx-auto mt-6 max-w-xl text-sm leading-relaxed text-[#56655b]">
+            {t("landing.pricing")}
+          </p>
+          <Link
+            href="/dashboard"
+            className={`${primaryLink} mt-8 border border-[#193d38]/20`}
+          >
+            {t("ctaCreate")}
+          </Link>
+        </div>
+      </section>
+
+      {showcaseStories.length > 0 && (
+        <section className="mx-auto max-w-6xl px-6 py-20 sm:px-10 sm:py-24">
+          <p className={`${eyebrow} text-[#a65335]`}>
+            {t("landing.galleryEyebrow")}
+          </p>
+          <div className="mt-4 flex flex-wrap items-end justify-between gap-6">
+            <h2 className={`${heading} max-w-2xl text-balance`}>
+              {t("landing.galleryTitle")}
+            </h2>
             <Link
               href="/public"
-              className="rounded-full border border-white/20 px-8 py-4 text-lg font-bold text-white transition hover:bg-white/10"
+              className="border-b border-current pb-1 text-sm font-bold"
             >
-              {t('ctaBrowse')}
+              {t("ctaBrowse")}
             </Link>
           </div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section className="mx-auto max-w-6xl px-5 py-24">
-        <div className="text-center">
-          <h2 className="font-display text-4xl font-bold text-night-800">
-            {t('featureTitle')}
-          </h2>
-          <p className="mt-4 text-lg text-night-500">
-            {t('featureSub')}
-          </p>
-        </div>
-        <div className="mt-16 grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          {features.map((f) => (
-            <div
-              key={f.title}
-              className="rounded-3xl border border-night-100 bg-white p-8 shadow-sm"
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-moon-100 text-night-700">
-                <Icon name={f.icon} className="h-6 w-6" />
-              </div>
-              <h3 className="mt-4 font-display text-xl font-bold text-night-700">{f.title}</h3>
-              <p className="mt-2 text-night-400">{f.body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Story arc */}
-      <section className="bg-night-800 py-24 text-white">
-        <div className="mx-auto max-w-4xl px-5 text-center">
-          <h2 className="font-display text-4xl font-bold">{t('arcTitle')}</h2>
-          <p className="mt-4 text-night-200">{t('arcSub')}</p>
-          <div className="mt-14 grid grid-cols-5 gap-2 sm:gap-4">
-            {arcSteps.map((step) => (
-              <div key={step.num} className="flex flex-col items-center gap-3">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-moon-400/20 ring-1 ring-moon-400/30">
-                  <Icon name={step.icon} className="h-7 w-7 text-moon-300" />
-                </div>
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-moon-400/30">
-                  <span className="text-xs font-bold text-moon-200">{step.num}</span>
-                </div>
-                <p className="text-center text-xs font-bold text-moon-300 sm:text-sm">{step.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Themes */}
-      <section className="mx-auto max-w-6xl px-5 py-24">
-        <div className="text-center">
-          <h2 className="font-display text-4xl font-bold text-night-800">
-            {t('themesTitle')}
-          </h2>
-          <p className="mt-4 text-lg text-night-500">
-            {t('themesSub')}
-          </p>
-        </div>
-        <div className="mt-12 flex flex-wrap justify-center gap-3">
-          {themes.map((theme) => (
-            <span
-              key={theme}
-              className="rounded-full border border-night-100 bg-white px-5 py-2.5 text-sm font-bold text-night-600 shadow-sm"
-            >
-              {theme}
-            </span>
-          ))}
-        </div>
-      </section>
-
-      {/* Story illustration showcase */}
-      {showcaseStories.length > 0 && (
-        <section className="bg-night-50 py-24">
-          <div className="mx-auto max-w-6xl px-5">
-            <div className="text-center mb-12">
-              <p className="text-sm font-bold uppercase tracking-wide text-star-600">Real stories</p>
-              <h2 className="mt-2 font-display text-4xl font-bold text-night-800">
-                From families like yours
-              </h2>
-              <p className="mt-4 text-lg text-night-500">
-                Every illustration is created specifically for your child&apos;s story.
-              </p>
-            </div>
-            <div className="columns-2 gap-4 md:columns-3 lg:columns-4">
-              {showcaseStories.map((story) => (
-                <Link
-                  key={story.id}
-                  href="/public"
-                  className="group mb-4 block break-inside-avoid overflow-hidden rounded-2xl border border-night-100 bg-white shadow-sm transition hover:shadow-md hover:-translate-y-0.5"
-                >
-                  <div className="relative w-full overflow-hidden">
-                    <Image
-                      src={story.thumbnailUrl}
-                      alt={story.title}
-                      width={400}
-                      height={400}
-                      className="w-full object-cover transition group-hover:scale-105"
-                      sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 50vw"
-                    />
-                  </div>
-                  <div className="p-3">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-star-600">{story.theme}</p>
-                    <p className="mt-0.5 line-clamp-2 text-sm font-bold text-night-800">{story.title}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-            <div className="mt-10 text-center">
-              <Link
-                href="/public"
-                className="rounded-full border border-night-200 bg-white px-8 py-3 text-sm font-bold text-night-700 shadow-sm transition hover:border-night-300 hover:shadow-md"
-              >
-                Browse the full gallery →
+          <p className="mt-5 text-[#56655b]">{t("landing.galleryBody")}</p>
+          <div className="mt-10 grid gap-8 sm:grid-cols-3">
+            {showcaseStories.map((story) => (
+              <Link key={story.id} href="/public" className="group">
+                <Image
+                  src={story.thumbnailUrl}
+                  alt={story.title}
+                  width={400}
+                  height={400}
+                  sizes="(min-width: 640px) 30vw, 90vw"
+                  className="aspect-square w-full rounded-sm object-cover transition duration-300 motion-safe:group-hover:-translate-y-1"
+                />
+                <h3 className="mt-4 font-serif text-2xl group-hover:underline">
+                  {story.title}
+                </h3>
               </Link>
-            </div>
+            ))}
           </div>
         </section>
       )}
 
-      {/* CTA */}
-      <section className="bg-gradient-to-b from-night-700 to-night-900 py-24 text-center">
-        <div className="mx-auto max-w-2xl px-5">
-          <div className="flex justify-center" aria-hidden>
-            <Image src="/icon-dark.svg" alt="" width={80} height={80} className="rounded-2xl" />
-          </div>
-          <h2 className="mt-4 font-display text-4xl font-bold text-white">
-            {t('ctaTitle')}
+      <section className="bg-[#153c37] px-6 py-20 text-center text-[#faf6ed] sm:py-28">
+        <div className="mx-auto max-w-3xl">
+          <p className={`${eyebrow} mb-6 text-[#f0c88e]`}>Storycot</p>
+          <h2 className={`${heading} text-balance`}>
+            {t("landing.finalTitle")}
           </h2>
-          <p className="mt-4 text-night-200">
-            {t('ctaSub')}
+          <p className="mx-auto mt-6 max-w-lg text-lg leading-relaxed text-[#e0e8dc]">
+            {t("landing.finalBody")}
           </p>
-          <Link
-            href="/dashboard"
-            className="mt-8 inline-block rounded-full bg-moon-400 px-8 py-4 text-lg font-bold text-night-900 transition hover:bg-moon-300"
-          >
-            {t('ctaButton')}
+          <Link href="/dashboard" className={`${primaryLink} mt-8`}>
+            {t("ctaCreate")}
           </Link>
+          <p className="mt-4 text-xs text-[#cad7cf]">{t("landing.freeNote")}</p>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-night-900 py-8 text-center text-night-300">
-        <div className="flex items-center justify-center gap-2 mb-1">
-          <Image src="/icon-dark.svg" alt="" width={24} height={24} className="rounded-md" aria-hidden />
-          <p className="font-display text-lg font-bold text-white">Storycot</p>
+      <footer className="mx-auto max-w-7xl px-6 py-10 sm:px-10">
+        <div className="flex flex-wrap items-start justify-between gap-6">
+          <div>
+            <Link
+              href="/"
+              className="font-serif text-3xl font-bold tracking-tight"
+            >
+              storycot.
+            </Link>
+            <p className="mt-2 max-w-sm text-sm text-[#56655b]">
+              {t("footerTagline")}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold">
+            <Link href="/support" className="hover:underline">
+              {t("landing.help")}
+            </Link>
+            <Link href="/privacy" className="hover:underline">
+              {t("landing.privacy")}
+            </Link>
+            <Link href="/terms" className="hover:underline">
+              {t("landing.terms")}
+            </Link>
+          </div>
         </div>
-        <p className="text-sm">{t('footerTagline')}</p>
-        <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-1">
-          <Link href="/support" className="text-sm text-night-400 hover:text-night-200 transition">
-            Help &amp; FAQ
-          </Link>
-          <Link href="/privacy" className="text-sm text-night-400 hover:text-night-200 transition">
-            Privacy
-          </Link>
-          <Link href="/terms" className="text-sm text-night-400 hover:text-night-200 transition">
-            Terms
-          </Link>
-        </div>
+        <p className="mt-8 border-t border-[#193d38]/10 pt-5 text-xs text-[#56655b]">
+          {t("landing.artNote")}
+        </p>
       </footer>
     </main>
-  )
+  );
 }

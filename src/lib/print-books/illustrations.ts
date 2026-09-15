@@ -366,6 +366,12 @@ export function buildCoverIllustrationPrompt(input: {
       },
       {
         variants: [
+          `Cast lock: the only child on this cover is ${profile.name}, plus any character explicitly named in the cover scene above. Do NOT invent or add any extra person - no mother, father, mum, dad, parent, grandparent, sibling, friend, or second child - who is not named in the cover scene. Keep any toy, doll, stuffed animal, pet, or small creature as that object or animal, never a human child.`,
+          `Cast lock: only ${profile.name} plus any character named in the cover scene. Do not add any extra parent, sibling, friend, or second child; keep toys and pets as themselves.`,
+        ],
+      },
+      {
+        variants: [
           "Outfit source of truth, so the cover matches the interior pages: for each character, use the specific outfit named in their own described appearance or identity rules above if one is given (for example denim overalls or a striped jumper), otherwise use their locked Outfit rules; always include their locked footwear. Any attached reference portrait defines only face shape, hair, eyebrows, facial hair, glasses, skin tone, eye colour, and body build - it does NOT define clothing. Do not copy the plain top, jumper, or sweater shown in a head-and-shoulders reference portrait; draw each character's full described/locked outfit instead.",
           "Dress each character in the specific outfit from their described appearance above (for example overalls) if given, else their locked Outfit rules, plus locked footwear. Reference portraits define face, hair, glasses, skin, and build only - never clothing; do not copy the plain portrait top. This keeps the cover matching the interior pages.",
         ],
@@ -1600,6 +1606,16 @@ export function buildPageIllustrationPrompt(input: {
     .map((reference) => reference.name)
     .filter(Boolean)
     .join(", ");
+  const castLockNames = Array.from(
+    new Set(
+      [
+        profile.name,
+        ...(input.visualReferences ?? []).map((reference) => reference.name),
+      ]
+        .map((name) => name?.trim())
+        .filter((name): name is string => Boolean(name))
+    )
+  ).join(", ");
   const continuityReferenceLabels = (input.continuityReferences ?? [])
     .map((reference) => reference.label)
     .filter(Boolean)
@@ -1663,6 +1679,15 @@ export function buildPageIllustrationPrompt(input: {
           ? [
               `Selected cast for this spread: ${selectedReferenceNames}. Only these named characters use the reference faces. If the story moment includes any other person (incidental, background, distant, or unnamed), draw them as a distinct generic person, not as one of the selected cast.`,
               `Selected cast for this spread: ${selectedReferenceNames}. Only these named characters use the reference faces; draw any other, unnamed person as a distinct generic person.`,
+            ]
+          : [""],
+      },
+      {
+        variants: castLockNames
+          ? [
+              `Cast lock: the only people in this book are ${castLockNames}. Do NOT invent, add, or depict any extra people who are not in this list - no additional mother, father, mum, dad, parent, grandparent, sibling, friend, teacher, carer, or any other named or recognisable person - unless the current story moment above explicitly names them. If the moment mentions only a generic unnamed adult (for example "a grown-up" or "a grown-up nearby"), keep that adult incidental and non-identifiable: a distant, partially cropped, turned-away, or faceless background presence such as a hand or silhouette, never a detailed parent figure, and never resembling the main child. There is exactly one child in this scene, ${profile.name}, plus any child explicitly listed in the cast; never add a second baby, toddler, or child. Draw any toy, doll, stuffed animal, pet, or small creature as that object or animal only - never turn it into an extra human child or person.`,
+              `Cast lock: the only people in this book are ${castLockNames}. Do not add any extra person (no extra mum, dad, parent, grandparent, sibling, friend, or child) unless the current story moment names them. Keep any generic unnamed grown-up incidental and faceless (distant, cropped, turned away), never a detailed parent. Only one child, ${profile.name}, plus any listed child cast; never add a second child. Keep toys, dolls, pets, and small creatures as themselves, never a human child.`,
+              `Cast lock: only ${castLockNames}. No invented extra people or extra children; keep any generic grown-up incidental and faceless; keep toys and pets as themselves.`,
             ]
           : [""],
       },

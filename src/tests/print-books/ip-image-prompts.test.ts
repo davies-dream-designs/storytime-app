@@ -155,6 +155,30 @@ describe("illustrations IP guardrails", () => {
     expect(prompt).toContain(REDACTED);
   });
 
+  it("locks the cast so extra people are not invented on interior pages", () => {
+    const spread: BookSpread = {
+      ...createBrandedSpread(),
+      leftPageText: "A grown-up called gently from the door.",
+      rightPageText: "Bailey waved bye-bye to his little friend.",
+      sceneBrief: "Bailey at the back door with his toy dog.",
+      illustrationPrompt: "Bailey waving at the doorway with his toy dog.",
+    };
+
+    const prompt = buildPageIllustrationPrompt({
+      project: createProject(),
+      story: createStory(),
+      profile: createProfile(),
+      characterBible: createCharacterBible(),
+      spread,
+      side: "left",
+    });
+
+    expect(prompt).toContain("Cast lock:");
+    expect(prompt).toContain("Mila");
+    expect(prompt).toMatch(/do not (add|invent|depict)|Do NOT invent/i);
+    expect(prompt).toMatch(/second (baby|toddler|child)|second child/i);
+  });
+
   it("redacts branded references in the cover illustration prompt", () => {
     const prompt = buildCoverIllustrationPrompt({
       project: createProject(),

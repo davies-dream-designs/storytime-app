@@ -210,7 +210,7 @@ export default async function StoryPage({
               className="storycot-btn storycot-btn-primary storycot-btn-compact"
             >
               <Icon name="plus" />
-              New story
+              {t("newStoryButton")}
             </Link>
             {isReady ? (
               <>

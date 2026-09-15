@@ -309,7 +309,7 @@ export function buildCoverIllustrationPrompt(input: {
         },
         {
           variants: [
-            "Create a square children's picture-book front cover with a warm, gentle bedtime illustration style.",
+            "Create a square children's picture-book front cover in a rich painterly gouache-and-soft-oil illustration style with warm golden-hour light and visible brushwork.",
           ],
         },
         // Keep the outfit lock even on the stripped moderation-retry prompt, so
@@ -379,8 +379,8 @@ export function buildCoverIllustrationPrompt(input: {
       },
       {
         variants: [
-          "Create a square children's picture-book front cover with space for title treatment and a warm bedtime-book feeling.",
-          "Create a square bedtime picture-book front cover with a warm storybook feeling.",
+          "Create a square children's picture-book front cover with space for title treatment and a rich painterly, warm golden-hour storybook feeling.",
+          "Create a square bedtime picture-book front cover with a rich painterly, warm golden-hour storybook feeling.",
         ],
       },
       {

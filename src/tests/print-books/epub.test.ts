@@ -228,6 +228,40 @@ describe("buildBookEpub", () => {
     expect(zip.file("OEBPS/images/spread-2-left.jpg")).toBeNull();
   });
 
+  it("declares the story's own language in EPUB metadata and content", async () => {
+    const { buildStoryTextEpub } = await import("@/lib/print-books/epub");
+
+    const epub = await buildStoryTextEpub({
+      story: { ...createStory(), locale: "es" },
+      profile: createProfile(),
+    });
+
+    const zip = await JSZip.loadAsync(epub);
+    await expect(
+      zip.file("OEBPS/content.opf")?.async("string")
+    ).resolves.toContain("<dc:language>es</dc:language>");
+    await expect(
+      zip.file("OEBPS/page-1.xhtml")?.async("string")
+    ).resolves.toContain('lang="es"');
+    await expect(
+      zip.file("OEBPS/nav.xhtml")?.async("string")
+    ).resolves.toContain('lang="es"');
+  });
+
+  it("falls back to English metadata for stories without a locale", async () => {
+    const { buildStoryTextEpub } = await import("@/lib/print-books/epub");
+
+    const epub = await buildStoryTextEpub({
+      story: createStory(),
+      profile: createProfile(),
+    });
+
+    const zip = await JSZip.loadAsync(epub);
+    await expect(
+      zip.file("OEBPS/content.opf")?.async("string")
+    ).resolves.toContain("<dc:language>en</dc:language>");
+  });
+
   it("keeps illustrated EPUB image assets under a Kindle-friendly budget", async () => {
     const { buildBookEpub } = await import("@/lib/print-books/epub");
     const largeImage = await (

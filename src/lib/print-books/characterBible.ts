@@ -141,7 +141,7 @@ Requirements:
 - Recurring props should be few, memorable, and visually helpful. Never list clothing, footwear, shoes, or boots as a recurring prop; worn items belong only in outfitRules so they are not drawn twice.
 - Companion characters should include only characters that should reappear visually.
 - For selected family/friends/pets, preserve the supplied appearance and reference-image notes. Do not turn relationship roles into generic stereotypes; for example, do not make grandparents much older, thinner, heavier, or frailer unless their reference/appearance says so.
-- Palette, renderStyle, and lightingTone should fit a warm bedtime picture book.
+- Palette, renderStyle, and lightingTone should fit a rich, warm, painterly bedtime picture book with luminous golden-hour light, visible brushwork, and gentle atmospheric depth.
 - doNotChange must list the highest-value continuity constraints for later image prompts.
 - Keep every field concise but specific.`;
 }
@@ -223,13 +223,13 @@ function normalizeCharacterBible(bible: CharacterBible): CharacterBible {
     companionCharacters: normalizeList(bible.companionCharacters),
     palette:
       bible.palette?.trim() ||
-      "Soft moonlit bedtime palette with warm highlights.",
+      "Warm golden-hour storybook palette with luminous highlights and soft, glowing shadows.",
     renderStyle:
       bible.renderStyle?.trim() ||
-      "Warm storybook illustration with gentle texture and expressive faces.",
+      "Rich painterly gouache-and-soft-oil children's-book illustration with visible brushwork, atmospheric depth, and expressive faces.",
     lightingTone:
       bible.lightingTone?.trim() ||
-      "Soft evening light with calm, cozy contrast.",
+      "Warm cinematic golden-hour light with gentle atmospheric depth and cozy contrast.",
     doNotChange: normalizeList(bible.doNotChange),
     lockedCharacterRules: normalizeLockedCharacterRules(
       bible.lockedCharacterRules
@@ -450,8 +450,8 @@ export function buildIllustrationDirection(
       : "Apply the warm palette only to background, clothing, and lighting. Keep every character's hair colour, eyebrow colour, facial-hair colour, skin tone, and eye colour true to their locked appearance; never warm-tint, redden, or lighten hair, skin, or eyes to match the palette.",
     `Render style: ${clampPromptValue(bible.renderStyle, compact ? 100 : 180)}`,
     compact
-      ? "Flat 2-D storybook illustration, not a glossy 3-D or photorealistic render; same realism for every character."
-      : "Rendering-level lock: draw a flat two-dimensional children's picture-book illustration with soft watercolour and coloured-pencil shading; do not produce a glossy three-dimensional render, CGI or Pixar-style portrait, or photorealistic likeness. Use the same illustration realism and shading level for every character so they all belong in the same book.",
+      ? "Rich painterly gouache storybook illustration with visible brushwork and golden-hour light; not a flat vector, glossy 3-D/CGI, or photorealistic render; same painterly level for every character."
+      : "Rendering-level lock: draw a rich painterly children's picture-book illustration in warm gouache and soft oil, with visible brushwork, luminous golden-hour lighting, and gentle atmospheric depth, in the tradition of classic hand-painted picture books. Do not produce a flat vector or clip-art look, a glossy three-dimensional CGI or Pixar-style render, or a photorealistic likeness. Use the same painterly medium, brushwork, and lighting level for every character so they all belong in the same book.",
     `Lighting tone: ${clampPromptValue(bible.lightingTone, compact ? 100 : 180)}`,
     `Do not change: ${clampPromptValue(continuity, compact ? 180 : 320)}`,
     compact

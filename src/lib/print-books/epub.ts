@@ -254,6 +254,7 @@ function renderPageXhtml(input: {
   body: string;
   pageLabel?: string;
   variant?: "cover" | "story" | "image" | "closing";
+  lang?: string;
 }): string {
   const {
     title,
@@ -262,6 +263,7 @@ function renderPageXhtml(input: {
     body,
     pageLabel,
     variant = "story",
+    lang = "en",
   } = input;
   const isCover = variant === "cover";
   const isImage = variant === "image";
@@ -275,7 +277,7 @@ function renderPageXhtml(input: {
         : "page";
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="${escapeXml(lang)}" xml:lang="${escapeXml(lang)}">
   <head>
     <title>${escapeXml(title)}</title>
     <link rel="stylesheet" type="text/css" href="styles/storycot.css" />
@@ -426,6 +428,7 @@ export async function buildBookEpub(input: {
   compact?: boolean;
 }): Promise<Buffer> {
   const { project, story, profile } = input;
+  const lang = story.locale ?? "en";
   const zip = new JSZip();
   const identifier = `storycot:${project.id}`;
   const title = story.title || "Storycot story";
@@ -515,6 +518,7 @@ export async function buildBookEpub(input: {
           title,
           body,
           imageHref,
+          lang,
         }),
       });
       readingPageNumber += 1;
@@ -534,7 +538,7 @@ export async function buildBookEpub(input: {
     "OEBPS/nav.xhtml",
     `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="en">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="${escapeXml(lang)}" xml:lang="${escapeXml(lang)}">
   <head>
     <title>${escapeXml(title)}</title>
   </head>
@@ -574,7 +578,7 @@ export async function buildBookEpub(input: {
     <dc:identifier id="book-id">${escapeXml(identifier)}</dc:identifier>
     <dc:title>${escapeXml(title)}</dc:title>
     <dc:creator>${escapeXml(creator)}</dc:creator>
-    <dc:language>en</dc:language>
+    <dc:language>${escapeXml(lang)}</dc:language>
     <dc:publisher>Storycot</dc:publisher>
     <meta property="dcterms:modified">${modified}</meta>
     <meta name="cover" content="cover" />
@@ -606,6 +610,7 @@ export async function buildStoryTextEpub(input: {
   profile?: ChildProfile;
 }): Promise<Buffer> {
   const { story, profile } = input;
+  const lang = story.locale ?? "en";
   const zip = new JSZip();
   const identifier = `storycot:story:${story.id}`;
   const title = story.title || "Storycot story";
@@ -641,6 +646,7 @@ export async function buildStoryTextEpub(input: {
           ? `A Storycot story for ${profile.name}.`
           : "A Storycot story.",
         variant: "cover",
+        lang,
       }),
     },
     ...story.pages.map((page) => ({
@@ -652,6 +658,7 @@ export async function buildStoryTextEpub(input: {
         heading: undefined,
         body: page.text,
         pageLabel: `Page ${page.pageNumber}`,
+        lang,
       }),
     })),
   ];
@@ -666,7 +673,7 @@ export async function buildStoryTextEpub(input: {
     "OEBPS/nav.xhtml",
     `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="en">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="${escapeXml(lang)}" xml:lang="${escapeXml(lang)}">
   <head>
     <title>${escapeXml(title)}</title>
   </head>
@@ -691,7 +698,7 @@ export async function buildStoryTextEpub(input: {
     <dc:identifier id="book-id">${escapeXml(identifier)}</dc:identifier>
     <dc:title>${escapeXml(title)}</dc:title>
     <dc:creator>Storycot</dc:creator>
-    <dc:language>en</dc:language>
+    <dc:language>${escapeXml(lang)}</dc:language>
     <dc:publisher>Storycot</dc:publisher>
     <meta property="dcterms:modified">${modified}</meta>
     <meta name="cover" content="cover" />

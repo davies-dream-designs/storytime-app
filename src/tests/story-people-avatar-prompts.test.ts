@@ -235,8 +235,9 @@ describe("story people avatar prompts", () => {
           "never round out, widen, or fatten the face"
         );
         expect(prompt).toContain("Rendering-level lock");
+        expect(prompt).toMatch(/rich painterly children's picture-book/);
         expect(prompt).toMatch(
-          /Do not produce a glossy three-dimensional render, CGI or Pixar-style portrait/
+          /a glossy three-dimensional CGI or Pixar-style render, or a photorealistic likeness/
         );
         expect(prompt).toContain(
           "belong in the same book"

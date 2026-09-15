@@ -177,8 +177,9 @@ describe("generateCoverIllustration", () => {
       /never warm-tint, redden, or lighten hair, skin, or eyes/
     );
     expect(prompt).toContain("Rendering-level lock");
+    expect(prompt).toMatch(/rich painterly children's picture-book/);
     expect(prompt).toMatch(
-      /do not produce a glossy three-dimensional render, CGI or Pixar-style portrait/
+      /a glossy three-dimensional CGI or Pixar-style render, or a photorealistic likeness/
     );
     expect(prompt).toContain("Footwear lock");
     expect(prompt).toContain("Outfit source of truth");

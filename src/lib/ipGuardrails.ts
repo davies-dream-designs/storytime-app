@@ -133,7 +133,10 @@ function hasGeneratedSourceReference(text: string): boolean {
   );
 }
 
-function redactProtectedReferences(value: string): string {
+// Swap out known protected/branded terms and source-reference phrases for
+// original-design wording. Whitespace is preserved so this is safe to run on
+// multi-paragraph prose (newlines carry paragraph breaks downstream).
+function replaceProtectedReferences(value: string): string {
   let redacted = value;
   for (const [pattern, replacement] of PROTECTED_REFERENCE_REPLACEMENTS) {
     redacted = redacted.replace(pattern, replacement);
@@ -146,9 +149,13 @@ function redactProtectedReferences(value: string): string {
     .replace(
       /\bbrand(?:ed)?\s+(?:character|logo|name|toy|world|design|likeness|mascot|franchise)\b/gi,
       "original Storycot design"
-    )
-    .replace(/\s+/g, " ")
-    .trim();
+    );
+}
+
+// Term version: collapses whitespace, for short single-line values (a toy
+// name, a title) interpolated into prompts.
+function redactProtectedReferences(value: string): string {
+  return replaceProtectedReferences(value).replace(/\s+/g, " ").trim();
 }
 
 export function assessStoryIdeaIp(input: StoryIdeaInput): StoryIpPolicy {
@@ -232,6 +239,30 @@ export function profileIpErrorResponse(policy: StoryIpPolicy) {
     category: "protected_ip",
     reasons: policy.reasons,
   };
+}
+
+// Deterministically strip trademarked/branded references from a short user
+// term (e.g. a "favourite toy") so it is safe to interpolate into an image
+// prompt. Unlike originalizeStoryIdeaText this returns just the cleaned term,
+// with no surrounding story-generation instructions.
+export function originalizeReferenceTerm(value: string): string {
+  return redactProtectedReferences(value.trim());
+}
+
+// Prose version: rewrites branded/source references in a block of story text
+// while preserving newlines and paragraph structure. Used to scrub generated
+// page prose and titles before they are persisted and shown to readers.
+export function originalizeProseText(value: string): string {
+  return replaceProtectedReferences(value);
+}
+
+// Apply the above to a list of user terms, dropping anything that redacts to
+// empty. Used for the favourite-toys / animals / places lists that feed the
+// illustration character bible.
+export function originalizeReferenceTerms(values: string[]): string[] {
+  return values
+    .map((value) => originalizeReferenceTerm(value))
+    .filter((value) => value.length > 0);
 }
 
 export function originalizeStoryIdeaText(value: string): string {

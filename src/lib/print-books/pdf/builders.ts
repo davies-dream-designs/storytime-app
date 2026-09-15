@@ -57,6 +57,7 @@ import {
   drawTitlePage,
   hasTextPageContent,
 } from "./rendering";
+import { getPdfChromeLabels } from "./chromeLabels";
 
 async function buildPrintPdf(input: {
   project: BookProject;
@@ -72,8 +73,10 @@ async function buildPrintPdf(input: {
   const { pageWidth, pageHeight, textSafeMargin } = geometry;
   const includeCoverFrontMatter = input.includeCoverFrontMatter ?? true;
   const pdfDoc = await PDFDocument.create();
-  const { serif, serifBold, sans, sansBold } =
-    await loadEmbeddedPdfFonts(pdfDoc);
+  const { serif, serifBold, sans, sansBold } = await loadEmbeddedPdfFonts(
+    pdfDoc,
+    input.story.locale
+  );
   const theme = pickPlaceholderTheme(input.story);
 
   // Add a styled cover page (mirrors the Lulu front panel) as page 1 of the digital PDF.
@@ -146,6 +149,7 @@ async function buildPrintPdf(input: {
         pageWidth,
         pageHeight,
         project: input.project,
+        locale: input.story.locale,
         serifBold,
         serif,
         sans,
@@ -260,8 +264,10 @@ async function buildCoverPdf(input: {
   const geometry = input.geometry ?? STORYCOT_PDF_GEOMETRY;
   const { pageWidth, pageHeight } = geometry;
   const pdfDoc = await PDFDocument.create();
-  const { serif, serifBold, sans, sansBold } =
-    await loadEmbeddedPdfFonts(pdfDoc);
+  const { serif, serifBold, sans, sansBold } = await loadEmbeddedPdfFonts(
+    pdfDoc,
+    input.story.locale
+  );
   const theme = pickPlaceholderTheme(input.story);
   const spine = getBookSpineWidthIn(input.project.pageCount);
   const spineWidthIn = input.spineWidthIn ?? spine.widthIn;
@@ -422,7 +428,8 @@ async function buildCoverPdf(input: {
     size: 28,
     color: rgb(0.99, 0.96, 0.88),
   });
-  page.drawText(`Created for ${input.profile.name}`, {
+  const coverLabels = getPdfChromeLabels(input.story.locale);
+  page.drawText(coverLabels.createdForName(input.profile.name), {
     x: frontSafeX + 8,
     y: titleBandTop - 102,
     font: serif,
@@ -431,7 +438,7 @@ async function buildCoverPdf(input: {
   });
 
   const backBlurbTop = pageHeight - coverSafeY - 116;
-  page.drawText("A personalised story from Storycot", {
+  page.drawText(coverLabels.backCoverBlurb, {
     x: backSafeX,
     y: backBlurbTop,
     font: sansBold,
@@ -462,7 +469,7 @@ async function buildCoverPdf(input: {
     color: rgb(1, 1, 1),
     opacity: 0.74,
   });
-  page.drawText("Personalised for bedtime reading", {
+  page.drawText(coverLabels.bedtimeFooter, {
     x: backSafeX + 16,
     y: footerY + 82,
     font: sansBold,
@@ -476,7 +483,7 @@ async function buildCoverPdf(input: {
     size: 10,
     color: rgb(0.34, 0.35, 0.4),
   });
-  page.drawText("Create your own at storycot.com.au", {
+  page.drawText(coverLabels.createYourOwn, {
     x: backSafeX + 16,
     y: footerY + 40,
     font: sansBold,

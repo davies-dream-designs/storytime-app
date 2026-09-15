@@ -188,6 +188,8 @@ export interface Story {
   storyPreset?: StoryPreset;
   storyPersonIds?: string[];
   ipPolicy?: StoryIpPolicy;
+  /** Locale the story prose was generated in (e.g. "es"). Absent on legacy rows. */
+  locale?: string;
   createdAt: string;
   status?: "generating" | "ready" | "failed";
   generationError?: string;

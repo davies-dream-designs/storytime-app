@@ -11,6 +11,7 @@ import {
 } from "@/types";
 import { storeBookAsset } from "@/lib/print-books/storage";
 import { fetchAllowedMediaBuffer } from "@/lib/safeMediaFetch";
+import { originalizeReferenceTerm } from "@/lib/ipGuardrails";
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 const ALLOWED_CONTENT_TYPES = new Set([
@@ -47,9 +48,9 @@ const BUILD_FIDELITY_LOCK =
 
 // Family members were rendering at inconsistent realism levels (one flat 2-D
 // watercolour, another glossy semi-realistic portrait), so they looked like
-// they came from different books. Pin one shared illustration realism level.
+// they came from different books. Pin one shared painterly realism level.
 const STORYCOT_RENDER_STYLE_LOCK =
-  "Rendering-level lock: draw a flat two-dimensional children's picture-book illustration with soft watercolour and coloured-pencil shading and gentle paper texture. Do not produce a glossy three-dimensional render, CGI or Pixar-style portrait, airbrushed digital painting, or photorealistic likeness. Use the same illustration realism, line quality, and shading level for every family member so all Storycot characters look like they belong in the same book.";
+  "Rendering-level lock: draw a rich painterly children's picture-book illustration in warm gouache and soft oil, with visible brushwork, luminous golden-hour lighting, and gentle atmospheric depth, in the tradition of classic hand-painted picture books. Do not produce a flat vector or clip-art look, a glossy three-dimensional CGI or Pixar-style render, or a photorealistic likeness. Use the same painterly medium, brushwork, and lighting level for every family member so all Storycot characters look like they belong in the same book.";
 
 function formatAdjustmentInstruction(adjustment?: string): string {
   const clean = adjustment?.trim().slice(0, 240);
@@ -100,9 +101,11 @@ export function buildStoryPersonAvatarPrompt(
     `Relationship context: ${getStoryPersonRelationshipLabel(person)}.`,
     "Use relationship, name, and pronoun data only as private context outside the image; never draw words, labels, or name tags.",
     person.description
-      ? `Role notes for behaviour/context only: ${person.description}.`
+      ? `Role notes for behaviour/context only: ${originalizeReferenceTerm(person.description)}.`
       : "",
-    person.personality ? `Personality: ${person.personality}.` : "",
+    person.personality
+      ? `Personality: ${originalizeReferenceTerm(person.personality)}.`
+      : "",
     person.ageGroup && person.ageGroup !== "not_specified"
       ? `Age group context: ${getStoryPersonAgeGroupLabel(person.ageGroup)}. Preserve this broad life stage without making the person look older or younger than requested.`
       : "",
@@ -125,7 +128,7 @@ export function buildStoryPersonAvatarPrompt(
     BUILD_FIDELITY_LOCK,
     "Do not copy any clothing graphics, logos, printed text, costumes, branded characters, franchise characters, toy characters, mascot art, or recognisable protected designs visible in the photo.",
     "For people, use a head-and-shoulders portrait with a plain unbranded jumper or top in a gentle Storycot palette. If the photo shows character-print clothing, replace it with simple solid-colour clothing with no graphics or lettering.",
-    "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
+    "Match Storycot illustrated-book continuity: rich painterly gouache-and-soft-oil children's-book rendering with visible brushwork, warm golden-hour palette, luminous lighting, gentle atmospheric depth, expressive kind face, and a clean uncluttered background.",
     STORYCOT_RENDER_STYLE_LOCK,
     "Make it suitable as a reusable character reference for Storycot hardcover interiors and child profile illustrations: square crop, head-and-shoulders person portrait or full pet pose, clear visible features, stable unbranded outfit or pet markings, no scene-specific props unless requested.",
     "Show only the named subject. If the supplied image contains any extra adult, child, baby, pet, toy, or background object, remove it unless the correction explicitly asks to keep it.",
@@ -148,13 +151,13 @@ export function buildStoryPersonDescriptionAvatarPrompt(
     `Relationship context: ${getStoryPersonRelationshipLabel(person)}.`,
     "Use profile details only as private generation context; never draw words, labels, names, relationship labels, or name tags.",
     person.appearance.trim()
-      ? `Current appearance description: ${person.appearance.trim()}.`
+      ? `Current appearance description: ${originalizeReferenceTerm(person.appearance)}.`
       : "",
     person.description.trim()
-      ? `Role notes for behaviour/context only: ${person.description.trim()}.`
+      ? `Role notes for behaviour/context only: ${originalizeReferenceTerm(person.description)}.`
       : "",
     person.personality.trim()
-      ? `Personality: ${person.personality.trim()}.`
+      ? `Personality: ${originalizeReferenceTerm(person.personality)}.`
       : "",
     person.ageGroup && person.ageGroup !== "not_specified"
       ? `Age group context: ${getStoryPersonAgeGroupLabel(person.ageGroup)}. Preserve this broad life stage without making the person look older or younger than requested.`
@@ -177,7 +180,7 @@ export function buildStoryPersonDescriptionAvatarPrompt(
     BUILD_FIDELITY_LOCK,
     "Do not include branded clothing, recognisable protected character designs, toy characters, mascot art, logos, or clothing graphics.",
     "For people, use a head-and-shoulders portrait with a plain unbranded jumper or top in a gentle Storycot palette.",
-    "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
+    "Match Storycot illustrated-book continuity: rich painterly gouache-and-soft-oil children's-book rendering with visible brushwork, warm golden-hour palette, luminous lighting, gentle atmospheric depth, expressive kind face, and a clean uncluttered background.",
     STORYCOT_RENDER_STYLE_LOCK,
     "Make it suitable as a reusable character reference for Storycot hardcover interiors and child profile illustrations: square crop, head-and-shoulders person portrait or full pet pose, clear visible features, stable unbranded outfit or pet markings, no scene-specific props unless requested.",
     "Show only one subject. Do not add extra adults, children, babies, pets, toys, props, or background objects unless the written profile explicitly describes them as part of the subject.",
@@ -220,7 +223,7 @@ export function buildChildProfileAvatarPrompt(
     BUILD_FIDELITY_LOCK,
     "Do not copy any clothing graphics, logos, printed text, costumes, branded characters, franchise characters, toy characters, mascot art, or recognisable protected designs visible in the photo.",
     "Use a portrait crop from upper chest to top of head, centred on the child's face. Do not create a full-body standing or seated character sheet, full outfit pose, poster, profile page, or scene.",
-    "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
+    "Match Storycot illustrated-book continuity: rich painterly gouache-and-soft-oil children's-book rendering with visible brushwork, warm golden-hour palette, luminous lighting, gentle atmospheric depth, expressive kind face, and a clean uncluttered background.",
     STORYCOT_RENDER_STYLE_LOCK,
     "Make it suitable as a reusable child reference for Storycot hardcover interiors: square crop, head-and-shoulders portrait only, plain unbranded child-safe top in a gentle Storycot palette, clear visible features, stable outfit guidance, no scene-specific props unless already in the profile.",
     "Show only the child. If the supplied image contains any extra adult, child, baby, pet, toy, or background object, remove it unless the correction explicitly asks to keep it.",
@@ -263,7 +266,7 @@ export function buildChildProfileDescriptionAvatarPrompt(
     BUILD_FIDELITY_LOCK,
     "Do not include branded clothing, recognisable protected character designs, toy characters, mascot art, logos, or clothing graphics.",
     "Use a portrait crop from upper chest to top of head, centred on the child's face. Do not create a full-body standing or seated character sheet, full outfit pose, poster, profile page, or scene.",
-    "Match Storycot illustrated-book continuity: warm watercolour children's-book rendering, soft bedtime palette, gentle paper texture, expressive kind face, simple rounded shapes, cosy lighting, and a clean uncluttered background.",
+    "Match Storycot illustrated-book continuity: rich painterly gouache-and-soft-oil children's-book rendering with visible brushwork, warm golden-hour palette, luminous lighting, gentle atmospheric depth, expressive kind face, and a clean uncluttered background.",
     STORYCOT_RENDER_STYLE_LOCK,
     "Make it suitable as a reusable child reference for Storycot hardcover interiors: square crop, head-and-shoulders portrait only, plain unbranded child-safe top in a gentle Storycot palette, clear visible features, stable outfit guidance, no scene-specific props unless already in the profile.",
     "Show only the child. Do not add extra adults, children, babies, pets, toys, props, or background objects unless the written profile explicitly describes them as part of the child.",
@@ -471,7 +474,7 @@ async function analyzePhoto(input: {
 
 export function buildStoryPersonAppearanceSummary(person: StoryPerson): string {
   return [
-    person.appearance.trim(),
+    originalizeReferenceTerm(person.appearance),
     person.ageGroup && person.ageGroup !== "not_specified"
       ? `Age group: ${getStoryPersonAgeGroupLabel(person.ageGroup)}.`
       : "",
@@ -482,7 +485,7 @@ export function buildStoryPersonAppearanceSummary(person: StoryPerson): string {
       ? `Body build: ${getBodyBuildLabel(person.bodyBuild)}.`
       : "",
     person.personality.trim()
-      ? `Personality: ${person.personality.trim()}.`
+      ? `Personality: ${originalizeReferenceTerm(person.personality)}.`
       : "",
     person.relationship
       ? `Relationship: ${getStoryPersonRelationshipLabel(person)}.`
@@ -560,7 +563,7 @@ export async function createStoryPersonAvatar(input: {
     prompt: [
       buildStoryPersonAvatarPrompt(input.person, input.adjustment),
       analysis.appearance
-        ? `Additional visible reference details from photo: ${analysis.appearance}. These details are visual guidance only and must not be rendered as visible writing.`
+        ? `Additional visible reference details from photo: ${originalizeReferenceTerm(analysis.appearance)}. These details are visual guidance only and must not be rendered as visible writing.`
         : "",
     ]
       .filter(Boolean)

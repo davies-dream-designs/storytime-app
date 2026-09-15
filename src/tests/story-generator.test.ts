@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChildProfile, Character, StoryPerson } from "@/types";
+import { localeConfigs } from "@/i18n/locales";
 import {
   buildStoryPostCheckPrompt,
   buildStoryPrompt,
@@ -38,6 +39,55 @@ function createProfile(): ChildProfile {
     createdAt: "2026-07-15T00:00:00.000Z",
   };
 }
+
+describe("story language coverage", () => {
+  const expectedLanguage: Record<string, string> = {
+    en: "English",
+    es: "Spanish",
+    fr: "French",
+    zh: "Mandarin Chinese",
+    de: "German",
+    it: "Italian",
+    pt: "Portuguese",
+    nl: "Dutch",
+    ja: "Japanese",
+    ru: "Russian",
+    id: "Indonesian",
+    tr: "Turkish",
+    pl: "Polish",
+  };
+
+  it("maps every supported UI locale to a language so none fall back to English prose", () => {
+    for (const { code } of localeConfigs) {
+      const prompt = buildStoryPrompt({
+        profile: createProfile(),
+        characters: [],
+        theme: "kindness",
+        notes: "",
+        storyPreset: "preschool-story",
+        locale: code,
+      });
+      expect(
+        prompt,
+        `locale "${code}" should instruct the model to write in its language`
+      ).toContain(`Write the story in ${expectedLanguage[code]}.`);
+    }
+  });
+
+  it("previously-missing locales no longer default to English", () => {
+    for (const code of ["de", "it", "pt", "nl"] as const) {
+      const prompt = buildStoryPrompt({
+        profile: createProfile(),
+        characters: [],
+        theme: "kindness",
+        notes: "",
+        storyPreset: "preschool-story",
+        locale: code,
+      });
+      expect(prompt).not.toContain("Write the story in English.");
+    }
+  });
+});
 
 describe("buildStoryPrompt", () => {
   it("adds moderation-aware guardrails for story and illustration generation", () => {

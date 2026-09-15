@@ -16,20 +16,32 @@ import {
   buildChildCanonicalAppearanceContext,
   buildStoryPersonCanonicalAppearanceContext,
 } from "@/lib/characterReferenceContext";
+import type { Locale } from "@/i18n/locales";
 
 const client = new Anthropic();
 
-const LOCALE_LANGUAGE: Record<string, string> = {
+// Must cover every locale in src/i18n/locales.ts; the story-generator test
+// asserts this exhaustively so a newly added UI locale can never silently fall
+// back to English prose.
+const LOCALE_LANGUAGE: Record<Locale, string> = {
   en: "English",
   es: "Spanish",
   fr: "French",
   zh: "Mandarin Chinese",
+  de: "German",
+  it: "Italian",
+  pt: "Portuguese",
+  nl: "Dutch",
   ja: "Japanese",
   ru: "Russian",
   id: "Indonesian",
   tr: "Turkish",
   pl: "Polish",
 };
+
+function languageForLocale(locale: string | undefined): string {
+  return LOCALE_LANGUAGE[locale as Locale] ?? "English";
+}
 
 const STORY_PRESET_CONFIG = {
   "baby-drift": {
@@ -235,7 +247,7 @@ export function buildStoryPrompt(input: GenerateStoryInput): string {
     recentTitles,
     locale,
   } = input;
-  const language = LOCALE_LANGUAGE[locale ?? "en"] ?? "English";
+  const language = languageForLocale(locale);
   const len = STORY_PRESET_CONFIG[storyPreset ?? "preschool-story"];
   const originalCharacters = characters.filter((character) => {
     const policy = assessStoryIdeaIp({
@@ -329,7 +341,7 @@ export function buildStoryPostCheckPrompt(
   input: GenerateStoryInput,
   story: GeneratedStory
 ): string {
-  const language = LOCALE_LANGUAGE[input.locale ?? "en"] ?? "English";
+  const language = languageForLocale(input.locale);
 
   return `You are Storycot's final children's-book editor.
 
@@ -626,7 +638,7 @@ export async function generateSuggestions(
     locationHint?: string;
   } = {}
 ): Promise<StorySuggestion[]> {
-  const language = LOCALE_LANGUAGE[locale ?? "en"] ?? "English";
+  const language = languageForLocale(locale);
   const selectedTheme =
     options.selectedTheme?.trim() || profile.lessons?.[0] || "calm bedtime";
 

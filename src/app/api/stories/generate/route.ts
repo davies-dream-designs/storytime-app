@@ -7,6 +7,8 @@ import {
   assessGeneratedStoryIp,
   assessProfileIp,
   assessStoryIdeaIp,
+  originalizeProseText,
+  originalizeReferenceTerm,
   profileIpErrorResponse,
 } from "@/lib/ipGuardrails";
 import { STORY_CREDIT_COST } from "@/lib/pricing";
@@ -126,24 +128,34 @@ export async function POST(req: NextRequest) {
     throw error;
   }
 
-  const wordCount = generated.pages.reduce(
-    (acc, p) => acc + p.text.split(/\s+/).length,
+  // Scrub branded/trademarked references from generated prose + title before
+  // persisting, so reading text stays original. Newlines are preserved.
+  const cleanedTitle = originalizeReferenceTerm(generated.title);
+  const cleanedPages = generated.pages.map((p) => ({
+    ...p,
+    text: originalizeProseText(p.text),
+    illustrationPrompt: originalizeProseText(p.illustrationPrompt),
+  }));
+
+  const wordCount = cleanedPages.reduce(
+    (acc, p) => acc + p.text.split(/\s+/).filter(Boolean).length,
     0
   );
 
   const story: Story = {
     id: randomUUID(),
     userId,
-    title: generated.title,
+    title: cleanedTitle,
     profileId,
     profileName: profile.name,
-    pages: generated.pages,
+    pages: cleanedPages,
     wordCount,
     theme: theme ?? "a gentle adventure",
     premise: ipPolicy.originalizedPremise ?? premise,
     notes: ipPolicy.originalizedNotes ?? notes ?? "",
     storyPersonIds: selectedStoryPeople.map((person) => person.id),
     ipPolicy,
+    locale: locale ?? "en",
     createdAt: new Date().toISOString(),
     status: "ready",
   };

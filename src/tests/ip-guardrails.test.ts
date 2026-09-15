@@ -3,6 +3,7 @@ import {
   assessGeneratedStoryIp,
   assessStoryIdeaIp,
   isStoryPrintRestricted,
+  originalizeProseText,
   originalizeStoryIdeaText,
 } from "@/lib/ipGuardrails";
 
@@ -199,5 +200,49 @@ describe("IP guardrails", () => {
         ],
       })
     ).toBe(true);
+  });
+
+  describe("originalizeProseText", () => {
+    it("replaces branded references in reading prose", () => {
+      const cleaned = originalizeProseText(
+        "Bailey met Buzz Lightyear beside the toy box."
+      );
+      expect(cleaned).not.toMatch(/buzz lightyear/i);
+      expect(cleaned).toContain("an original space-themed toy");
+    });
+
+    it("preserves paragraph breaks so page formatting survives", () => {
+      const cleaned = originalizeProseText(
+        "First paragraph about Buzz Lightyear.\n\nSecond paragraph."
+      );
+      expect(cleaned).toContain("\n\n");
+      expect(cleaned).not.toMatch(/buzz lightyear/i);
+    });
+
+    it("leaves clean prose untouched", () => {
+      const original = "Bailey climbed the moon ladder.\n\nThe end of the day.";
+      expect(originalizeProseText(original)).toBe(original);
+    });
+  });
+
+  it("marks a story clear once branded prose has been scrubbed", () => {
+    const cleaned = {
+      title: originalizeProseText("Bailey and Buzz Lightyear"),
+      theme: "bravery",
+      premise: "",
+      notes: "",
+      pages: [
+        {
+          pageNumber: 1,
+          text: originalizeProseText(
+            "Bailey met Buzz Lightyear beside the toy box."
+          ),
+          illustrationPrompt: originalizeProseText("Buzz Lightyear in a bedroom."),
+        },
+      ],
+    };
+    const policy = assessGeneratedStoryIp(cleaned);
+    expect(policy.riskLevel).toBe("clear");
+    expect(policy.printAllowed).toBe(true);
   });
 });

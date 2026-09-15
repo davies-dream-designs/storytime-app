@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { Link } from "@/i18n/navigation";
+import { Link, redirect } from "@/i18n/navigation";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 import Icon from "@/components/ui/Icon";
-import { getDateLocale } from "@/i18n/locales";
+import { getDateLocale, isLocale } from "@/i18n/locales";
 import { db } from "@/lib/db";
 import { getSharedStoryByToken } from "@/lib/sharedStory";
 import SharedNarrationButton from "./SharedNarrationButton";
@@ -54,9 +54,17 @@ export default async function SharedStoryPage({
   const shared = await getSharedStoryByToken(token);
   if (!shared) notFound();
 
-  const t = await getTranslations("share");
-
   const { story } = shared;
+
+  // A shared story is written in a fixed language. If the visitor landed on a
+  // different-locale URL, send them to the story's own locale so the page
+  // chrome, dates, and prose all read in one consistent language instead of
+  // Spanish prose wrapped in English chrome.
+  if (isLocale(story.locale) && story.locale !== locale) {
+    redirect({ href: `/s/${token}`, locale: story.locale });
+  }
+
+  const t = await getTranslations("share");
   const dateStr = new Date(story.createdAt).toLocaleDateString(
     getDateLocale(locale),
     {

@@ -12,6 +12,7 @@ import type {
 } from "@/types/printBook";
 import { BOOK_SPEC } from "@/lib/print-books/bookConfig";
 import { buildIllustrationDirection } from "@/lib/print-books/characterBible";
+import { originalizeReferenceTerm } from "@/lib/ipGuardrails";
 import {
   isBookAssetStorageConfigured,
   storeBookAsset,
@@ -304,12 +305,12 @@ export function buildCoverIllustrationPrompt(input: {
       [
         {
           variants: [
-            `Book title: ${story.title}. A personalised bedtime story for ${profile.name}. Age band: ${input.project.ageBand}. Theme: ${story.theme || "gentle bedtime adventure"}.`,
+            `Book title: ${originalizeReferenceTerm(story.title)}. A personalised bedtime story for ${profile.name}. Age band: ${input.project.ageBand}. Theme: ${originalizeReferenceTerm(story.theme || "gentle bedtime adventure")}.`,
           ],
         },
         {
           variants: [
-            "Create a square children's picture-book front cover with a warm, gentle bedtime illustration style.",
+            "Create a square children's picture-book front cover in a rich painterly gouache-and-soft-oil illustration style with warm golden-hour light and visible brushwork.",
           ],
         },
         // Keep the outfit lock even on the stripped moderation-retry prompt, so
@@ -341,7 +342,7 @@ export function buildCoverIllustrationPrompt(input: {
 
   const sceneDirection =
     coverSpread?.illustrationPrompt ??
-    `Front cover for \"${story.title}\" starring ${profile.name}.`;
+    `Front cover for \"${originalizeReferenceTerm(story.title)}\" starring ${profile.name}.`;
 
   return fitPromptSegments(
     [
@@ -353,14 +354,14 @@ export function buildCoverIllustrationPrompt(input: {
       },
       {
         variants: [
-          `Book title: ${story.title}. Main child: ${profile.name}. Age band: ${input.project.ageBand}. Theme: ${story.theme || "gentle bedtime adventure"}.`,
-          `Book title: ${story.title}. Main child: ${profile.name}. Theme: ${story.theme || "gentle bedtime adventure"}.`,
+          `Book title: ${originalizeReferenceTerm(story.title)}. Main child: ${profile.name}. Age band: ${input.project.ageBand}. Theme: ${originalizeReferenceTerm(story.theme || "gentle bedtime adventure")}.`,
+          `Book title: ${originalizeReferenceTerm(story.title)}. Main child: ${profile.name}. Theme: ${originalizeReferenceTerm(story.theme || "gentle bedtime adventure")}.`,
         ],
       },
       {
         variants: [
-          `Cover scene: ${clampPromptText(sceneDirection, 700)}.`,
-          `Cover scene: ${clampPromptText(sceneDirection, 320)}.`,
+          `Cover scene: ${clampPromptText(originalizeReferenceTerm(sceneDirection), 700)}.`,
+          `Cover scene: ${clampPromptText(originalizeReferenceTerm(sceneDirection), 320)}.`,
         ],
       },
       {
@@ -379,8 +380,8 @@ export function buildCoverIllustrationPrompt(input: {
       },
       {
         variants: [
-          "Create a square children's picture-book front cover with space for title treatment and a warm bedtime-book feeling.",
-          "Create a square bedtime picture-book front cover with a warm storybook feeling.",
+          "Create a square children's picture-book front cover with space for title treatment and a rich painterly, warm golden-hour storybook feeling.",
+          "Create a square bedtime picture-book front cover with a rich painterly, warm golden-hour storybook feeling.",
         ],
       },
       {
@@ -1556,7 +1557,7 @@ function buildIllustrationQaMetadata(input: {
   };
 }
 
-function buildPageIllustrationPrompt(input: {
+export function buildPageIllustrationPrompt(input: {
   project: BookProject;
   story: Story;
   profile: ChildProfile;
@@ -1581,7 +1582,7 @@ function buildPageIllustrationPrompt(input: {
   const pageText = getIllustratedSpreadMomentText(spread, side);
   const pageMoment = omitPageText
     ? ""
-    : sanitizePageMomentForImagePrompt(pageText);
+    : originalizeReferenceTerm(sanitizePageMomentForImagePrompt(pageText));
   // This spread's own narrative/scene text. It already reflects the cumulative
   // per-spread gating applied at compose time (companions/props not yet
   // introduced were stripped from the spread's illustrationPrompt), so gating
@@ -1623,14 +1624,14 @@ function buildPageIllustrationPrompt(input: {
     [
       {
         variants: [
-          `Illustration direction: ${clampPromptText(spread.illustrationPrompt, 900)}.`,
-          `Illustration direction: ${clampPromptText(spread.illustrationPrompt, 420)}.`,
+          `Illustration direction: ${clampPromptText(originalizeReferenceTerm(spread.illustrationPrompt), 900)}.`,
+          `Illustration direction: ${clampPromptText(originalizeReferenceTerm(spread.illustrationPrompt), 420)}.`,
         ],
       },
       {
         variants: [
-          `Scene brief: ${clampPromptText(spread.sceneBrief, 700)}.`,
-          `Scene brief: ${clampPromptText(spread.sceneBrief, 320)}.`,
+          `Scene brief: ${clampPromptText(originalizeReferenceTerm(spread.sceneBrief), 700)}.`,
+          `Scene brief: ${clampPromptText(originalizeReferenceTerm(spread.sceneBrief), 320)}.`,
           "",
         ],
       },
@@ -1685,8 +1686,8 @@ function buildPageIllustrationPrompt(input: {
       },
       {
         variants: [
-          `Book title: ${story.title}. Main child: ${profile.name}. Age band: ${project.ageBand}. Spread sequence: ${spread.sequence}, ${side} page.`,
-          `Book title: ${story.title}. Main child: ${profile.name}. Spread sequence: ${spread.sequence}, ${side} page.`,
+          `Book title: ${originalizeReferenceTerm(story.title)}. Main child: ${profile.name}. Age band: ${project.ageBand}. Spread sequence: ${spread.sequence}, ${side} page.`,
+          `Book title: ${originalizeReferenceTerm(story.title)}. Main child: ${profile.name}. Spread sequence: ${spread.sequence}, ${side} page.`,
           "",
         ],
       },

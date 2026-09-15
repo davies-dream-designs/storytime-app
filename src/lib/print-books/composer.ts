@@ -432,7 +432,7 @@ function createStoryExpansionSpread(input: {
         leftPageText: summary,
         rightPageText: "",
         sceneBrief: `A scene-setting spread that lets ${sourceBeat.summary} land clearly`,
-        illustrationPrompt: `A warm storybook spread that opens up the world around ${sourceBeat.visualIntent} with inviting atmosphere and clear focal storytelling.`,
+        illustrationPrompt: `A rich painterly storybook spread that opens up the world around ${sourceBeat.visualIntent} with warm golden-hour atmosphere, luminous depth, and clear focal storytelling.`,
       },
       {
         layoutType: "quiet" as const,
@@ -446,7 +446,7 @@ function createStoryExpansionSpread(input: {
         leftPageText: `${anchorLine}\n\nIt felt like the adventure was opening one little piece at a time.`,
         rightPageText: "",
         sceneBrief: `A turn-the-page spread extending ${sourceBeat.summary}`,
-        illustrationPrompt: `A storybook transition spread inspired by ${sourceBeat.visualIntent}, designed to create anticipation without adding noise.`,
+        illustrationPrompt: `A rich painterly storybook transition spread inspired by ${sourceBeat.visualIntent}, with warm golden-hour light and luminous depth, designed to create anticipation without adding noise.`,
       },
       {
         layoutType: "quiet" as const,

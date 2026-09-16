@@ -235,6 +235,7 @@ export const awardMonthlyPublicStoryWinners = inngest.createFunction(
         "@/lib/publicStoryRewards"
       );
       const { db } = await import("@/lib/db");
+      const { TRADE_SYSTEM_USER_ID } = await import("@/types/tradeBook");
 
       const voteMonth = db.publicStoryVotes.getVoteMonth();
 
@@ -251,7 +252,10 @@ export const awardMonthlyPublicStoryWinners = inngest.createFunction(
         await db.publicStoryModerationEvents.listAllRewardedStoryIds();
       const leaderboard = await db.publicStoryVotes.leaderboard(50);
       const eligible = leaderboard.filter(
-        (e) => e.votes > 0 && !previouslyRewardedIds.has(e.story.id)
+        (e) =>
+          e.votes > 0 &&
+          !previouslyRewardedIds.has(e.story.id) &&
+          e.story.userId !== TRADE_SYSTEM_USER_ID
       );
 
       const awarded: Array<{

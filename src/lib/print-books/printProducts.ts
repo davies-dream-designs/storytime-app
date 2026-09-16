@@ -1,5 +1,8 @@
 import type { AgeBand, BookProject } from "@/types/printBook";
 
+// "paperback" is defined in lulu.ts and pdf/constants.ts but kept out of
+// PRINT_PRODUCTS until AU shipping availability is confirmed via a live quote.
+// To enable: add "paperback" back to PrintProductKey and un-comment the entry.
 export type PrintProductKey = "hardcover";
 export type CoverSpineSource = "configured" | "storycot_estimate";
 

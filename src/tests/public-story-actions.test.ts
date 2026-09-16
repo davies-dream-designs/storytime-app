@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { TRADE_SYSTEM_USER_ID } from "@/types/tradeBook";
 
 const { mockAuth, mockDb, mockNotifyPublicStoryOwner } = vi.hoisted(() => ({
   mockAuth: vi.fn(async () => ({ userId: "reader-1" })),
@@ -86,6 +87,36 @@ describe("public story actions", () => {
         headline: "Your story has its first vote",
       })
     );
+  });
+
+  it("accepts a vote on a trade title but does not notify the trade system owner", async () => {
+    const tradeStory = {
+      ...approvedStory,
+      id: "trade-story-1",
+      userId: TRADE_SYSTEM_USER_ID,
+    };
+    mockDb.stories.getById.mockResolvedValue(tradeStory);
+    mockDb.publicStoryVotes.countByStoryIds.mockResolvedValue({
+      "trade-story-1": 1,
+    });
+
+    const { POST } = await import("@/app/api/public-stories/[id]/vote/route");
+    const res = await POST(
+      new Request("http://localhost/api/public-stories/trade-story-1/vote"),
+      { params: Promise.resolve({ id: "trade-story-1" }) }
+    );
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({
+      voted: true,
+      alreadyVoted: false,
+      votes: 1,
+    });
+    expect(mockDb.publicStoryVotes.create).toHaveBeenCalledWith(
+      "trade-story-1",
+      "reader-1"
+    );
+    expect(mockNotifyPublicStoryOwner).not.toHaveBeenCalled();
   });
 
   it("does not count votes from the story creator", async () => {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { notifyPublicStoryOwner } from "@/lib/publicStoryNotifications";
+import { TRADE_SYSTEM_USER_ID } from "@/types/tradeBook";
 
 export async function POST(
   req: Request,
@@ -33,7 +34,7 @@ export async function POST(
   const counts = await db.publicStoryVotes.countByStoryIds([id]);
   const votes = counts[id] ?? 0;
 
-  if (created && (votes === 1 || votes % 10 === 0)) {
+  if (created && (votes === 1 || votes % 10 === 0) && story.userId !== TRADE_SYSTEM_USER_ID) {
     const origin = new URL(req.url).origin;
     await notifyPublicStoryOwner({
       story,

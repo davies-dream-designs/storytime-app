@@ -9,6 +9,7 @@ import {
   LULU_HARDCOVER_COVER_PANEL_WIDTH_IN,
   LULU_INTERIOR_PDF_PAGE_HEIGHT_IN,
   LULU_INTERIOR_PDF_PAGE_WIDTH_IN,
+  LULU_PAPERBACK_COVER_PAGE_HEIGHT_IN,
 } from "@/lib/print-books/lulu";
 
 export const POINTS_PER_INCH = 72;
@@ -42,5 +43,13 @@ export const LULU_PDF_GEOMETRY: PdfPageGeometry = {
 export const LULU_COVER_PDF_GEOMETRY: PdfPageGeometry = {
   pageWidth: LULU_HARDCOVER_COVER_PANEL_WIDTH_IN * POINTS_PER_INCH,
   pageHeight: LULU_HARDCOVER_COVER_PAGE_HEIGHT_IN * POINTS_PER_INCH,
+  textSafeMargin: FULL_BLEED_TEXT_SAFE_MARGIN,
+};
+
+// Paperback panel width is dynamic (spine varies by page count), so pageWidth here
+// is the trim + bleed panel width only; cover builders compute full width at runtime.
+export const LULU_PAPERBACK_COVER_PDF_GEOMETRY: PdfPageGeometry = {
+  pageWidth: LULU_PAPERBACK_COVER_PAGE_HEIGHT_IN * POINTS_PER_INCH, // square: panel width = height
+  pageHeight: LULU_PAPERBACK_COVER_PAGE_HEIGHT_IN * POINTS_PER_INCH,
   textSafeMargin: FULL_BLEED_TEXT_SAFE_MARGIN,
 };

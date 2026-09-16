@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   text,
@@ -36,6 +37,14 @@ import type {
   BookBuildJobStatus,
 } from "@/types/printBook";
 import type { GiftOrderStatus } from "@/types/gift";
+import type {
+  TradeBookJobKind,
+  TradeBookJobStatus,
+  TradeTitleGateResults,
+  TradeTitleModelMetadata,
+  TradeTitleSeedBrief,
+  TradeTitleStatus,
+} from "@/types/tradeBook";
 
 export const profiles = pgTable(
   "profiles",
@@ -485,6 +494,67 @@ export const emailOutbox = pgTable(
     sentAt: text("sent_at"),
   },
   (t) => [index("email_outbox_status_idx").on(t.status)]
+);
+
+// Durable queue for private trade-book generation on the Cliproxy host. Jobs
+// retain their retry schedule and lease ownership so a worker restart cannot
+// strand work or let a stale worker commit over a newer attempt.
+export const tradeBookJobs = pgTable(
+  "trade_book_jobs",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind").$type<TradeBookJobKind>().notNull(),
+    dedupeKey: text("dedupe_key").notNull().unique(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    status: text("status").$type<TradeBookJobStatus>().notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    availableAt: text("available_at").notNull(),
+    leaseToken: text("lease_token"),
+    leaseExpiresAt: text("lease_expires_at"),
+    lastError: text("last_error"),
+    startedAt: text("started_at"),
+    completedAt: text("completed_at"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [
+    index("trade_book_jobs_claim_idx").on(t.status, t.availableAt),
+    index("trade_book_jobs_lease_idx").on(t.status, t.leaseExpiresAt),
+  ]
+);
+
+export const tradeTitles = pgTable(
+  "trade_titles",
+  {
+    id: text("id").primaryKey(),
+    status: text("status").$type<TradeTitleStatus>().notNull(),
+    seedBrief: jsonb("seed_brief").$type<TradeTitleSeedBrief>().notNull(),
+    profileId: text("profile_id"),
+    storyId: text("story_id"),
+    bookProjectId: text("book_project_id"),
+    modelMetadata: jsonb("model_metadata").$type<TradeTitleModelMetadata>(),
+    gateResults: jsonb("gate_results").$type<TradeTitleGateResults>(),
+    generationError: text("generation_error"),
+    reviewedAt: text("reviewed_at"),
+    reviewedBy: text("reviewed_by"),
+    reviewNote: text("review_note"),
+    publishedAt: text("published_at"),
+    storeUrl: text("store_url"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [
+    index("trade_titles_status_updated_at_idx").on(t.status, t.updatedAt),
+    uniqueIndex("trade_titles_profile_id_unique")
+      .on(t.profileId)
+      .where(sql`${t.profileId} IS NOT NULL`),
+    uniqueIndex("trade_titles_story_id_unique")
+      .on(t.storyId)
+      .where(sql`${t.storyId} IS NOT NULL`),
+    uniqueIndex("trade_titles_book_project_id_unique")
+      .on(t.bookProjectId)
+      .where(sql`${t.bookProjectId} IS NOT NULL`),
+  ]
 );
 
 // Authoritative per-user credit balance (opt-in via CREDIT_LEDGER_ENABLED).

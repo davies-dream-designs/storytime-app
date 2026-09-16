@@ -4,6 +4,12 @@ import type {
   BookProject,
   PrintOrderRecord,
 } from "@/types/printBook";
+import type {
+  TradeBookJob,
+  TradeBookJobKind,
+  TradeTitle,
+  TradeTitleStatus,
+} from "@/types/tradeBook";
 
 export function createMemoryDb() {
   const profileMap = new Map<string, ChildProfile>();
@@ -12,6 +18,8 @@ export function createMemoryDb() {
   const storyPersonMap = new Map<string, StoryPerson>();
   const bookProjectMap = new Map<string, BookProject>();
   const bookBuildJobMap = new Map<string, BookBuildJob>();
+  const tradeBookJobMap = new Map<string, TradeBookJob>();
+  const tradeTitleMap = new Map<string, TradeTitle>();
   const printOrderMap = new Map<string, PrintOrderRecord>();
   const emailClaimSet = new Set<string>();
   const processedWebhookEventLeases = new Map<
@@ -34,6 +42,8 @@ export function createMemoryDb() {
       storyPersonMap.clear();
       bookProjectMap.clear();
       bookBuildJobMap.clear();
+      tradeBookJobMap.clear();
+      tradeTitleMap.clear();
       printOrderMap.clear();
       emailClaimSet.clear();
       processedWebhookEventLeases.clear();
@@ -450,6 +460,205 @@ export function createMemoryDb() {
           row.status = "failed";
           row.lastError = error;
         }
+      },
+    },
+
+    tradeTitles: {
+      async create(title: TradeTitle): Promise<void> {
+        tradeTitleMap.set(title.id, title);
+      },
+      async getById(id: string): Promise<TradeTitle | undefined> {
+        return tradeTitleMap.get(id);
+      },
+      async listByStatuses(
+        statuses: TradeTitleStatus[],
+        limit = 100
+      ): Promise<TradeTitle[]> {
+        if (statuses.length === 0) return [];
+        const statusSet = new Set(statuses);
+        return [...tradeTitleMap.values()]
+          .filter((title) => statusSet.has(title.status))
+          .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+          .slice(0, limit);
+      },
+      async update(
+        id: string,
+        updates: Partial<Omit<TradeTitle, "id" | "createdAt">>
+      ): Promise<TradeTitle | undefined> {
+        const current = tradeTitleMap.get(id);
+        if (!current) return undefined;
+        const next: TradeTitle = {
+          ...current,
+          ...updates,
+          id: current.id,
+          createdAt: current.createdAt,
+          updatedAt: new Date().toISOString(),
+        };
+        tradeTitleMap.set(id, next);
+        return next;
+      },
+    },
+
+    tradeBookJobs: {
+      async enqueue(input: {
+        kind: TradeBookJobKind;
+        dedupeKey: string;
+        payload: Record<string, unknown>;
+        availableAt?: string;
+      }): Promise<TradeBookJob | undefined> {
+        if (
+          [...tradeBookJobMap.values()].some(
+            (job) => job.dedupeKey === input.dedupeKey
+          )
+        ) {
+          return undefined;
+        }
+        const now = new Date().toISOString();
+        const job: TradeBookJob = {
+          id: `trade-job-${tradeBookJobMap.size + 1}`,
+          kind: input.kind,
+          dedupeKey: input.dedupeKey,
+          payload: input.payload,
+          status: "queued",
+          attempts: 0,
+          availableAt: input.availableAt ?? now,
+          createdAt: now,
+          updatedAt: now,
+        };
+        tradeBookJobMap.set(job.id, job);
+        return job;
+      },
+      async claimNext(input: {
+        leaseToken: string;
+        now: string;
+        leaseExpiresAt: string;
+      }): Promise<TradeBookJob | undefined> {
+        const job = [...tradeBookJobMap.values()]
+          .filter((candidate) => {
+            if (
+              (candidate.status === "queued" ||
+                candidate.status === "retry_scheduled") &&
+              candidate.availableAt <= input.now
+            ) {
+              return true;
+            }
+            return (
+              candidate.status === "running" &&
+              candidate.leaseExpiresAt !== undefined &&
+              candidate.leaseExpiresAt < input.now
+            );
+          })
+          .sort(
+            (left, right) =>
+              left.availableAt.localeCompare(right.availableAt) ||
+              left.createdAt.localeCompare(right.createdAt)
+          )[0];
+        if (!job) return undefined;
+        const claimed: TradeBookJob = {
+          ...job,
+          status: "running",
+          attempts: job.attempts + 1,
+          leaseToken: input.leaseToken,
+          leaseExpiresAt: input.leaseExpiresAt,
+          startedAt: input.now,
+          updatedAt: input.now,
+        };
+        tradeBookJobMap.set(claimed.id, claimed);
+        return claimed;
+      },
+      async heartbeat(input: {
+        id: string;
+        leaseToken: string;
+        leaseExpiresAt: string;
+        now: string;
+      }): Promise<boolean> {
+        const job = tradeBookJobMap.get(input.id);
+        if (
+          !job ||
+          job.status !== "running" ||
+          job.leaseToken !== input.leaseToken
+        ) {
+          return false;
+        }
+        tradeBookJobMap.set(input.id, {
+          ...job,
+          leaseExpiresAt: input.leaseExpiresAt,
+          updatedAt: input.now,
+        });
+        return true;
+      },
+      async complete(input: {
+        id: string;
+        leaseToken: string;
+        now: string;
+      }): Promise<boolean> {
+        const job = tradeBookJobMap.get(input.id);
+        if (
+          !job ||
+          job.status !== "running" ||
+          job.leaseToken !== input.leaseToken
+        ) {
+          return false;
+        }
+        tradeBookJobMap.set(input.id, {
+          ...job,
+          status: "completed",
+          leaseToken: undefined,
+          leaseExpiresAt: undefined,
+          completedAt: input.now,
+          updatedAt: input.now,
+        });
+        return true;
+      },
+      async scheduleRetry(input: {
+        id: string;
+        leaseToken: string;
+        error: string;
+        availableAt: string;
+        now: string;
+      }): Promise<boolean> {
+        const job = tradeBookJobMap.get(input.id);
+        if (
+          !job ||
+          job.status !== "running" ||
+          job.leaseToken !== input.leaseToken
+        ) {
+          return false;
+        }
+        tradeBookJobMap.set(input.id, {
+          ...job,
+          status: "retry_scheduled",
+          availableAt: input.availableAt,
+          leaseToken: undefined,
+          leaseExpiresAt: undefined,
+          lastError: input.error.slice(0, 500),
+          updatedAt: input.now,
+        });
+        return true;
+      },
+      async fail(input: {
+        id: string;
+        leaseToken: string;
+        error: string;
+        now: string;
+      }): Promise<boolean> {
+        const job = tradeBookJobMap.get(input.id);
+        if (
+          !job ||
+          job.status !== "running" ||
+          job.leaseToken !== input.leaseToken
+        ) {
+          return false;
+        }
+        tradeBookJobMap.set(input.id, {
+          ...job,
+          status: "failed",
+          leaseToken: undefined,
+          leaseExpiresAt: undefined,
+          lastError: input.error.slice(0, 500),
+          updatedAt: input.now,
+        });
+        return true;
       },
     },
 

@@ -76,6 +76,24 @@ export default function TradeTitlesReviewSection({
     });
   }
 
+  function rebuild(bookProjectId: string) {
+    setError(null);
+    startTransition(async () => {
+      const response = await fetch(
+        `/api/admin/books/${bookProjectId}/rebuild`,
+        { method: "POST" }
+      );
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        setError(body?.error ?? "Could not trigger rebuild.");
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   function review(id: string, decision: "approved" | "rejected") {
     setError(null);
     startTransition(async () => {
@@ -374,6 +392,22 @@ export default function TradeTitlesReviewSection({
                     </button>
                   </div>
                 </>
+              ) : null}
+              {title.status === "approved" && title.bookProjectId ? (
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => rebuild(title.bookProjectId!)}
+                    className="storycot-btn storycot-btn-secondary storycot-btn-compact"
+                  >
+                    🔄 Rebuild illustrations
+                  </button>
+                  <p className="mt-1 text-xs text-night-400">
+                    Book project:{" "}
+                    <span className="font-mono">{title.bookProjectId}</span>
+                  </p>
+                </div>
               ) : null}
             </article>
           ))}

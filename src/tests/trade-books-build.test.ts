@@ -303,7 +303,12 @@ describe("buildTradeBook", () => {
 
   it("skips character bible generation if already present on the project", async () => {
     const bible = makeCharacterBible();
-    const project = makeProject({ characterBible: bible });
+    // status:"illustrating" with spreads already set → bible step must be skipped
+    const project = makeProject({
+      characterBible: bible,
+      status: "illustrating",
+      spreads: [{ id: "s1" } as never],
+    });
     const job = makeBuildJob({ projectId: project.id });
     const title = makeTitle({
       status: "approved",

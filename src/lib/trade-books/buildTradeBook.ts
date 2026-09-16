@@ -1,5 +1,8 @@
 import { db } from "@/lib/db";
+import { deriveBeatsFromStory } from "@/lib/print-books/beats";
+import { composePrintBookSpreads } from "@/lib/print-books/composer";
 import { processBookBuildJob } from "@/lib/print-books/jobs";
+import { getBookProjectStageLabel } from "@/lib/print-books/status";
 import { generateTradeCharacterBible } from "@/lib/trade-books/generateTradeCharacterBible";
 import { TradeBookJobPermanentError } from "@/lib/trade-books/worker";
 
@@ -53,13 +56,40 @@ export async function buildTradeBook(
   const profile = await db.profiles.getById(project.profileId);
   if (!profile) throw new TradeBookJobPermanentError("Profile not found");
 
-  if (!project.characterBible) {
+  // Generate character bible via Cliproxy and set up spreads directly,
+  // bypassing processBookBuildJob's bible stage (which calls the Anthropic SDK).
+  // Skip if already in illustrating/later stage with a bible in place.
+  const needsBible =
+    project.status === "queued" ||
+    project.status === "bible" ||
+    !project.characterBible ||
+    !project.spreads.length;
+  if (needsBible) {
     const bible = await generateTradeCharacterBible({
       profile,
       story,
       options: { fetchImpl: options.fetchImpl },
     });
-    await db.bookProjects.update(project.id, { characterBible: bible });
+    const beats = project.beats.length
+      ? project.beats
+      : deriveBeatsFromStory(story);
+    const spreads = composePrintBookSpreads({
+      bookProjectId: project.id,
+      story,
+      profile,
+      ageBand: project.ageBand,
+      beats,
+      characterBible: bible,
+    });
+    await db.bookProjects.update(project.id, {
+      status: "illustrating",
+      currentStageLabel: getBookProjectStageLabel("illustrating"),
+      characterBible: bible,
+      beats,
+      spreads,
+      completedSpreads: 0,
+      totalSpreads: spreads.length,
+    });
   }
 
   const job = await db.bookBuildJobs.getCurrentByProjectId(project.id);

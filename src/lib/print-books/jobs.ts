@@ -53,6 +53,14 @@ import type {
 
 export { BOOK_JOB_STALE_MS, isBookBuildJobStale, shouldSendBookReadyEmail };
 
+function deferAfterBuild(callback: () => Promise<void>) {
+  if (process.env.STORYCOT_LOCAL_TRADE_WORKER === "true") {
+    void callback();
+    return;
+  }
+  after(callback);
+}
+
 async function advanceFullBuild(project: BookProject, context: BuildContext) {
   if (
     project.status === "queued" ||
@@ -448,7 +456,7 @@ export async function regenerateBookSpreadPageImage(input: {
 }
 
 function scheduleBookBuildJobContinuation(jobId: string, waitMs = 0) {
-  after(async () => {
+  deferAfterBuild(async () => {
     try {
       if (waitMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, waitMs));
@@ -705,7 +713,7 @@ export async function processBookBuildJob(jobId: string) {
         finalProject = claimedProject;
 
         // Fire-and-forget - email failure must never break the build.
-        after(async () => {
+        deferAfterBuild(async () => {
           try {
             const { clerkClient } = await import("@clerk/nextjs/server");
             const clerk = await clerkClient();

@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
 import { deriveBeatsFromStory } from "@/lib/print-books/beats";
 import { composePrintBookSpreads } from "@/lib/print-books/composer";
@@ -5,6 +6,21 @@ import { processBookBuildJob } from "@/lib/print-books/jobs";
 import { getBookProjectStageLabel } from "@/lib/print-books/status";
 import { generateTradeCharacterBible } from "@/lib/trade-books/generateTradeCharacterBible";
 import { TradeBookJobPermanentError } from "@/lib/trade-books/worker";
+
+
+async function publishTradeStory(storyId: string) {
+  const story = await db.stories.getById(storyId);
+  if (!story) throw new TradeBookJobPermanentError("Story not found");
+
+  await db.stories.update(storyId, {
+    visibility: "public",
+    publicReviewStatus: "approved",
+    publicReviewedAt: new Date().toISOString(),
+    publicReviewedBy: "trade-system",
+    publicAuthorName: "Storycot",
+    shareToken: story.shareToken ?? randomUUID().replaceAll("-", ""),
+  });
+}
 
 export async function buildTradeBook(
   tradeTitleId: string,
@@ -16,7 +32,10 @@ export async function buildTradeBook(
   const title = await db.tradeTitles.getById(tradeTitleId);
   if (!title) throw new TradeBookJobPermanentError("Trade title not found");
 
-  if (title.status === "book_ready") return;
+  if (title.status === "book_ready") {
+    if (title.storyId) await publishTradeStory(title.storyId);
+    return;
+  }
 
   if (title.status !== "approved") {
     throw new TradeBookJobPermanentError(
@@ -36,17 +55,8 @@ export async function buildTradeBook(
   }
 
   if (project.status === "ready") {
-    const now = new Date();
     await db.tradeTitles.update(tradeTitleId, { status: "book_ready" });
-    if (title.storyId) {
-      await db.stories.update(title.storyId, {
-        visibility: "public",
-        publicReviewStatus: "approved",
-        publicReviewedAt: now.toISOString(),
-        publicReviewedBy: "trade-system",
-        publicAuthorName: "Storycot",
-      });
-    }
+    if (title.storyId) await publishTradeStory(title.storyId);
     return;
   }
 
@@ -109,16 +119,7 @@ export async function buildTradeBook(
 
   const finalProject = await db.bookProjects.getById(project.id);
   if (finalProject?.status === "ready") {
-    const now = new Date();
     await db.tradeTitles.update(tradeTitleId, { status: "book_ready" });
-    if (title.storyId) {
-      await db.stories.update(title.storyId, {
-        visibility: "public",
-        publicReviewStatus: "approved",
-        publicReviewedAt: now.toISOString(),
-        publicReviewedBy: "trade-system",
-        publicAuthorName: "Storycot",
-      });
-    }
+    if (title.storyId) await publishTradeStory(title.storyId);
   }
 }

@@ -81,6 +81,21 @@ describe('runStorycotPrintProofing', () => {
     expect(report.orderabilityState).toBe('draft_only')
   })
 
+  it('allows intentionally text-only spreads without illustration assets', async () => {
+    const { runStorycotPrintProofing } = await import('@/lib/print-books/proofing')
+    const project = createBookProject()
+    project.spreads[4] = {
+      ...project.spreads[4]!,
+      layoutType: 'text_only',
+      imageUrl: undefined,
+      leftPageImageUrl: undefined,
+    }
+
+    const report = runStorycotPrintProofing(project)
+    expect(report.errors.some((error) => error.includes('Spread images are missing'))).toBe(false)
+  })
+
+
   it('passes when the cover spine width comes from the Storycot spine estimate', async () => {
     const { runStorycotPrintProofing } = await import('@/lib/print-books/proofing')
     const project = createBookProject()

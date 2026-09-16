@@ -78,9 +78,12 @@ export default async function SharedStoryPage({
     shared.spreads.find((spread) => spread.imageUrl)?.imageUrl;
   const isPublicApproved =
     story.visibility === "public" && story.publicReviewStatus === "approved";
-  const voteCounts = isPublicApproved
-    ? await db.publicStoryVotes.countByStoryIds([story.id])
-    : {};
+  const [voteCounts, printReadiness] = isPublicApproved
+    ? await Promise.all([
+        db.publicStoryVotes.countByStoryIds([story.id]),
+        db.bookProjects.getPublicPrintReadinessByStoryIds([story.id]),
+      ])
+    : [{}, {}];
 
   return (
     <div className="min-h-screen bg-night-50">
@@ -142,6 +145,7 @@ export default async function SharedStoryPage({
                   storyId={story.id}
                   storyTitle={story.title}
                   shareToken={token}
+                  printReadiness={printReadiness[story.id]}
                   initialVotes={voteCounts[story.id] ?? 0}
                 />
               </div>

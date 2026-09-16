@@ -180,11 +180,14 @@ export function runStorycotPrintProofing(
     });
   }
 
-  // A spread has art if its primary image is populated (supports legacy shared images).
+  // Text-only and end-matter spreads deliberately have no art asset.
   const spreadsMissingImages = project.spreads
     .filter(
       (spread) =>
         spread.sequence > 1 &&
+        spread.layoutType !== "text_only" &&
+        spread.layoutType !== "end_matter" &&
+        spread.layoutType !== "front_matter" &&
         spread.title !== "Title" &&
         spread.title !== "Back Cover" &&
         (!(spread.leftPageImageUrl ?? spread.imageUrl) ||

@@ -219,7 +219,9 @@ async function advanceExportBuild(
 }
 
 function getSpreadImageJobId(spread: BookSpread, side: "left" | "right") {
-  return side === "left" ? spread.leftPageImageJobId : spread.rightPageImageJobId;
+  return side === "left"
+    ? spread.leftPageImageJobId
+    : spread.rightPageImageJobId;
 }
 
 function withSpreadImageGenerationStatus(
@@ -239,14 +241,16 @@ function withSpreadImageGenerationStatus(
     return {
       ...spread,
       leftPageImageUrl: input.generated?.url ?? spread.leftPageImageUrl,
-      leftPageWebImageUrl: input.generated?.webUrl ?? spread.leftPageWebImageUrl,
+      leftPageWebImageUrl:
+        input.generated?.webUrl ?? spread.leftPageWebImageUrl,
       thumbnailUrl: input.generated
-        ? input.generated.webUrl ?? input.generated.url
+        ? (input.generated.webUrl ?? input.generated.url)
         : spread.thumbnailUrl,
       leftPageImageError: input.error,
       leftPageImageStatus: input.status,
       leftPageImageJobId: input.clearJob ? undefined : input.jobId,
-      leftPageImageAttemptKey: input.attemptKey ?? spread.leftPageImageAttemptKey,
+      leftPageImageAttemptKey:
+        input.attemptKey ?? spread.leftPageImageAttemptKey,
       leftPageImageUpdatedAt: updatedAt,
       leftPageQa: input.generated?.qa ?? spread.leftPageQa,
     };
@@ -257,13 +261,12 @@ function withSpreadImageGenerationStatus(
     rightPageImageError: input.error,
     rightPageImageStatus: input.status,
     rightPageImageJobId: input.clearJob ? undefined : input.jobId,
-    rightPageImageAttemptKey: input.attemptKey ?? spread.rightPageImageAttemptKey,
+    rightPageImageAttemptKey:
+      input.attemptKey ?? spread.rightPageImageAttemptKey,
     rightPageImageUpdatedAt: updatedAt,
     rightPageQa: input.generated?.qa ?? spread.rightPageQa,
   };
 }
-
-
 
 export async function regenerateBookSpreadPageImage(input: {
   projectId: string;
@@ -308,7 +311,11 @@ export async function regenerateBookSpreadPageImage(input: {
 
   const oldUrls =
     input.side === "left"
-      ? [spread.leftPageImageUrl, spread.leftPageWebImageUrl, spread.thumbnailUrl]
+      ? [
+          spread.leftPageImageUrl,
+          spread.leftPageWebImageUrl,
+          spread.thumbnailUrl,
+        ]
       : [spread.rightPageImageUrl];
   const context = await loadBuildContext(project);
   const characterBible = enrichCharacterBibleWithLockedRules(
@@ -332,13 +339,19 @@ export async function regenerateBookSpreadPageImage(input: {
       correctionNote: input.correctionNote,
     });
   } catch (err) {
-    const latestProject = (await db.bookProjects.getById(project.id)) ?? project;
+    const latestProject =
+      (await db.bookProjects.getById(project.id)) ?? project;
     const latestSpread =
-      latestProject.spreads.find((item) => item.id === input.spreadId) ?? spread;
-    if (input.jobId && getSpreadImageJobId(latestSpread, input.side) !== input.jobId) {
+      latestProject.spreads.find((item) => item.id === input.spreadId) ??
+      spread;
+    if (
+      input.jobId &&
+      getSpreadImageJobId(latestSpread, input.side) !== input.jobId
+    ) {
       return latestProject;
     }
-    const message = err instanceof Error ? err.message : "Image generation failed.";
+    const message =
+      err instanceof Error ? err.message : "Image generation failed.";
     const failedSpread = withSpreadImageGenerationStatus(latestSpread, {
       side: input.side,
       status: "failed",
@@ -378,10 +391,13 @@ export async function regenerateBookSpreadPageImage(input: {
   const latestProject = (await db.bookProjects.getById(project.id)) ?? project;
   const latestSpread =
     latestProject.spreads.find((item) => item.id === input.spreadId) ?? spread;
-  if (input.jobId && getSpreadImageJobId(latestSpread, input.side) !== input.jobId) {
-    await deleteBookAssetUrls([generated.url, generated.webUrl].filter(Boolean) as string[]).catch(
-      () => 0
-    );
+  if (
+    input.jobId &&
+    getSpreadImageJobId(latestSpread, input.side) !== input.jobId
+  ) {
+    await deleteBookAssetUrls(
+      [generated.url, generated.webUrl].filter(Boolean) as string[]
+    ).catch(() => 0);
     return latestProject;
   }
 
@@ -392,7 +408,10 @@ export async function regenerateBookSpreadPageImage(input: {
     attemptKey: input.attemptKey,
     generated,
   });
-  const nextSpreads = applySpreadIllustration(latestProject.spreads, nextSpread);
+  const nextSpreads = applySpreadIllustration(
+    latestProject.spreads,
+    nextSpread
+  );
   const updatedProject = await db.bookProjects.update(project.id, {
     status: "composing",
     currentStageLabel: "Refreshing exports with the regenerated image...",
@@ -413,7 +432,10 @@ export async function regenerateBookSpreadPageImage(input: {
   if (!updatedProject) throw new Error("Book project not found");
 
   await deleteBookAssetUrls(
-    oldUrls.filter((url): url is string => Boolean(url) && url !== generated.url && url !== generated.webUrl)
+    oldUrls.filter(
+      (url): url is string =>
+        Boolean(url) && url !== generated.url && url !== generated.webUrl
+    )
   ).catch(() => 0);
 
   if (hasUnresolvedGeneratedPageImages(updatedProject.spreads)) {
@@ -440,7 +462,10 @@ export async function regenerateBookSpreadPageImage(input: {
   const finalSpread = finalizedProject.spreads.find(
     (item) => item.id === input.spreadId
   );
-  if (!finalSpread || getSpreadImageJobId(finalSpread, input.side) !== input.jobId) {
+  if (
+    !finalSpread ||
+    getSpreadImageJobId(finalSpread, input.side) !== input.jobId
+  ) {
     return finalizedProject;
   }
   const readySpread = withSpreadImageGenerationStatus(finalSpread, {
@@ -504,7 +529,10 @@ export async function enqueueBookBuildJob(input: {
     };
   }
 
-  if (input.mode === "art" && !isGeneratedIllustrationConfigured()) {
+  if (
+    input.mode === "art" &&
+    !isGeneratedIllustrationConfigured(input.project)
+  ) {
     throw new Error(
       "Final art generation needs OPENAI_API_KEY plus blob storage before it can run."
     );

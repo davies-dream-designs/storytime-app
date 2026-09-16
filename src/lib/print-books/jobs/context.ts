@@ -37,7 +37,9 @@ export async function loadBuildContext(project: BookProject) {
     storyPersonIds: story.storyPersonIds ?? [],
   });
 
-  const visualReferences: CharacterVisualReference[] = [];
+  const visualReferences: CharacterVisualReference[] = [
+    ...(project.assets.tradeCharacterReferences ?? []),
+  ];
   if (profile.avatarImageUrl) {
     const appearance = buildChildCanonicalAppearanceContext(profile);
     visualReferences.push({
@@ -64,6 +66,12 @@ export async function loadBuildContext(project: BookProject) {
   }
 
   const referenceSnapshotKey = [
+    ...visualReferences.flatMap((reference) => [
+      "reference",
+      reference.id,
+      normalizeSnapshotPart(reference.imageUrl),
+      normalizeSnapshotPart(reference.appearance),
+    ]),
     "profile",
     profile.id,
     normalizeSnapshotPart(profile.avatarImageUrl),

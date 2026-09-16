@@ -301,7 +301,11 @@ export interface BookSpread {
   rightPageQa?: IllustrationGenerationMetadata;
 }
 
+export type BookImageProvider = "trade_cliproxy";
+
 export interface BookAsset {
+  imageProvider?: BookImageProvider;
+  tradeCharacterReferences?: CharacterVisualReference[];
   coverImageUrl?: string;
   coverPdfUrl?: string;
   coverPdfReadyForOrdering?: boolean;

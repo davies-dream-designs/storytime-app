@@ -105,10 +105,83 @@ describe("loadBuildContext", () => {
       "Nanna Jo",
       "Mila",
     ]);
-    expect(context.visualReferences.map((reference) => reference.name)).toEqual([
-      "Bailey",
-      "Nanna Jo",
-      "Mila",
+    expect(context.visualReferences.map((reference) => reference.name)).toEqual(
+      ["Bailey", "Nanna Jo", "Mila"]
+    );
+  });
+
+  it("merges persisted trade character references before ordinary profile references", async () => {
+    const memoryDb = createMemoryDb();
+    vi.doMock("@/lib/db", () => ({ db: memoryDb }));
+    const { loadBuildContext } = await import("@/lib/print-books/jobs/context");
+    const { db } = await import("@/lib/db");
+
+    await db.profiles.create({
+      id: "profile-trade",
+      userId: "trade-system",
+      name: "Mia",
+      age: 5,
+      avatarImageUrl: "https://assets.example.com/mia-avatar.jpg",
+      favouriteCharacters: [],
+      favouriteActivities: [],
+      favouriteAnimals: [],
+      favouritePlaces: [],
+      lessons: [],
+      createdAt: "2026-07-15T00:00:00.000Z",
+    });
+    await db.stories.create({
+      id: "story-trade",
+      userId: "trade-system",
+      title: "Mia's Garden",
+      profileId: "profile-trade",
+      profileName: "Mia",
+      pages: [],
+      wordCount: 0,
+      theme: "kindness",
+      notes: "",
+      createdAt: "2026-07-15T00:00:00.000Z",
+      status: "ready",
+    });
+
+    const context = await loadBuildContext({
+      id: "book-trade",
+      userId: "trade-system",
+      sourceStoryId: "story-trade",
+      profileId: "profile-trade",
+      ageBand: "3-5",
+      status: "queued",
+      trimSize: "storycot-dynamic-square",
+      pageCount: 28,
+      spreadCount: 14,
+      completedSpreads: 0,
+      totalSpreads: 14,
+      currentStageLabel: "Queued",
+      beats: [],
+      spreads: [],
+      assets: {
+        imageProvider: "trade_cliproxy",
+        tradeCharacterReferences: [
+          {
+            id: "trade:protagonist:book-trade",
+            name: "Mia",
+            role: "main_child",
+            imageUrl: "https://assets.example.com/trade-mia.png",
+            appearance: "Mia has a yellow raincoat.",
+          },
+        ],
+        proofVersion: 1,
+      },
+      retryCount: 0,
+      createdAt: "2026-07-15T00:00:00.000Z",
+      updatedAt: "2026-07-15T00:00:00.000Z",
+    });
+
+    expect(context.visualReferences.map((reference) => reference.id)).toEqual([
+      "trade:protagonist:book-trade",
+      "profile:profile-trade",
     ]);
+    expect(context.referenceSnapshotKey).toContain(
+      "https://assets.example.com/trade-mia.png"
+    );
   });
 });

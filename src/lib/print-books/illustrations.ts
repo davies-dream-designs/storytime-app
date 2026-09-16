@@ -14,6 +14,10 @@ import { BOOK_SPEC } from "@/lib/print-books/bookConfig";
 import { buildIllustrationDirection } from "@/lib/print-books/characterBible";
 import { originalizeReferenceTerm } from "@/lib/ipGuardrails";
 import {
+  getBookImageProvider,
+  isTradeBookProject,
+} from "@/lib/trade-books/imageProvider";
+import {
   isBookAssetStorageConfigured,
   storeBookAsset,
 } from "@/lib/print-books/storage";
@@ -22,19 +26,19 @@ import {
 // Provider selection
 // ---------------------------------------------------------------------------
 
-function isOpenAIConfigured(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY);
-}
-
-const openAIBase = () =>
-  (process.env.OPENAI_API_BASE_URL ?? "https://api.openai.com/v1").replace(
-    /\/$/,
-    ""
-  );
-
-// True when the provider has its credentials AND blob storage is ready.
-export function isGeneratedIllustrationConfigured(): boolean {
-  return isBookAssetStorageConfigured() && isOpenAIConfigured();
+export function isGeneratedIllustrationConfigured(
+  project?: Pick<BookProject, "userId" | "assets">
+): boolean {
+  if (!isBookAssetStorageConfigured()) return false;
+  try {
+    if (project) {
+      const provider = getBookImageProvider(project);
+      return Boolean(provider.apiKey && provider.models.length);
+    }
+    return Boolean(process.env.OPENAI_API_KEY);
+  } catch {
+    return false;
+  }
 }
 
 // How many spreads to illustrate concurrently per cursor step.
@@ -262,6 +266,14 @@ function fitPromptSegments(
   return fitted.length <= maxChars ? fitted : clampPromptText(fitted, maxChars);
 }
 
+function getTradeImageSafeguards(
+  project: Pick<BookProject, "userId" | "assets">
+): string {
+  return isTradeBookProject(project)
+    ? "Trade illustration anatomy and scale safeguards: draw every person with natural, age-appropriate human anatomy and believable relative body scale. Keep heads, torsos, arms, legs, hands, and feet proportionate and complete; avoid distorted limbs, oversized features, extreme thinness or bulk, and child/adult scale mismatches unless the story explicitly requires them."
+    : "";
+}
+
 function buildLatestReferenceContext(
   references: CharacterVisualReference[] | undefined,
   compact = false
@@ -307,6 +319,9 @@ export function buildCoverIllustrationPrompt(input: {
           variants: [
             `Book title: ${originalizeReferenceTerm(story.title)}. A personalised bedtime story for ${profile.name}. Age band: ${input.project.ageBand}. Theme: ${originalizeReferenceTerm(story.theme || "gentle bedtime adventure")}.`,
           ],
+        },
+        {
+          variants: [getTradeImageSafeguards(input.project), ""],
         },
         {
           variants: [
@@ -383,6 +398,9 @@ export function buildCoverIllustrationPrompt(input: {
               `Attached interior page art (${continuityReferenceLabels}) is the source of truth for each character's clothing and look on the cover: match the same outfit, footwear, hair, and colours from that page, but not its pose, crop, or background.`,
             ]
           : [""],
+      },
+      {
+        variants: [getTradeImageSafeguards(input.project), ""],
       },
       {
         variants: [
@@ -678,6 +696,7 @@ async function buildIllustrationConditioningSheet(input: {
 }
 
 function buildVisualReferencePrompt(input: {
+  project: Pick<BookProject, "userId" | "assets">;
   visualReferences?: CharacterVisualReference[];
   continuityReferences?: ContinuityVisualReference[];
 }): string {
@@ -827,6 +846,9 @@ function buildVisualReferencePrompt(input: {
         ],
       },
       {
+        variants: [getTradeImageSafeguards(input.project), ""],
+      },
+      {
         variants: [
           "Do not add written labels, captions, names, numbers, watermarks, or relationship words to the artwork.",
           "No labels, captions, names, numbers, watermarks, or relationship words in the art.",
@@ -845,6 +867,7 @@ function bufferToArrayBuffer(buffer: Buffer): ArrayBuffer {
 }
 
 async function buildOpenAIImageEditBody(input: {
+  project: Pick<BookProject, "userId" | "assets">;
   model: string;
   prompt: string;
   size: "1024x1024";
@@ -869,6 +892,7 @@ async function buildOpenAIImageEditBody(input: {
   const formData = new FormData();
 
   const referencePrompt = buildVisualReferencePrompt({
+    project: input.project,
     visualReferences: sheet.visualReferences,
     continuityReferences: sheet.continuityReferences,
   });
@@ -883,12 +907,6 @@ async function buildOpenAIImageEditBody(input: {
   formData.append("size", input.size);
   formData.append("quality", "medium");
   return formData;
-}
-
-function getPreferredOpenAIImageModels(): string[] {
-  const configured = process.env.OPENAI_IMAGE_MODEL?.trim();
-  if (configured) return [configured];
-  return ["gpt-image-2", "gpt-image-1"];
 }
 
 function shouldTryNextImageModel(status: number, bodyText: string): boolean {
@@ -982,19 +1000,25 @@ function parseRetryAfterMs(bodyText: string, headers: Headers): number {
 }
 
 async function generateOpenAIImage(input: {
+  project: BookProject;
   prompt: string;
   size: "1024x1024";
   visualReferences?: CharacterVisualReference[];
   continuityReferences?: ContinuityVisualReference[];
 }): Promise<Buffer> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
+  let provider: ReturnType<typeof getBookImageProvider>;
+  try {
+    provider = getBookImageProvider(input.project);
+  } catch (error) {
     throw new AppError("system.config_missing", {
-      message: "OPENAI_API_KEY is not configured",
+      message:
+        error instanceof Error
+          ? error.message
+          : "Image provider is not configured",
     });
   }
 
-  const models = getPreferredOpenAIImageModels();
+  const { apiKey, models } = provider;
   let lastErrorMessage = "Unknown OpenAI image generation error";
 
   for (let index = 0; index < models.length; index += 1) {
@@ -1003,11 +1027,11 @@ async function generateOpenAIImage(input: {
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
       const useConditioningReferences = Boolean(
-        input.visualReferences?.length ||
-        input.continuityReferences?.length
+        input.visualReferences?.length || input.continuityReferences?.length
       );
       const body = useConditioningReferences
         ? await buildOpenAIImageEditBody({
+            project: input.project,
             model,
             prompt: input.prompt,
             size: input.size,
@@ -1023,8 +1047,8 @@ async function generateOpenAIImage(input: {
           });
       const response = await fetch(
         useConditioningReferences
-          ? `${openAIBase()}/images/edits`
-          : `${openAIBase()}/images/generations`,
+          ? `${provider.baseUrl}/images/edits`
+          : `${provider.baseUrl}/images/generations`,
         {
           method: "POST",
           headers: useConditioningReferences
@@ -1093,16 +1117,15 @@ async function generateOpenAIImage(input: {
 // ---------------------------------------------------------------------------
 
 async function generateBaseImage(input: {
+  project: BookProject;
   prompt: string;
   visualReferences?: CharacterVisualReference[];
   continuityReferences?: ContinuityVisualReference[];
 }): Promise<Buffer> {
-  if (
-    input.visualReferences?.length ||
-    input.continuityReferences?.length
-  ) {
+  if (input.visualReferences?.length || input.continuityReferences?.length) {
     try {
       return await generateOpenAIImage({
+        project: input.project,
         prompt: input.prompt,
         size: BOOK_SPEC.coverIllustrationOpenAISize,
         visualReferences: input.visualReferences,
@@ -1118,6 +1141,7 @@ async function generateBaseImage(input: {
   }
 
   return generateOpenAIImage({
+    project: input.project,
     prompt: input.prompt,
     size: BOOK_SPEC.coverIllustrationOpenAISize,
   });
@@ -1125,6 +1149,7 @@ async function generateBaseImage(input: {
 
 // Generate and immediately upscale a single square image.
 async function generateAndUpscale(input: {
+  project: BookProject;
   prompt: string;
   visualReferences?: CharacterVisualReference[];
   continuityReferences?: ContinuityVisualReference[];
@@ -1621,16 +1646,22 @@ export function buildPageIllustrationPrompt(input: {
     .filter(Boolean)
     .join(", ");
 
-  const compositionVariants = [
-    "wide establishing shot showing the full environment",
-    "medium shot at the character's eye level",
-    "close-up on face and hands capturing expression and action",
-    "low-angle looking up at the character",
-    "bird's-eye overview of the scene",
-    "three-quarter angle, mid-distance",
-    "over-the-shoulder perspective",
-    "silhouette against a lit background",
-  ];
+  const compositionVariants = isTradeBookProject(project)
+    ? [
+        "medium-wide eye-level scene with the full character body visible",
+        "medium eye-level scene with clear, natural character proportions",
+        "gentle three-quarter mid-distance view",
+      ]
+    : [
+        "wide establishing shot showing the full environment",
+        "medium shot at the character's eye level",
+        "close-up on face and hands capturing expression and action",
+        "low-angle looking up at the character",
+        "bird's-eye overview of the scene",
+        "three-quarter angle, mid-distance",
+        "over-the-shoulder perspective",
+        "silhouette against a lit background",
+      ];
   const compositionIdx =
     (spread.sequence * 2 + (side === "right" ? 1 : 0)) %
     compositionVariants.length;
@@ -1662,6 +1693,9 @@ export function buildPageIllustrationPrompt(input: {
       },
       {
         variants: [`Composition: ${compositionHint}.`, ""],
+      },
+      {
+        variants: [getTradeImageSafeguards(project), ""],
       },
       {
         variants: [
@@ -1787,6 +1821,30 @@ export function isBookStoryIllustrationSpread(spread: BookSpread): boolean {
 // Public generation functions
 // ---------------------------------------------------------------------------
 
+export async function generateTradeProtagonistVisualReference(input: {
+  project: BookProject;
+  profile: ChildProfile;
+  characterBible: CharacterBible;
+}): Promise<CharacterVisualReference> {
+  const appearance = `${input.characterBible.childAppearance} Outfit rules: ${input.characterBible.outfitRules}`;
+  const png = await generateAndUpscale({
+    project: input.project,
+    prompt: `Create one canonical full-body character reference for ${input.profile.name}, a ${input.profile.age}-year-old child, for a trade children's picture book. ${appearance} Neutral standing pose, simple pale background, face and entire body clearly visible. ${getTradeImageSafeguards(input.project)} No text, labels, accessories not described, dramatic camera angle, or other people.`,
+  });
+  const imageUrl = await storeBookAsset({
+    pathname: `books/${input.project.id}/references/protagonist.png`,
+    body: png,
+    contentType: "image/png",
+  });
+  return {
+    id: `trade:protagonist:${input.project.id}`,
+    name: input.profile.name,
+    role: "main_child",
+    imageUrl,
+    appearance,
+  };
+}
+
 export async function generateCoverIllustration(input: {
   project: BookProject;
   story: Story;
@@ -1808,13 +1866,14 @@ export async function generateCoverIllustration(input: {
 
   const produceUpscaled = async (promptToUse: string): Promise<Buffer> => {
     return generateAndUpscale({
+      project: input.project,
       prompt: promptToUse,
       visualReferences: input.visualReferences,
       continuityReferences: input.continuityReferences,
     });
   };
 
-  if (isGeneratedIllustrationConfigured()) {
+  if (isGeneratedIllustrationConfigured(input.project)) {
     try {
       let upscaled: Buffer;
       try {
@@ -1947,7 +2006,7 @@ export async function generateSpreadPageIllustration(input: {
     });
   };
 
-  if (!isGeneratedIllustrationConfigured()) {
+  if (!isGeneratedIllustrationConfigured(project)) {
     const spreadVisualReferences = selectSpreadVisualReferences({
       project,
       spread,
@@ -2003,6 +2062,7 @@ export async function generateSpreadPageIllustration(input: {
   });
   const produceUpscaled = async (promptToUse: string): Promise<Buffer> => {
     return generateAndUpscale({
+      project: input.project,
       prompt: promptToUse,
       visualReferences: spreadVisualReferences,
       continuityReferences,

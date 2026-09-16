@@ -75,6 +75,10 @@ export async function POST(
         profileId: title.profileId,
         ageBand,
       });
+      project.assets = {
+        ...project.assets,
+        imageProvider: "trade_cliproxy",
+      };
       await db.bookProjects.create(project);
 
       const now = new Date().toISOString();

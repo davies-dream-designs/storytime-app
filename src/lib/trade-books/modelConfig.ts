@@ -37,16 +37,38 @@ function stripProviderPrefix(model: string): string {
   return model.replace(/^[^/]+\//, "");
 }
 
-export function getTradeBooksModelConfig(): TradeBooksModelConfig {
+export type TradeBooksImageConfig = Pick<
+  TradeBooksModelConfig,
+  "baseUrl" | "apiKey" | "imageModel"
+> & {
+  imageFallbackModel?: string;
+};
+
+export function getTradeBooksImageConfig(): TradeBooksImageConfig {
+  const imageFallbackModel =
+    process.env.TRADE_BOOKS_IMAGE_FALLBACK_MODEL?.trim();
   return {
     baseUrl: requiredUrl("TRADE_BOOKS_OPENAI_BASE_URL"),
     apiKey: requiredValue("TRADE_BOOKS_OPENAI_API_KEY"),
+    imageModel: stripProviderPrefix(requiredValue("TRADE_BOOKS_IMAGE_MODEL")),
+    imageFallbackModel: imageFallbackModel
+      ? stripProviderPrefix(imageFallbackModel)
+      : undefined,
+  };
+}
+
+export function getTradeBooksModelConfig(): TradeBooksModelConfig {
+  const imageConfig = getTradeBooksImageConfig();
+  if (!imageConfig.imageFallbackModel) {
+    throw new TradeBooksModelConfigurationError(
+      "TRADE_BOOKS_IMAGE_FALLBACK_MODEL is not configured"
+    );
+  }
+  return {
+    ...imageConfig,
+    imageFallbackModel: imageConfig.imageFallbackModel,
     textModel: stripProviderPrefix(requiredValue("TRADE_BOOKS_TEXT_MODEL")),
     reviewModel: stripProviderPrefix(requiredValue("TRADE_BOOKS_REVIEW_MODEL")),
     trendsModel: stripProviderPrefix(requiredValue("TRADE_BOOKS_TRENDS_MODEL")),
-    imageModel: stripProviderPrefix(requiredValue("TRADE_BOOKS_IMAGE_MODEL")),
-    imageFallbackModel: stripProviderPrefix(
-      requiredValue("TRADE_BOOKS_IMAGE_FALLBACK_MODEL")
-    ),
   };
 }

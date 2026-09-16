@@ -27,10 +27,15 @@ vi.mock("@/lib/print-books/jobs", () => ({
   processBookBuildJob: mockProcessBookBuildJob,
 }));
 
-// ── generateTradeCharacterBible mock ─────────────────────────────────────────
+// ── Trade character generation mocks ─────────────────────────────────────────
 const mockGenerateTradeCharacterBible = vi.fn();
+const mockEnsureTradeProtagonistVisualReference = vi.fn();
 vi.mock("@/lib/trade-books/generateTradeCharacterBible", () => ({
   generateTradeCharacterBible: mockGenerateTradeCharacterBible,
+}));
+vi.mock("@/lib/trade-books/characterReference", () => ({
+  ensureTradeProtagonistVisualReference:
+    mockEnsureTradeProtagonistVisualReference,
 }));
 
 // ── Env for model config ────────────────────────────────────────────────────
@@ -162,6 +167,19 @@ beforeEach(() => {
   });
   mockProcessBookBuildJob.mockReset();
   mockGenerateTradeCharacterBible.mockReset();
+  mockEnsureTradeProtagonistVisualReference.mockReset();
+  mockEnsureTradeProtagonistVisualReference.mockImplementation(({ project }) =>
+    Promise.resolve(
+      project.assets.tradeCharacterReferences ?? [
+        {
+          id: `trade:protagonist:${project.id}`,
+          name: "Mia",
+          role: "main_child",
+          imageUrl: "https://assets.example.com/trade-mia.png",
+        },
+      ]
+    )
+  );
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -198,6 +216,7 @@ describe("approve action", () => {
     expect(project?.sourceStoryId).toBe("story-1");
     expect(project?.profileId).toBe("profile-1");
     expect(project?.status).toBe("queued");
+    expect(project?.assets.imageProvider).toBe("trade_cliproxy");
 
     // BookBuildJob was saved
     const job = await memoryDb.bookBuildJobs.getCurrentByProjectId(project!.id);
@@ -288,7 +307,27 @@ describe("buildTradeBook", () => {
         story: expect.objectContaining({ id: "story-1" }),
       })
     );
+    expect(mockEnsureTradeProtagonistVisualReference).toHaveBeenCalledWith(
+      expect.objectContaining({
+        project: expect.objectContaining({
+          id: project.id,
+          characterBible: bible,
+        }),
+        profile: expect.objectContaining({ id: "profile-1" }),
+      })
+    );
     expect(mockProcessBookBuildJob).toHaveBeenCalledTimes(2);
+
+    const updatedProject = await memoryDb.bookProjects.getById(project.id);
+    expect(updatedProject?.assets).toMatchObject({
+      imageProvider: "trade_cliproxy",
+      tradeCharacterReferences: [
+        expect.objectContaining({
+          id: `trade:protagonist:${project.id}`,
+          imageUrl: "https://assets.example.com/trade-mia.png",
+        }),
+      ],
+    });
 
     const updatedTitle = await memoryDb.tradeTitles.getById(title.id);
     expect(updatedTitle?.status).toBe("book_ready");

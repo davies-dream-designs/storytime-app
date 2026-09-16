@@ -4,9 +4,9 @@ import { deriveBeatsFromStory } from "@/lib/print-books/beats";
 import { composePrintBookSpreads } from "@/lib/print-books/composer";
 import { processBookBuildJob } from "@/lib/print-books/jobs";
 import { getBookProjectStageLabel } from "@/lib/print-books/status";
+import { ensureTradeProtagonistVisualReference } from "@/lib/trade-books/characterReference";
 import { generateTradeCharacterBible } from "@/lib/trade-books/generateTradeCharacterBible";
 import { TradeBookJobPermanentError } from "@/lib/trade-books/worker";
-
 
 async function publishTradeStory(storyId: string) {
   const story = await db.stories.getById(storyId);
@@ -99,6 +99,31 @@ export async function buildTradeBook(
       spreads,
       completedSpreads: 0,
       totalSpreads: spreads.length,
+    });
+  }
+
+  const currentProject = await db.bookProjects.getById(project.id);
+  if (!currentProject?.characterBible) {
+    throw new TradeBookJobPermanentError(
+      "Trade book character bible was not saved"
+    );
+  }
+
+  const tradeCharacterReferences = await ensureTradeProtagonistVisualReference({
+    project: currentProject,
+    profile,
+    characterBible: currentProject.characterBible,
+  });
+  if (
+    tradeCharacterReferences !==
+    (currentProject.assets.tradeCharacterReferences ?? [])
+  ) {
+    await db.bookProjects.update(project.id, {
+      assets: {
+        ...currentProject.assets,
+        imageProvider: "trade_cliproxy",
+        tradeCharacterReferences,
+      },
     });
   }
 

@@ -29,6 +29,12 @@ import type {
   LocationFixture,
 } from "@/types/printBook";
 import type { GiftOrder } from "@/types/gift";
+import type {
+  TradeBookJob,
+  TradeBookJobKind,
+  TradeTitle,
+  TradeTitleStatus,
+} from "@/types/tradeBook";
 import type { ErrorEventRecord, ErrorEventFilters } from "@/lib/errors";
 import { SEVERITY_RANK, type ErrorSeverity } from "@/lib/errors";
 import { deleteBookProjectAssets } from "@/lib/print-books/storage";
@@ -47,6 +53,8 @@ type StoryPersonProfileRow = typeof schema.storyPersonProfiles.$inferSelect;
 type BookProjectRow = typeof schema.bookProjects.$inferSelect;
 type LocationFixtureRow = typeof schema.locationFixtures.$inferSelect;
 type BookBuildJobRow = typeof schema.bookBuildJobs.$inferSelect;
+type TradeBookJobRow = typeof schema.tradeBookJobs.$inferSelect;
+type TradeTitleRow = typeof schema.tradeTitles.$inferSelect;
 type GiftOrderRow = typeof schema.giftOrders.$inferSelect;
 type PrintOrderRow = typeof schema.printOrders.$inferSelect;
 type PublicStoryReportRow = typeof schema.publicStoryReports.$inferSelect;
@@ -459,6 +467,46 @@ function rowToBookBuildJob(row: BookBuildJobRow): BookBuildJob {
   };
 }
 
+function rowToTradeBookJob(row: TradeBookJobRow): TradeBookJob {
+  return {
+    id: row.id,
+    kind: row.kind,
+    dedupeKey: row.dedupeKey,
+    payload: row.payload,
+    status: row.status,
+    attempts: row.attempts,
+    availableAt: row.availableAt,
+    leaseToken: row.leaseToken ?? undefined,
+    leaseExpiresAt: row.leaseExpiresAt ?? undefined,
+    lastError: row.lastError ?? undefined,
+    startedAt: row.startedAt ?? undefined,
+    completedAt: row.completedAt ?? undefined,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function rowToTradeTitle(row: TradeTitleRow): TradeTitle {
+  return {
+    id: row.id,
+    status: row.status,
+    seedBrief: row.seedBrief,
+    profileId: row.profileId ?? undefined,
+    storyId: row.storyId ?? undefined,
+    bookProjectId: row.bookProjectId ?? undefined,
+    modelMetadata: row.modelMetadata ?? undefined,
+    gateResults: row.gateResults ?? undefined,
+    generationError: row.generationError ?? undefined,
+    reviewedAt: row.reviewedAt ?? undefined,
+    reviewedBy: row.reviewedBy ?? undefined,
+    reviewNote: row.reviewNote ?? undefined,
+    publishedAt: row.publishedAt ?? undefined,
+    storeUrl: row.storeUrl ?? undefined,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
 function bookBuildJobToRow(j: BookBuildJob) {
   return {
     id: j.id,
@@ -675,7 +723,8 @@ export const db = {
           avatarGenerationStatus: updates.avatarGenerationStatus ?? null,
           avatarGenerationError: updates.avatarGenerationError ?? null,
           avatarGenerationJobId: updates.avatarGenerationJobId ?? null,
-          avatarGenerationAttemptKey: updates.avatarGenerationAttemptKey ?? null,
+          avatarGenerationAttemptKey:
+            updates.avatarGenerationAttemptKey ?? null,
           avatarGenerationUpdatedAt:
             updates.avatarGenerationUpdatedAt ?? new Date().toISOString(),
         })
@@ -702,7 +751,8 @@ export const db = {
           avatarGenerationStatus: updates.avatarGenerationStatus ?? null,
           avatarGenerationError: updates.avatarGenerationError ?? null,
           avatarGenerationJobId: updates.avatarGenerationJobId ?? null,
-          avatarGenerationAttemptKey: updates.avatarGenerationAttemptKey ?? null,
+          avatarGenerationAttemptKey:
+            updates.avatarGenerationAttemptKey ?? null,
           avatarGenerationUpdatedAt:
             updates.avatarGenerationUpdatedAt ?? new Date().toISOString(),
         })
@@ -1016,7 +1066,8 @@ export const db = {
           avatarGenerationStatus: updates.avatarGenerationStatus ?? null,
           avatarGenerationError: updates.avatarGenerationError ?? null,
           avatarGenerationJobId: updates.avatarGenerationJobId ?? null,
-          avatarGenerationAttemptKey: updates.avatarGenerationAttemptKey ?? null,
+          avatarGenerationAttemptKey:
+            updates.avatarGenerationAttemptKey ?? null,
           avatarGenerationUpdatedAt: updates.avatarGenerationUpdatedAt ?? now,
           updatedAt: now,
         })
@@ -1042,7 +1093,8 @@ export const db = {
           avatarGenerationStatus: updates.avatarGenerationStatus ?? null,
           avatarGenerationError: updates.avatarGenerationError ?? null,
           avatarGenerationJobId: updates.avatarGenerationJobId ?? null,
-          avatarGenerationAttemptKey: updates.avatarGenerationAttemptKey ?? null,
+          avatarGenerationAttemptKey:
+            updates.avatarGenerationAttemptKey ?? null,
           avatarGenerationUpdatedAt: updates.avatarGenerationUpdatedAt ?? now,
           updatedAt: now,
         })
@@ -2213,6 +2265,224 @@ export const db = {
         .update(schema.emailOutbox)
         .set({ status: "failed", lastError: error.slice(0, 500) })
         .where(eq(schema.emailOutbox.id, id));
+    },
+  },
+
+  tradeBookJobs: {
+    async enqueue(input: {
+      kind: TradeBookJobKind;
+      dedupeKey: string;
+      payload: Record<string, unknown>;
+      availableAt?: string;
+    }): Promise<TradeBookJob | undefined> {
+      const now = new Date().toISOString();
+      const rows = await getClient()
+        .insert(schema.tradeBookJobs)
+        .values({
+          id: crypto.randomUUID(),
+          kind: input.kind,
+          dedupeKey: input.dedupeKey,
+          payload: input.payload,
+          status: "queued",
+          attempts: 0,
+          availableAt: input.availableAt ?? now,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .onConflictDoNothing({ target: schema.tradeBookJobs.dedupeKey })
+        .returning();
+      return rows[0] ? rowToTradeBookJob(rows[0]) : undefined;
+    },
+
+    async claimNext(input: {
+      leaseToken: string;
+      now: string;
+      leaseExpiresAt: string;
+    }): Promise<TradeBookJob | undefined> {
+      const result = await getClient().execute<TradeBookJobRow>(sql`
+        WITH candidate AS (
+          SELECT id
+          FROM trade_book_jobs
+          WHERE (
+            status IN ('queued', 'retry_scheduled')
+            AND available_at <= ${input.now}
+          ) OR (
+            status = 'running'
+            AND lease_expires_at < ${input.now}
+          )
+          ORDER BY available_at ASC, created_at ASC
+          FOR UPDATE SKIP LOCKED
+          LIMIT 1
+        )
+        UPDATE trade_book_jobs AS job
+        SET
+          status = 'running',
+          lease_token = ${input.leaseToken},
+          lease_expires_at = ${input.leaseExpiresAt},
+          attempts = job.attempts + 1,
+          started_at = ${input.now},
+          updated_at = ${input.now}
+        FROM candidate
+        WHERE job.id = candidate.id
+        RETURNING
+          job.id AS "id",
+          job.kind AS "kind",
+          job.dedupe_key AS "dedupeKey",
+          job.payload AS "payload",
+          job.status AS "status",
+          job.attempts AS "attempts",
+          job.available_at AS "availableAt",
+          job.lease_token AS "leaseToken",
+          job.lease_expires_at AS "leaseExpiresAt",
+          job.last_error AS "lastError",
+          job.started_at AS "startedAt",
+          job.completed_at AS "completedAt",
+          job.created_at AS "createdAt",
+          job.updated_at AS "updatedAt"
+      `);
+      return result.rows[0] ? rowToTradeBookJob(result.rows[0]) : undefined;
+    },
+
+    async heartbeat(input: {
+      id: string;
+      leaseToken: string;
+      leaseExpiresAt: string;
+      now: string;
+    }): Promise<boolean> {
+      const rows = await getClient()
+        .update(schema.tradeBookJobs)
+        .set({
+          leaseExpiresAt: input.leaseExpiresAt,
+          updatedAt: input.now,
+        })
+        .where(
+          and(
+            eq(schema.tradeBookJobs.id, input.id),
+            eq(schema.tradeBookJobs.status, "running"),
+            eq(schema.tradeBookJobs.leaseToken, input.leaseToken)
+          )
+        )
+        .returning({ id: schema.tradeBookJobs.id });
+      return rows.length > 0;
+    },
+
+    async complete(input: {
+      id: string;
+      leaseToken: string;
+      now: string;
+    }): Promise<boolean> {
+      const rows = await getClient()
+        .update(schema.tradeBookJobs)
+        .set({
+          status: "completed",
+          leaseToken: null,
+          leaseExpiresAt: null,
+          completedAt: input.now,
+          updatedAt: input.now,
+        })
+        .where(
+          and(
+            eq(schema.tradeBookJobs.id, input.id),
+            eq(schema.tradeBookJobs.status, "running"),
+            eq(schema.tradeBookJobs.leaseToken, input.leaseToken)
+          )
+        )
+        .returning({ id: schema.tradeBookJobs.id });
+      return rows.length > 0;
+    },
+
+    async scheduleRetry(input: {
+      id: string;
+      leaseToken: string;
+      error: string;
+      availableAt: string;
+      now: string;
+    }): Promise<boolean> {
+      const rows = await getClient()
+        .update(schema.tradeBookJobs)
+        .set({
+          status: "retry_scheduled",
+          availableAt: input.availableAt,
+          leaseToken: null,
+          leaseExpiresAt: null,
+          lastError: input.error.slice(0, 500),
+          updatedAt: input.now,
+        })
+        .where(
+          and(
+            eq(schema.tradeBookJobs.id, input.id),
+            eq(schema.tradeBookJobs.status, "running"),
+            eq(schema.tradeBookJobs.leaseToken, input.leaseToken)
+          )
+        )
+        .returning({ id: schema.tradeBookJobs.id });
+      return rows.length > 0;
+    },
+
+    async fail(input: {
+      id: string;
+      leaseToken: string;
+      error: string;
+      now: string;
+    }): Promise<boolean> {
+      const rows = await getClient()
+        .update(schema.tradeBookJobs)
+        .set({
+          status: "failed",
+          leaseToken: null,
+          leaseExpiresAt: null,
+          lastError: input.error.slice(0, 500),
+          updatedAt: input.now,
+        })
+        .where(
+          and(
+            eq(schema.tradeBookJobs.id, input.id),
+            eq(schema.tradeBookJobs.status, "running"),
+            eq(schema.tradeBookJobs.leaseToken, input.leaseToken)
+          )
+        )
+        .returning({ id: schema.tradeBookJobs.id });
+      return rows.length > 0;
+    },
+  },
+
+  tradeTitles: {
+    async create(title: TradeTitle): Promise<void> {
+      await getClient().insert(schema.tradeTitles).values(title);
+    },
+    async getById(id: string): Promise<TradeTitle | undefined> {
+      const rows = await getClient()
+        .select()
+        .from(schema.tradeTitles)
+        .where(eq(schema.tradeTitles.id, id));
+      return rows[0] ? rowToTradeTitle(rows[0]) : undefined;
+    },
+    async listByStatuses(
+      statuses: TradeTitleStatus[],
+      limit = 100
+    ): Promise<TradeTitle[]> {
+      if (statuses.length === 0) return [];
+      const rows = await getClient()
+        .select()
+        .from(schema.tradeTitles)
+        .where(inArray(schema.tradeTitles.status, statuses))
+        .orderBy(desc(schema.tradeTitles.updatedAt))
+        .limit(limit);
+      return rows.map(rowToTradeTitle);
+    },
+    async update(
+      id: string,
+      updates: Partial<Omit<TradeTitle, "id" | "createdAt">>
+    ): Promise<TradeTitle | undefined> {
+      const mutableUpdates = { ...updates };
+      Reflect.deleteProperty(mutableUpdates, "id");
+      Reflect.deleteProperty(mutableUpdates, "createdAt");
+      const rows = await getClient()
+        .update(schema.tradeTitles)
+        .set({ ...mutableUpdates, updatedAt: new Date().toISOString() })
+        .where(eq(schema.tradeTitles.id, id))
+        .returning();
+      return rows[0] ? rowToTradeTitle(rows[0]) : undefined;
     },
   },
 

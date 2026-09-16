@@ -204,6 +204,20 @@
       "when": 1789467105895,
       "tag": "0028_story_locale",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1789527347079,
+      "tag": "0029_majestic_nightcrawler",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1789528809886,
+      "tag": "0030_aberrant_the_hood",
+      "breakpoints": true
     }
   ]
 }

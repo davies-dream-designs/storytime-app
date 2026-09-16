@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { auth, clerkClient } from "@clerk/nextjs/server";
 import Nav from "@/components/Nav";
+import { getAdminIdentity } from "@/lib/adminAuth";
 import { db } from "@/lib/db";
 import MigrationActions from "./MigrationActions";
 import TestEmailActions from "./TestEmailActions";
@@ -12,6 +12,7 @@ import PublicStoryReviewSection from "./PublicStoryReviewSection";
 import PublicStoryReportsSection from "./PublicStoryReportsSection";
 import PublicStoryModerationEventsSection from "./PublicStoryModerationEventsSection";
 import PublicStoryRewardsSection from "./PublicStoryRewardsSection";
+import TradeTitlesReviewSection from "./TradeTitlesReviewSection";
 import type { PublicStoryPrintReadiness } from "@/lib/publicStoryPrintReadiness";
 import AdminTabs, { getActiveTab } from "./AdminTabs";
 
@@ -22,12 +23,7 @@ export default async function AdminPage({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const { userId } = await auth();
-  if (!userId) notFound();
-
-  const client = await clerkClient();
-  const user = await client.users.getUser(userId);
-  if (user.privateMetadata.isAdmin !== true) notFound();
+  if (!(await getAdminIdentity())) notFound();
 
   let projects: Awaited<ReturnType<typeof db.bookProjects.getById>>[] = [];
   let printOrders: Awaited<ReturnType<typeof db.bookProjects.getPrintOrders>> =
@@ -44,6 +40,8 @@ export default async function AdminPage({
   let publicLeaderboard: Awaited<
     ReturnType<typeof db.publicStoryVotes.leaderboard>
   > = [];
+  let tradeTitles: Awaited<ReturnType<typeof db.tradeTitles.listByStatuses>> =
+    [];
   let publicPrintReadiness: Record<string, PublicStoryPrintReadiness> = {};
   let dbReady = true;
   try {
@@ -57,12 +55,21 @@ export default async function AdminPage({
       publicStoryReports,
       publicModerationEvents,
       publicLeaderboard,
+      tradeTitles,
     ] = await Promise.all([
       db.bookProjects.getPrintOrders(),
       db.stories.getPublicReviewQueue(),
       db.publicStoryReports.listOpen(),
       db.publicStoryModerationEvents.listRecent(50),
       db.publicStoryVotes.leaderboard(10),
+      db.tradeTitles.listByStatuses([
+        "queued",
+        "generating",
+        "draft",
+        "approved",
+        "rejected",
+        "failed",
+      ]),
     ]);
     publicPrintReadiness =
       await db.bookProjects.getPublicPrintReadinessByStoryIds(
@@ -72,6 +79,15 @@ export default async function AdminPage({
     dbReady = false;
     console.error("[admin] failed to load failed books / print orders", err);
   }
+
+  const tradeTitleEntries = await Promise.all(
+    tradeTitles.map(async (title) => ({
+      title,
+      story: title.storyId
+        ? await db.stories.getById(title.storyId)
+        : undefined,
+    }))
+  );
 
   const { tab: rawTab } = await searchParams;
   const tab = getActiveTab(rawTab);
@@ -163,8 +179,11 @@ export default async function AdminPage({
         {tab === "content" && (
           <div className="space-y-8">
             <PublicStoryReviewSection stories={publicReviewStories} />
+            <TradeTitlesReviewSection entries={tradeTitleEntries} />
             <PublicStoryReportsSection reports={publicStoryReports} />
-            <PublicStoryModerationEventsSection events={publicModerationEvents} />
+            <PublicStoryModerationEventsSection
+              events={publicModerationEvents}
+            />
           </div>
         )}
 

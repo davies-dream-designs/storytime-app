@@ -13,6 +13,7 @@ export type TradeTitleStatus =
   | "draft"
   | "approved"
   | "rejected"
+  | "book_ready"
   | "published"
   | "failed";
 
@@ -73,7 +74,8 @@ export interface TradeTitle {
   updatedAt: string;
 }
 
-export type TradeBookJobKind = "generate_title" | "build_book";
+export type TradeBookJobKind =
+  "generate_title" | "build_book" | "build_trade_book";
 
 export type TradeBookJobStatus =
   "queued" | "running" | "retry_scheduled" | "completed" | "failed";

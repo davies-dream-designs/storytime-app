@@ -85,7 +85,7 @@ function buildGenderPromptLine(profile: ChildProfile): string {
   }
 }
 
-function buildCharacterBiblePrompt(input: {
+export function buildCharacterBiblePrompt(input: {
   profile: ChildProfile;
   story: Story;
   characters: Character[];
@@ -150,7 +150,7 @@ Requirements:
 - Keep every field concise but specific.`;
 }
 
-function parseCharacterBible(raw: string): CharacterBible {
+export function parseCharacterBible(raw: string): CharacterBible {
   // Strip markdown code fences the model sometimes wraps JSON in.
   const cleaned = raw
     .replace(/^```(?:json)?\s*/i, "")
@@ -206,16 +206,14 @@ function normalizeLockedCharacterRules(
             ? value.identityRules.trim()
             : "",
         outfitRules:
-          typeof value.outfitRules === "string"
-            ? value.outfitRules.trim()
-            : "",
+          typeof value.outfitRules === "string" ? value.outfitRules.trim() : "",
         continuityRules: normalizeList(value.continuityRules),
       };
     })
     .filter((value) => value.id && value.name && value.identityRules);
 }
 
-function normalizeCharacterBible(bible: CharacterBible): CharacterBible {
+export function normalizeCharacterBible(bible: CharacterBible): CharacterBible {
   return {
     childAppearance:
       bible.childAppearance?.trim() ||
@@ -223,7 +221,9 @@ function normalizeCharacterBible(bible: CharacterBible): CharacterBible {
     outfitRules:
       bible.outfitRules?.trim() ||
       "Use one consistent bedtime-ready outfit with only scene-appropriate minor variations.",
-    recurringProps: stripWornItemsFromProps(normalizeList(bible.recurringProps)),
+    recurringProps: stripWornItemsFromProps(
+      normalizeList(bible.recurringProps)
+    ),
     companionCharacters: normalizeList(bible.companionCharacters),
     palette:
       bible.palette?.trim() ||
@@ -272,7 +272,7 @@ const petFallbackLooks = [
   "stable natural coat or fur markings, with no outfit unless explicitly specified",
 ];
 
-function buildLockedCharacterRules(input: {
+export function buildLockedCharacterRules(input: {
   profile: ChildProfile;
   storyPeople: StoryPerson[];
 }): NonNullable<CharacterBible["lockedCharacterRules"]> {
@@ -348,15 +348,82 @@ function clampPromptValue(value: string, maxChars: number): string {
 // be used to decide whether it has appeared in the story yet (e.g. a "small
 // green dinosaur" must not be triggered by unrelated "green garden" text).
 const COMPANION_MATCH_STOPWORDS = new Set([
-  "the", "a", "an", "and", "or", "with", "who", "that", "this", "her", "his",
-  "its", "their", "of", "for", "in", "on", "to", "is", "are",
-  "tiny", "small", "little", "big", "large", "baby", "young", "old", "giant",
-  "green", "red", "blue", "brown", "grey", "gray", "white", "black", "yellow",
-  "purple", "pink", "orange", "golden", "gold", "silver", "dark", "light",
-  "soft", "friendly", "cuddly", "toy", "plush", "stuffed", "character",
-  "companion", "creature", "animal", "pet", "shiny", "spiky", "fluffy", "round",
-  "gentle", "happy", "cute", "colour", "color", "coloured", "colored",
-  "named", "called", "some", "very", "into", "from", "they", "them",
+  "the",
+  "a",
+  "an",
+  "and",
+  "or",
+  "with",
+  "who",
+  "that",
+  "this",
+  "her",
+  "his",
+  "its",
+  "their",
+  "of",
+  "for",
+  "in",
+  "on",
+  "to",
+  "is",
+  "are",
+  "tiny",
+  "small",
+  "little",
+  "big",
+  "large",
+  "baby",
+  "young",
+  "old",
+  "giant",
+  "green",
+  "red",
+  "blue",
+  "brown",
+  "grey",
+  "gray",
+  "white",
+  "black",
+  "yellow",
+  "purple",
+  "pink",
+  "orange",
+  "golden",
+  "gold",
+  "silver",
+  "dark",
+  "light",
+  "soft",
+  "friendly",
+  "cuddly",
+  "toy",
+  "plush",
+  "stuffed",
+  "character",
+  "companion",
+  "creature",
+  "animal",
+  "pet",
+  "shiny",
+  "spiky",
+  "fluffy",
+  "round",
+  "gentle",
+  "happy",
+  "cute",
+  "colour",
+  "color",
+  "coloured",
+  "colored",
+  "named",
+  "called",
+  "some",
+  "very",
+  "into",
+  "from",
+  "they",
+  "them",
 ]);
 
 // Content words (>=4 chars, not a stopword) that identify a companion/prop.
@@ -367,7 +434,9 @@ function companionMatchKeywords(entry: string): string[] {
         .toLowerCase()
         .replace(/[^a-z0-9\s]+/g, " ")
         .split(/\s+/)
-        .filter((word) => word.length >= 4 && !COMPANION_MATCH_STOPWORDS.has(word))
+        .filter(
+          (word) => word.length >= 4 && !COMPANION_MATCH_STOPWORDS.has(word)
+        )
     )
   );
 }
@@ -399,12 +468,9 @@ export function buildIllustrationDirection(
     activeSceneText === undefined
       ? bible.companionCharacters
       : filterEntriesByScene(bible.companionCharacters, activeSceneText);
-  const recurringProps =
-    gatedProps.length > 0 ? gatedProps.join(", ") : "none";
+  const recurringProps = gatedProps.length > 0 ? gatedProps.join(", ") : "none";
   const companionCharacters =
-    gatedCompanions.length > 0
-      ? gatedCompanions.join(", ")
-      : "none";
+    gatedCompanions.length > 0 ? gatedCompanions.join(", ") : "none";
   const continuity =
     bible.doNotChange.length > 0
       ? bible.doNotChange.join("; ")

@@ -1,6 +1,10 @@
+import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminIdentity } from "@/lib/adminAuth";
 import { db } from "@/lib/db";
+import { inferBookAgeBand } from "@/lib/print-books/ageBand";
+import { createEmptyBookProject } from "@/lib/print-books/composer";
+import { TRADE_SYSTEM_USER_ID } from "@/types/tradeBook";
 
 type ActionBody = {
   decision?: unknown;
@@ -49,11 +53,61 @@ export async function POST(
     );
   }
 
-  const updated = await db.tradeTitles.update(id, {
+  let updated = await db.tradeTitles.update(id, {
     status: body.decision,
     reviewedAt: new Date().toISOString(),
     reviewedBy: admin.label,
     reviewNote,
   });
+
+  if (body.decision === "approved" && title.storyId && title.profileId) {
+    const story = await db.stories.getById(title.storyId);
+    const profile = await db.profiles.getById(title.profileId);
+    if (story && profile) {
+      const ageBand = inferBookAgeBand({
+        profile,
+        storyPreset: story.storyPreset,
+      });
+      const project = createEmptyBookProject({
+        id: randomUUID(),
+        userId: TRADE_SYSTEM_USER_ID,
+        sourceStoryId: title.storyId,
+        profileId: title.profileId,
+        ageBand,
+      });
+      await db.bookProjects.create(project);
+
+      const now = new Date().toISOString();
+      const jobId = randomUUID();
+      await db.bookBuildJobs.create({
+        id: jobId,
+        projectId: project.id,
+        userId: TRADE_SYSTEM_USER_ID,
+        mode: "full",
+        status: "queued",
+        step: 0,
+        totalSteps: project.spreadCount,
+        token: randomUUID(),
+        baseUrl: process.env.NEXT_PUBLIC_APP_URL ?? "",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await db.tradeBookJobs.enqueue({
+        kind: "build_trade_book",
+        dedupeKey: `trade-build:${id}:v1`,
+        payload: {
+          tradeTitleId: id,
+          bookProjectId: project.id,
+          bookBuildJobId: jobId,
+        },
+      });
+
+      updated = await db.tradeTitles.update(id, {
+        bookProjectId: project.id,
+      });
+    }
+  }
+
   return NextResponse.json({ title: updated });
 }

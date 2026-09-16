@@ -31,14 +31,22 @@ function requiredUrl(name: string): string {
   return url.toString().replace(/\/$/, "");
 }
 
+// Cliproxy uses bare model IDs; strip any "openai/" prefix so config values
+// like "openai/claude-sonnet-5" and "claude-sonnet-5" both work.
+function stripProviderPrefix(model: string): string {
+  return model.replace(/^[^/]+\//, "");
+}
+
 export function getTradeBooksModelConfig(): TradeBooksModelConfig {
   return {
     baseUrl: requiredUrl("TRADE_BOOKS_OPENAI_BASE_URL"),
     apiKey: requiredValue("TRADE_BOOKS_OPENAI_API_KEY"),
-    textModel: requiredValue("TRADE_BOOKS_TEXT_MODEL"),
-    reviewModel: requiredValue("TRADE_BOOKS_REVIEW_MODEL"),
-    trendsModel: requiredValue("TRADE_BOOKS_TRENDS_MODEL"),
-    imageModel: requiredValue("TRADE_BOOKS_IMAGE_MODEL"),
-    imageFallbackModel: requiredValue("TRADE_BOOKS_IMAGE_FALLBACK_MODEL"),
+    textModel: stripProviderPrefix(requiredValue("TRADE_BOOKS_TEXT_MODEL")),
+    reviewModel: stripProviderPrefix(requiredValue("TRADE_BOOKS_REVIEW_MODEL")),
+    trendsModel: stripProviderPrefix(requiredValue("TRADE_BOOKS_TRENDS_MODEL")),
+    imageModel: stripProviderPrefix(requiredValue("TRADE_BOOKS_IMAGE_MODEL")),
+    imageFallbackModel: stripProviderPrefix(
+      requiredValue("TRADE_BOOKS_IMAGE_FALLBACK_MODEL")
+    ),
   };
 }

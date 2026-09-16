@@ -412,7 +412,6 @@ export async function generateTradeTitleManuscript(
       model: modelConfig.textModel,
       messages: [{ role: "user", content: buildPrompt(title, premise, notes) }],
       temperature: 0.7,
-      response_format: { type: "json_object" },
     }),
   });
   if (!response.ok) {

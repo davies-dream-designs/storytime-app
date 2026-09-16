@@ -43,9 +43,9 @@ describe("trade books model config", () => {
     expect(getTradeBooksModelConfig()).toEqual({
       baseUrl: "http://127.0.0.1:8317/v1",
       apiKey: "test-key",
-      textModel: "openai/claude-sonnet-5",
-      reviewModel: "openai/claude-opus-5",
-      trendsModel: "openai/claude-haiku-4-5-20251001",
+      textModel: "claude-sonnet-5",
+      reviewModel: "claude-opus-5",
+      trendsModel: "claude-haiku-4-5-20251001",
       imageModel: "gpt-image-2",
       imageFallbackModel: "gpt-image-1.5",
     });

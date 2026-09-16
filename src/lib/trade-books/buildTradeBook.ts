@@ -33,7 +33,17 @@ export async function buildTradeBook(
   }
 
   if (project.status === "ready") {
+    const now = new Date();
     await db.tradeTitles.update(tradeTitleId, { status: "book_ready" });
+    if (title.storyId) {
+      await db.stories.update(title.storyId, {
+        visibility: "public",
+        publicReviewStatus: "approved",
+        publicReviewedAt: now.toISOString(),
+        publicReviewedBy: "trade-system",
+        publicAuthorName: "Storycot",
+      });
+    }
     return;
   }
 
@@ -69,6 +79,16 @@ export async function buildTradeBook(
 
   const finalProject = await db.bookProjects.getById(project.id);
   if (finalProject?.status === "ready") {
+    const now = new Date();
     await db.tradeTitles.update(tradeTitleId, { status: "book_ready" });
+    if (title.storyId) {
+      await db.stories.update(title.storyId, {
+        visibility: "public",
+        publicReviewStatus: "approved",
+        publicReviewedAt: now.toISOString(),
+        publicReviewedBy: "trade-system",
+        publicAuthorName: "Storycot",
+      });
+    }
   }
 }

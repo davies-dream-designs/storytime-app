@@ -280,7 +280,9 @@ export default function TradeTitlesReviewSection({
                   </p>
                 </div>
                 <span className="rounded-full bg-night-100 px-3 py-1 text-xs font-bold text-night-700">
-                  {title.status}
+                  {title.status === "book_ready"
+                    ? "✅ Book ready — live in public gallery"
+                    : title.status}
                 </span>
               </div>
               <dl className="mt-4 grid gap-2 text-sm text-night-700">

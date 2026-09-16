@@ -366,7 +366,7 @@ export interface BookBilling {
 }
 
 export interface PrintBookOrder {
-  productKey: "hardcover";
+  productKey: "hardcover" | "paperback";
   productLabel: string;
   provider: string;
   format: string;
@@ -439,7 +439,7 @@ export interface PrintOrderRecord {
   ownerUserId: string;
   buyerUserId?: string;
   buyerEmail?: string;
-  productKey: "hardcover";
+  productKey: "hardcover" | "paperback";
   productLabel: string;
   provider: "lulu";
   format: string;

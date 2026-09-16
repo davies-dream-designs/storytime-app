@@ -62,8 +62,10 @@ describe("print product policy", () => {
     expect(hardcoverQuote.priceAud).toBe(39.95);
     expect(hardcoverQuote.provider).toBe("Lulu");
     expect(hardcoverQuote.format).toBe('8.5" square hardcover casewrap');
-    expect(getPrintProductQuotes({ pageCount: 32 })).toHaveLength(1);
-    expect(getPrintProductQuotes({ pageCount: 32 })[0]?.key).toBe("hardcover");
+    const quotes = getPrintProductQuotes({ pageCount: 32 });
+    expect(quotes).toHaveLength(2);
+    expect(quotes[0]?.key).toBe("hardcover");
+    expect(quotes[1]?.key).toBe("paperback");
   });
 
   it("marks formats unavailable when the finished PDF is below the product minimum", () => {

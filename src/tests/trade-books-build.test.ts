@@ -292,6 +292,13 @@ describe("buildTradeBook", () => {
 
     const updatedTitle = await memoryDb.tradeTitles.getById(title.id);
     expect(updatedTitle?.status).toBe("book_ready");
+
+    // Story should be published to the public gallery
+    const updatedStory = await memoryDb.stories.getById("story-1");
+    expect(updatedStory?.visibility).toBe("public");
+    expect(updatedStory?.publicReviewStatus).toBe("approved");
+    expect(updatedStory?.publicReviewedBy).toBe("trade-system");
+    expect(updatedStory?.publicAuthorName).toBe("Storycot");
   });
 
   it("skips character bible generation if already present on the project", async () => {
@@ -348,6 +355,7 @@ describe("buildTradeBook", () => {
 
     await memoryDb.tradeTitles.create(title);
     await memoryDb.bookProjects.create(project);
+    await memoryDb.stories.create(makeStory());
 
     const { buildTradeBook } = await import("@/lib/trade-books/buildTradeBook");
     await buildTradeBook(title.id);
@@ -355,6 +363,11 @@ describe("buildTradeBook", () => {
     expect(mockProcessBookBuildJob).not.toHaveBeenCalled();
     const updatedTitle = await memoryDb.tradeTitles.getById(title.id);
     expect(updatedTitle?.status).toBe("book_ready");
+
+    // Story should be published to the public gallery
+    const updatedStory = await memoryDb.stories.getById("story-1");
+    expect(updatedStory?.visibility).toBe("public");
+    expect(updatedStory?.publicReviewStatus).toBe("approved");
   });
 
   it("throws a permanent error if the title is not in an approved/book_ready status", async () => {

@@ -260,6 +260,7 @@ async function buildCoverPdf(input: {
   profile: ChildProfile;
   geometry?: PdfPageGeometry;
   spineWidthIn?: number;
+  productKey?: "hardcover" | "paperback";
 }): Promise<Uint8Array> {
   const geometry = input.geometry ?? STORYCOT_PDF_GEOMETRY;
   const { pageWidth, pageHeight } = geometry;
@@ -292,13 +293,15 @@ async function buildCoverPdf(input: {
 
   // For Lulu hardcover casewrap the cover sheet is larger than the trim on all
   // four sides — the extra paper folds over the board. Content inside the wrap
-  // area will be hidden or distorted. Use the Lulu-specific constant when the
-  // page is taller than the Storycot-only bleed sheet; fall back to bleed only.
+  // area will be hidden or distorted. Paperback has no casewrap; wrap = 0.
   const isLuluCover =
     pageHeight >= LULU_HARDCOVER_COVER_PAGE_HEIGHT_IN * POINTS_PER_INCH - 1;
-  const wrap = isLuluCover
-    ? LULU_HARDCOVER_CASEWRAP_WRAP_IN * POINTS_PER_INCH // 0.875" = 63pt
-    : BLEED; // Storycot: just the bleed
+  const wrap =
+    input.productKey === "paperback"
+      ? 0
+      : isLuluCover
+        ? LULU_HARDCOVER_CASEWRAP_WRAP_IN * POINTS_PER_INCH // 0.875" = 63pt
+        : BLEED; // Storycot: just the bleed
   const coverSafeY = wrap + 45; // 45pt safety from the fold line
   const coverSafeX = wrap + 45; // same margin applies horizontally
 

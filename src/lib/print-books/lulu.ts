@@ -20,6 +20,13 @@ export const LULU_HARDCOVER_COVER_PANEL_WIDTH_IN =
   (LULU_HARDCOVER_COVER_PAGE_WIDTH_IN - LULU_HARDCOVER_COVER_SPINE_WIDTH_IN) /
   2;
 
+export const LULU_PAPERBACK_PACKAGE_ID = "0850X0850.FC.STD.PB.080CW444.MXX";
+export const LULU_PAPERBACK_MIN_PAGES = 24;
+// Trim (8.5") + bleed (0.125") on each edge
+export const LULU_PAPERBACK_COVER_PAGE_HEIGHT_IN = 8.75;
+// Placeholder — actual spine comes from getLuluCoverDimensions; no casewrap wrap
+export const LULU_PAPERBACK_COVER_SPINE_WIDTH_IN = 0.125;
+
 export type LuluShippingLevel =
   | "MAIL"
   | "PRIORITY_MAIL"
@@ -221,13 +228,19 @@ export function toLuluShippingAddress(shipping: PrintShippingAddress) {
   };
 }
 
-function getLuluProductSpec(productKey: PrintBookOrder["productKey"]) {
+export function getLuluProductSpec(productKey: PrintBookOrder["productKey"]) {
   switch (productKey) {
     case "hardcover":
       return {
         packageId: LULU_HARDCOVER_PACKAGE_ID,
         minPageCount: LULU_HARDCOVER_MIN_PAGES,
         label: "hardcover",
+      };
+    case "paperback":
+      return {
+        packageId: LULU_PAPERBACK_PACKAGE_ID,
+        minPageCount: LULU_PAPERBACK_MIN_PAGES,
+        label: "paperback",
       };
   }
 }
@@ -244,12 +257,16 @@ export function isLuluPrintProvider() {
   return process.env.STORYCOT_PRINT_PROVIDER === "lulu";
 }
 
-export function hasLuluPrintAssets(project: Pick<BookProject, "assets">) {
+export function hasLuluPrintAssets(
+  project: Pick<BookProject, "assets">,
+  productKey: PrintBookOrder["productKey"] = "hardcover"
+) {
+  const spec = getLuluProductSpec(productKey);
   return Boolean(
     project.assets.luluPrintPdfUrl &&
-    project.assets.luluCoverPdfUrl &&
-    project.assets.luluPrintPdfPageCount &&
-    project.assets.luluPrintPdfPageCount >= LULU_HARDCOVER_MIN_PAGES
+      project.assets.luluCoverPdfUrl &&
+      project.assets.luluPrintPdfPageCount &&
+      project.assets.luluPrintPdfPageCount >= spec.minPageCount
   );
 }
 
@@ -386,9 +403,10 @@ export function getLuluShippingAmountAud(quote: LuluQuoteResponse) {
 export async function getLuluCoverDimensions(input: {
   pageCount: number;
   unit?: LuluCoverDimensions["unit"];
+  packageId?: string;
 }): Promise<LuluCoverDimensions> {
   const raw = (await luluPost("/cover-dimensions/", {
-    pod_package_id: LULU_HARDCOVER_PACKAGE_ID,
+    pod_package_id: input.packageId ?? LULU_HARDCOVER_PACKAGE_ID,
     interior_page_count: getLuluBillablePageCount(input.pageCount),
     unit: input.unit ?? "pt",
   })) as { width?: unknown; height?: unknown; unit?: unknown };

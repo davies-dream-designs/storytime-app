@@ -3,6 +3,7 @@ import { getAdminIdentity } from "@/lib/adminAuth";
 import { adjustUserCredits } from "@/lib/credits";
 import { db } from "@/lib/db";
 import { PUBLIC_STORY_REWARD_TIERS } from "@/lib/publicStoryRewards";
+import { TRADE_SYSTEM_USER_ID } from "@/types/tradeBook";
 
 type AwardedReward = {
   place: number;
@@ -49,7 +50,9 @@ export async function POST() {
   const leaderboard = await db.publicStoryVotes.leaderboard(50);
   const eligible = leaderboard.filter(
     (entry) =>
-      entry.votes > 0 && !previouslyRewardedIds.has(entry.story.id)
+      entry.votes > 0 &&
+      !previouslyRewardedIds.has(entry.story.id) &&
+      entry.story.userId !== TRADE_SYSTEM_USER_ID
   );
 
   const awarded: AwardedReward[] = [];

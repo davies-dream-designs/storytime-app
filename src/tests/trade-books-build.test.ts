@@ -18,13 +18,6 @@ const memoryDb = mockedDb as typeof mockedDb & { _reset(): void };
 const mockAdminIdentity = vi.fn();
 vi.mock("@/lib/adminAuth", () => ({ getAdminIdentity: mockAdminIdentity }));
 
-// ── Inngest mock ─────────────────────────────────────────────────────────────
-const mockInngestSend = vi.fn().mockResolvedValue(undefined);
-vi.mock("@/lib/inngest/client", () => ({
-  inngest: { send: mockInngestSend },
-  INNGEST_EVENTS: { bookBuildRequested: "storycot/book.build.requested" },
-}));
-
 // ── processBookBuildJob mock ─────────────────────────────────────────────────
 const mockProcessBookBuildJob =
   vi.fn<
@@ -213,13 +206,18 @@ describe("approve action", () => {
     expect(job?.mode).toBe("full");
     expect(job?.status).toBe("queued");
 
-    // Inngest book build event was fired
-    expect(mockInngestSend).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: "storycot/book.build.requested",
-        data: expect.objectContaining({ userId: "trade-system" }),
-      })
-    );
+    // build_trade_book job was enqueued
+    const tradeJob = await memoryDb.tradeBookJobs.claimNext({
+      leaseToken: "test",
+      now: new Date().toISOString(),
+      leaseExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+    });
+    expect(tradeJob?.kind).toBe("build_trade_book");
+    expect(tradeJob?.dedupeKey).toBe(`trade-build:${title.id}:v1`);
+    expect(tradeJob?.payload).toMatchObject({
+      tradeTitleId: title.id,
+      bookProjectId: project?.id,
+    });
   });
 
   it("does not create a BookProject when rejecting a title", async () => {

@@ -2,7 +2,6 @@ import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminIdentity } from "@/lib/adminAuth";
 import { db } from "@/lib/db";
-import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
 import { inferBookAgeBand } from "@/lib/print-books/ageBand";
 import { createEmptyBookProject } from "@/lib/print-books/composer";
 import { TRADE_SYSTEM_USER_ID } from "@/types/tradeBook";
@@ -94,10 +93,14 @@ export async function POST(
         updatedAt: now,
       });
 
-      // Use Inngest (Vercel-native, has Blob access) for the illustrated build.
-      await inngest.send({
-        name: INNGEST_EVENTS.bookBuildRequested,
-        data: { jobId, userId: TRADE_SYSTEM_USER_ID },
+      await db.tradeBookJobs.enqueue({
+        kind: "build_trade_book",
+        dedupeKey: `trade-build:${id}:v1`,
+        payload: {
+          tradeTitleId: id,
+          bookProjectId: project.id,
+          bookBuildJobId: jobId,
+        },
       });
 
       updated = await db.tradeTitles.update(id, {

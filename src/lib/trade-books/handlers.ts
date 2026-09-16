@@ -1,5 +1,3 @@
-import "server-only";
-
 import { generateTradeTitleManuscript } from "@/lib/trade-books/generateManuscript";
 import { TradeBookJobPermanentError } from "@/lib/trade-books/worker";
 import type { TradeBookWorkerContext } from "@/lib/trade-books/worker";

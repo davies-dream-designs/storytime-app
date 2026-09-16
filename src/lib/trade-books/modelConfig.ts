@@ -1,5 +1,3 @@
-import "server-only";
-
 import type { TradeBooksModelConfig } from "@/types/tradeBook";
 
 export class TradeBooksModelConfigurationError extends Error {

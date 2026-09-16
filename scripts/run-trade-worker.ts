@@ -1,5 +1,5 @@
-import { handleTradeBookJob } from "../src/lib/trade-books/handlers";
-import { runTradeBookWorkerCycle } from "../src/lib/trade-books/worker";
+import { handleTradeBookJob } from "@/lib/trade-books/handlers";
+import { runTradeBookWorkerCycle } from "@/lib/trade-books/worker";
 
 async function main() {
   const outcome = await runTradeBookWorkerCycle(handleTradeBookJob);

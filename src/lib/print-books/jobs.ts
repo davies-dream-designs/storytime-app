@@ -1,11 +1,14 @@
 import { after } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "@/lib/db";
+import { getClient } from "@/lib/db/client";
 import { deriveBeatsFromStory } from "@/lib/print-books/beats";
 import {
   enrichCharacterBibleWithLockedRules,
   generateCharacterBible,
 } from "@/lib/print-books/characterBible";
+import { generateTradeCharacterBible } from "@/lib/trade-books/generateTradeCharacterBible";
+import { TRADE_SYSTEM_USER_ID } from "@/types/tradeBook";
 import { composePrintBookSpreads } from "@/lib/print-books/composer";
 import {
   applySpreadIllustration,
@@ -85,12 +88,19 @@ async function advanceFullBuild(project: BookProject, context: BuildContext) {
     !project.characterBible ||
     !project.spreads.length
   ) {
-    const characterBible = await generateCharacterBible({
-      profile: context.profile,
-      story: context.story,
-      characters: context.characters,
-      storyPeople: context.storyPeople,
-    });
+    // Trade titles use Cliproxy (OpenAI-compatible) instead of the Anthropic SDK.
+    const characterBible =
+      project.userId === TRADE_SYSTEM_USER_ID
+        ? await generateTradeCharacterBible({
+            profile: context.profile,
+            story: context.story,
+          })
+        : await generateCharacterBible({
+            profile: context.profile,
+            story: context.story,
+            characters: context.characters,
+            storyPeople: context.storyPeople,
+          });
 
     const spreads = composePrintBookSpreads({
       bookProjectId: project.id,
@@ -679,6 +689,47 @@ export async function processBookBuildJob(jobId: string) {
     });
 
     if (terminalProject && nextProject.status === "ready") {
+      // For trade titles, publish the story to the public gallery instead of
+      // charging credits or sending a book-ready email.
+      if (project.userId === TRADE_SYSTEM_USER_ID) {
+        const now = new Date().toISOString();
+        after(async () => {
+          try {
+            const { eq: eqOp } = await import("drizzle-orm");
+            const { tradeTitles: tradeTitlesSchema } = await import(
+              "@/lib/db/schema"
+            );
+            const rows = await getClient()
+              .select()
+              .from(tradeTitlesSchema)
+              .where(eqOp(tradeTitlesSchema.bookProjectId, project.id))
+              .limit(1);
+            const tradeTitle = rows[0];
+            if (tradeTitle) {
+              await db.tradeTitles.update(tradeTitle.id, {
+                status: "book_ready",
+              });
+              if (tradeTitle.storyId) {
+                await db.stories.update(tradeTitle.storyId, {
+                  visibility: "public",
+                  publicReviewStatus: "approved",
+                  publicReviewedAt: now,
+                  publicReviewedBy: "trade-system",
+                  publicAuthorName: "Storycot",
+                });
+              }
+            }
+          } catch (err) {
+            console.error("Trade title publish failed (non-fatal)", err);
+          }
+        });
+        return {
+          job: updatedJob,
+          project: finalProject ?? nextProject,
+          shouldContinue: !terminalProject,
+        };
+      }
+
       finalProject = await captureIllustratedBookCredits(
         finalProject ?? nextProject
       );

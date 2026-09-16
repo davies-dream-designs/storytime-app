@@ -101,10 +101,50 @@ def week_stamp():
     return datetime.now(timezone.utc).strftime("%Y-W%V")
 
 
-def pick_briefs(n=5):
+def get_used_themes(db_url):
+    """Return the set of themes already in trade_titles with a non-failed status."""
+    import psycopg2
+    db_url = clean_db_url(db_url)
+    conn = psycopg2.connect(db_url)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT seed_brief->>'theme' FROM trade_titles "
+                "WHERE status NOT IN ('failed', 'rejected')"
+            )
+            return {row[0] for row in cur.fetchall() if row[0]}
+    finally:
+        conn.close()
+
+
+def pick_briefs(n=5, used_themes=None):
+    """
+    Pick n briefs, preferring themes not yet in the catalogue.
+    Falls back to unused-in-this-stamp themes, then any remaining brief
+    if the library is nearly exhausted — but never re-queues an already
+    successfully generated theme when fresh options exist.
+    """
     stamp = week_stamp()
+    used = used_themes or set()
+
+    # Prefer briefs whose theme has never been successfully generated
+    fresh = [b for b in BRIEFS if b["theme"] not in used]
+
+    if len(fresh) >= n:
+        rng = random.Random(stamp)
+        return rng.sample(fresh, n)
+
+    # Library mostly exhausted — use what's fresh plus fill from the rest
     rng = random.Random(stamp)
-    return rng.sample(BRIEFS, min(n, len(BRIEFS)))
+    chosen = list(fresh)
+    remainder = [b for b in BRIEFS if b["theme"] in used]
+    rng.shuffle(remainder)
+    chosen += remainder[: n - len(chosen)]
+    print(
+        f"Note: only {len(fresh)} unused themes remain; "
+        f"{n - len(fresh)} brief(s) are repeats. Consider adding more templates."
+    )
+    return chosen
 
 
 def dedupe_key(brief, stamp):
@@ -187,7 +227,9 @@ def main():
     if not db_url:
         raise RuntimeError("storycot_DATABASE_URL not found in .env.local")
 
-    briefs = pick_briefs(5)
+    used_themes = get_used_themes(db_url)
+    print(f"Themes already in catalogue: {len(used_themes)} / {len(BRIEFS)}")
+    briefs = pick_briefs(5, used_themes)
     inserted = insert_briefs(db_url, briefs)
     print(f"\nWeekly trade briefs: {inserted} queued for {week_stamp()}")
 

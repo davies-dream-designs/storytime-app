@@ -1,6 +1,9 @@
 import type { AgeBand, BookProject } from "@/types/printBook";
 
-export type PrintProductKey = "hardcover" | "paperback";
+// "paperback" is defined in lulu.ts and pdf/constants.ts but kept out of
+// PRINT_PRODUCTS until AU shipping availability is confirmed via a live quote.
+// To enable: add "paperback" back to PrintProductKey and un-comment the entry.
+export type PrintProductKey = "hardcover";
 export type CoverSpineSource = "configured" | "storycot_estimate";
 
 export const PRINT_PRODUCTS = {
@@ -20,23 +23,6 @@ export const PRINT_PRODUCTS = {
     estimatedShippingAud: 15.15,
     description:
       "Giftable keepsake edition with a rigid casewrap cover and premium colour pages.",
-  },
-  paperback: {
-    key: "paperback",
-    label: "Paperback",
-    badge: "Standard",
-    provider: "Lulu",
-    format: '8.5" square paperback',
-    minPageCount: 24,
-    maxPageCount: 300,
-    pageStep: 2,
-    basePages: 24,
-    basePriceAud: 24.95,
-    extraSpreadAud: 0.8,
-    estimatedManufacturingAud: 10.5,
-    estimatedShippingAud: 15.15,
-    description:
-      "Affordable perfect-bound paperback with full colour pages.",
   },
 } as const satisfies Record<
   PrintProductKey,

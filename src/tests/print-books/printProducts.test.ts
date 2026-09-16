@@ -63,9 +63,8 @@ describe("print product policy", () => {
     expect(hardcoverQuote.provider).toBe("Lulu");
     expect(hardcoverQuote.format).toBe('8.5" square hardcover casewrap');
     const quotes = getPrintProductQuotes({ pageCount: 32 });
-    expect(quotes).toHaveLength(2);
+    expect(quotes).toHaveLength(1);
     expect(quotes[0]?.key).toBe("hardcover");
-    expect(quotes[1]?.key).toBe("paperback");
   });
 
   it("marks formats unavailable when the finished PDF is below the product minimum", () => {

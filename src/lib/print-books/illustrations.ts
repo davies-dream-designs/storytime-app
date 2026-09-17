@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import type { Metadata as SharpMetadata, Sharp } from "sharp";
 import type { ChildProfile, Story } from "@/types";
 import { AppError } from "@/lib/errors";
 import { fetchAllowedMediaBuffer } from "@/lib/safeMediaFetch";
@@ -54,25 +55,52 @@ export function getIllustrationConcurrency(): number {
 // Upscaling
 // ---------------------------------------------------------------------------
 
-// Upscale a square PNG buffer from 1024×1024 (OpenAI output) to the print-quality
-// target defined in BOOK_SPEC (300 PPI at the trim size = 2490×2490 px).
+// Some OpenAI-compatible providers (e.g. Cliproxy) ignore the requested `size`
+// on /images/edits and return the aspect ratio of the attached reference sheet
+// instead. Resizing that with `fit: "fill"` would stretch the artwork, so square
+// targets always centre-crop and a non-square response is surfaced loudly.
+function assertSquareProviderImage(
+  metadata: SharpMetadata,
+  context: string
+): void {
+  const { width, height } = metadata;
+  if (!width || !height || width === height) return;
+  console.warn(
+    "Image provider returned a non-square image for a square request; centre-cropping instead of stretching.",
+    { context, width, height, aspect: (width / height).toFixed(4) }
+  );
+}
+
+async function resizeToSquare(
+  input: Buffer,
+  size: number,
+  context: string
+): Promise<Sharp> {
+  const image = sharp(input);
+  assertSquareProviderImage(await image.metadata(), context);
+  return image.resize(size, size, {
+    kernel: sharp.kernel.lanczos3,
+    fit: "cover",
+    position: sharp.strategy.attention,
+  });
+}
+
+// Upscale a provider PNG buffer to the print-quality target defined in
+// BOOK_SPEC (300 PPI at the trim size = 2490×2490 px).
 async function upscaleImageBuffer(input: Buffer): Promise<Buffer> {
-  return sharp(input)
-    .resize(BOOK_SPEC.upscaleWidthPx, BOOK_SPEC.upscaleHeightPx, {
-      kernel: sharp.kernel.lanczos3,
-      fit: "fill",
-    })
-    .png({ compressionLevel: 7 })
-    .toBuffer();
+  const image = await resizeToSquare(
+    input,
+    BOOK_SPEC.upscaleWidthPx,
+    "print upscale"
+  );
+  return image.png({ compressionLevel: 7 }).toBuffer();
 }
 
 // Downsample to a web-friendly 1024×1024 JPEG (~150-300 KB) for the book
 // reader. The print PNG is kept separately for PDF/Lulu use.
 async function webImageBuffer(input: Buffer): Promise<Buffer> {
-  return sharp(input)
-    .resize(1024, 1024, { kernel: sharp.kernel.lanczos3, fit: "fill" })
-    .jpeg({ quality: 88, mozjpeg: true })
-    .toBuffer();
+  const image = await resizeToSquare(input, 1024, "web derivative");
+  return image.jpeg({ quality: 88, mozjpeg: true }).toBuffer();
 }
 
 // ---------------------------------------------------------------------------
@@ -635,9 +663,12 @@ async function buildIllustrationConditioningSheet(input: {
   );
   if (usable.length === 0) return null;
 
+  // Lay the cells out on a square grid, padding unused slots. Providers that
+  // ignore the requested output `size` mirror the reference sheet's aspect
+  // ratio, so a single wide row would yield stretched 2:1/3:1 page art.
   const cellSize = REFERENCE_CELL_SIZE;
-  const columns = Math.min(3, usable.length);
-  const rows = Math.ceil(usable.length / columns);
+  const columns = Math.ceil(Math.sqrt(usable.length));
+  const rows = columns;
   const image = await sharp({
     create: {
       width: columns * cellSize,

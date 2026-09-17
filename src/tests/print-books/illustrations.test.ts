@@ -286,6 +286,7 @@ describe("generateCoverIllustration", () => {
     vi.doMock("sharp", () => {
       const instance = {
         resize: vi.fn().mockReturnThis(),
+        metadata: vi.fn(() => Promise.resolve({ width: 1024, height: 1024 })),
         removeAlpha: vi.fn().mockReturnThis(),
         raw: vi.fn().mockReturnThis(),
         png: vi.fn().mockReturnThis(),
@@ -302,6 +303,7 @@ describe("generateCoverIllustration", () => {
       const sharpFn = vi.fn(() => instance);
       const sharpMock = Object.assign(sharpFn, {
         kernel: { lanczos3: "lanczos3" },
+        strategy: { attention: "attention" },
       });
       return { default: sharpMock };
     });
@@ -375,6 +377,7 @@ describe("generateCoverIllustration", () => {
     vi.doMock("sharp", () => {
       const instance = {
         resize: vi.fn().mockReturnThis(),
+        metadata: vi.fn(() => Promise.resolve({ width: 1024, height: 1024 })),
         removeAlpha: vi.fn().mockReturnThis(),
         raw: vi.fn().mockReturnThis(),
         png: vi.fn().mockReturnThis(),
@@ -391,6 +394,7 @@ describe("generateCoverIllustration", () => {
       const sharpFn = vi.fn(() => instance);
       const sharpMock = Object.assign(sharpFn, {
         kernel: { lanczos3: "lanczos3" },
+        strategy: { attention: "attention" },
       });
       return { default: sharpMock };
     });
@@ -467,6 +471,7 @@ describe("generateCoverIllustration", () => {
     vi.doMock("sharp", () => {
       const instance = {
         resize: vi.fn().mockReturnThis(),
+        metadata: vi.fn(() => Promise.resolve({ width: 1024, height: 1024 })),
         composite: vi.fn().mockReturnThis(),
         removeAlpha: vi.fn().mockReturnThis(),
         raw: vi.fn().mockReturnThis(),
@@ -485,6 +490,7 @@ describe("generateCoverIllustration", () => {
       const sharpFn = vi.fn(() => instance);
       const sharpMock = Object.assign(sharpFn, {
         kernel: { lanczos3: "lanczos3" },
+        strategy: { attention: "attention" },
       });
       return { default: sharpMock };
     });
@@ -605,6 +611,7 @@ describe("generateCoverIllustration", () => {
     vi.doMock("sharp", () => {
       const instance = {
         resize: vi.fn().mockReturnThis(),
+        metadata: vi.fn(() => Promise.resolve({ width: 1024, height: 1024 })),
         composite: vi.fn().mockReturnThis(),
         removeAlpha: vi.fn().mockReturnThis(),
         raw: vi.fn().mockReturnThis(),
@@ -623,6 +630,7 @@ describe("generateCoverIllustration", () => {
       const sharpFn = vi.fn(() => instance);
       const sharpMock = Object.assign(sharpFn, {
         kernel: { lanczos3: "lanczos3" },
+        strategy: { attention: "attention" },
       });
       return { default: sharpMock };
     });
@@ -739,6 +747,7 @@ describe("generateCoverIllustration", () => {
     vi.doMock("sharp", () => {
       const instance = {
         resize: vi.fn().mockReturnThis(),
+        metadata: vi.fn(() => Promise.resolve({ width: 1024, height: 1024 })),
         composite: vi.fn().mockReturnThis(),
         removeAlpha: vi.fn().mockReturnThis(),
         raw: vi.fn().mockReturnThis(),
@@ -757,6 +766,7 @@ describe("generateCoverIllustration", () => {
       const sharpFn = vi.fn(() => instance);
       const sharpMock = Object.assign(sharpFn, {
         kernel: { lanczos3: "lanczos3" },
+        strategy: { attention: "attention" },
       });
       return { default: sharpMock };
     });
@@ -864,6 +874,7 @@ describe("generateCoverIllustration", () => {
     vi.doMock("sharp", () => {
       const instance = {
         resize: vi.fn().mockReturnThis(),
+        metadata: vi.fn(() => Promise.resolve({ width: 1024, height: 1024 })),
         composite: vi.fn().mockReturnThis(),
         removeAlpha: vi.fn().mockReturnThis(),
         raw: vi.fn().mockReturnThis(),
@@ -882,6 +893,7 @@ describe("generateCoverIllustration", () => {
       const sharpFn = vi.fn(() => instance);
       const sharpMock = Object.assign(sharpFn, {
         kernel: { lanczos3: "lanczos3" },
+        strategy: { attention: "attention" },
       });
       return { default: sharpMock };
     });
@@ -1009,6 +1021,7 @@ describe("generateCoverIllustration", () => {
     vi.doMock("sharp", () => {
       const instance = {
         resize: vi.fn().mockReturnThis(),
+        metadata: vi.fn(() => Promise.resolve({ width: 1024, height: 1024 })),
         composite: vi.fn().mockReturnThis(),
         removeAlpha: vi.fn().mockReturnThis(),
         raw: vi.fn().mockReturnThis(),
@@ -1027,6 +1040,7 @@ describe("generateCoverIllustration", () => {
       const sharpFn = vi.fn(() => instance);
       const sharpMock = Object.assign(sharpFn, {
         kernel: { lanczos3: "lanczos3" },
+        strategy: { attention: "attention" },
       });
       return { default: sharpMock };
     });
@@ -1169,6 +1183,7 @@ describe("generateCoverIllustration", () => {
     vi.doMock("sharp", () => {
       const instance = {
         resize: vi.fn().mockReturnThis(),
+        metadata: vi.fn(() => Promise.resolve({ width: 1024, height: 1024 })),
         composite: vi.fn().mockReturnThis(),
         removeAlpha: vi.fn().mockReturnThis(),
         raw: vi.fn().mockReturnThis(),
@@ -1187,6 +1202,7 @@ describe("generateCoverIllustration", () => {
       const sharpFn = vi.fn(() => instance);
       const sharpMock = Object.assign(sharpFn, {
         kernel: { lanczos3: "lanczos3" },
+        strategy: { attention: "attention" },
       });
       return { default: sharpMock };
     });
@@ -1441,6 +1457,7 @@ describe("generateCoverIllustration", () => {
     vi.doMock("sharp", () => {
       const instance = {
         resize: vi.fn().mockReturnThis(),
+        metadata: vi.fn(() => Promise.resolve({ width: 1024, height: 1024 })),
         removeAlpha: vi.fn().mockReturnThis(),
         raw: vi.fn().mockReturnThis(),
         png: vi.fn().mockReturnThis(),
@@ -1457,6 +1474,7 @@ describe("generateCoverIllustration", () => {
       const sharpFn = vi.fn(() => instance);
       const sharpMock = Object.assign(sharpFn, {
         kernel: { lanczos3: "lanczos3" },
+        strategy: { attention: "attention" },
       });
       return { default: sharpMock };
     });
@@ -1525,6 +1543,7 @@ describe("generateCoverIllustration", () => {
     vi.doMock("sharp", () => {
       const instance = {
         resize: vi.fn().mockReturnThis(),
+        metadata: vi.fn(() => Promise.resolve({ width: 1024, height: 1024 })),
         removeAlpha: vi.fn().mockReturnThis(),
         raw: vi.fn().mockReturnThis(),
         png: vi.fn().mockReturnThis(),
@@ -1541,6 +1560,7 @@ describe("generateCoverIllustration", () => {
       const sharpFn = vi.fn(() => instance);
       const sharpMock = Object.assign(sharpFn, {
         kernel: { lanczos3: "lanczos3" },
+        strategy: { attention: "attention" },
       });
       return { default: sharpMock };
     });

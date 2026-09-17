@@ -75,7 +75,10 @@ export interface TradeTitle {
 }
 
 export type TradeBookJobKind =
-  "generate_title" | "build_book" | "build_trade_book";
+  | "generate_title"
+  | "build_book"
+  | "build_trade_book"
+  | "regenerate_trade_spread";
 
 export type TradeBookJobStatus =
   "queued" | "running" | "retry_scheduled" | "completed" | "failed";

@@ -86,6 +86,9 @@ export default async function AdminPage({
       story: title.storyId
         ? await db.stories.getById(title.storyId)
         : undefined,
+      bookProject: title.bookProjectId
+        ? await db.bookProjects.getById(title.bookProjectId)
+        : undefined,
     }))
   );
 

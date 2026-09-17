@@ -3,6 +3,7 @@
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "@/i18n/navigation";
 import type { Story, StoryPreset } from "@/types";
+import type { BookProject } from "@/types/printBook";
 import type { TradeTitle } from "@/types/tradeBook";
 
 const PRESETS: Array<{ value: StoryPreset; label: string }> = [
@@ -20,6 +21,7 @@ const PRESETS: Array<{ value: StoryPreset; label: string }> = [
 type TitleWithStory = {
   title: TradeTitle;
   story?: Story;
+  bookProject?: BookProject;
 };
 
 const initialForm = {
@@ -43,6 +45,10 @@ export default function TradeTitlesReviewSection({
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [spreadNotes, setSpreadNotes] = useState<Record<string, string>>({});
+  const [queuedSpreadIds, setQueuedSpreadIds] = useState<Set<string>>(
+    new Set()
+  );
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -90,6 +96,32 @@ export default function TradeTitlesReviewSection({
         setError(body?.error ?? "Could not trigger rebuild.");
         return;
       }
+      router.refresh();
+    });
+  }
+
+  function regenerateSpread(bookProjectId: string, spreadId: string) {
+    setError(null);
+    startTransition(async () => {
+      const response = await fetch(
+        `/api/admin/books/${bookProjectId}/spreads/${spreadId}/regenerate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            side: "left",
+            correctionNote: spreadNotes[spreadId],
+          }),
+        }
+      );
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        setError(body?.error ?? "Could not queue the spread reroll.");
+        return;
+      }
+      setQueuedSpreadIds((current) => new Set(current).add(spreadId));
       router.refresh();
     });
   }
@@ -278,7 +310,7 @@ export default function TradeTitlesReviewSection({
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {entries.map(({ title, story }) => (
+          {entries.map(({ title, story, bookProject }) => (
             <article
               key={title.id}
               className="rounded-2xl border border-night-100 bg-white p-5 shadow-sm"
@@ -408,6 +440,63 @@ export default function TradeTitlesReviewSection({
                     <span className="font-mono">{title.bookProjectId}</span>
                   </p>
                 </div>
+              ) : null}
+              {bookProject && bookProject.spreads.some((s) => s.leftPageImageUrl) ? (
+                <details className="mt-3">
+                  <summary className="cursor-pointer text-sm font-bold text-night-700">
+                    Illustrated spreads ({bookProject.spreads.filter((s) => s.leftPageImageUrl).length})
+                  </summary>
+                  <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {bookProject.spreads
+                      .filter((spread) => spread.leftPageImageUrl)
+                      .map((spread) => (
+                        <div
+                          key={spread.id}
+                          className="rounded-xl border border-night-100 p-2"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={spread.leftPageWebImageUrl ?? spread.leftPageImageUrl}
+                            alt={`Spread ${spread.sequence}`}
+                            className="aspect-square w-full rounded-lg object-cover"
+                          />
+                          <p className="mt-1 text-xs text-night-500">
+                            Spread {spread.sequence}
+                          </p>
+                          <textarea
+                            rows={2}
+                            value={spreadNotes[spread.id] ?? ""}
+                            onChange={(event) =>
+                              setSpreadNotes((current) => ({
+                                ...current,
+                                [spread.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="What's wrong? (optional)"
+                            className="mt-1 w-full rounded-lg border border-night-200 px-2 py-1 text-xs outline-none focus:border-star-400 focus:ring-2 focus:ring-star-100"
+                          />
+                          <button
+                            type="button"
+                            disabled={
+                              isPending || queuedSpreadIds.has(spread.id)
+                            }
+                            onClick={() =>
+                              regenerateSpread(bookProject.id, spread.id)
+                            }
+                            className="storycot-btn storycot-btn-secondary storycot-btn-compact mt-1 w-full"
+                          >
+                            {queuedSpreadIds.has(spread.id)
+                              ? "Reroll queued"
+                              : "🎲 Reroll this image"}
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                  <p className="mt-2 text-xs text-night-400">
+                    Reroll queues a job for the local Cliproxy worker. Refresh
+                    this page after it runs to see the new image.
+                  </p>
+                </details>
               ) : null}
             </article>
           ))}

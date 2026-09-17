@@ -114,6 +114,47 @@ describe("generateCoverIllustration", () => {
     expect(isGeneratedIllustrationConfigured()).toBe(false);
   });
 
+  it("checks the trade Cliproxy provider (not OPENAI_API_KEY) for a trade project", async () => {
+    // Regression test: regenerateBookSpreadPageImage used to call
+    // isGeneratedIllustrationConfigured() with no project argument, which
+    // falls back to checking OPENAI_API_KEY. That's wrong for trade books,
+    // which are configured entirely through TRADE_BOOKS_* / Cliproxy and
+    // never set OPENAI_API_KEY. Without a project, a trade reroll would
+    // incorrectly report "not configured" (or, worse, incorrectly succeed
+    // whenever a developer's shell happens to also export OPENAI_API_KEY).
+    process.env.TRADE_BOOKS_OPENAI_BASE_URL = "https://cliproxy.test/v1";
+    process.env.TRADE_BOOKS_OPENAI_API_KEY = "cliproxy-key";
+    process.env.TRADE_BOOKS_IMAGE_MODEL = "trade-image-model";
+
+    vi.doMock("@/lib/print-books/storage", () => ({
+      storeBookAsset: mockStoreBookAsset,
+      isBookAssetStorageConfigured: () => true,
+    }));
+    vi.resetModules();
+
+    const { isGeneratedIllustrationConfigured } = await import(
+      "@/lib/print-books/illustrations"
+    );
+
+    const tradeProject = {
+      userId: "trade-system",
+      assets: { proofVersion: 0, imageProvider: "trade_cliproxy" as const },
+    };
+    const consumerProject = {
+      userId: "user-1",
+      assets: { proofVersion: 0 },
+    };
+
+    expect(isGeneratedIllustrationConfigured(tradeProject)).toBe(true);
+    // Without OPENAI_API_KEY, a real consumer project must still fail even
+    // though the trade env vars above are set.
+    expect(isGeneratedIllustrationConfigured(consumerProject)).toBe(false);
+
+    delete process.env.TRADE_BOOKS_OPENAI_BASE_URL;
+    delete process.env.TRADE_BOOKS_OPENAI_API_KEY;
+    delete process.env.TRADE_BOOKS_IMAGE_MODEL;
+  });
+
   it("creates a placeholder cover asset when provider credentials are missing", async () => {
     const { generateCoverIllustration } =
       await import("@/lib/print-books/illustrations");

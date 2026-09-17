@@ -290,7 +290,7 @@ export async function regenerateBookSpreadPageImage(input: {
     throw new Error("This book does not have a complete draft to edit yet.");
   }
 
-  if (!isGeneratedIllustrationConfigured()) {
+  if (!isGeneratedIllustrationConfigured(project)) {
     throw new Error(
       "Final art generation needs provider credentials plus blob storage before it can run."
     );

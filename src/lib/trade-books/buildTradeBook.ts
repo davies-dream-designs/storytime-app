@@ -6,6 +6,7 @@ import { processBookBuildJob } from "@/lib/print-books/jobs";
 import { getBookProjectStageLabel } from "@/lib/print-books/status";
 import { ensureTradeProtagonistVisualReference } from "@/lib/trade-books/characterReference";
 import { generateTradeCharacterBible } from "@/lib/trade-books/generateTradeCharacterBible";
+import { runIllustrationAutoQa } from "@/lib/trade-books/illustrationAutoQa";
 import { TradeBookJobPermanentError } from "@/lib/trade-books/worker";
 
 async function publishTradeStory(storyId: string) {
@@ -154,6 +155,14 @@ export async function buildTradeBook(
 
   const finalProject = await db.bookProjects.getById(project.id);
   if (finalProject?.status === "ready") {
+    // Vision-QA every illustrated spread and auto-reroll defects (anatomy
+    // errors, obscured faces, style breaks) before the title goes live.
+    // Anything still flagged after retries doesn't block publishing — it's
+    // surfaced in the admin trade review UI for a manual follow-up reroll.
+    await runIllustrationAutoQa(project.id, {
+      fetchImpl: options.fetchImpl,
+      heartbeat: options.heartbeat,
+    });
     await db.tradeTitles.update(tradeTitleId, { status: "book_ready" });
     if (title.storyId) await publishTradeStory(title.storyId);
   }

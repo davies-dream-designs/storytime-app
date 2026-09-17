@@ -445,14 +445,31 @@ export default function TradeTitlesReviewSection({
                 <details className="mt-3">
                   <summary className="cursor-pointer text-sm font-bold text-night-700">
                     Illustrated spreads ({bookProject.spreads.filter((s) => s.leftPageImageUrl).length})
+                    {(() => {
+                      const flaggedCount = bookProject.spreads.filter(
+                        (s) => s.leftPageQa?.qa?.needsManualReview
+                      ).length;
+                      return flaggedCount > 0 ? (
+                        <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-700">
+                          ⚠️ {flaggedCount} flagged by auto-QA
+                        </span>
+                      ) : null;
+                    })()}
                   </summary>
                   <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {bookProject.spreads
                       .filter((spread) => spread.leftPageImageUrl)
-                      .map((spread) => (
+                      .map((spread) => {
+                        const qa = spread.leftPageQa?.qa;
+                        const flagged = qa?.needsManualReview;
+                        return (
                         <div
                           key={spread.id}
-                          className="rounded-xl border border-night-100 p-2"
+                          className={`rounded-xl border p-2 ${
+                            flagged
+                              ? "border-red-300 bg-red-50"
+                              : "border-night-100"
+                          }`}
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
@@ -463,6 +480,18 @@ export default function TradeTitlesReviewSection({
                           <p className="mt-1 text-xs text-night-500">
                             Spread {spread.sequence}
                           </p>
+                          {flagged ? (
+                            <p className="mt-1 rounded-lg bg-red-100 px-2 py-1 text-xs font-bold text-red-700">
+                              ⚠️ Needs review ({qa.category}): {qa.description}
+                            </p>
+                          ) : qa ? (
+                            <p className="mt-1 text-xs text-green-600">
+                              ✓ Auto-QA passed
+                              {qa.autoRerollAttempts > 0
+                                ? ` (after ${qa.autoRerollAttempts} reroll${qa.autoRerollAttempts > 1 ? "s" : ""})`
+                                : ""}
+                            </p>
+                          ) : null}
                           <textarea
                             rows={2}
                             value={spreadNotes[spread.id] ?? ""}
@@ -490,7 +519,8 @@ export default function TradeTitlesReviewSection({
                               : "🎲 Reroll this image"}
                           </button>
                         </div>
-                      ))}
+                        );
+                      })}
                   </div>
                   <p className="mt-2 text-xs text-night-400">
                     Reroll queues a job for the local Cliproxy worker. Refresh

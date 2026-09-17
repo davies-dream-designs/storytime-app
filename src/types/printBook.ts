@@ -249,6 +249,29 @@ export interface ContinuityVisualReference {
   sequence?: number;
 }
 
+export type IllustrationQaCategory =
+  | "anatomy"
+  | "obscured_face"
+  | "style_break"
+  | "none";
+
+export interface IllustrationQaVerdict {
+  /** True when the vision QA pass flagged a defect in this image. */
+  defect: boolean;
+  category: IllustrationQaCategory;
+  /** Human-readable description of the issue, written as a fix instruction. */
+  description: string;
+  /** How many auto-reroll attempts were made in response to this verdict. */
+  autoRerollAttempts: number;
+  /**
+   * True once auto-reroll attempts are exhausted and the image still shows a
+   * defect (or QA itself failed) — surfaced to admins for manual review.
+   */
+  needsManualReview: boolean;
+  checkedAt: string;
+  reviewModel: string;
+}
+
 export interface IllustrationGenerationMetadata {
   provider: "openai" | "placeholder";
   generatedAt: string;
@@ -260,6 +283,7 @@ export interface IllustrationGenerationMetadata {
   staleCharacterReferenceNames?: string[];
   correctionNote?: string;
   pageTextOmitted?: boolean;
+  qa?: IllustrationQaVerdict;
 }
 
 export interface BookSpread {

@@ -134,6 +134,16 @@ export async function buildTradeBook(
     );
   }
 
+  if (job.mode === "full") {
+    await db.bookBuildJobs.update(job.id, {
+      mode: "art",
+      status: "queued",
+      step: 0,
+      totalSteps: currentProject.spreads.length,
+      errorMessage: undefined,
+    });
+  }
+
   let result = await processBookBuildJob(job.id);
   if (options.heartbeat) await options.heartbeat();
 

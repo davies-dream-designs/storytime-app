@@ -683,6 +683,9 @@ export async function drawLuluTextPage(input: {
   pageWidth: number;
   pageHeight: number;
   textSafeMargin: number;
+  /** Extra binding-edge inset, and which edge binds. Print only. */
+  spineSideExtraMargin?: number;
+  spineSide?: "left" | "right";
   serif: Awaited<ReturnType<PDFDocument["embedFont"]>>;
   serifBold: Awaited<ReturnType<PDFDocument["embedFont"]>>;
   sans: Awaited<ReturnType<PDFDocument["embedFont"]>>;
@@ -703,19 +706,25 @@ export async function drawLuluTextPage(input: {
   const theme = pickPlaceholderTheme(story);
   drawPageBackground(page, pageWidth, pageHeight, theme.paper);
 
+  const spineExtra = input.spineSideExtraMargin ?? 0;
+  const leftMargin =
+    textSafeMargin + (input.spineSide === "left" ? spineExtra : 0);
+  const rightMargin =
+    textSafeMargin + (input.spineSide === "right" ? spineExtra : 0);
+
   const brandIconSize = 28;
   await drawBrandWordmark({
     pdfDoc,
     page,
     variant: "dark",
-    x: textSafeMargin,
+    x: leftMargin,
     y: pageHeight - textSafeMargin - brandIconSize,
     iconSize: brandIconSize,
     font: sans,
   });
 
   const text = getTextPageDisplayText(spread);
-  const textWidth = pageWidth - textSafeMargin * 2;
+  const textWidth = pageWidth - leftMargin - rightMargin;
 
   if (text) {
     const availableTop = pageHeight - textSafeMargin - brandIconSize - 24;
@@ -739,7 +748,7 @@ export async function drawLuluTextPage(input: {
     drawWrappedText({
       page,
       text,
-      x: textSafeMargin,
+      x: leftMargin,
       topY: centeredTopY,
       maxWidth: textWidth,
       lineHeight: fittedText.lineHeight,
@@ -750,11 +759,23 @@ export async function drawLuluTextPage(input: {
     });
   }
 
-  page.drawText(`${pageNumber}`, {
-    x: pageWidth - textSafeMargin,
+  // Sit the number inside the safe area on the outer (non-binding) edge.
+  // Drawing at `pageWidth - margin` would start the glyph at the boundary and
+  // overflow outward into the trim/punch zone.
+  const pageNumberLabel = `${pageNumber}`;
+  const pageNumberSize = 10;
+  const pageNumberWidth = sans.widthOfTextAtSize(
+    pageNumberLabel,
+    pageNumberSize
+  );
+  page.drawText(pageNumberLabel, {
+    x:
+      input.spineSide === "right"
+        ? leftMargin
+        : pageWidth - rightMargin - pageNumberWidth,
     y: 28,
     font: sans,
-    size: 10,
+    size: pageNumberSize,
     color: rgb(0.42, 0.4, 0.48),
   });
 }

@@ -569,3 +569,161 @@ describe("generateBookPdfs", () => {
     expect(layout.size).toBeLessThan(17);
   });
 });
+
+describe("Lulu interior binding-edge gutter", () => {
+  // Text x-positions are read back out of the page content stream (the `Tm`
+  // text matrix), so these assert what is actually drawn rather than what the
+  // geometry constants merely intend.
+  async function getTextXPositions(
+    bytes: Uint8Array,
+    pageIndex: number
+  ): Promise<number[]> {
+    const { PDFRawStream } = await import("pdf-lib");
+    const { inflateSync } = await import("node:zlib");
+    const doc = await PDFDocument.load(bytes);
+    const contents = doc.getPage(pageIndex).node.Contents();
+    if (!contents) return [];
+    const refs =
+      "asArray" in contents
+        ? (contents as { asArray: () => unknown[] }).asArray()
+        : [contents];
+
+    const xs: number[] = [];
+    for (const ref of refs) {
+      const stream = doc.context.lookup(ref as never);
+      if (!(stream instanceof PDFRawStream)) continue;
+      let raw = Buffer.from(stream.contents);
+      try {
+        raw = inflateSync(raw);
+      } catch {
+        // stream stored uncompressed
+      }
+      for (const m of raw
+        .toString("latin1")
+        .matchAll(/1 0 0 1 ([\d.-]+) ([\d.-]+) Tm/g)) {
+        xs.push(Number(m[1]));
+      }
+    }
+    return xs;
+  }
+
+  async function buildPdfs(project: BookProject) {
+    const stored: Record<string, Uint8Array> = {};
+    mockStoreBookAsset.mockImplementation(
+      async ({ pathname, body }: { pathname: string; body: Buffer }) => {
+        stored[pathname] = new Uint8Array(body);
+        return `https://blob/${pathname}`;
+      }
+    );
+    const { generateBookPdfs } = await import("@/lib/print-books/pdf");
+    await generateBookPdfs({
+      project,
+      story: createStory(),
+      profile: createProfile(),
+    });
+    return stored;
+  }
+
+  /**
+   * Several text-only spreads in a row, so consecutive physical pages carry
+   * text and both a recto and a verso can be compared. Art pages are omitted
+   * deliberately: they hold no text, and a text/art alternation would only
+   * ever land text on one side.
+   */
+  function createTextHeavyProject(): BookProject {
+    const base = createProject();
+    return {
+      ...base,
+      spreads: Array.from({ length: 4 }, (_, i) => ({
+        id: `book-1:spread:${i + 1}`,
+        bookProjectId: "book-1",
+        sequence: i + 1,
+        pageStart: i * 2 + 1,
+        pageEnd: i * 2 + 2,
+        layoutType: "text_art" as const,
+        leftPageText: `Page ${i + 1}: Mila walked on through the moonlit garden.`,
+        rightPageText: "",
+        sceneBrief: `Scene ${i + 1}`,
+        illustrationPrompt: `Scene ${i + 1}`,
+        imageUrl: "data:image/svg+xml;base64,spread",
+      })),
+    };
+  }
+
+  it("insets text further on the binding edge, alternating by page side", async () => {
+    process.env.STORYCOT_PRINT_PROVIDER = "lulu";
+    const stored = await buildPdfs(createTextHeavyProject());
+    const key = Object.keys(stored).find((k) => k.includes("lulu-print"));
+    expect(key).toBeDefined();
+    const bytes = stored[key!]!;
+
+    const { POINTS_PER_INCH } = await import("@/lib/print-books/pdf/constants");
+    const base = 0.625 * POINTS_PER_INCH;
+    const gutter = 0.375 * POINTS_PER_INCH;
+
+    const doc = await PDFDocument.load(bytes);
+    let rectoMin: number | undefined;
+    let versoMin: number | undefined;
+    for (let i = 0; i < doc.getPageCount(); i += 1) {
+      const xs = await getTextXPositions(bytes, i);
+      if (!xs.length) continue;
+      const min = Math.min(...xs);
+      if ((i + 1) % 2 === 1) rectoMin ??= min;
+      else versoMin ??= min;
+    }
+
+    // Recto binds on its left edge, so text starts a full gutter further in.
+    expect(rectoMin).toBeCloseTo(base + gutter, 0);
+    // Verso binds on its right edge, so the left side keeps the base margin.
+    expect(versoMin).toBeCloseTo(base, 0);
+  });
+
+  it("keeps digital story text symmetric, since screens have no binding", async () => {
+    process.env.STORYCOT_PRINT_PROVIDER = "lulu";
+    const stored = await buildPdfs(createTextHeavyProject());
+    const key = Object.keys(stored).find(
+      (k) => k.endsWith("/print.pdf") && !k.includes("lulu")
+    );
+    expect(key).toBeDefined();
+    const bytes = stored[key!]!;
+
+    const { POINTS_PER_INCH } = await import("@/lib/print-books/pdf/constants");
+    const base = 0.625 * POINTS_PER_INCH;
+
+    // The digital build prepends a styled cover page, which has its own
+    // (wider) layout and is not story text, so it is skipped.
+    const doc = await PDFDocument.load(bytes);
+    const storyPageMins: number[] = [];
+    for (let i = 1; i < doc.getPageCount(); i += 1) {
+      const xs = await getTextXPositions(bytes, i);
+      if (xs.length) storyPageMins.push(Math.min(...xs));
+    }
+
+    expect(storyPageMins.length).toBeGreaterThan(1);
+    // Every story page shares the same left margin: no alternating gutter.
+    for (const min of storyPageMins) {
+      expect(min).toBeCloseTo(base, 0);
+    }
+  });
+
+  it("widens the base margin for books past Lulu's 60-page threshold", async () => {
+    const { getLuluInteriorTextSafeMargin, POINTS_PER_INCH } = await import(
+      "@/lib/print-books/pdf/constants"
+    );
+    expect(getLuluInteriorTextSafeMargin(32)).toBeCloseTo(0.625 * POINTS_PER_INCH, 3);
+    expect(getLuluInteriorTextSafeMargin(60)).toBeCloseTo(0.625 * POINTS_PER_INCH, 3);
+    // 72pp (young-reader-long) crosses into Lulu's 61-150 page band.
+    expect(getLuluInteriorTextSafeMargin(72)).toBeCloseTo(0.75 * POINTS_PER_INCH, 3);
+    expect(getLuluInteriorTextSafeMargin(200)).toBeCloseTo(1.125 * POINTS_PER_INCH, 3);
+  });
+
+  it("clears the coil punch bite even with adverse trim variance", async () => {
+    const { LULU_SPINE_SIDE_EXTRA_MARGIN, POINTS_PER_INCH } = await import(
+      "@/lib/print-books/pdf/constants"
+    );
+    const textFromTrimIn =
+      0.625 - 0.125 + LULU_SPINE_SIDE_EXTRA_MARGIN / POINTS_PER_INCH;
+    // Lulu: coil bites up to 0.375", plus up to 0.125" of trim variance.
+    expect(textFromTrimIn).toBeGreaterThan(0.375 + 0.125);
+  });
+});

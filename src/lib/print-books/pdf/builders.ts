@@ -32,6 +32,7 @@ import {
   BRAND_PURPLE,
   LULU_COVER_PDF_GEOMETRY,
   LULU_PDF_GEOMETRY,
+  getLuluInteriorTextSafeMargin,
   POINTS_PER_INCH,
   STORYCOT_PDF_GEOMETRY,
   type PdfPageGeometry,
@@ -58,6 +59,18 @@ import {
   hasTextPageContent,
 } from "./rendering";
 import { getPdfChromeLabels } from "./chromeLabels";
+
+/**
+ * Which edge of a physical page meets the binding.
+ *
+ * In a bound book the first leaf is a recto (right-hand page), so odd 1-based
+ * pages are rectos and bind on their left edge; even pages are versos and bind
+ * on their right. Derived from the real PDF page index rather than the spread
+ * index, because a spread can emit zero, one or two pages.
+ */
+function getSpineSide(pageNumber: number): "left" | "right" {
+  return pageNumber % 2 === 1 ? "left" : "right";
+}
 
 async function buildPrintPdf(input: {
   project: BookProject;
@@ -165,6 +178,7 @@ async function buildPrintPdf(input: {
     if (input.textArtInterior) {
       if (hasTextPageContent(spread)) {
         const textPage = pdfDoc.addPage([pageWidth, pageHeight]);
+        const pageNumber = pdfDoc.getPageCount();
         await drawLuluTextPage({
           pdfDoc,
           page: textPage,
@@ -173,10 +187,12 @@ async function buildPrintPdf(input: {
           pageWidth,
           pageHeight,
           textSafeMargin,
+          spineSideExtraMargin: geometry.spineSideExtraMargin,
+          spineSide: getSpineSide(pageNumber),
           serif,
           serifBold,
           sans,
-          pageNumber: pdfDoc.getPageCount(),
+          pageNumber,
         });
       }
 
@@ -569,7 +585,14 @@ export async function generateBookPdfs(input: {
   const luluPrintBytes = shouldGenerateLuluPdfs
     ? await buildPrintPdf({
         ...input,
-        geometry: LULU_PDF_GEOMETRY,
+        geometry: {
+          ...LULU_PDF_GEOMETRY,
+          // Lulu's required interior margin grows past 60 pages, so derive it
+          // from the book's own length rather than a fixed constant.
+          textSafeMargin: getLuluInteriorTextSafeMargin(
+            Math.max(input.project.pageCount, LULU_HARDCOVER_MIN_PAGES)
+          ),
+        },
         minPageCount: LULU_HARDCOVER_MIN_PAGES,
         includeCoverFrontMatter: false,
         textArtInterior: true,

@@ -57,6 +57,9 @@ const mockDb = {
     getAll: vi.fn(),
     upsert: vi.fn(),
   },
+  errorEvents: {
+    create: vi.fn(),
+  },
 };
 
 vi.mock("stripe", () => ({

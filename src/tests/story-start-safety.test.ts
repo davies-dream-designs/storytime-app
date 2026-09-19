@@ -20,12 +20,23 @@ const { mockAuth, mockClerkClient, mockDb } = vi.hoisted(() => ({
     stories: {
       create: vi.fn(),
     },
+    errorEvents: {
+      create: vi.fn(),
+    },
   },
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: mockAuth,
   clerkClient: mockClerkClient,
+}));
+
+// logEvent sends a real alert email for error-severity print/payment events.
+// Stub only that network boundary so logEvent itself still runs for real.
+vi.mock("resend", () => ({
+  Resend: vi.fn().mockImplementation(() => ({
+    emails: { send: vi.fn().mockResolvedValue({ data: null, error: null }) },
+  })),
 }));
 
 vi.mock("@/lib/db", () => ({

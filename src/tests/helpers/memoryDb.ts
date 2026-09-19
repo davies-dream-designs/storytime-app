@@ -11,6 +11,22 @@ import type {
   TradeTitleStatus,
 } from "@/types/tradeBook";
 
+export interface ErrorEventRecord {
+  id: string;
+  createdAt: string;
+  domain: string;
+  code: string;
+  severity: string;
+  userId?: string | null;
+  userEmail?: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
+  message: string;
+  rawError?: string | null;
+  context?: Record<string, unknown> | null;
+  source?: string | null;
+}
+
 export function createMemoryDb() {
   const profileMap = new Map<string, ChildProfile>();
   const storyMap = new Map<string, Story>();
@@ -45,6 +61,7 @@ export function createMemoryDb() {
     string,
     { status: "pending" | "sent" | "failed"; kind: string; lastError?: string }
   >();
+  const errorEventRows: ErrorEventRecord[] = [];
 
   const db = {
     _reset() {
@@ -61,6 +78,7 @@ export function createMemoryDb() {
       processedWebhookEventLeases.clear();
       userCreditsMap.clear();
       luluPriceCacheMap.clear();
+      errorEventRows.length = 0;
       creditLedgerDedupeKeys.clear();
       emailOutboxDedupeKeys.clear();
       emailOutboxRows.clear();
@@ -703,6 +721,18 @@ export function createMemoryDb() {
         const balance = Math.max(0, current + input.delta);
         userCreditsMap.set(input.userId, balance);
         return { balance, applied: true };
+      },
+    },
+
+    errorEvents: {
+      async create(input: ErrorEventRecord): Promise<void> {
+        errorEventRows.push(input);
+      },
+      // Test-only accessor: lets specs assert that a failing code path
+      // actually recorded an error event, instead of logEvent throwing
+      // unnoticed because this collection was missing.
+      _all(): ErrorEventRecord[] {
+        return [...errorEventRows];
       },
     },
 

@@ -271,6 +271,12 @@ describe("runOwnerPrintFulfillment", () => {
 
     expect(result.status).toBe("failed");
     expect(mockSubmit).not.toHaveBeenCalled();
+
+    // The failure must leave a persisted error event behind: this is the
+    // only signal Jake gets that an order stalled before reaching Lulu.
+    const events = memoryDb.errorEvents._all();
+    expect(events).toHaveLength(1);
+    expect(events[0].domain).toBe("print");
   });
 
   it("skips when the project has no paid print order", async () => {

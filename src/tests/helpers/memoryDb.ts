@@ -27,6 +27,18 @@ export function createMemoryDb() {
     { status: "pending" | "done"; leaseExpiresAt: number }
   >();
   const userCreditsMap = new Map<string, number>();
+  const luluPriceCacheMap = new Map<
+    string,
+    {
+      productKey: string;
+      sampleLowPageCount: number;
+      sampleLowCostAudCents: number;
+      sampleHighPageCount: number;
+      sampleHighCostAudCents: number;
+      quotedAt: string;
+      rawResponse?: Record<string, unknown>;
+    }
+  >();
   const creditLedgerDedupeKeys = new Set<string>();
   const emailOutboxDedupeKeys = new Set<string>();
   const emailOutboxRows = new Map<
@@ -48,6 +60,7 @@ export function createMemoryDb() {
       emailClaimSet.clear();
       processedWebhookEventLeases.clear();
       userCreditsMap.clear();
+      luluPriceCacheMap.clear();
       creditLedgerDedupeKeys.clear();
       emailOutboxDedupeKeys.clear();
       emailOutboxRows.clear();
@@ -690,6 +703,28 @@ export function createMemoryDb() {
         const balance = Math.max(0, current + input.delta);
         userCreditsMap.set(input.userId, balance);
         return { balance, applied: true };
+      },
+    },
+
+    luluPriceCache: {
+      async getByProductKey(productKey: string) {
+        return luluPriceCacheMap.get(productKey);
+      },
+      async getAll() {
+        return Array.from(luluPriceCacheMap.values());
+      },
+      async upsert(input: {
+        productKey: string;
+        sampleLowPageCount: number;
+        sampleLowCostAudCents: number;
+        sampleHighPageCount: number;
+        sampleHighCostAudCents: number;
+        rawResponse?: Record<string, unknown>;
+      }): Promise<void> {
+        luluPriceCacheMap.set(input.productKey, {
+          ...input,
+          quotedAt: new Date().toISOString(),
+        });
       },
     },
   };

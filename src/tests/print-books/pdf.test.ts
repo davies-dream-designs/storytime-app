@@ -195,6 +195,55 @@ function createProjectWithFullBackMatter(): BookProject {
   };
 }
 
+describe("buildCoverPdf for flat Lulu bindings", () => {
+  it("uses Lulu's verified 8.625in panels and zero spine for coil", async () => {
+    const { buildCoverPdf } = await import("@/lib/print-books/pdf");
+    const { LULU_COIL_COVER_PDF_GEOMETRY, POINTS_PER_INCH } = await import(
+      "@/lib/print-books/pdf/constants"
+    );
+
+    const bytes = await buildCoverPdf({
+      project: createProject(),
+      story: createStory(),
+      profile: createProfile(),
+      geometry: LULU_COIL_COVER_PDF_GEOMETRY,
+      spineWidthIn: 0,
+      productKey: "coil",
+    });
+    const pdf = await PDFDocument.load(bytes);
+    const { width, height } = pdf.getPage(0).getSize();
+
+    // Live Lulu /cover-dimensions/ responses are a constant 17.250 x 8.750
+    // inches for coil — two 8.625in panels and no continuous spine.
+    expect(width).toBeCloseTo(17.25 * POINTS_PER_INCH, 3);
+    expect(height).toBeCloseTo(8.75 * POINTS_PER_INCH, 3);
+  });
+
+  it("adds only Lulu's live paperback spine width between the flat panels", async () => {
+    const { buildCoverPdf } = await import("@/lib/print-books/pdf");
+    const { LULU_FLAT_COVER_PDF_GEOMETRY, POINTS_PER_INCH } = await import(
+      "@/lib/print-books/pdf/constants"
+    );
+
+    const livePaperbackSpineWidthIn = 0.132; // verified @ 32pp
+    const bytes = await buildCoverPdf({
+      project: createProject(),
+      story: createStory(),
+      profile: createProfile(),
+      geometry: LULU_FLAT_COVER_PDF_GEOMETRY,
+      spineWidthIn: livePaperbackSpineWidthIn,
+      productKey: "paperback",
+    });
+    const pdf = await PDFDocument.load(bytes);
+    const { width, height } = pdf.getPage(0).getSize();
+
+    // 2 * 8.625in panels + 0.132in live spine = 17.382in, exactly matching
+    // Lulu's verified cover-dimensions response for Perfect Bound at 32pp.
+    expect(width).toBeCloseTo(17.382 * POINTS_PER_INCH, 3);
+    expect(height).toBeCloseTo(8.75 * POINTS_PER_INCH, 3);
+  });
+});
+
 describe("formatCreatedOnDate", () => {
   it("formats a book's creation timestamp as a full UTC date", async () => {
     const { formatCreatedOnDate } = await import(

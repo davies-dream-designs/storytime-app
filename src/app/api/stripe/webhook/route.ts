@@ -410,7 +410,11 @@ async function handleStripeEvent(stripe: Stripe, event: Stripe.Event) {
           return NextResponse.json({ received: true, alreadySubmitted: true });
         }
         if (project && project.userId === userId) {
-          const quote = quotePrintProduct(project, productKey);
+          // quote here is only used for label/format metadata and as a
+          // fallback if session.metadata.amountAud is somehow missing — the
+          // authoritative charged amount is always session.metadata, set at
+          // checkout time from that session's live price, not re-derived here.
+          const quote = await quotePrintProduct(project, productKey);
           const quantity = Math.min(
             10,
             Math.max(1, parseInt(session.metadata?.quantity ?? "1", 10) || 1)
@@ -424,12 +428,12 @@ async function handleStripeEvent(stripe: Stripe, event: Stripe.Event) {
             amountAud: Number(
               session.metadata?.amountAud ??
                 project.printOrder?.amountAud ??
-                quote.priceAud * quantity
+                (quote.priceAud ?? 0) * quantity
             ),
             subtotalAud: Number(
               session.metadata?.subtotalAud ??
                 project.printOrder?.subtotalAud ??
-                quote.priceAud * quantity
+                (quote.priceAud ?? 0) * quantity
             ),
             shippingAmountAud: Number(
               session.metadata?.shippingAmountAud ??

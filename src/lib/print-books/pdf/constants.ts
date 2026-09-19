@@ -10,6 +10,8 @@ import {
   LULU_INTERIOR_PDF_PAGE_HEIGHT_IN,
   LULU_INTERIOR_PDF_PAGE_WIDTH_IN,
   LULU_PAPERBACK_COVER_PAGE_HEIGHT_IN,
+  LULU_FLAT_COVER_PANEL_WIDTH_IN,
+  LULU_COIL_COVER_PAGE_HEIGHT_IN,
 } from "@/lib/print-books/lulu";
 
 export const POINTS_PER_INCH = 72;
@@ -46,10 +48,25 @@ export const LULU_COVER_PDF_GEOMETRY: PdfPageGeometry = {
   textSafeMargin: FULL_BLEED_TEXT_SAFE_MARGIN,
 };
 
-// Paperback panel width is dynamic (spine varies by page count), so pageWidth here
-// is the trim + bleed panel width only; cover builders compute full width at runtime.
-export const LULU_PAPERBACK_COVER_PDF_GEOMETRY: PdfPageGeometry = {
-  pageWidth: LULU_PAPERBACK_COVER_PAGE_HEIGHT_IN * POINTS_PER_INCH, // square: panel width = height
+// Perfect Bound / Coil have no casewrap board-wrap — each panel is just the
+// trim plus bleed on its outer edge only (the spine-side inner edge has no
+// bleed). Verified live against Lulu's /cover-dimensions/ endpoint on
+// 2026-09-18: panel width 8.625" (not 8.75" — that would be trim + bleed on
+// BOTH edges, which doesn't match the real total width Lulu returns).
+// Spine varies by page count (paperback) or is ~0 (coil, no continuous
+// spine) — cover builders fetch the real per-book spine live and compute
+// full width at runtime; this geometry is panel-width/height only.
+export const LULU_FLAT_COVER_PDF_GEOMETRY: PdfPageGeometry = {
+  pageWidth: LULU_FLAT_COVER_PANEL_WIDTH_IN * POINTS_PER_INCH,
   pageHeight: LULU_PAPERBACK_COVER_PAGE_HEIGHT_IN * POINTS_PER_INCH,
+  textSafeMargin: FULL_BLEED_TEXT_SAFE_MARGIN,
+};
+
+// Coil's page height matches paperback's (same 8.5" trim + 0.125" bleed);
+// kept as a distinct export for callers that want to be explicit about
+// which binding they're building for.
+export const LULU_COIL_COVER_PDF_GEOMETRY: PdfPageGeometry = {
+  pageWidth: LULU_FLAT_COVER_PANEL_WIDTH_IN * POINTS_PER_INCH,
+  pageHeight: LULU_COIL_COVER_PAGE_HEIGHT_IN * POINTS_PER_INCH,
   textSafeMargin: FULL_BLEED_TEXT_SAFE_MARGIN,
 };

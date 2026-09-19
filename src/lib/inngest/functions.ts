@@ -306,6 +306,53 @@ export const awardMonthlyPublicStoryWinners = inngest.createFunction(
   }
 );
 
+// Refreshes the live Lulu manufacturing-cost cache (luluPriceCache) every 4
+// hours, well inside the 12-hour freshness window checkout reads against
+// (see liveLuluPricing.ts) — checkout should almost always hit a fresh
+// cache row and never need its own synchronous Lulu call. Runs each
+// product's two sample quotes sequentially (not in parallel across
+// products either) to stay gentle on Lulu's API and avoid the OAuth token
+// cache race that a naive Promise.all triggers on a cold token.
+// One product's failure doesn't block the others — checkout's own fallback
+// (stale cache, then a live retry) covers a single missed refresh.
+export const pollLuluPricing = inngest.createFunction(
+  {
+    id: "poll-lulu-pricing",
+    retries: 2,
+    triggers: [{ cron: "0 */4 * * *" }],
+  },
+  async ({ step }) => {
+    return step.run("refresh-lulu-price-cache", async () => {
+      const { refreshLuluPriceCache } = await import(
+        "@/lib/print-books/liveLuluPricing"
+      );
+      const { PRINT_PRODUCTS } = await import(
+        "@/lib/print-books/printProducts"
+      );
+      const { logEvent } = await import("@/lib/logEvent");
+
+      const results: Record<string, "ok" | "failed"> = {};
+      for (const productKey of Object.keys(PRINT_PRODUCTS) as Array<
+        keyof typeof PRINT_PRODUCTS
+      >) {
+        try {
+          await refreshLuluPriceCache(productKey);
+          results[productKey] = "ok";
+        } catch (error) {
+          results[productKey] = "failed";
+          await logEvent({
+            error,
+            code: "print.price_poll_failed",
+            source: "inngest/poll-lulu-pricing",
+            context: { productKey },
+          });
+        }
+      }
+      return results;
+    });
+  }
+);
+
 export const inngestFunctions: InngestFunction.Any[] = [
   buildBook,
   generateAvatarReference,
@@ -313,4 +360,5 @@ export const inngestFunctions: InngestFunction.Any[] = [
   generateStory,
   submitPrintFulfillmentJob,
   awardMonthlyPublicStoryWinners,
+  pollLuluPricing,
 ];

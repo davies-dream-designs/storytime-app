@@ -1,11 +1,18 @@
 import type { AgeBand, BookProject } from "@/types/printBook";
+import { computePrintBookPriceAud } from "@/lib/print-books/margin";
+import {
+  getLiveManufacturingCostAud,
+  LuluPricingUnavailableError,
+} from "@/lib/print-books/liveLuluPricing";
 
-// "paperback" is defined in lulu.ts and pdf/constants.ts but kept out of
-// PRINT_PRODUCTS until AU shipping availability is confirmed via a live quote.
-// To enable: add "paperback" back to PrintProductKey and un-comment the entry.
-export type PrintProductKey = "hardcover";
+export type PrintProductKey = "hardcover" | "paperback" | "coil";
 export type CoverSpineSource = "configured" | "storycot_estimate";
 
+// Prices are NOT stored here — they're derived at request time from a live
+// (cache-backed) Lulu manufacturing-cost quote, see quotePrintProduct below.
+// This table only holds static catalog metadata (labels, formats, and the
+// page-count range Lulu actually accepts for each binding, verified against
+// Lulu's live production API on 2026-09-18).
 export const PRINT_PRODUCTS = {
   hardcover: {
     key: "hardcover",
@@ -13,16 +20,38 @@ export const PRINT_PRODUCTS = {
     badge: "Keepsake",
     provider: "Lulu",
     format: '8.5" square hardcover casewrap',
+    // Storycot's own business-level minimum (below Lulu's own SKU floor of
+    // 24pp — that gap is auto-padded with quiet pages by
+    // getLuluBillablePageCount before billing/printing, unchanged behaviour).
     minPageCount: 20,
     maxPageCount: 300,
     pageStep: 2,
-    basePages: 24,
-    basePriceAud: 39.95,
-    extraSpreadAud: 1.1,
-    estimatedManufacturingAud: 18.5,
-    estimatedShippingAud: 15.15,
     description:
       "Giftable keepsake edition with a rigid casewrap cover and premium colour pages.",
+  },
+  paperback: {
+    key: "paperback",
+    label: "Paperback",
+    badge: "Everyday",
+    provider: "Lulu",
+    format: '8.5" square perfect-bound paperback',
+    minPageCount: 32,
+    maxPageCount: 800,
+    pageStep: 2,
+    description:
+      "Our most affordable printed edition — a glued perfect-bound paperback, standard colour interior.",
+  },
+  coil: {
+    key: "coil",
+    label: "Coil bound",
+    badge: "Lay-flat",
+    provider: "Lulu",
+    format: '8.5" square coil-bound paperback',
+    minPageCount: 4,
+    maxPageCount: 470,
+    pageStep: 2,
+    description:
+      "A budget-friendly coil-bound edition that lies flat for easy reading — great for shorter books.",
   },
 } as const satisfies Record<
   PrintProductKey,
@@ -35,11 +64,6 @@ export const PRINT_PRODUCTS = {
     minPageCount: number;
     maxPageCount: number;
     pageStep: number;
-    basePages: number;
-    basePriceAud: number;
-    extraSpreadAud: number;
-    estimatedManufacturingAud: number;
-    estimatedShippingAud: number;
     description: string;
   }
 >;
@@ -154,37 +178,89 @@ function getUnsupportedReason(pageCount: number, productKey: PrintProductKey) {
   return undefined;
 }
 
-export function quotePrintProduct(
+export interface PrintProductQuote {
+  key: PrintProductKey;
+  label: string;
+  badge: string;
+  provider: string;
+  format: string;
+  description: string;
+  pageCount: number;
+  needsPadding: boolean;
+  paddingPages: number;
+  isWithinSpecs: boolean;
+  unsupportedReason?: string;
+  /** Live Lulu manufacturing cost (AUD, excl. shipping/tax). */
+  manufacturingCostAud?: number;
+  /** manufacturingCostAud * margin multiplier, what the customer is charged (excl. shipping). */
+  priceAud?: number;
+  /** True if live pricing could not be obtained — priceAud will be undefined. */
+  pricingUnavailable: boolean;
+}
+
+/**
+ * Quotes a single print product for a book, pulling the manufacturing cost
+ * from the live (cache-backed) Lulu pricing module rather than a hardcoded
+ * formula — see liveLuluPricing.ts. If pricing is unavailable (cache empty
+ * and the live fallback also failed), priceAud/manufacturingCostAud are left
+ * undefined and pricingUnavailable is true; callers (checkout routes) must
+ * treat that as "block, ask the customer to retry" rather than falling back
+ * to a stale/static number.
+ */
+export async function quotePrintProduct(
   project: Pick<BookProject, "pageCount">,
   productKey: PrintProductKey
-) {
+): Promise<PrintProductQuote> {
   const product = PRINT_PRODUCTS[productKey];
   const adjustedPageCount = getAdjustedPageCountForProduct(
     project.pageCount,
     productKey
   );
   const unsupportedReason = getUnsupportedReason(adjustedPageCount, productKey);
-  const extraSpreads = Math.max(
-    0,
-    Math.ceil((adjustedPageCount - product.basePages) / 2)
-  );
-  const priceAud = Number(
-    (product.basePriceAud + extraSpreads * product.extraSpreadAud).toFixed(2)
-  );
+  const isWithinSpecs = !unsupportedReason;
 
-  return {
-    ...product,
+  const base: PrintProductQuote = {
+    key: product.key,
+    label: product.label,
+    badge: product.badge,
+    provider: product.provider,
+    format: product.format,
+    description: product.description,
     pageCount: adjustedPageCount,
     needsPadding: adjustedPageCount > project.pageCount,
     paddingPages: adjustedPageCount - project.pageCount,
-    priceAud,
-    isWithinSpecs: !unsupportedReason,
+    isWithinSpecs,
     unsupportedReason,
+    pricingUnavailable: false,
   };
+
+  // Don't bother pricing a format this book can't use anyway.
+  if (!isWithinSpecs) return base;
+
+  try {
+    const manufacturingCostAud = await getLiveManufacturingCostAud(
+      productKey,
+      adjustedPageCount
+    );
+    return {
+      ...base,
+      manufacturingCostAud,
+      priceAud: computePrintBookPriceAud(manufacturingCostAud),
+    };
+  } catch (error) {
+    if (error instanceof LuluPricingUnavailableError) {
+      return { ...base, pricingUnavailable: true };
+    }
+    throw error;
+  }
 }
 
-export function getPrintProductQuotes(project: Pick<BookProject, "pageCount">) {
-  return (Object.keys(PRINT_PRODUCTS) as PrintProductKey[]).map((key) =>
-    quotePrintProduct(project, key)
+export async function getPrintProductQuotes(
+  project: Pick<BookProject, "pageCount">
+): Promise<PrintProductQuote[]> {
+  return Promise.all(
+    (Object.keys(PRINT_PRODUCTS) as PrintProductKey[]).map((key) =>
+      quotePrintProduct(project, key)
+    )
   );
 }

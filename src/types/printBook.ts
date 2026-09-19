@@ -349,6 +349,12 @@ export interface BookAsset {
   luluCoverPdfPageWidthIn?: number;
   luluCoverPdfPageHeightIn?: number;
   luluCoverPdfSpineWidthIn?: number;
+  // Paperback/coil covers are generated lazily (first order of that format,
+  // not at build time) since most books are only ever ordered in one
+  // format — see getOrCreateLuluCoverPdfUrl. Keyed by PrintProductKey;
+  // hardcover intentionally omitted here since it still uses the
+  // always-generated luluCoverPdfUrl field above for backward compatibility.
+  luluFlatCoverPdfUrlByProduct?: Partial<Record<"paperback" | "coil", string>>;
   luluPrintPdfUrl?: string;
   luluPrintPdfPageWidthIn?: number;
   luluPrintPdfPageHeightIn?: number;
@@ -394,7 +400,7 @@ export interface BookBilling {
 }
 
 export interface PrintBookOrder {
-  productKey: "hardcover" | "paperback";
+  productKey: "hardcover" | "paperback" | "coil";
   productLabel: string;
   provider: string;
   format: string;
@@ -467,7 +473,7 @@ export interface PrintOrderRecord {
   ownerUserId: string;
   buyerUserId?: string;
   buyerEmail?: string;
-  productKey: "hardcover" | "paperback";
+  productKey: "hardcover" | "paperback" | "coil";
   productLabel: string;
   provider: "lulu";
   format: string;

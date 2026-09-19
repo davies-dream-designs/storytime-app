@@ -3,11 +3,14 @@ import {
   buildLuluQuotePayload,
   getLuluBillablePageCount,
   getLuluCoverDimensions,
+  getLuluCoverPdfUrlForProduct,
+  getLuluFlatCoverSpineWidthIn,
   getLuluShippingAmountAud,
+  hasLuluPrintAssets,
   quoteLuluPrintJob,
   resetLuluTokenCacheForTests,
 } from "@/lib/print-books/lulu";
-import type { PrintShippingAddress } from "@/types/printBook";
+import type { BookProject, PrintShippingAddress } from "@/types/printBook";
 
 const previousEnv = process.env;
 
@@ -127,5 +130,137 @@ describe("Lulu print API helpers", () => {
         }),
       })
     );
+  });
+
+  it("derives the live paperback spine width from Lulu's total cover width", async () => {
+    process.env.LULU_BASIC_AUTH = "basic-token";
+    process.env.LULU_API_BASE_URL = "https://api.sandbox.lulu.com";
+    // Verified live response shape for Perfect Bound @ 32pp.
+    mockFetch([
+      { access_token: "token", expires_in: 3600 },
+      { width: "17.382", height: "8.750", unit: "inch" },
+    ]);
+
+    const spineWidthIn = await getLuluFlatCoverSpineWidthIn(32, "paperback");
+    // 17.382 - 2 * 8.625 panel width = 0.132
+    expect(spineWidthIn).toBeCloseTo(0.132, 3);
+  });
+
+  it("resolves coil spine width to exactly 0 (no continuous spine)", async () => {
+    process.env.LULU_BASIC_AUTH = "basic-token";
+    process.env.LULU_API_BASE_URL = "https://api.sandbox.lulu.com";
+    // Verified live: coil total width is constant 17.25" at every page count.
+    const fetchMock = mockFetch([
+      { access_token: "token", expires_in: 3600 },
+      { width: "17.250", height: "8.750", unit: "inch" },
+    ]);
+
+    const spineWidthIn = await getLuluFlatCoverSpineWidthIn(4, "coil");
+    expect(spineWidthIn).toBe(0);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "https://api.sandbox.lulu.com/cover-dimensions/",
+      expect.objectContaining({
+        body: JSON.stringify({
+          pod_package_id: "0850X0850.FC.STD.CO.060UW444.MXX",
+          interior_page_count: 4,
+          unit: "inch",
+        }),
+      })
+    );
+  });
+
+  it("never returns a negative spine width even if Lulu's figure rounds under the panel estimate", async () => {
+    process.env.LULU_BASIC_AUTH = "basic-token";
+    process.env.LULU_API_BASE_URL = "https://api.sandbox.lulu.com";
+    mockFetch([
+      { access_token: "token", expires_in: 3600 },
+      { width: "17.240", height: "8.750", unit: "inch" }, // slightly under 17.25
+    ]);
+
+    const spineWidthIn = await getLuluFlatCoverSpineWidthIn(24, "coil");
+    expect(spineWidthIn).toBe(0);
+  });
+});
+
+describe("getLuluCoverPdfUrlForProduct", () => {
+  function baseProject(): Pick<BookProject, "assets"> {
+    return {
+      assets: {
+        proofVersion: 1,
+        luluCoverPdfUrl: "https://assets.test/hardcover-cover.pdf",
+        luluFlatCoverPdfUrlByProduct: {
+          paperback: "https://assets.test/paperback-cover.pdf",
+        },
+      },
+    };
+  }
+
+  it("uses the eager hardcover field for hardcover", () => {
+    expect(getLuluCoverPdfUrlForProduct(baseProject(), "hardcover")).toBe(
+      "https://assets.test/hardcover-cover.pdf"
+    );
+  });
+
+  it("uses the per-product map for paperback/coil", () => {
+    expect(getLuluCoverPdfUrlForProduct(baseProject(), "paperback")).toBe(
+      "https://assets.test/paperback-cover.pdf"
+    );
+    expect(
+      getLuluCoverPdfUrlForProduct(baseProject(), "coil")
+    ).toBeUndefined();
+  });
+});
+
+describe("hasLuluPrintAssets (product-aware)", () => {
+  function baseProject(): Pick<BookProject, "assets"> {
+    return {
+      assets: {
+        proofVersion: 1,
+        luluPrintPdfUrl: "https://assets.test/interior.pdf",
+        luluPrintPdfPageCount: 40,
+      },
+    };
+  }
+
+  it("requires the hardcover cover PDF to exist for a hardcover order", () => {
+    expect(hasLuluPrintAssets(baseProject(), "hardcover")).toBe(false);
+    expect(
+      hasLuluPrintAssets(
+        {
+          assets: {
+            ...baseProject().assets,
+            luluCoverPdfUrl: "https://assets.test/hardcover-cover.pdf",
+          },
+        },
+        "hardcover"
+      )
+    ).toBe(true);
+  });
+
+  it("does NOT require the paperback cover to already exist (generated lazily at fulfillment)", () => {
+    expect(hasLuluPrintAssets(baseProject(), "paperback")).toBe(true);
+  });
+
+  it("still requires the shared interior PDF to exist for paperback/coil", () => {
+    expect(
+      hasLuluPrintAssets(
+        { assets: { proofVersion: 1 } },
+        "paperback"
+      )
+    ).toBe(false);
+  });
+
+  it("still enforces the per-product minimum page count for paperback", () => {
+    expect(
+      hasLuluPrintAssets(
+        {
+          assets: {
+            ...baseProject().assets,
+            luluPrintPdfPageCount: 24, // below the 32pp Perfect Bound floor
+          },
+        },
+        "paperback"
+      )
+    ).toBe(false);
   });
 });

@@ -20,12 +20,33 @@ export const LULU_HARDCOVER_COVER_PANEL_WIDTH_IN =
   (LULU_HARDCOVER_COVER_PAGE_WIDTH_IN - LULU_HARDCOVER_COVER_SPINE_WIDTH_IN) /
   2;
 
+// Perfect Bound, standard color. Verified live against Lulu's production
+// print-job-cost-calculations/ endpoint on 2026-09-18: valid for the square
+// 8.5x8.5 trim, but Lulu enforces a hard 32-page minimum for this binding
+// (400 error below 32pp, not a soft warning) — the "page size" that blocked
+// this SKU previously was page *count*, not trim dimensions.
 export const LULU_PAPERBACK_PACKAGE_ID = "0850X0850.FC.STD.PB.080CW444.MXX";
-export const LULU_PAPERBACK_MIN_PAGES = 24;
-// Trim (8.5") + bleed (0.125") on each edge
+export const LULU_PAPERBACK_MIN_PAGES = 32;
+// Height: trim (8.5") + bleed (0.125") top and bottom.
 export const LULU_PAPERBACK_COVER_PAGE_HEIGHT_IN = 8.75;
-// Placeholder — actual spine comes from getLuluCoverDimensions; no casewrap wrap
-export const LULU_PAPERBACK_COVER_SPINE_WIDTH_IN = 0.125;
+
+// Coil Bound, standard color. Verified live: valid from 2 pages up (no
+// meaningful floor for our books), no upper page-count ceiling either —
+// the cheap option for books that fall under the Perfect Bound 32pp floor.
+export const LULU_COIL_PACKAGE_ID = "0850X0850.FC.STD.CO.060UW444.MXX";
+export const LULU_COIL_MIN_PAGES = 2;
+export const LULU_COIL_COVER_PAGE_HEIGHT_IN = 8.75;
+
+// Panel width for the non-wrap bindings (Perfect Bound / Coil): trim (8.5")
+// + bleed (0.125") on the OUTER edge only — the spine-side inner edge gets
+// no bleed. Verified live against Lulu's /cover-dimensions/ endpoint on
+// 2026-09-18: e.g. Perfect Bound @ 32pp returns total width 17.382" and
+// spine ~0.132" at that page count, i.e. panel width = (17.382 - 0.132) / 2
+// ≈ 8.625", not 8.75" (which would double-count bleed on the spine edge).
+// Coil confirmed to return a constant 17.25" width regardless of page count
+// — i.e. spine ≈ 0" (no continuous spine — front/back are separate flat
+// panels joined by punched holes), consistent with 2 * 8.625 = 17.25.
+export const LULU_FLAT_COVER_PANEL_WIDTH_IN = 8.625;
 
 export type LuluShippingLevel =
   | "MAIL"
@@ -242,6 +263,12 @@ export function getLuluProductSpec(productKey: PrintBookOrder["productKey"]) {
         minPageCount: LULU_PAPERBACK_MIN_PAGES,
         label: "paperback",
       };
+    case "coil":
+      return {
+        packageId: LULU_COIL_PACKAGE_ID,
+        minPageCount: LULU_COIL_MIN_PAGES,
+        label: "coil",
+      };
   }
 }
 
@@ -257,17 +284,51 @@ export function isLuluPrintProvider() {
   return process.env.STORYCOT_PRINT_PROVIDER === "lulu";
 }
 
+/**
+ * Checks whether a book has the Lulu-formatted assets needed to order the
+ * given product.
+ *
+ * Hardcover requires its cover PDF to already exist — it's still built
+ * eagerly at book-build time, unchanged. Paperback/coil covers are built
+ * lazily on first order of that format (see lazyCovers.ts) so they're
+ * intentionally NOT required here — only the shared interior PDF (same for
+ * all three bindings, same 8.5x8.5 trim) needs to already exist. Checkout
+ * can proceed for a paperback/coil order even if that specific cover
+ * hasn't been generated yet; it's generated just before Lulu submission.
+ */
 export function hasLuluPrintAssets(
   project: Pick<BookProject, "assets">,
   productKey: PrintBookOrder["productKey"] = "hardcover"
 ) {
   const spec = getLuluProductSpec(productKey);
+  const hasRequiredCover =
+    productKey === "hardcover"
+      ? Boolean(project.assets.luluCoverPdfUrl)
+      : true;
   return Boolean(
     project.assets.luluPrintPdfUrl &&
-      project.assets.luluCoverPdfUrl &&
+      hasRequiredCover &&
       project.assets.luluPrintPdfPageCount &&
       project.assets.luluPrintPdfPageCount >= spec.minPageCount
   );
+}
+
+/**
+ * Selects the right cover PDF URL for a given product. Hardcover always
+ * uses the eagerly-built `luluCoverPdfUrl`; paperback/coil covers are
+ * generated lazily on first order (see lazyCovers.ts) and cached in
+ * `luluFlatCoverPdfUrlByProduct`. Note this does NOT trigger generation —
+ * callers that need a guaranteed cover before submission must call
+ * getOrCreateLuluCoverPdfUrl first.
+ */
+export function getLuluCoverPdfUrlForProduct(
+  project: Pick<BookProject, "assets">,
+  productKey: PrintBookOrder["productKey"]
+): string | undefined {
+  if (productKey === "hardcover") {
+    return project.assets.luluCoverPdfUrl;
+  }
+  return project.assets.luluFlatCoverPdfUrlByProduct?.[productKey];
 }
 
 export function buildLuluPrintJobPayload(input: {
@@ -284,7 +345,7 @@ export function buildLuluPrintJobPayload(input: {
   }
 
   const interiorPdfUrl = project.assets.luluPrintPdfUrl;
-  const coverPdfUrl = project.assets.luluCoverPdfUrl;
+  const coverPdfUrl = getLuluCoverPdfUrlForProduct(project, order.productKey);
   const pageCount = project.assets.luluPrintPdfPageCount ?? project.pageCount;
 
   if (pageCount < productSpec.minPageCount) {
@@ -362,6 +423,45 @@ export function buildLuluQuotePayload(input: {
   };
 }
 
+function getLuluMoney(input: unknown) {
+  if (!input || typeof input !== "object") return undefined;
+  const money = input as LuluMoney;
+  const value =
+    money.total_cost_excl_tax ?? money.total_cost_incl_tax;
+  return parseLuluMoney(value);
+}
+
+/**
+ * Sums only the book manufacturing line-item cost from a Lulu quote,
+ * excluding shipping/fulfillment/fees — shipping is quoted and charged
+ * separately per delivery address at checkout time.
+ *
+ * Asserts the quote is actually denominated in AUD before trusting the
+ * number — the shipping address alone doesn't guarantee currency, and this
+ * is real money going into pricing math, so we fail loudly instead of
+ * silently pricing an AUD checkout off a USD (or other currency) figure.
+ */
+export function getLuluLineItemCostAud(quote: LuluQuoteResponse) {
+  if (quote.currency !== undefined && quote.currency !== "AUD") {
+    throw new Error(
+      `Lulu quote returned currency "${String(quote.currency)}", expected AUD.`
+    );
+  }
+  const lineItems = Array.isArray(quote.line_item_costs)
+    ? quote.line_item_costs
+    : [];
+  const total = lineItems.reduce(
+    (sum: number, item: unknown) => sum + (getLuluMoney(item) ?? 0),
+    0
+  );
+  if (total <= 0) {
+    throw new Error(
+      "Lulu quote response did not include a usable line item cost."
+    );
+  }
+  return Number(total.toFixed(2));
+}
+
 export async function quoteLuluPrintJob(input: {
   pageCount: number;
   shipping: PrintShippingAddress;
@@ -402,12 +502,19 @@ export function getLuluShippingAmountAud(quote: LuluQuoteResponse) {
 
 export async function getLuluCoverDimensions(input: {
   pageCount: number;
+  productKey?: PrintBookOrder["productKey"];
   unit?: LuluCoverDimensions["unit"];
   packageId?: string;
 }): Promise<LuluCoverDimensions> {
   const raw = (await luluPost("/cover-dimensions/", {
     pod_package_id: input.packageId ?? LULU_HARDCOVER_PACKAGE_ID,
-    interior_page_count: getLuluBillablePageCount(input.pageCount),
+    // Product-specific floor matters here: a 4-page coil book is valid and
+    // must stay 4pp; treating it as default hardcover would incorrectly
+    // inflate it to the hardcover's 24pp floor for geometry lookup.
+    interior_page_count: getLuluBillablePageCount(
+      input.pageCount,
+      input.productKey
+    ),
     unit: input.unit ?? "pt",
   })) as { width?: unknown; height?: unknown; unit?: unknown };
 
@@ -422,6 +529,38 @@ export async function getLuluCoverDimensions(input: {
   }
 
   return { width, height, unit: raw.unit };
+}
+
+/**
+ * Live spine width (inches) for the flat, non-wrap bindings (paperback/
+ * coil) at a given page count — fetched from Lulu's /cover-dimensions/
+ * rather than estimated, since spine width varies by page count for
+ * paperback and Lulu is the source of truth for exact print dimensions.
+ * Not used for hardcover, which has a fixed casewrap spine constant.
+ */
+export async function getLuluFlatCoverSpineWidthIn(
+  pageCount: number,
+  productKey: "paperback" | "coil"
+): Promise<number> {
+  const productSpec = getLuluProductSpec(productKey);
+  if (!productSpec) {
+    throw new Error(`Lulu product spec is missing for "${productKey}".`);
+  }
+  const dims = await getLuluCoverDimensions({
+    pageCount,
+    productKey,
+    packageId: productSpec.packageId,
+    unit: "inch",
+  });
+  const totalWidthIn = Number(dims.width);
+  if (!Number.isFinite(totalWidthIn)) {
+    throw new Error("Lulu cover dimensions response had a non-numeric width.");
+  }
+  const spineWidthIn = totalWidthIn - 2 * LULU_FLAT_COVER_PANEL_WIDTH_IN;
+  // Coil resolves to ~0 by design (no continuous spine); never return a
+  // negative value even if Lulu's live figure is a hair under our panel
+  // width estimate due to rounding.
+  return Math.max(0, Number(spineWidthIn.toFixed(3)));
 }
 
 export async function submitLuluPrintJob(

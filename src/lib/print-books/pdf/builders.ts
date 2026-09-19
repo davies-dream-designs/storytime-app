@@ -254,13 +254,18 @@ async function buildPrintPdf(input: {
   return pdfDoc.save({ useObjectStreams: false });
 }
 
-async function buildCoverPdf(input: {
+// Below this, there's no room to legibly set spine text without it
+// bleeding into the front/back panels — most relevant to coil, whose
+// spine is ~0" by construction (no continuous spine to print on at all).
+const MIN_SPINE_WIDTH_FOR_TEXT_IN = 0.15;
+
+export async function buildCoverPdf(input: {
   project: BookProject;
   story: Story;
   profile: ChildProfile;
   geometry?: PdfPageGeometry;
   spineWidthIn?: number;
-  productKey?: "hardcover" | "paperback";
+  productKey?: "hardcover" | "paperback" | "coil";
 }): Promise<Uint8Array> {
   const geometry = input.geometry ?? STORYCOT_PDF_GEOMETRY;
   const { pageWidth, pageHeight } = geometry;
@@ -293,15 +298,16 @@ async function buildCoverPdf(input: {
 
   // For Lulu hardcover casewrap the cover sheet is larger than the trim on all
   // four sides — the extra paper folds over the board. Content inside the wrap
-  // area will be hidden or distorted. Paperback has no casewrap; wrap = 0.
+  // area will be hidden or distorted. Paperback/coil have no casewrap; wrap = 0.
   const isLuluCover =
     pageHeight >= LULU_HARDCOVER_COVER_PAGE_HEIGHT_IN * POINTS_PER_INCH - 1;
-  const wrap =
-    input.productKey === "paperback"
-      ? 0
-      : isLuluCover
-        ? LULU_HARDCOVER_CASEWRAP_WRAP_IN * POINTS_PER_INCH // 0.875" = 63pt
-        : BLEED; // Storycot: just the bleed
+  const isFlatBinding =
+    input.productKey === "paperback" || input.productKey === "coil";
+  const wrap = isFlatBinding
+    ? 0
+    : isLuluCover
+      ? LULU_HARDCOVER_CASEWRAP_WRAP_IN * POINTS_PER_INCH // 0.875" = 63pt
+      : BLEED; // Storycot: just the bleed
   const coverSafeY = wrap + 45; // 45pt safety from the fold line
   const coverSafeX = wrap + 45; // same margin applies horizontally
 
@@ -494,7 +500,15 @@ async function buildCoverPdf(input: {
     color: BRAND_LILAC,
   });
 
-  if (input.project.pageCount >= BOOK_SPEC.spineTextMinPageCount) {
+  // Flat bindings (paperback/coil) have a real, page-count-dependent spine
+  // width from Lulu — use that directly rather than the Storycot page-count
+  // heuristic, since e.g. a 40-page paperback can still have a sub-0.15"
+  // spine that's too thin to typeset (unlike the fixed-spine hardcover).
+  const canFitSpineText = isFlatBinding
+    ? spineWidthIn >= MIN_SPINE_WIDTH_FOR_TEXT_IN
+    : input.project.pageCount >= BOOK_SPEC.spineTextMinPageCount;
+
+  if (canFitSpineText) {
     page.drawText("Storycot", {
       x: spineX + coverSpineWidth / 2 - 20,
       y: pageHeight / 2 - 18,

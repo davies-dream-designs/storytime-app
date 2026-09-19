@@ -174,6 +174,77 @@ describe("preparePrintFulfillment", () => {
     });
   });
 
+  it("selects the paperback-specific cover PDF, not the hardcover one", () => {
+    process.env.STORYCOT_PRINT_PROVIDER = "lulu";
+    const project: BookProject = {
+      ...createProject(),
+      pageCount: 32,
+      assets: {
+        ...createProject().assets,
+        luluPrintPdfPageCount: 32,
+        luluFlatCoverPdfUrlByProduct: {
+          paperback: "https://assets.storycot.test/book-1-lulu-cover-paperback.pdf",
+        },
+      },
+    };
+
+    const fulfillment = preparePrintFulfillment({
+      project,
+      order: {
+        ...createOrder(),
+        productKey: "paperback",
+        productLabel: "Paperback",
+        format: '8.5" square paperback',
+        pageCount: 32,
+      },
+    });
+
+    expect(fulfillment.status).toBe("ready_for_manual_review");
+    expect(fulfillment.payload).toMatchObject({
+      line_items: [
+        {
+          printable_normalization: {
+            cover: {
+              source_url:
+                "https://assets.storycot.test/book-1-lulu-cover-paperback.pdf",
+            },
+            // Interior PDF is shared across all bindings (same 8.5x8.5 trim).
+            interior: {
+              source_url: "https://assets.storycot.test/book-1-lulu-print.pdf",
+            },
+          },
+        },
+      ],
+    });
+  });
+
+  it("fails clearly when the paperback cover hasn't been generated yet", () => {
+    process.env.STORYCOT_PRINT_PROVIDER = "lulu";
+    const project: BookProject = {
+      ...createProject(),
+      pageCount: 32,
+      assets: {
+        ...createProject().assets,
+        luluPrintPdfPageCount: 32,
+        // no luluFlatCoverPdfUrlByProduct set
+      },
+    };
+
+    const fulfillment = preparePrintFulfillment({
+      project,
+      order: {
+        ...createOrder(),
+        productKey: "paperback",
+        productLabel: "Paperback",
+        format: '8.5" square paperback',
+        pageCount: 32,
+      },
+    });
+
+    expect(fulfillment.status).toBe("not_configured");
+    expect(fulfillment.message).toContain("cover PDF is missing");
+  });
+
   it("blocks Lulu fulfillment until 20-page books have a padded interior export", () => {
     process.env.STORYCOT_PRINT_PROVIDER = "lulu";
     const project = {

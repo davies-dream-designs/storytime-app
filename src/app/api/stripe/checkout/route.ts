@@ -296,7 +296,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (isLuluPrintProvider() && !hasLuluPrintAssets(project)) {
+    if (
+      isLuluPrintProvider() &&
+      !hasLuluPrintAssets(project, body.productKey)
+    ) {
       return NextResponse.json(
         { error: "Lulu print files are not ready yet." },
         { status: 409 }
@@ -312,7 +315,7 @@ export async function POST(req: NextRequest) {
 
     const quantity = Math.min(10, Math.max(1, Math.floor(body.quantity ?? 1)));
 
-    const quote = quotePrintProduct(project, body.productKey);
+    const quote = await quotePrintProduct(project, body.productKey);
     if (!quote.isWithinSpecs) {
       return NextResponse.json(
         {
@@ -321,6 +324,15 @@ export async function POST(req: NextRequest) {
             "Selected print format is unavailable for this book.",
         },
         { status: 400 }
+      );
+    }
+    if (quote.pricingUnavailable || quote.priceAud === undefined) {
+      return NextResponse.json(
+        {
+          error:
+            "We couldn't get a live price for that format right now. Please try again shortly.",
+        },
+        { status: 502 }
       );
     }
 
@@ -333,19 +345,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!isLuluPrintProvider()) {
+      return NextResponse.json(
+        {
+          error:
+            "Printed book ordering is temporarily unavailable for this format.",
+        },
+        { status: 503 }
+      );
+    }
+
     let shippingAmountAud: number;
     try {
-      if (isLuluPrintProvider()) {
-        const luluQuote = await quoteLuluPrintJob({
-          pageCount: quote.pageCount,
-          productKey: quote.key,
-          quantity,
-          shipping,
-        });
-        shippingAmountAud = getLuluShippingAmountAud(luluQuote);
-      } else {
-        shippingAmountAud = quote.estimatedShippingAud;
-      }
+      const luluQuote = await quoteLuluPrintJob({
+        pageCount: quote.pageCount,
+        productKey: quote.key,
+        quantity,
+        shipping,
+      });
+      shippingAmountAud = getLuluShippingAmountAud(luluQuote);
     } catch (err) {
       console.error("Print shipping quote failed", err);
       return NextResponse.json(

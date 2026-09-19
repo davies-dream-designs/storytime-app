@@ -26,6 +26,11 @@ const mockDb = vi.hoisted(() => ({
   printOrders: {
     create: vi.fn(),
   },
+  luluPriceCache: {
+    getByProductKey: vi.fn(),
+    getAll: vi.fn(),
+    upsert: vi.fn(),
+  },
 }));
 
 const printShipping = {
@@ -149,6 +154,19 @@ describe("public print checkout", () => {
       shipping_cost: { total_cost_incl_tax: "12.00" },
       total_cost_incl_tax: "30.00",
     });
+    // Fresh cached manufacturing cost so quotePrintProduct's live pricing
+    // call resolves from "cache" without needing its own fetch mock —
+    // $33.29 -> priceAud with the default 1.2x margin = $39.95 (matches the
+    // amounts asserted below, chosen to be a drop-in equivalent of the old
+    // hardcoded hardcover price for these assertions).
+    mockDb.luluPriceCache.getByProductKey.mockResolvedValue({
+      productKey: "hardcover",
+      sampleLowPageCount: 24,
+      sampleLowCostAudCents: 3329,
+      sampleHighPageCount: 40,
+      sampleHighCostAudCents: 3329,
+      quotedAt: new Date().toISOString(),
+    });
   });
 
   it("creates Stripe checkout and a public print order record", async () => {
@@ -211,7 +229,10 @@ describe("public print checkout", () => {
     );
   });
 
-  it("raises the subtotal to the configured margin floor when live cost is high", async () => {
+  it("keeps the book subtotal at the exact 1.2x live-price result even when legacy margin-floor env vars are set", async () => {
+    // These legacy variables must not alter either the product subtotal or
+    // shipping: book price is the configured 1.2x manufacturing multiplier,
+    // shipping is Lulu's exact address/quantity quote.
     process.env.PRINT_MIN_MARGIN_AUD = "6";
     process.env.PRINT_SUPPORT_BUFFER_AUD = "2";
     mockQuoteLuluPrintJob.mockResolvedValue({
@@ -259,13 +280,14 @@ describe("public print checkout", () => {
         [{ line_items: { price_data: { unit_amount: number } }[] }],
       ]
     )[0][0];
-    expect(sessionInput.line_items[0].price_data.unit_amount).toBeGreaterThan(
-      3995
-    );
+    expect(sessionInput.line_items[0].price_data.unit_amount).toBe(3995);
+    expect(sessionInput.line_items[1].price_data.unit_amount).toBe(1200);
     expect(mockDb.printOrders.create).toHaveBeenCalledWith(
       expect.objectContaining({
+        subtotalAudCents: 3995,
+        shippingAudCents: 1200,
         luluCostAudCents: 4800,
-        marginAudCents: expect.any(Number),
+        marginAudCents: 395,
       })
     );
   });

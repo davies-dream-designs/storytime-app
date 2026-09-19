@@ -25,6 +25,10 @@ const { mockQuoteLuluPrintJob } = vi.hoisted(() => ({
   mockQuoteLuluPrintJob: vi.fn(),
 }));
 
+const { mockGetLuluPriceCacheByProductKey } = vi.hoisted(() => ({
+  mockGetLuluPriceCacheByProductKey: vi.fn(),
+}));
+
 const printShipping = {
   name: "Print Reader",
   email: "reader@example.com",
@@ -76,6 +80,11 @@ vi.mock("@/lib/db", () => ({
     giftOrders: {
       create: mockCreateGiftOrder,
     },
+    luluPriceCache: {
+      getByProductKey: mockGetLuluPriceCacheByProductKey,
+      getAll: vi.fn(),
+      upsert: vi.fn(),
+    },
   },
 }));
 
@@ -88,6 +97,12 @@ describe("stripe checkout", () => {
     process.env = { ...previousEnv };
     process.env.STRIPE_SECRET_KEY = "sk_test_123";
     process.env.NEXT_PUBLIC_APP_URL = "https://storycot.com";
+    // Default to Lulu for tests exercising a full successful checkout —
+    // matches getFulfillmentProvider()'s own default (lulu unless
+    // STORYCOT_PRINT_PROVIDER is explicitly "peecho"). isLuluPrintProvider()
+    // is stricter (only true for an explicit "lulu"), so live pricing/
+    // shipping calls in checkout require this to be set.
+    process.env.STORYCOT_PRINT_PROVIDER = "lulu";
     delete process.env.PRINT_BOOK_ORDERING_ENABLED;
     delete process.env.NEXT_PUBLIC_PRINT_BOOK_ORDERING_ENABLED;
     delete process.env.VERCEL_ENV;
@@ -105,6 +120,16 @@ describe("stripe checkout", () => {
       shipping_cost: {
         total_cost_incl_tax: "12.34",
       },
+    });
+    // Fresh cached manufacturing cost so quotePrintProduct resolves live
+    // pricing from "cache" without needing a separate fetch mock.
+    mockGetLuluPriceCacheByProductKey.mockResolvedValue({
+      productKey: "hardcover",
+      sampleLowPageCount: 24,
+      sampleLowCostAudCents: 3329,
+      sampleHighPageCount: 40,
+      sampleHighCostAudCents: 3329,
+      quotedAt: new Date().toISOString(),
     });
   });
 
@@ -278,6 +303,9 @@ describe("stripe checkout", () => {
       assets: {
         coverPdfUrl: "https://example.com/cover.pdf",
         printPdfUrl: "https://example.com/print.pdf",
+        luluCoverPdfUrl: "https://example.com/lulu-cover.pdf",
+        luluPrintPdfUrl: "https://example.com/lulu-print.pdf",
+        luluPrintPdfPageCount: 32,
         orderabilityState: "export_ready",
       },
     });
@@ -317,13 +345,14 @@ describe("stripe checkout", () => {
           expect.objectContaining({
             price_data: expect.objectContaining({
               currency: "aud",
-              unit_amount: 4435,
+              // $33.29 cached manufacturing cost * 1.2 margin, rounded to nearest 5c.
+              unit_amount: 3995,
             }),
           }),
           expect.objectContaining({
             price_data: expect.objectContaining({
               currency: "aud",
-              unit_amount: 1515,
+              unit_amount: 1234, // from mockQuoteLuluPrintJob's shipping_cost
             }),
             quantity: 1,
           }),
@@ -332,9 +361,9 @@ describe("stripe checkout", () => {
           checkoutType: "print_book",
           projectId: "book-1",
           productKey: "hardcover",
-          amountAud: "59.50",
-          subtotalAud: "44.35",
-          shippingAmountAud: "15.15",
+          amountAud: "52.29",
+          subtotalAud: "39.95",
+          shippingAmountAud: "12.34",
         }),
       })
     );
@@ -350,9 +379,9 @@ describe("stripe checkout", () => {
         printOrder: expect.objectContaining({
           status: "checkout_started",
           productKey: "hardcover",
-          amountAud: 59.5,
-          subtotalAud: 44.35,
-          shippingAmountAud: 15.15,
+          amountAud: 52.29,
+          subtotalAud: 39.95,
+          shippingAmountAud: 12.34,
           checkoutSessionId: "cs_test_123",
         }),
       })
@@ -373,6 +402,9 @@ describe("stripe checkout", () => {
       assets: {
         coverPdfUrl: "https://example.com/cover.pdf",
         printPdfUrl: "https://example.com/print.pdf",
+        luluCoverPdfUrl: "https://example.com/lulu-cover.pdf",
+        luluPrintPdfUrl: "https://example.com/lulu-print.pdf",
+        luluPrintPdfPageCount: 32,
         orderabilityState: "export_ready",
       },
     });
@@ -416,6 +448,7 @@ describe("stripe checkout", () => {
         printPdfUrl: "https://example.com/print.pdf",
         luluCoverPdfUrl: "https://example.com/lulu-cover.pdf",
         luluPrintPdfUrl: "https://example.com/lulu-print.pdf",
+        luluPrintPdfPageCount: 32,
         orderabilityState: "export_ready",
         proofVersion: 1,
       },
@@ -457,6 +490,9 @@ describe("stripe checkout", () => {
       assets: {
         coverPdfUrl: "https://example.com/cover.pdf",
         printPdfUrl: "https://example.com/print.pdf",
+        luluCoverPdfUrl: "https://example.com/lulu-cover.pdf",
+        luluPrintPdfUrl: "https://example.com/lulu-print.pdf",
+        luluPrintPdfPageCount: 32,
         orderabilityState: "export_ready",
       },
     });

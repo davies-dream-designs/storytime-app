@@ -602,3 +602,21 @@ export const publicStoryModerationEvents = pgTable(
     index("public_story_moderation_events_action_idx").on(t.action),
   ]
 );
+
+// Cached live Lulu manufacturing cost per print product, refreshed on a cron
+// schedule (see pollLuluPricing in inngest/functions.ts) so checkout reads a
+// fast DB row instead of calling Lulu's pricing API synchronously on every
+// order (and risking rate limits). Lulu's per-page cost is linear, so two
+// sample quotes (at different page counts) are enough to price any page
+// count via linear interpolation — done in application code at read time
+// (not persisted pre-rounded here) to avoid compounding rounding error over
+// longer books.
+export const luluPriceCache = pgTable("lulu_price_cache", {
+  productKey: text("product_key").primaryKey(),
+  sampleLowPageCount: integer("sample_low_page_count").notNull(),
+  sampleLowCostAudCents: integer("sample_low_cost_aud_cents").notNull(),
+  sampleHighPageCount: integer("sample_high_page_count").notNull(),
+  sampleHighCostAudCents: integer("sample_high_cost_aud_cents").notNull(),
+  quotedAt: text("quoted_at").notNull(),
+  rawResponse: jsonb("raw_response").$type<Record<string, unknown>>(),
+});

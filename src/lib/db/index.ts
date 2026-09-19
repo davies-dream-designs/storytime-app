@@ -2570,4 +2570,43 @@ export const db = {
       return { balance, applied: true };
     },
   },
+
+  luluPriceCache: {
+    async getByProductKey(
+      productKey: string
+    ): Promise<typeof schema.luluPriceCache.$inferSelect | undefined> {
+      const rows = await getClient()
+        .select()
+        .from(schema.luluPriceCache)
+        .where(eq(schema.luluPriceCache.productKey, productKey));
+      return rows[0];
+    },
+    async getAll(): Promise<(typeof schema.luluPriceCache.$inferSelect)[]> {
+      return getClient().select().from(schema.luluPriceCache);
+    },
+    async upsert(input: {
+      productKey: string;
+      sampleLowPageCount: number;
+      sampleLowCostAudCents: number;
+      sampleHighPageCount: number;
+      sampleHighCostAudCents: number;
+      rawResponse?: Record<string, unknown>;
+    }): Promise<void> {
+      const now = new Date().toISOString();
+      await getClient()
+        .insert(schema.luluPriceCache)
+        .values({ ...input, quotedAt: now })
+        .onConflictDoUpdate({
+          target: schema.luluPriceCache.productKey,
+          set: {
+            sampleLowPageCount: input.sampleLowPageCount,
+            sampleLowCostAudCents: input.sampleLowCostAudCents,
+            sampleHighPageCount: input.sampleHighPageCount,
+            sampleHighCostAudCents: input.sampleHighCostAudCents,
+            rawResponse: input.rawResponse,
+            quotedAt: now,
+          },
+        });
+    },
+  },
 };

@@ -30,13 +30,16 @@ function formatAud(value: number) {
 export default function PrintCheckoutButton({
   projectId,
   productKey,
+  productLabel,
   priceAud,
   disabled,
   label,
 }: {
   projectId: string;
   productKey: PrintProductKey;
-  priceAud: number;
+  productLabel: string;
+  /** Undefined when live pricing couldn't be fetched — button is disabled. */
+  priceAud?: number;
   disabled?: boolean;
   label?: string;
 }) {
@@ -213,29 +216,30 @@ export default function PrintCheckoutButton({
     }
   }
 
-  const total = priceAud * quantity;
+  const isDisabled = disabled || priceAud === undefined;
+  const total = (priceAud ?? 0) * quantity;
 
   return (
     <div className="mt-5">
       <button
         type="button"
-        disabled={disabled}
+        disabled={isDisabled}
         onClick={() => {
           setError("");
           setModalOpen(true);
         }}
         className="storycot-btn storycot-btn-primary w-full"
       >
-        {label ?? "Order hardcover"}
+        {label ?? `Order ${productLabel.toLowerCase()}`}
       </button>
 
-      {!disabled ? (
+      {!isDisabled ? (
         <p className="mt-2 text-center text-xs text-night-400">
           Shipping is calculated before payment. Australia only.
         </p>
       ) : null}
 
-      {modalOpen && !disabled ? (
+      {modalOpen && !isDisabled ? (
         <div
           className="fixed inset-0 z-50 flex items-end bg-night-900/55 px-4 pb-4 pt-12 backdrop-blur-sm sm:items-center sm:justify-center sm:p-6"
           role="presentation"
@@ -255,7 +259,7 @@ export default function PrintCheckoutButton({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-star-600">
-                  Hardcover
+                  {productLabel}
                 </p>
                 <h3
                   id="print-checkout-title"
@@ -420,7 +424,7 @@ export default function PrintCheckoutButton({
 
             <div className="mt-3 flex items-center justify-between px-1 text-sm">
               <span className="text-night-400">
-                {formatAud(priceAud)} x {quantity}
+                {formatAud(priceAud ?? 0)} x {quantity}
               </span>
               <span className="font-bold text-night-800">
                 {formatAud(total)} before shipping

@@ -6,6 +6,7 @@ import type {
 } from "@/types/printBook";
 import {
   buildLuluPrintJobPayload,
+  getLuluCoverPdfUrlForProduct,
   submitLuluPrintJob,
 } from "@/lib/print-books/lulu";
 import { logEvent } from "@/lib/logEvent";
@@ -137,11 +138,86 @@ export function preparePrintFulfillment(input: {
   }
 }
 
+/**
+ * Generates the paperback/coil cover PDF just-in-time if this is the first
+ * order of that format for this book, returning a project with the cover
+ * URL populated. No-op for hardcover (still built eagerly at book-build
+ * time) and for an already-cached flat cover.
+ */
+async function ensureLuluCoverReady(
+  project: BookProject,
+  order: PrintBookOrder
+): Promise<BookProject> {
+  if (order.productKey === "hardcover") return project;
+  if (getLuluCoverPdfUrlForProduct(project, order.productKey)) return project;
+
+  const { db } = await import("@/lib/db");
+  const [story, profile] = await Promise.all([
+    db.stories.getById(project.sourceStoryId),
+    db.profiles.getById(project.profileId),
+  ]);
+  if (!story || !profile) {
+    throw new Error(
+      `Cannot generate ${order.productKey} cover PDF: source story or profile is missing.`
+    );
+  }
+
+  const { getOrCreateLuluCoverPdfUrl } = await import(
+    "@/lib/print-books/lazyCovers"
+  );
+  await getOrCreateLuluCoverPdfUrl({
+    project,
+    story,
+    profile,
+    productKey: order.productKey,
+  });
+
+  // Re-fetch: getOrCreateLuluCoverPdfUrl persisted the new cover URL onto
+  // the project's assets in the database.
+  const refreshed = await db.bookProjects.getById(project.id);
+  return refreshed ?? project;
+}
+
 export async function submitPrintFulfillment(input: {
   project: BookProject;
   order: PrintBookOrder;
 }): Promise<PrintFulfillment> {
-  const fulfillment = preparePrintFulfillment(input);
+  const provider = getFulfillmentProvider();
+
+  let project = input.project;
+  if (provider === "lulu") {
+    try {
+      project = await ensureLuluCoverReady(input.project, input.order);
+    } catch (error) {
+      // Route through the same structured failure path as every other
+      // preparePrintFulfillment error (logged + a retryable "not_configured"
+      // status) rather than throwing here and skipping logging/status
+      // updates in the caller (runFulfillment.ts never expects
+      // submitPrintFulfillment itself to reject).
+      const fulfillment: PrintFulfillment = {
+        provider,
+        status: "not_configured",
+        preparedAt: new Date().toISOString(),
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to generate the Lulu cover PDF for this format.",
+      };
+      await logEvent({
+        code: "print.fulfillment_config_missing",
+        message: fulfillment.message,
+        userId: input.project.userId,
+        userEmail: input.order.shipping?.email ?? null,
+        entityType: "print_order",
+        entityId: input.project.id,
+        source: "print/fulfillment",
+        context: { productKey: input.order.productKey, provider },
+      });
+      return fulfillment;
+    }
+  }
+
+  const fulfillment = preparePrintFulfillment({ ...input, project });
 
   if (
     fulfillment.status !== "ready_for_manual_review" ||

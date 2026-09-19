@@ -58,6 +58,27 @@ export function getLuluTotalCostAud(quote: LuluQuoteResponse) {
   return aud(lineItemCost + shippingCost + fulfillmentCost + fees);
 }
 
+/**
+ * Markup applied on top of Lulu's live manufacturing cost to derive the
+ * customer-facing book price (excl. shipping, which is quoted/charged
+ * separately). 1.2 = cost + 20%. Configurable per environment so pricing
+ * can be tuned without a code deploy.
+ */
+export function getPrintPriceMarginMultiplier() {
+  return Number(process.env.PRINT_PRICE_MARGIN_MULTIPLIER ?? 1.2);
+}
+
+/**
+ * Derives the customer-facing book price (AUD, excl. shipping) from a live
+ * Lulu manufacturing cost by applying getPrintPriceMarginMultiplier(),
+ * rounded to the nearest 5 cents (Stripe/AUD-friendly) rather than left at
+ * an odd fractional-cent value.
+ */
+export function computePrintBookPriceAud(manufacturingCostAud: number) {
+  const marked = manufacturingCostAud * getPrintPriceMarginMultiplier();
+  return Math.round(marked * 20) / 20;
+}
+
 export function getStripeFeeAllowanceAud(totalAud: number) {
   const percent = Number(process.env.PRINT_STRIPE_FEE_PERCENT ?? 0.0175);
   const fixed = Number(process.env.PRINT_STRIPE_FIXED_FEE_AUD ?? 0.3);

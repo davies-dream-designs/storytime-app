@@ -21,10 +21,7 @@ import {
   isPrintProductKey,
   quotePrintProduct,
 } from "@/lib/print-books/printProducts";
-import {
-  quotePrintMarginWithFloor,
-  toAudCents,
-} from "@/lib/print-books/margin";
+import { getLuluTotalCostAud, toAudCents } from "@/lib/print-books/margin";
 
 function getPublicStoryReturnPath(locale: string | undefined, token?: string) {
   const path = token ? `/s/${token}` : "/public";
@@ -128,7 +125,10 @@ export async function POST(
     );
   }
 
-  if (hasBlockingProofingIssue(project) || !hasLuluPrintAssets(project)) {
+  if (
+    hasBlockingProofingIssue(project) ||
+    !hasLuluPrintAssets(project, body.productKey)
+  ) {
     return NextResponse.json(
       { error: "Lulu print files are not ready yet." },
       { status: 409 }
@@ -144,7 +144,7 @@ export async function POST(
   }
 
   const quantity = Math.min(10, Math.max(1, Math.floor(body.quantity ?? 1)));
-  const quote = quotePrintProduct(project, body.productKey);
+  const quote = await quotePrintProduct(project, body.productKey);
   if (!quote.isWithinSpecs) {
     return NextResponse.json(
       {
@@ -155,21 +155,35 @@ export async function POST(
       { status: 400 }
     );
   }
+  if (quote.pricingUnavailable || quote.priceAud === undefined) {
+    return NextResponse.json(
+      {
+        error:
+          "We couldn't get a live price for that format right now. Please try again shortly.",
+      },
+      { status: 502 }
+    );
+  }
+
+  if (!isLuluPrintProvider()) {
+    return NextResponse.json(
+      {
+        error: "Printed book ordering is temporarily unavailable for this format.",
+      },
+      { status: 503 }
+    );
+  }
 
   let luluQuote;
   let shippingAmountAud: number;
   try {
-    if (isLuluPrintProvider()) {
-      luluQuote = await quoteLuluPrintJob({
-        pageCount: quote.pageCount,
-        productKey: quote.key,
-        quantity,
-        shipping,
-      });
-      shippingAmountAud = getLuluShippingAmountAud(luluQuote);
-    } else {
-      shippingAmountAud = quote.estimatedShippingAud;
-    }
+    luluQuote = await quoteLuluPrintJob({
+      pageCount: quote.pageCount,
+      productKey: quote.key,
+      quantity,
+      shipping,
+    });
+    shippingAmountAud = getLuluShippingAmountAud(luluQuote);
   } catch (err) {
     console.error("Public print shipping quote failed", err);
     return NextResponse.json(
@@ -181,21 +195,14 @@ export async function POST(
     );
   }
 
-  const margin = quotePrintMarginWithFloor({
-    baseCustomerSubtotalAud: quote.priceAud * quantity,
-    customerShippingAud: shippingAmountAud,
-    luluQuote,
-    fallbackEstimatedCostAud: quote.estimatedManufacturingAud * quantity,
-  });
-  if (!margin.isSafe) {
-    return NextResponse.json(
-      {
-        error:
-          "We couldn't safely price this print order. Please try again later.",
-      },
-      { status: 409 }
-    );
-  }
+  // Product subtotal is precisely the configured margin multiplier (1.2x by
+  // default) applied to Lulu's live manufacturing cost. Shipping is a
+  // separate, exact pass-through of Lulu's live address/quantity quote —
+  // neither is adjusted by the legacy support-buffer / margin-floor logic.
+  const subtotalAud = Number((quote.priceAud * quantity).toFixed(2));
+  const totalAud = Number((subtotalAud + shippingAmountAud).toFixed(2));
+  const luluCostAud = getLuluTotalCostAud(luluQuote);
+  const marginAud = Number((totalAud - luluCostAud).toFixed(2));
 
   const appUrl = getRequestOrigin(req);
   const locale = getRequestLocale(req);
@@ -222,7 +229,7 @@ export async function POST(
             name: `Storycot ${quote.label} - ${story.title}`,
             description: quote.format,
           },
-          unit_amount: toAudCents(margin.customerSubtotalAud / quantity),
+          unit_amount: toAudCents(quote.priceAud),
         },
         quantity,
       },
@@ -233,7 +240,7 @@ export async function POST(
             name: "Shipping",
             description: "Australian print delivery",
           },
-          unit_amount: toAudCents(margin.customerShippingAud),
+          unit_amount: toAudCents(shippingAmountAud),
         },
         quantity: 1,
       },
@@ -250,11 +257,11 @@ export async function POST(
       provider: quote.provider,
       format: quote.format,
       pageCount: quote.pageCount.toString(),
-      amountAud: margin.customerTotalAud.toFixed(2),
-      subtotalAud: margin.customerSubtotalAud.toFixed(2),
-      shippingAmountAud: margin.customerShippingAud.toFixed(2),
-      luluCostAud: margin.luluCostAud.toFixed(2),
-      marginAud: margin.marginAud.toFixed(2),
+      amountAud: totalAud.toFixed(2),
+      subtotalAud: subtotalAud.toFixed(2),
+      shippingAmountAud: shippingAmountAud.toFixed(2),
+      luluCostAud: luluCostAud.toFixed(2),
+      marginAud: marginAud.toFixed(2),
       quantity: quantity.toString(),
     },
     success_url: `${appUrl}${returnPath}?print_success=1`,
@@ -275,11 +282,11 @@ export async function POST(
     provider: "lulu",
     format: quote.format,
     status: "checkout_started",
-    amountAudCents: toAudCents(margin.customerTotalAud),
-    subtotalAudCents: toAudCents(margin.customerSubtotalAud),
-    shippingAudCents: toAudCents(margin.customerShippingAud),
-    luluCostAudCents: toAudCents(margin.luluCostAud),
-    marginAudCents: toAudCents(margin.marginAud),
+    amountAudCents: toAudCents(totalAud),
+    subtotalAudCents: toAudCents(subtotalAud),
+    shippingAudCents: toAudCents(shippingAmountAud),
+    luluCostAudCents: toAudCents(luluCostAud),
+    marginAudCents: toAudCents(marginAud),
     pageCount: quote.pageCount,
     quantity,
     checkoutSessionId: session.id,

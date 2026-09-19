@@ -1,2 +1,2 @@
 export { fitWrappedTextToBox } from "./pdf/text";
-export { generateBookPdfs } from "./pdf/builders";
+export { generateBookPdfs, buildCoverPdf } from "./pdf/builders";

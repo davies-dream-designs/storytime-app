@@ -52,6 +52,11 @@ const mockDb = {
     markSent: vi.fn(),
     markFailed: vi.fn(),
   },
+  luluPriceCache: {
+    getByProductKey: vi.fn(),
+    getAll: vi.fn(),
+    upsert: vi.fn(),
+  },
 };
 
 vi.mock("stripe", () => ({

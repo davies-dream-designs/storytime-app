@@ -218,6 +218,13 @@
       "when": 1789528809886,
       "tag": "0030_aberrant_the_hood",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1789689572942,
+      "tag": "0031_young_chronomancer",
+      "breakpoints": true
     }
   ]
 }

@@ -145,6 +145,10 @@ export function getStorycotIllustrationCountForAgeBand(
   return getStorycotIllustratedStorySpreadCountForAgeBand(ageBand) + 1;
 }
 
+export const PRINT_PRODUCT_KEYS = Object.keys(
+  PRINT_PRODUCTS
+) as PrintProductKey[];
+
 export function isPrintProductKey(value: unknown): value is PrintProductKey {
   return (
     typeof value === "string" &&

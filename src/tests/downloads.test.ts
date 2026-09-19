@@ -93,7 +93,7 @@ describe("download routes", () => {
     await expect(interiorRes.text()).resolves.toBe("lulu interior");
     expect(coverRes.status).toBe(200);
     expect(coverRes.headers.get("content-disposition")).toContain(
-      "Moonlight Garden Lulu cover.pdf"
+      "Moonlight Garden Lulu hardcover cover.pdf"
     );
     await expect(coverRes.text()).resolves.toBe("lulu cover");
   });
@@ -226,5 +226,96 @@ describe("download routes", () => {
     expect(zip.file("OEBPS/images/cover.jpg")).toBeTruthy();
     expect(zip.file("OEBPS/images/img-spread-2.jpg")).toBeNull();
     expect(epub.byteLength).toBeGreaterThan(100);
+  });
+});
+
+describe("Lulu cover preview by product", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockAuth.mockResolvedValue({ userId: "user-1" });
+  });
+
+  function seedProject(assets: Record<string, unknown>) {
+    mockDb.bookProjects.getById.mockResolvedValue({
+      id: "book-1",
+      userId: "user-1",
+      sourceStoryId: "story-1",
+      profileId: "profile-1",
+      assets,
+    });
+    mockDb.stories.getById.mockResolvedValue({ id: "story-1", title: "Mila" });
+    mockDb.profiles.getById.mockResolvedValue({
+      id: "profile-1",
+      userId: "user-1",
+    });
+  }
+
+  async function get(url: string) {
+    const { GET } = await import("@/app/api/books/[id]/download/route");
+    return GET(new NextRequest(url), {
+      params: Promise.resolve({ id: "book-1" }),
+    });
+  }
+
+  it("serves an already-built coil cover without rebuilding it", async () => {
+    seedProject({
+      luluCoverPdfUrl: `data:application/pdf;base64,${Buffer.from("hardcover").toString("base64")}`,
+      luluFlatCoverPdfUrlByProduct: {
+        coil: `data:application/pdf;base64,${Buffer.from("coil cover").toString("base64")}`,
+      },
+    });
+
+    const res = await get(
+      "http://localhost/api/books/book-1/download?asset=luluCoverPdf&product=coil"
+    );
+
+    expect(res.status).toBe(200);
+    await expect(res.text()).resolves.toBe("coil cover");
+  });
+
+  it("defaults to the hardcover cover when no product is given", async () => {
+    seedProject({
+      luluCoverPdfUrl: `data:application/pdf;base64,${Buffer.from("hardcover").toString("base64")}`,
+      luluFlatCoverPdfUrlByProduct: {
+        coil: `data:application/pdf;base64,${Buffer.from("coil cover").toString("base64")}`,
+      },
+    });
+
+    const res = await get(
+      "http://localhost/api/books/book-1/download?asset=luluCoverPdf"
+    );
+
+    expect(res.status).toBe(200);
+    await expect(res.text()).resolves.toBe("hardcover");
+  });
+
+  it("rejects an unknown product rather than silently serving hardcover", async () => {
+    seedProject({
+      luluCoverPdfUrl: `data:application/pdf;base64,${Buffer.from("hardcover").toString("base64")}`,
+    });
+
+    const res = await get(
+      "http://localhost/api/books/book-1/download?asset=luluCoverPdf&product=leatherbound"
+    );
+
+    expect(res.status).toBe(400);
+  });
+
+  it("renders inline only when explicitly asked, so downloads stay the default", async () => {
+    seedProject({
+      luluCoverPdfUrl: `data:application/pdf;base64,${Buffer.from("hardcover").toString("base64")}`,
+    });
+
+    const attachment = await get(
+      "http://localhost/api/books/book-1/download?asset=luluCoverPdf"
+    );
+    expect(attachment.headers.get("content-disposition")).toContain(
+      "attachment"
+    );
+
+    const inline = await get(
+      "http://localhost/api/books/book-1/download?asset=luluCoverPdf&inline=1"
+    );
+    expect(inline.headers.get("content-disposition")).toContain("inline");
   });
 });

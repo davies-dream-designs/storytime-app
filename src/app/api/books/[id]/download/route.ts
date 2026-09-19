@@ -2,18 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { buildBookEpub } from "@/lib/print-books/epub";
+import { getLuluCoverPdfUrlForProduct } from "@/lib/print-books/lulu";
+import { isPrintProductKey, type PrintProductKey } from "@/lib/print-books/printProducts";
 import JSZip from "jszip";
 
 type AssetKey = "printPdf" | "epub" | "luluPrintPdf" | "luluCoverPdf" | "illustrationsZip";
 
 function getAsset(
   project: Awaited<ReturnType<typeof db.bookProjects.getById>>,
-  asset: AssetKey
+  asset: AssetKey,
+  productKey: PrintProductKey
 ) {
   if (!project) return undefined;
   if (asset === "printPdf") return project.assets.printPdfUrl;
   if (asset === "luluPrintPdf") return project.assets.luluPrintPdfUrl;
-  if (asset === "luluCoverPdf") return project.assets.luluCoverPdfUrl;
+  if (asset === "luluCoverPdf")
+    return getLuluCoverPdfUrlForProduct(project, productKey);
   return project.assets.epubUrl;
 }
 
@@ -30,7 +34,11 @@ function safeFilename(title: string, ext: string): string {
   return slug ? `${slug}.${ext}` : `storycot.${ext}`;
 }
 
-function getFilename(asset: AssetKey, storyTitle?: string): string {
+function getFilename(
+  asset: AssetKey,
+  storyTitle: string | undefined,
+  productKey: PrintProductKey
+): string {
   const ext = asset === "printPdf" ? "pdf" : "epub";
   if (asset === "luluPrintPdf") {
     return storyTitle
@@ -39,8 +47,8 @@ function getFilename(asset: AssetKey, storyTitle?: string): string {
   }
   if (asset === "luluCoverPdf") {
     return storyTitle
-      ? safeFilename(`${storyTitle} Lulu cover`, "pdf")
-      : "storycot-lulu-cover.pdf";
+      ? safeFilename(`${storyTitle} Lulu ${productKey} cover`, "pdf")
+      : `storycot-lulu-cover-${productKey}.pdf`;
   }
   if (storyTitle) return safeFilename(storyTitle, ext);
   return asset === "printPdf" ? "storycot-illustrated.pdf" : "storycot.epub";
@@ -82,14 +90,65 @@ export async function GET(
     return NextResponse.json({ error: "Invalid asset" }, { status: 400 });
   }
 
+  const productParam = req.nextUrl.searchParams.get("product");
+  if (productParam !== null && !isPrintProductKey(productParam)) {
+    return NextResponse.json({ error: "Invalid product" }, { status: 400 });
+  }
+  const productKey: PrintProductKey = productParam ?? "hardcover";
+
+  // Opt-in inline rendering so print files can be proofed in the browser's
+  // PDF viewer; downloads stay the default for customer-facing buttons.
+  const disposition =
+    req.nextUrl.searchParams.get("inline") === "1" ? "inline" : "attachment";
+
   const { id } = await params;
-  const project = await db.bookProjects.getById(id);
+  let project = await db.bookProjects.getById(id);
   if (!project || project.userId !== userId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   const story = await db.stories.getById(project.sourceStoryId);
-  const filename = getFilename(asset, story?.title);
+  const filename = getFilename(asset, story?.title, productKey);
+
+  // Paperback/coil covers are built lazily on first order, so before an order
+  // exists there is nothing to preview. Build it on demand here so covers can
+  // be proofed against Lulu's geometry before committing to a print run.
+  if (
+    asset === "luluCoverPdf" &&
+    productKey !== "hardcover" &&
+    !getLuluCoverPdfUrlForProduct(project, productKey)
+  ) {
+    const profile = await db.profiles.getById(project.profileId);
+    if (!story || !profile) {
+      return NextResponse.json(
+        { error: "Cannot build cover: source story or profile is missing." },
+        { status: 409 }
+      );
+    }
+    const { getOrCreateLuluCoverPdfUrl } = await import(
+      "@/lib/print-books/lazyCovers"
+    );
+    try {
+      await getOrCreateLuluCoverPdfUrl({
+        project,
+        story,
+        profile,
+        productKey,
+      });
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Failed to build cover PDF.",
+        },
+        { status: 502 }
+      );
+    }
+    const refreshed = await db.bookProjects.getById(id);
+    if (refreshed) project = refreshed;
+  }
 
   if (asset === "illustrationsZip") {
     const zip = new JSZip();
@@ -135,7 +194,7 @@ export async function GET(
     });
   }
 
-  const url = getAsset(project, asset);
+  const url = getAsset(project, asset, productKey);
   if (!url && asset === "epub" && story) {
     const profile = await db.profiles.getById(project.profileId);
     if (profile && profile.userId === userId) {
@@ -143,7 +202,7 @@ export async function GET(
       return new NextResponse(new Uint8Array(epub), {
         headers: {
           "Content-Type": getContentType(asset),
-          "Content-Disposition": `attachment; filename="${filename}"`,
+          "Content-Disposition": `${disposition}; filename="${filename}"`,
           "Cache-Control": "private, no-store",
         },
       });
@@ -177,7 +236,7 @@ export async function GET(
     return new NextResponse(blobRes.body ?? new Uint8Array(), {
       headers: {
         "Content-Type": getContentType(asset),
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": `${disposition}; filename="${filename}"`,
         "Cache-Control": "private, no-store",
       },
     });
@@ -194,7 +253,7 @@ export async function GET(
   return new NextResponse(new Uint8Array(parsed.body), {
     headers: {
       "Content-Type": parsed.contentType || getContentType(asset),
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": `${disposition}; filename="${filename}"`,
       "Cache-Control": "private, no-store",
     },
   });

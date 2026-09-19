@@ -13,6 +13,8 @@ import { inferBookAgeBand } from "@/lib/print-books/ageBand";
 import {
   getStorycotIllustrationCountForAgeBand,
   getStorycotPageCountForAgeBand,
+  PRINT_PRODUCTS,
+  PRINT_PRODUCT_KEYS,
 } from "@/lib/print-books/printProducts";
 import { estimateIllustratedBookCredits } from "@/lib/pricing";
 import { getUserCredits } from "@/lib/credits";
@@ -241,23 +243,39 @@ export default async function StoryPage({
                         Lulu interior missing
                       </button>
                     )}
-                    {existingBook.assets.luluCoverPdfUrl ? (
-                      <FileDownloadButton
-                        href={`/api/books/${existingBook.id}/download?asset=luluCoverPdf`}
-                        className="storycot-btn storycot-btn-secondary storycot-btn-compact"
-                        icon={<Icon name="file" />}
-                        label="Lulu cover"
-                        pendingLabel={tBooks("downloadStarting")}
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        disabled
-                        className="storycot-btn storycot-btn-secondary storycot-btn-compact opacity-50"
-                      >
-                        Lulu cover missing
-                      </button>
-                    )}
+                    {PRINT_PRODUCT_KEYS.map((productKey) => {
+                      const label = `Lulu ${PRINT_PRODUCTS[productKey].label.toLowerCase()} cover`;
+                      // Hardcover is built eagerly, so a missing URL means the
+                      // build genuinely hasn't produced it. Paperback/coil are
+                      // built on demand by the route, so they're always offered.
+                      if (
+                        productKey === "hardcover" &&
+                        !existingBook.assets.luluCoverPdfUrl
+                      ) {
+                        return (
+                          <button
+                            key={productKey}
+                            type="button"
+                            disabled
+                            className="storycot-btn storycot-btn-secondary storycot-btn-compact opacity-50"
+                          >
+                            {label} missing
+                          </button>
+                        );
+                      }
+                      return (
+                        <a
+                          key={productKey}
+                          href={`/api/books/${existingBook.id}/download?asset=luluCoverPdf&product=${productKey}&inline=1`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="storycot-btn storycot-btn-secondary storycot-btn-compact"
+                        >
+                          <Icon name="file" />
+                          {label}
+                        </a>
+                      );
+                    })}
                   </>
                 ) : null}
                 <DeleteStoryButton storyId={id} redirectTo="/stories" compact />
